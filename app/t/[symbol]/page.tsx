@@ -1,0 +1,385 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ChatPanel } from "@/components/ChatPanel";
+import { DigestFeed } from "@/components/DigestFeed";
+import { Markdown } from "@/components/Markdown";
+import { RunBanner } from "@/components/RunBanner";
+import { SignalCard } from "@/components/SignalCard";
+import { SuggestionCard } from "@/components/SuggestionCard";
+import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
+import type { DeskPayload, Run, Signal } from "@/lib/types";
+
+const STALE_MS = 20 * 3600_000;
+
+export default function DeskPage() {
+  const params = useParams<{ symbol: string }>();
+  const symbol = decodeURIComponent(params.symbol).toUpperCase();
+
+  const [desk, setDesk] = useState<DeskPayload | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const autoRan = useRef(false);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api<DeskPayload>(`/api/tickers/${encodeURIComponent(symbol)}`);
+      setDesk(data);
+    } catch {
+      setNotFound(true);
+    }
+  }, [symbol]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const running = desk?.latestRun?.status === "running";
+
+  // Poll fast while the agents are working, slowly otherwise.
+  useEffect(() => {
+    const t = setInterval(load, running || sending ? 2500 : 30_000);
+    return () => clearInterval(t);
+  }, [load, running, sending]);
+
+  const startRun = useCallback(async () => {
+    try {
+      await api<{ run: Run }>(`/api/tickers/${encodeURIComponent(symbol)}/run`, {
+        method: "POST",
+      });
+      load();
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "Failed to start run");
+    }
+  }, [symbol, load]);
+
+  // Daily regeneration: when a set-up desk is opened and its research is stale, run it.
+  useEffect(() => {
+    if (!desk || autoRan.current) return;
+    const { ticker, active, latestRun } = desk;
+    const stale = !ticker.lastRunAt || Date.now() - Date.parse(ticker.lastRunAt) > STALE_MS;
+    if (ticker.onboarded && active.length > 0 && latestRun?.status !== "running" && stale) {
+      autoRan.current = true;
+      startRun();
+    }
+  }, [desk, startRun]);
+
+  async function sendChat(text: string) {
+    setSending(true);
+    setChatError(null);
+    // optimistic user bubble
+    setDesk((d) =>
+      d
+        ? {
+            ...d,
+            messages: [
+              ...d.messages,
+              {
+                id: "optimistic",
+                symbol,
+                role: "user",
+                content: text,
+                proposalIds: [],
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : d
+    );
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ message: text }),
+      });
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "Chat failed");
+    } finally {
+      setSending(false);
+      load();
+    }
+  }
+
+  // Re-run the analyst on the already-saved conversation (after a failure).
+  async function retryChat() {
+    setSending(true);
+    setChatError(null);
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ retry: true }),
+      });
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "Chat failed");
+    } finally {
+      setSending(false);
+      load();
+    }
+  }
+
+  async function act(id: string, action: "approve" | "dismiss" | "retire") {
+    setActingId(id);
+    try {
+      const res = await api<{ onboardedNow?: boolean }>(`/api/signals/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action }),
+      });
+      await load();
+      // First approval activates the desk — kick off the first research run.
+      if (res.onboardedNow) {
+        autoRan.current = true;
+        startRun();
+      }
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  const signalsById = useMemo(() => {
+    const m = new Map<string, Signal>();
+    if (desk) {
+      for (const s of [...desk.active, ...desk.suggested, ...desk.retired]) m.set(s.id, s);
+    }
+    return m;
+  }, [desk]);
+
+  const grouped = useMemo(() => {
+    if (!desk) return [];
+    const order = desk.focusAreas.map((f) => f.title);
+    const groups = new Map<string, typeof desk.active>();
+    for (const s of desk.active) {
+      const key = s.focusArea || "Other";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(s);
+    }
+    return [...groups.entries()].sort(
+      (a, b) =>
+        (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
+        (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0]))
+    );
+  }, [desk]);
+
+  if (notFound) {
+    return (
+      <main className="mx-auto max-w-2xl px-5 py-20 text-center">
+        <p className="text-lg font-medium">Desk not found</p>
+        <Link href="/" className="text-accent text-sm mt-2 inline-block">
+          ← Back to watchlist
+        </Link>
+      </main>
+    );
+  }
+  if (!desk) {
+    return (
+      <main className="mx-auto max-w-2xl px-5 py-20 text-center text-muted text-sm">
+        Opening the {symbol} desk…
+      </main>
+    );
+  }
+
+  const { ticker, quote, latestRun, suggested } = desk;
+  const up = (quote?.changePercent ?? 0) >= 0;
+  const onboarding = !ticker.onboarded;
+
+  const header = (
+    <header className="flex items-center gap-4 flex-wrap">
+      <Link
+        href="/"
+        className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity"
+      >
+        ‹ Watchlist
+      </Link>
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
+        <p className="text-muted text-xs truncate">{ticker.name}</p>
+      </div>
+      <div className="flex items-center gap-2 ml-auto">
+        {quote?.price != null && (
+          <>
+            <span className="font-semibold tabular-nums">{fmtPrice(quote.price, quote.currency)}</span>
+            <span
+              className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums text-black ${up ? "bg-gain" : "bg-loss"}`}
+            >
+              {fmtPct(quote.changePercent)}
+            </span>
+          </>
+        )}
+        {!onboarding && (
+          <button
+            onClick={startRun}
+            disabled={running}
+            className="rounded-lg bg-white/8 hover:bg-white/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
+          >
+            {running ? "Researching…" : "Run research now"}
+          </button>
+        )}
+      </div>
+    </header>
+  );
+
+  if (onboarding) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-5 py-8 flex-1 flex flex-col gap-5">
+        {header}
+        <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 text-sm">
+          <span className="font-semibold">Desk setup.</span>{" "}
+          <span className="text-[#c7c7cc]">
+            Tell the analyst what you want to understand about {ticker.name}. It will propose focus
+            areas and trackable signals — approve the ones you want, and the first research run
+            starts automatically.
+          </span>
+        </div>
+
+        {suggested.length > 0 && (
+          <section>
+            <SectionTitle>
+              Proposed signal board <Badge>{suggested.length} awaiting approval</Badge>
+            </SectionTitle>
+            <div className="grid sm:grid-cols-2 gap-3 mt-2">
+              {suggested.map((s) => (
+                <SuggestionCard key={s.id} signal={s} busy={actingId === s.id} onAct={act} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <ChatPanel
+          messages={desk.messages}
+          signalsById={signalsById}
+          sending={sending}
+          showLensChips={desk.messages.filter((m) => m.role === "user").length === 0}
+          onSend={sendChat}
+          onAct={act}
+          actingId={actingId}
+          error={chatError}
+          onRetry={retryChat}
+          tall
+        />
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
+      {header}
+
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        {/* left column */}
+        <div className="space-y-5 min-w-0">
+          {latestRun && (latestRun.status === "running" || latestRun.status === "error") && (
+            <RunBanner run={latestRun} onRetry={startRun} />
+          )}
+
+          <section className="rounded-2xl bg-card border border-hairline p-5">
+            <SectionTitle>
+              Today’s brief
+              {latestRun?.finishedAt && (
+                <span className="text-[10px] text-muted font-normal normal-case tracking-normal ml-auto">
+                  updated {timeAgo(latestRun.finishedAt)}
+                </span>
+              )}
+            </SectionTitle>
+            {latestRun?.brief ? (
+              <div className="mt-2">
+                <Markdown>{latestRun.brief}</Markdown>
+              </div>
+            ) : (
+              <p className="text-muted text-xs italic mt-2">
+                {running
+                  ? "The desk is preparing its first brief…"
+                  : "No brief yet — run today’s research."}
+              </p>
+            )}
+            {desk.digest.length > 0 && (
+              <>
+                <div className="border-t border-hairline my-4" />
+                <SectionTitle>Evidence feed</SectionTitle>
+                <div className="mt-3">
+                  <DigestFeed items={desk.digest.slice(0, 10)} />
+                </div>
+              </>
+            )}
+          </section>
+
+          {suggested.length > 0 && (
+            <section>
+              <SectionTitle>
+                Analyst proposals <Badge>{suggested.length} awaiting your approval</Badge>
+              </SectionTitle>
+              <p className="text-[11px] text-muted mt-1">
+                The desk rediscovers candidate signals as the story evolves — nothing is tracked
+                without your sign-off.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                {suggested.map((s) => (
+                  <SuggestionCard key={s.id} signal={s} busy={actingId === s.id} onAct={act} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <SectionTitle>Signal board</SectionTitle>
+            {grouped.length === 0 && (
+              <p className="text-muted text-xs italic mt-2">No active signals.</p>
+            )}
+            <div className="space-y-5 mt-2">
+              {grouped.map(([area, signals]) => {
+                const fa = desk.focusAreas.find((f) => f.title === area);
+                return (
+                  <div key={area}>
+                    <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+                      {area}
+                    </h3>
+                    {fa?.description && (
+                      <p className="text-[11px] text-muted/80 mt-0.5">{fa.description}</p>
+                    )}
+                    <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                      {signals.map((s) => (
+                        <SignalCard key={s.id} signal={s} onRetire={(id) => act(id, "retire")} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* right column: the human-feedback loop */}
+        <div className="lg:sticky lg:top-6 h-[82vh] min-h-[480px]">
+          <ChatPanel
+            messages={desk.messages}
+            signalsById={signalsById}
+            sending={sending}
+            showLensChips={false}
+            onSend={sendChat}
+            onAct={act}
+            actingId={actingId}
+            error={chatError}
+            onRetry={retryChat}
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
+      {children}
+    </h2>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+      {children}
+    </span>
+  );
+}
