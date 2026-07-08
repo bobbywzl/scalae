@@ -1,5 +1,6 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
+import { domainOf } from "./citations";
 import type {
   Attachment,
   ChatMessage,
@@ -10,6 +11,7 @@ import type {
   Run,
   Signal,
   SignalProposal,
+  SignalSource,
   SignalStatus,
   Ticker,
 } from "./types";
@@ -262,6 +264,74 @@ export async function readingsForSignal(signalId: string, limit = 30): Promise<R
   const rows = await q<ReadingRow>`
     SELECT * FROM readings WHERE "signalId" = ${signalId} ORDER BY date DESC LIMIT ${limit}`;
   return rows.map(parseReading);
+}
+
+/**
+ * The accumulated source catalog for every active signal of a symbol, in a
+ * single query: every citation from every reading, deduped by URL per signal,
+ * tracking first/last-seen dates, citation count, and the union of sweeps that
+ * surfaced it. This is the signal's evidence base — it grows as daily runs add
+ * or re-corroborate sources. Returned freshest-first (most recently cited).
+ */
+export async function sourcesForSignals(symbol: string): Promise<Map<string, SignalSource[]>> {
+  const rows = await q<{ signalId: string; date: string; citations: string }>`
+    SELECT r."signalId", r.date, r.citations
+    FROM readings r JOIN signals s ON s.id = r."signalId"
+    WHERE s.symbol = ${symbol}
+    ORDER BY r.date ASC`;
+
+  const bySignal = new Map<string, Map<string, SignalSource>>();
+  for (const row of rows) {
+    let cites: Citation[];
+    try {
+      cites = JSON.parse(row.citations) as Citation[];
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(cites) || cites.length === 0) continue;
+    let urlMap = bySignal.get(row.signalId);
+    if (!urlMap) {
+      urlMap = new Map();
+      bySignal.set(row.signalId, urlMap);
+    }
+    const seenThisReading = new Set<string>();
+    for (const c of cites) {
+      if (!c?.url || seenThisReading.has(c.url)) continue;
+      seenThisReading.add(c.url);
+      const existing = urlMap.get(c.url);
+      if (existing) {
+        existing.count += 1;
+        if (row.date > existing.lastSeen) existing.lastSeen = row.date;
+        if (row.date < existing.firstSeen) existing.firstSeen = row.date;
+        // Prefer a richer (longer) title as the human-readable label.
+        if (c.title && c.title.length > existing.title.length) existing.title = c.title;
+        for (const fb of c.foundBy ?? []) {
+          if (!existing.foundBy.includes(fb)) existing.foundBy.push(fb);
+        }
+      } else {
+        urlMap.set(c.url, {
+          title: c.title || domainOf(c),
+          url: c.url,
+          domain: domainOf(c),
+          foundBy: [...(c.foundBy ?? [])],
+          firstSeen: row.date,
+          lastSeen: row.date,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const out = new Map<string, SignalSource[]>();
+  for (const [signalId, urlMap] of bySignal) {
+    out.set(
+      signalId,
+      [...urlMap.values()].sort(
+        (a, b) => b.lastSeen.localeCompare(a.lastSeen) || b.firstSeen.localeCompare(a.firstSeen)
+      )
+    );
+  }
+  return out;
 }
 
 // ---------- digest ----------

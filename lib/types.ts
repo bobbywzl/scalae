@@ -129,9 +129,30 @@ export interface Quote {
   spark: number[];
 }
 
+/**
+ * One distinct source in a signal's accumulated evidence catalog — deduped
+ * across every reading in the signal's history, so the list grows as each
+ * daily run corroborates or adds sources.
+ */
+export interface SignalSource {
+  title: string;
+  url: string;
+  domain: string;
+  /** Research sweeps that surfaced this source, unioned across readings. */
+  foundBy: string[];
+  /** Date this source first entered the signal's evidence (ISO). */
+  firstSeen: string;
+  /** Most recent reading that cited it (ISO). */
+  lastSeen: string;
+  /** How many of the signal's readings have cited it. */
+  count: number;
+}
+
 export interface SignalWithReadings extends Signal {
   latest: Reading | null;
   history: Reading[];
+  /** Accumulated, deduped source catalog across all readings (freshest first). */
+  sources: SignalSource[];
 }
 
 /** Full payload for the ticker detail page. */

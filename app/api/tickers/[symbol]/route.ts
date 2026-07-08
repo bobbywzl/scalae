@@ -9,6 +9,7 @@ import {
   reapStuckRuns,
   recentDigest,
   removeTicker,
+  sourcesForSignals,
 } from "@/lib/db";
 import { getQuote } from "@/lib/market";
 import type { DeskPayload, SignalWithReadings } from "@/lib/types";
@@ -22,7 +23,7 @@ export async function GET(_req: Request, { params }: Params) {
   if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await reapStuckRuns(symbol);
-  const [quote, activeSignals, focusAreas, suggested, retired, run, digest, messages] =
+  const [quote, activeSignals, focusAreas, suggested, retired, run, digest, messages, sourcesMap] =
     await Promise.all([
       getQuote(symbol),
       listSignals(symbol, "active"),
@@ -32,12 +33,13 @@ export async function GET(_req: Request, { params }: Params) {
       latestRun(symbol),
       recentDigest(symbol),
       listMessages(symbol),
+      sourcesForSignals(symbol),
     ]);
 
   const active: SignalWithReadings[] = await Promise.all(
     activeSignals.map(async (s) => {
       const history = await readingsForSignal(s.id, 20);
-      return { ...s, latest: history[0] ?? null, history };
+      return { ...s, latest: history[0] ?? null, history, sources: sourcesMap.get(s.id) ?? [] };
     })
   );
 

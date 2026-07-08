@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { domainOf } from "@/lib/citations";
-import type { Citation, SignalWithReadings } from "@/lib/types";
+import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
 import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
 
 function ConfidenceDots({ value }: { value: number }) {
@@ -18,6 +18,11 @@ function ConfidenceDots({ value }: { value: number }) {
     </span>
   );
 }
+
+const fmtDay = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
 
 /** Clickable source chip showing the domain (e.g. "fastretailing.com"). */
 function SourceChip({ citation }: { citation: Citation }) {
@@ -35,29 +40,94 @@ function SourceChip({ citation }: { citation: Citation }) {
   );
 }
 
-/** Full source list with titles and which research sweep surfaced each one. */
-function SourceList({ citations }: { citations: Citation[] }) {
+/**
+ * The signal's full evidence catalog — every source it has accumulated across
+ * daily runs, deduped and freshest-first. Grows over time as research enriches
+ * the signal. Opened from the "N sources" count on the card.
+ */
+function SourcesModal({
+  name,
+  sources,
+  onClose,
+}: {
+  name: string;
+  sources: SignalSource[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
   return (
-    <ul className="space-y-1.5">
-      {citations.map((c, i) => (
-        <li key={i} className="text-[11px] leading-snug">
-          <a
-            href={c.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent/90 hover:underline"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl bg-card border border-white/15 shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate">{name}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
+              Evidence catalog · {sources.length} {sources.length === 1 ? "source" : "sources"} · grows with each run
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-auto shrink-0 rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-2 py-1 text-[11px] text-[#c7c7cc] transition-colors"
           >
-            {c.title.length > 70 ? c.title.slice(0, 70) + "…" : c.title}
-          </a>
-          <span className="text-muted"> — {domainOf(c)}</span>
-          {c.foundBy && c.foundBy.length > 0 && (
-            <span className="block text-[10px] text-muted/70">
-              via {c.foundBy.join(" · ")}
-            </span>
-          )}
-        </li>
-      ))}
-    </ul>
+            Close
+          </button>
+        </div>
+        <ul className="overflow-y-auto px-4 py-3 space-y-3">
+          {sources.map((s, i) => (
+            <li key={i} className="text-xs">
+              <div className="flex items-baseline gap-2">
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-accent/90 hover:underline truncate"
+                >
+                  {s.domain}
+                </a>
+                {s.count > 1 && (
+                  <span
+                    className="shrink-0 rounded-full bg-white/8 px-1.5 py-px text-[9px] text-muted"
+                    title={`Cited in ${s.count} readings`}
+                  >
+                    ×{s.count}
+                  </span>
+                )}
+              </div>
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block text-[#c7c7cc] hover:text-white leading-snug mt-0.5"
+              >
+                {s.title.length > 110 ? s.title.slice(0, 110) + "…" : s.title}
+              </a>
+              <p className="text-[10px] text-muted mt-0.5">
+                added {fmtDay(s.firstSeen)}
+                {s.lastSeen !== s.firstSeen && ` · last cited ${fmtDay(s.lastSeen)}`}
+                {s.foundBy.length > 0 && ` · via ${s.foundBy.join(" · ")}`}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -69,9 +139,11 @@ export function SignalCard({
   onRetire: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const r = signal.latest;
   const level = r ? LEVEL_STYLE[r.level] : null;
   const delta = r ? DELTA_ARROW[r.delta] : null;
+  const sources = signal.sources ?? [];
 
   return (
     <div
@@ -108,6 +180,18 @@ export function SignalCard({
             <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
               <ConfidenceDots value={r.confidence} />
               <span>{timeAgo(r.date)}</span>
+              {sources.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSourcesOpen(true);
+                  }}
+                  className="text-accent/90 hover:text-accent hover:underline transition-colors"
+                  title="View all sources this signal has accumulated"
+                >
+                  🔗 {sources.length} {sources.length === 1 ? "source" : "sources"}
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -115,18 +199,18 @@ export function SignalCard({
         )}
       </button>
 
-      {/* Evidence map: the exact sources behind the latest reading. */}
-      {r && r.citations.length > 0 && !open && (
+      {/* Evidence at a glance: the freshest sources; the count above opens all. */}
+      {!open && sources.length > 0 && (
         <div className="px-4 pb-3 -mt-0.5 flex flex-wrap items-center gap-1.5">
-          {r.citations.slice(0, 3).map((c, i) => (
-            <SourceChip key={i} citation={c} />
+          {sources.slice(0, 3).map((s, i) => (
+            <SourceChip key={i} citation={s} />
           ))}
-          {r.citations.length > 3 && (
+          {sources.length > 3 && (
             <button
-              onClick={() => setOpen(true)}
+              onClick={() => setSourcesOpen(true)}
               className="text-[10px] text-muted hover:text-[#c7c7cc] transition-colors"
             >
-              +{r.citations.length - 3} more
+              +{sources.length - 3} more
             </button>
           )}
         </div>
@@ -143,12 +227,22 @@ export function SignalCard({
             <p className="text-xs text-[#c7c7cc]">{signal.measurementPlan}</p>
             {signal.scale && <p className="text-[11px] text-muted mt-1">Scale: {signal.scale}</p>}
           </div>
-          {r && r.citations.length > 0 && (
+          {sources.length > 0 && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">
-                Sources behind the latest reading
+                Evidence catalog
               </p>
-              <SourceList citations={r.citations} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                {sources.slice(0, 6).map((s, i) => (
+                  <SourceChip key={i} citation={s} />
+                ))}
+                <button
+                  onClick={() => setSourcesOpen(true)}
+                  className="rounded-full border border-accent/30 bg-accent/10 hover:bg-accent/20 px-2 py-0.5 text-[10px] text-accent transition-colors"
+                >
+                  View all {sources.length}
+                </button>
+              </div>
             </div>
           )}
           {signal.history.length > 0 && (
@@ -197,6 +291,10 @@ export function SignalCard({
             Retire this signal
           </button>
         </div>
+      )}
+
+      {sourcesOpen && (
+        <SourcesModal name={signal.name} sources={sources} onClose={() => setSourcesOpen(false)} />
       )}
     </div>
   );
