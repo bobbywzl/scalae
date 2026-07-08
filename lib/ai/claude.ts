@@ -6,15 +6,17 @@ const g = globalThis as unknown as { __anthropic?: Anthropic };
 const client = g.__anthropic ?? (g.__anthropic = new Anthropic({ maxRetries: 3 }));
 
 /**
- * Model per pipeline stage (see README "Why these models"). Benchmarks and the
- * Anthropic model catalog (July 2026) put Claude Fable 5 — the most capable
- * generally available Claude — on the deep daily synthesis, where extracting
- * decision-relevant insight from a large evidence dump is the whole job, and
- * Claude Opus 4.8 on interactive chat + mid-run triage, where frontier quality
- * matters but turns must stay fast. Each is overridable via env.
+ * Model per pipeline stage (see README "Why these models"), all env-overridable.
+ * Claude Sonnet 5 runs the deep daily synthesis: near-Opus analytical quality
+ * on long-context reasoning at Sonnet cost and speed, with no data-retention
+ * constraint — the right default for the run's one heavy insight-extraction
+ * call. Claude Opus 4.8 handles interactive chat + mid-run triage. Override
+ * CLAUDE_SYNTHESIS_MODEL with claude-opus-4-8 or claude-fable-5 to trade cost
+ * for the top tier (a Fable/Mythos override auto-gets the refusal fallback
+ * wired below).
  */
 export const SYNTHESIS_MODEL =
-  process.env.CLAUDE_SYNTHESIS_MODEL || process.env.CLAUDE_MODEL || "claude-fable-5";
+  process.env.CLAUDE_SYNTHESIS_MODEL || process.env.CLAUDE_MODEL || "claude-sonnet-5";
 export const CHAT_MODEL =
   process.env.CLAUDE_CHAT_MODEL || process.env.CLAUDE_MODEL || "claude-opus-4-8";
 export const TRIAGE_MODEL = process.env.CLAUDE_TRIAGE_MODEL || CHAT_MODEL;

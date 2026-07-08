@@ -50,7 +50,7 @@ The stages have different jobs, so they use different models (all env-overridabl
 | Breadth scouts (parallel) | `gemini-3.5-flash` | Native Google-Search grounding returns per-claim source metadata no competitor matches; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price — right for the 6–10 sweeps that run in parallel each cycle. |
 | Deep-dive scouts | `gemini-3.1-pro-preview` | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of commissioned probes that cross-check conflicting primary sources. |
 | Gap triage | `claude-opus-4-8` | Frontier judgment, fast turns — decides what's worth a deep dive between the two scout waves. |
-| Deep synthesis | `claude-fable-5` | The one quality-critical call of the run: extracting decision-relevant *insight* (not summary) from a large evidence dump. #1 on HLE, GDPval-AA knowledge-work, the Vals Index, and 1M-token retrieval, with the largest lead on long analytical tasks. Auto-falls back to `claude-opus-4-8` on the rare safety refusal. |
+| Deep synthesis | `claude-sonnet-5` | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump. Sonnet 5 delivers near-Opus long-context analytical reasoning at Sonnet cost and speed, with no data-retention constraint. Step up to `claude-opus-4-8` or `claude-fable-5` (top of HLE / GDPval-AA / Vals Index / 1M retrieval) via `CLAUDE_SYNTHESIS_MODEL` when you want the ceiling; a Fable/Mythos override auto-falls back to `claude-opus-4-8` on the rare safety refusal. |
 | Analyst-desk chat | `claude-opus-4-8` | Frontier quality with fast interactive turns; reads attachments (images, PDFs, text) natively. |
 
 Both research stages keep Gemini's native grounding on the `generateContent` endpoint (now labelled "legacy" but fully supported). Synthesis stays on Claude because long-context analytical insight-extraction is exactly where it leads the field — no benchmark supported switching providers for either stage.
@@ -80,11 +80,11 @@ The model defaults are set per stage in code (see **Why these models**); overrid
 
 ## Cost & latency note
 
-The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: a handful of parallel breadth sweeps (per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one Fable-5 synthesis. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries; synthesis is one large Claude call. To trim: set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8` (roughly half the synthesis cost, faster turns) and/or point both Gemini tiers at `gemini-3.5-flash`. Research runs execute inside the route's `maxDuration` (800s, clamped to your Vercel plan) via `after()`; transient Anthropic overloads (429/529) retry with backoff, and chat failures keep your message with one-click retry.
+The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: a handful of parallel breadth sweeps (per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one Sonnet-5 synthesis. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries; synthesis is one large Claude call. To go bigger, set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8` or `claude-fable-5` for the top tier; to trim scout cost, point both Gemini tiers at `gemini-3.5-flash`. Research runs execute inside the route's `maxDuration` (800s, clamped to your Vercel plan) via `after()`; transient Anthropic overloads (429/529) retry with backoff, and chat failures keep your message with one-click retry.
 
 ## Deploying
 
-Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set), set the env vars, and — for `claude-fable-5` synthesis — ensure the Anthropic org meets Fable 5's 30-day data-retention requirement (or set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8`).
+Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set) and set the env vars. The default models have no special account requirements; only if you override synthesis to `claude-fable-5` must the Anthropic org meet Fable 5's 30-day data-retention requirement (not available under ZDR).
 
 ---
 
