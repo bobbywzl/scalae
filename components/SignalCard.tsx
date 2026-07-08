@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { SignalWithReadings } from "@/lib/types";
+import { domainOf } from "@/lib/citations";
+import type { Citation, SignalWithReadings } from "@/lib/types";
 import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
 
 function ConfidenceDots({ value }: { value: number }) {
@@ -15,6 +16,48 @@ function ConfidenceDots({ value }: { value: number }) {
         />
       ))}
     </span>
+  );
+}
+
+/** Clickable source chip showing the domain (e.g. "fastretailing.com"). */
+function SourceChip({ citation }: { citation: Citation }) {
+  return (
+    <a
+      href={citation.url}
+      target="_blank"
+      rel="noreferrer"
+      title={citation.title}
+      onClick={(e) => e.stopPropagation()}
+      className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 hover:border-white/25 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[160px] truncate"
+    >
+      {domainOf(citation)}
+    </a>
+  );
+}
+
+/** Full source list with titles and which research sweep surfaced each one. */
+function SourceList({ citations }: { citations: Citation[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {citations.map((c, i) => (
+        <li key={i} className="text-[11px] leading-snug">
+          <a
+            href={c.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent/90 hover:underline"
+          >
+            {c.title.length > 70 ? c.title.slice(0, 70) + "…" : c.title}
+          </a>
+          <span className="text-muted"> — {domainOf(c)}</span>
+          {c.foundBy && c.foundBy.length > 0 && (
+            <span className="block text-[10px] text-muted/70">
+              via {c.foundBy.join(" · ")}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -65,13 +108,29 @@ export function SignalCard({
             <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
               <ConfidenceDots value={r.confidence} />
               <span>{timeAgo(r.date)}</span>
-              {r.citations.length > 0 && <span>{r.citations.length} sources</span>}
             </div>
           </>
         ) : (
           <p className="mt-2 text-xs text-muted italic">Awaiting first research run.</p>
         )}
       </button>
+
+      {/* Evidence map: the exact sources behind the latest reading. */}
+      {r && r.citations.length > 0 && !open && (
+        <div className="px-4 pb-3 -mt-0.5 flex flex-wrap items-center gap-1.5">
+          {r.citations.slice(0, 3).map((c, i) => (
+            <SourceChip key={i} citation={c} />
+          ))}
+          {r.citations.length > 3 && (
+            <button
+              onClick={() => setOpen(true)}
+              className="text-[10px] text-muted hover:text-[#c7c7cc] transition-colors"
+            >
+              +{r.citations.length - 3} more
+            </button>
+          )}
+        </div>
+      )}
 
       {open && (
         <div className="border-t border-hairline px-4 py-3 space-y-3">
@@ -84,6 +143,14 @@ export function SignalCard({
             <p className="text-xs text-[#c7c7cc]">{signal.measurementPlan}</p>
             {signal.scale && <p className="text-[11px] text-muted mt-1">Scale: {signal.scale}</p>}
           </div>
+          {r && r.citations.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">
+                Sources behind the latest reading
+              </p>
+              <SourceList citations={r.citations} />
+            </div>
+          )}
           {signal.history.length > 0 && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">History</p>
@@ -110,9 +177,10 @@ export function SignalCard({
                             href={c.url}
                             target="_blank"
                             rel="noreferrer"
+                            title={c.foundBy?.length ? `via ${c.foundBy.join(" · ")}` : c.title}
                             className="text-accent/90 hover:underline text-[11px]"
                           >
-                            {c.title.length > 40 ? c.title.slice(0, 40) + "…" : c.title}
+                            {domainOf(c)}
                           </a>
                         ))}
                       </p>

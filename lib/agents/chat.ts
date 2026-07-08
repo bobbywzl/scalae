@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { claudeJSON } from "../ai/claude";
+import { CHAT_MODEL, claudeJSON } from "../ai/claude";
 import {
   analystPersona,
   CHAT_SCHEMA,
@@ -12,7 +12,7 @@ import {
   insertProposal,
   latestRun,
   listFocusAreas,
-  listMessages,
+  listMessagesWithAttachments,
   listSignals,
   markOnboarded,
   readingsForSignal,
@@ -20,7 +20,7 @@ import {
   upsertFocusArea,
 } from "../db";
 import { getQuote, quoteLine } from "../market";
-import type { ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
+import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
 
 interface ChatOutput {
   reply: string;
@@ -52,22 +52,101 @@ If you're not sure where to start, just say so — I'll size up what kind of bus
 Nothing goes live without your sign-off: I'll propose focus areas and specific trackable signals, and you approve or reject each one. Once the desk is live you can also just tell me here to approve or retire signals, or to run the research now.`;
 }
 
+// ---------------------------------------------------------------------------
+// Attachments → Claude content blocks
+// ---------------------------------------------------------------------------
+
+const IMAGE_MEDIA = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+/** How many recent user messages keep their attachment payloads inlined. */
+const RECENT_ATTACHMENT_TURNS = 8;
+/** Total base64/text budget per model request across all inlined attachments. */
+const ATTACHMENT_BUDGET = 9_000_000;
+
+function attachmentBlocks(atts: Attachment[]): Anthropic.ContentBlockParam[] {
+  const blocks: Anthropic.ContentBlockParam[] = [];
+  for (const a of atts) {
+    if (!a.data) continue;
+    if (a.kind === "image" && IMAGE_MEDIA.has(a.mediaType)) {
+      blocks.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: a.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+          data: a.data,
+        },
+      });
+    } else if (a.kind === "pdf") {
+      blocks.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: a.data },
+      });
+    } else if (a.kind === "text") {
+      blocks.push({
+        type: "text",
+        text: `--- Attached file: ${a.name} ---\n${a.data}\n--- End of attached file: ${a.name} ---`,
+      });
+    }
+  }
+  return blocks;
+}
+
+/**
+ * Map stored history to model messages. Recent user turns keep their full
+ * attachment payloads (within a size budget, newest first); older ones are
+ * replaced with a filename note so long threads stay affordable.
+ */
+function historyToMessages(history: ChatMessage[]): Anthropic.MessageParam[] {
+  const withData = new Set<string>();
+  let budget = ATTACHMENT_BUDGET;
+  let seen = 0;
+  for (let i = history.length - 1; i >= 0 && seen < RECENT_ATTACHMENT_TURNS; i--) {
+    const m = history[i];
+    if (m.role !== "user" || m.attachments.length === 0) continue;
+    seen++;
+    const size = m.attachments.reduce((n, a) => n + (a.data?.length ?? 0), 0);
+    if (size <= budget) {
+      withData.add(m.id);
+      budget -= size;
+    }
+  }
+
+  return history.map((m): Anthropic.MessageParam => {
+    const atts = m.attachments ?? [];
+    if (m.role === "user" && atts.length > 0) {
+      if (withData.has(m.id)) {
+        const blocks = attachmentBlocks(atts);
+        if (m.content.trim()) blocks.push({ type: "text", text: m.content });
+        if (blocks.length > 0) return { role: "user", content: blocks };
+      }
+      const names = atts.map((a) => `${a.name} (${a.kind})`).join(", ");
+      return {
+        role: "user",
+        content: `${m.content}\n[Attached earlier, no longer inlined: ${names}]`.trim(),
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
+}
+
 /**
  * Handle one chat turn. The analyst can converse, propose signals/focus areas
  * (which land in the approval queue), and — only on the investor's explicit
  * ask — approve/dismiss pending proposals, retire active signals, or start a
  * research run. Set `retry` to re-run the analyst on existing history after a
- * failure, without adding a new user message.
+ * failure, without adding a new user message. Attachments (images, PDFs, text
+ * files) ride along as first-class evidence.
  */
 export async function handleChatTurn(
   symbol: string,
   userText: string,
-  opts: { retry?: boolean } = {}
+  opts: { retry?: boolean; attachments?: Attachment[] } = {}
 ): Promise<ChatTurnResult> {
   const ticker = await getTicker(symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
 
-  if (!opts.retry) await insertMessage(symbol, "user", userText);
+  if (!opts.retry) {
+    await insertMessage(symbol, "user", userText, [], opts.attachments ?? []);
+  }
 
   const mode = ticker.onboarded ? "working" : "onboarding";
   const [focusAreas, active, suggested, dismissed, retired, run, quote] = await Promise.all([
@@ -124,17 +203,17 @@ ${QUESTION_METHOD}
 
 ${SIGNAL_GUIDANCE}
 
+ATTACHMENTS: The investor can attach images (charts, product photos, screenshots), PDFs (filings, reports, broker notes) and text files. Treat them as first-class evidence: read them through the desk's lenses, tie what you find to the active board by signal name, and propose new trackable signals when a document reveals a thread the board misses (approval-gated as always). Refer to an attachment by its filename when you rely on it.
+
 ${deskContext}
 
 ${modeInstructions}`;
 
-  const history = (await listMessages(symbol, 40)).slice(-16);
-  const messages: Anthropic.MessageParam[] = history.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  const history = (await listMessagesWithAttachments(symbol, 40)).slice(-16);
+  const messages = historyToMessages(history);
 
   const out = await claudeJSON<ChatOutput>({
+    model: CHAT_MODEL,
     system,
     messages,
     schema: CHAT_SCHEMA as unknown as Record<string, unknown>,

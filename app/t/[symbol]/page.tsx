@@ -10,7 +10,7 @@ import { RunBanner } from "@/components/RunBanner";
 import { SignalCard } from "@/components/SignalCard";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
-import type { DeskPayload, Run, Signal } from "@/lib/types";
+import type { Attachment, DeskPayload, Run, Signal } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
 
@@ -23,7 +23,22 @@ export default function DeskPage() {
   const [sending, setSending] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [fullDesk, setFullDesk] = useState(false);
   const autoRan = useRef(false);
+
+  // Full-screen analyst desk: Esc exits, page scroll locks underneath.
+  useEffect(() => {
+    if (!fullDesk) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullDesk(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [fullDesk]);
 
   const load = useCallback(async () => {
     try {
@@ -68,10 +83,10 @@ export default function DeskPage() {
     }
   }, [desk, startRun]);
 
-  async function sendChat(text: string) {
+  async function sendChat(text: string, attachments: Attachment[] = []) {
     setSending(true);
     setChatError(null);
-    // optimistic user bubble
+    // optimistic user bubble (attachment data included so thumbnails render)
     setDesk((d) =>
       d
         ? {
@@ -84,6 +99,7 @@ export default function DeskPage() {
                 role: "user",
                 content: text,
                 proposalIds: [],
+                attachments,
                 createdAt: new Date().toISOString(),
               },
             ],
@@ -93,7 +109,7 @@ export default function DeskPage() {
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
         method: "POST",
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, attachments }),
       });
     } catch (e) {
       setChatError(e instanceof Error ? e.message : "Chat failed");
@@ -246,18 +262,39 @@ export default function DeskPage() {
           </section>
         )}
 
-        <ChatPanel
-          messages={desk.messages}
-          signalsById={signalsById}
-          sending={sending}
-          showLensChips={desk.messages.filter((m) => m.role === "user").length === 0}
-          onSend={sendChat}
-          onAct={act}
-          actingId={actingId}
-          error={chatError}
-          onRetry={retryChat}
-          tall
-        />
+        <div
+          className={
+            fullDesk
+              ? "fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-4 sm:p-6"
+              : ""
+          }
+        >
+          {fullDesk && (
+            <FullDeskBar
+              symbol={ticker.symbol}
+              name={ticker.name}
+              quote={quote}
+              running={running}
+              onClose={() => setFullDesk(false)}
+            />
+          )}
+          <div className={fullDesk ? "flex-1 min-h-0 w-full max-w-3xl mx-auto" : ""}>
+            <ChatPanel
+              messages={desk.messages}
+              signalsById={signalsById}
+              sending={sending}
+              showLensChips={desk.messages.filter((m) => m.role === "user").length === 0}
+              onSend={sendChat}
+              onAct={act}
+              actingId={actingId}
+              error={chatError}
+              onRetry={retryChat}
+              tall={!fullDesk}
+              expanded={fullDesk}
+              onToggleExpand={() => setFullDesk((v) => !v)}
+            />
+          </div>
+        </div>
       </main>
     );
   }
@@ -349,22 +386,88 @@ export default function DeskPage() {
           </section>
         </div>
 
-        {/* right column: the human-feedback loop */}
-        <div className="lg:sticky lg:top-6 h-[82vh] min-h-[480px]">
-          <ChatPanel
-            messages={desk.messages}
-            signalsById={signalsById}
-            sending={sending}
-            showLensChips={false}
-            onSend={sendChat}
-            onAct={act}
-            actingId={actingId}
-            error={chatError}
-            onRetry={retryChat}
-          />
+        {/* right column: the human-feedback loop. In full-screen mode the same
+            wrapper becomes a page-covering overlay — one ChatPanel instance,
+            so drafts, board actions and live polling carry over untouched. */}
+        <div
+          className={
+            fullDesk
+              ? "fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-4 sm:p-6"
+              : "lg:sticky lg:top-6 h-[82vh] min-h-[480px]"
+          }
+        >
+          {fullDesk && (
+            <FullDeskBar
+              symbol={ticker.symbol}
+              name={ticker.name}
+              quote={quote}
+              running={running}
+              onClose={() => setFullDesk(false)}
+            />
+          )}
+          <div className={fullDesk ? "flex-1 min-h-0 w-full max-w-4xl mx-auto" : "h-full"}>
+            <ChatPanel
+              messages={desk.messages}
+              signalsById={signalsById}
+              sending={sending}
+              showLensChips={false}
+              onSend={sendChat}
+              onAct={act}
+              actingId={actingId}
+              error={chatError}
+              onRetry={retryChat}
+              expanded={fullDesk}
+              onToggleExpand={() => setFullDesk((v) => !v)}
+            />
+          </div>
         </div>
       </div>
     </main>
+  );
+}
+
+/** Ticker context bar shown above the full-screen analyst desk. */
+function FullDeskBar({
+  symbol,
+  name,
+  quote,
+  running,
+  onClose,
+}: {
+  symbol: string;
+  name: string;
+  quote: DeskPayload["quote"];
+  running: boolean;
+  onClose: () => void;
+}) {
+  const up = (quote?.changePercent ?? 0) >= 0;
+  return (
+    <div className="w-full max-w-4xl mx-auto pb-3 flex items-center gap-3 flex-wrap">
+      <div className="min-w-0">
+        <p className="text-sm font-bold leading-tight">
+          {symbol} <span className="text-muted font-normal truncate">{name}</span>
+        </p>
+      </div>
+      {quote?.price != null && (
+        <>
+          <span className="font-semibold tabular-nums text-sm">
+            {fmtPrice(quote.price, quote.currency)}
+          </span>
+          <span
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums text-black ${up ? "bg-gain" : "bg-loss"}`}
+          >
+            {fmtPct(quote.changePercent)}
+          </span>
+        </>
+      )}
+      {running && <span className="text-[11px] text-accent pulse-soft">Researching…</span>}
+      <button
+        onClick={onClose}
+        className="ml-auto rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+      >
+        Back to board <span className="text-muted">(Esc)</span>
+      </button>
+    </div>
   );
 }
 

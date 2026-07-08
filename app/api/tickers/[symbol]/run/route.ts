@@ -2,7 +2,10 @@ import { NextResponse, after } from "next/server";
 import { getTicker, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 
-export const maxDuration = 300;
+// The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps → Fable 5
+// synthesis) runs entirely inside this budget via after(); give it headroom.
+// Vercel clamps to the plan's max, so this is safe below-plan on Hobby.
+export const maxDuration = 800;
 
 type Params = { params: Promise<{ symbol: string }> };
 

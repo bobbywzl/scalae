@@ -1,4 +1,14 @@
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+/**
+ * Scout models (see README "Why these models"). Breadth sweeps run 6-10x per
+ * daily run in parallel — gemini-3.5-flash is Pro-tier intelligence at Flash
+ * speed/price and ranks #1 on vals.ai's finance-agent retrieval benchmark. The
+ * deep tier handles the analyst's targeted follow-ups where multi-hop
+ * cross-checking of primary sources matters most; gemini-3.1-pro leads FACTS
+ * Grounding faithfulness. Both keep native Google-Search grounding on the
+ * (now "legacy" but fully supported) generateContent endpoint. Env-overridable.
+ */
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+export const GEMINI_DEEP_MODEL = process.env.GEMINI_DEEP_MODEL || "gemini-3.1-pro-preview";
 
 export interface GroundedResult {
   text: string;
@@ -20,10 +30,14 @@ interface GeminiResponse {
  * One Google-Search-grounded research call to Gemini. Returns the model's
  * findings plus the list of web sources from grounding metadata.
  */
-export async function geminiGroundedSearch(prompt: string): Promise<GroundedResult> {
+export async function geminiGroundedSearch(
+  prompt: string,
+  opts: { model?: string } = {}
+): Promise<GroundedResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set.");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  const model = opts.model ?? GEMINI_MODEL;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],

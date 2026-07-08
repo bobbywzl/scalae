@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { listSignals, listTickers } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 const STALE_MS = 20 * 3600_000;
 

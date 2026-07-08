@@ -11,9 +11,14 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 - **Watchlist** (Apple Stocks-style): add any public-market ticker.
 - **Onboarding conversation**: a Claude analyst first classifies the business Buffett-style (great/good/gruesome economics, franchise vs. commodity), then interviews you about the value-investing questions you care about — or proposes the ones with the most open debate if you're unsure.
 - **Signal board**: the analyst proposes concrete, trackable signals (quantitative metrics and qualitative judgments), each with a thesis tied to the framework and a measurement plan. **Nothing activates without your approval.**
-- **Daily research runs**: Gemini scouts (Google-Search-grounded) sweep the open web per signal bundle; the Claude analyst weighs the evidence into new **readings** for every signal (level, value, confidence, cited sources), a **morning brief** that leads with disconfirming evidence, and an **evidence feed**.
+- **Deep daily research runs** — a four-stage multi-agent pipeline, every run:
+  1. *Breadth sweeps (parallel)*: Google-Search-grounded scouts cover the signal bundles, broad company news, **primary sources** (filings, transcripts, IR, regulator documents) and **culture scuttlebutt** (employees, customers, suppliers, trade press).
+  2. *Gap analysis*: the Claude analyst triages the evidence against the board and commissions targeted follow-up questions where evidence is thin, conflicting, or red-flag-adjacent.
+  3. *Deep-dive sweeps (parallel)*: a stronger scout model runs the commissioned probes.
+  4. *Deep synthesis*: the analyst weighs everything into new **readings** for every signal (level, value, confidence, **per-source citations**), a **morning brief** that leads with disconfirming evidence, and an **evidence feed**.
+- **Evidence mapping**: every reading stores exactly which sources it draws on — signal cards show clickable source chips (domain) plus, expanded, each source's title and which research sweep surfaced it.
 - **Self-reinforcing discovery**: each run may propose up to 3 *new* signals it found in the news — queued for your approval.
-- **Full-agency chat**: every desk has an analyst chat. It answers from the board's evidence, takes feedback into tomorrow's research, proposes signals — and on your explicit ask it can approve/dismiss pending proposals, retire active signals, or kick off a research run.
+- **Full-agency analyst desk**: every desk has an analyst chat. It answers from the board's evidence, takes feedback into tomorrow's research, proposes signals — and on your explicit ask it can approve/dismiss pending proposals, retire active signals, or kick off a research run. The desk zooms to **full screen** (state, approvals and live polling carry over), takes **voice dictation** and can **read replies aloud**, and accepts **attachments** — images and charts, PDFs (filings, broker notes) and text files — which the analyst reads natively as evidence.
 
 ## The analytical core
 
@@ -28,13 +33,27 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 
 | Piece | Role |
 |---|---|
-| Claude (`claude-opus-4-8`, adaptive thinking, structured outputs, streaming) | The analyst: onboarding, chat with desk actions, daily synthesis, signal discovery |
-| Gemini (`gemini-2.5-flash` + Google Search grounding) | The scouts: live open-web research sweeps with source citations |
+| Claude (adaptive thinking, structured outputs, streaming) | The analyst: onboarding, chat with desk actions, mid-run gap triage, deep daily synthesis, signal discovery |
+| Gemini (native Google-Search grounding, two tiers) | The scouts: live open-web research sweeps with per-source grounding metadata |
 | yahoo-finance2 | Quotes, sparklines, ticker search/validation (no key needed) |
-| SQLite (better-sqlite3, `data/scalae.db`) | Local persistence: desks, signals, readings, digests, runs, chat |
+| Neon Postgres (`@neondatabase/serverless`) | Persistence: desks, signals, readings (with per-source citations), digests, runs, chat + attachments. Local and Vercel share one database. |
 | Next.js 16 App Router | UI + API routes; research runs continue via `after()` after the response |
 
-Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions), `lib/agents/research.ts` (the daily pipeline), `app/t/[symbol]/page.tsx` (the desk UI).
+Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the desk UI + full-screen mode).
+
+## Why these models
+
+The stages have different jobs, so they use different models (all env-overridable — see `.env.example`). Chosen against July-2026 benchmarks:
+
+| Stage | Default | Why |
+|---|---|---|
+| Breadth scouts (parallel) | `gemini-3.5-flash` | Native Google-Search grounding returns per-claim source metadata no competitor matches; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price — right for the 6–10 sweeps that run in parallel each cycle. |
+| Deep-dive scouts | `gemini-3.1-pro-preview` | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of commissioned probes that cross-check conflicting primary sources. |
+| Gap triage | `claude-opus-4-8` | Frontier judgment, fast turns — decides what's worth a deep dive between the two scout waves. |
+| Deep synthesis | `claude-fable-5` | The one quality-critical call of the run: extracting decision-relevant *insight* (not summary) from a large evidence dump. #1 on HLE, GDPval-AA knowledge-work, the Vals Index, and 1M-token retrieval, with the largest lead on long analytical tasks. Auto-falls back to `claude-opus-4-8` on the rare safety refusal. |
+| Analyst-desk chat | `claude-opus-4-8` | Frontier quality with fast interactive turns; reads attachments (images, PDFs, text) natively. |
+
+Both research stages keep Gemini's native grounding on the `generateContent` endpoint (now labelled "legacy" but fully supported). Synthesis stays on Claude because long-context analytical insight-extraction is exactly where it leads the field — no benchmark supported switching providers for either stage.
 
 ## Run it
 
@@ -43,14 +62,15 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-Put your keys in `.env.local` (see `.env.example`):
+Put your keys in `.env.local` (see `.env.example` for the full list, including per-stage model overrides):
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 GEMINI_API_KEY=AIza...
-CLAUDE_MODEL=claude-opus-4-8      # swap to claude-sonnet-4-6 for ~5x lower cost
-GEMINI_MODEL=gemini-2.5-flash
+DATABASE_URL=postgres://...        # Neon; or `vercel env pull .env.local`
 ```
+
+The model defaults are set per stage in code (see **Why these models**); override any of them via env without touching code.
 
 ## Daily regeneration
 
@@ -58,13 +78,13 @@ GEMINI_MODEL=gemini-2.5-flash
 2. **Manual** — the "Run research now" button, or just tell the analyst in chat.
 3. **Scheduled** — hit `GET /api/cron/daily` from any scheduler; it runs every stale desk. Locally e.g. `crontab`: `0 7 * * 1-5 curl -s http://localhost:3000/api/cron/daily`.
 
-## Cost note
+## Cost & latency note
 
-Each daily run per ticker ≈ 3–6 API calls (Gemini sweeps + one Claude Opus synthesis). Chat turns are one Claude call each. Set `CLAUDE_MODEL=claude-sonnet-4-6` in `.env.local` to cut Claude cost roughly 5x. Transient Anthropic overloads (429/529) are retried automatically with backoff; chat failures keep your message and offer a one-click retry.
+The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: a handful of parallel breadth sweeps (per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one Fable-5 synthesis. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries; synthesis is one large Claude call. To trim: set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8` (roughly half the synthesis cost, faster turns) and/or point both Gemini tiers at `gemini-3.5-flash`. Research runs execute inside the route's `maxDuration` (800s, clamped to your Vercel plan) via `after()`; transient Anthropic overloads (429/529) retry with backoff, and chat failures keep your message with one-click retry.
 
 ## Deploying
 
-The app is local-first (SQLite on disk). To deploy on Vercel: swap `lib/db.ts` for a hosted Postgres (e.g. Neon via Vercel Marketplace), add a `vercel.ts` cron hitting `/api/cron/daily`, and set the env vars. Everything else is portable.
+Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set), set the env vars, and — for `claude-fable-5` synthesis — ensure the Anthropic org meets Fable 5's 30-day data-retention requirement (or set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8`).
 
 ---
 

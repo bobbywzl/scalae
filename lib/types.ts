@@ -46,6 +46,10 @@ export interface Signal {
 export interface Citation {
   title: string;
   url: string;
+  /** Best-effort source domain (e.g. "fastretailing.com"), resolved at research time. */
+  domain?: string;
+  /** Labels of the research sweeps that surfaced this source (provenance). */
+  foundBy?: string[];
 }
 
 export interface Reading {
@@ -87,12 +91,29 @@ export interface Run {
   error: string | null;
 }
 
+export type AttachmentKind = "image" | "pdf" | "text";
+
+/** A file the investor attached to a chat message. */
+export interface Attachment {
+  kind: AttachmentKind;
+  name: string;
+  mediaType: string;
+  /** Original size in bytes (pre-encoding). */
+  size: number;
+  /**
+   * base64 payload (image/pdf) or raw text (text files). Stripped from desk
+   * payloads sent to the browser; loaded server-side when the analyst reads it.
+   */
+  data?: string;
+}
+
 export interface ChatMessage {
   id: string;
   symbol: string;
   role: "user" | "assistant";
   content: string;
   proposalIds: string[];
+  attachments: Attachment[];
   createdAt: string;
 }
 

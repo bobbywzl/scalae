@@ -1,7 +1,9 @@
-import { claudeJSON } from "../ai/claude";
-import { geminiGroundedSearch } from "../ai/gemini";
+import { claudeJSON, SYNTHESIS_MODEL, TRIAGE_MODEL } from "../ai/claude";
+import { GEMINI_DEEP_MODEL, GEMINI_MODEL, geminiGroundedSearch } from "../ai/gemini";
+import { withDomain } from "../citations";
 import {
   analystPersona,
+  GAP_SCHEMA,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
@@ -49,11 +51,18 @@ interface SynthesisOutput {
   proposals: SignalProposal[];
 }
 
+interface GapOutput {
+  followUps: { query: string; reason: string; signalKeys: string[] }[];
+}
+
 interface Sweep {
   label: string;
+  wave: 1 | 2;
   text: string;
   sources: Citation[];
 }
+
+const MAX_FOLLOW_UPS = 4;
 
 /** Start a run unless one is already going. Returns the run to poll. */
 export async function startRun(symbol: string): Promise<{ run: Run; started: boolean }> {
@@ -78,44 +87,83 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-function sweepPrompt(
-  symbol: string,
-  name: string,
-  days: number,
-  signals: Signal[],
-  broad: boolean
-): string {
-  const date = new Date().toDateString();
+// ---------------------------------------------------------------------------
+// Scout prompts — wave 1 (breadth: signals, broad news, primary sources,
+// scuttlebutt) and wave 2 (targeted deep dives the analyst commissioned).
+// ---------------------------------------------------------------------------
+
+const SCOUT_RULES = `Ground every finding in search results. For each finding output:
+- HEADLINE (date, source)
+- 2-3 sentence factual summary with concrete numbers where available
+Skip stock-price commentary and analyst price-target chatter. Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly.`;
+
+function signalSweepPrompt(symbol: string, name: string, days: number, signals: Signal[]): string {
   const signalBlock = signals
     .map((s, i) => `${i + 1}. "${s.name}" — ${s.measurementPlan} (scale: ${s.scale})`)
     .join("\n");
-  if (broad) {
-    return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${date}.
-
-Search the web for company developments from roughly the last ${days} days that a long-term business owner must know: earnings and guidance substance, management changes and statements, capital allocation moves (buybacks, dividends, M&A, big capex), regulatory/legal developments, competitive shifts, customer/product traction, employee & culture signals, accounting or governance red flags.
-
-Ground every finding in search results. For each finding output:
-- HEADLINE (date, source)
-- 2-3 sentence factual summary with concrete numbers where available
-Skip stock-price commentary and analyst price-target chatter. If genuinely nothing notable happened, say so plainly. Do not pad with old background information unless you label it "(context)".`;
-  }
-  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${date}.
+  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Search the web for developments from roughly the last ${days} days relevant to these tracked signals:
 
 ${signalBlock}
 
-Ground every finding in search results. For each finding output:
-- HEADLINE (date, source)
-- 2-3 sentence factual summary with concrete numbers where available
-- "Informs signal(s): #n" for the signal numbers it bears on
-If you find nothing for a signal, write 'No news found: "<signal name>"'. Skip stock-price commentary. Do not speculate or fill gaps from background knowledge unless labeled "(context)".`;
+${SCOUT_RULES}
+Additionally, end each finding with: 'Informs signal(s): #n' for the signal numbers it bears on. If you find nothing for a signal, write 'No news found: "<signal name>"'.`;
 }
 
+function broadSweepPrompt(symbol: string, name: string, days: number): string {
+  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+Search the web for company developments from roughly the last ${days} days that a long-term business owner must know: earnings and guidance substance, management changes and statements, capital allocation moves (buybacks, dividends, M&A, big capex), regulatory/legal developments, competitive shifts, customer/product traction, accounting or governance red flags.
+
+${SCOUT_RULES}
+Do not pad with old background information unless you label it "(context)".`;
+}
+
+function primarySourcePrompt(symbol: string, name: string, days: number): string {
+  return `You are a primary-source research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+Hunt specifically for PRIMARY SOURCES from roughly the last ${days} days — the company's own words and regulators' documents, not press retellings: securities filings and exchange disclosures, earnings releases and call transcripts, investor-relations materials and presentations, regulator filings/orders, court documents. If the freshest primary source predates the window slightly but the desk likely hasn't seen it, include it labeled "(recent primary source)".
+
+For each document found: HEADLINE (date, source), what the company/regulator actually said or reported (2-4 sentences with the concrete numbers), and any gap between the primary source and how the press has characterized it. ${SCOUT_RULES}`;
+}
+
+function scuttlebuttPrompt(symbol: string, name: string, days: number): string {
+  return `You are a scuttlebutt scout (Phil Fisher's method, run at machine scale) for a value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+Search the web for corporate-culture and conduct evidence from roughly the last ${days} days — how the organization actually behaves: employee sentiment and senior-talent moves (reviews, hiring/layoffs, notable departures), customer experience shifts (product/service quality complaints or praise with substance), treatment of suppliers and partners, management interviews and candor in their own words, trade-press and industry chatter, litigation or regulatory conduct.
+
+Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
+}
+
+function followUpPrompt(
+  symbol: string,
+  name: string,
+  q: { query: string; reason: string }
+): string {
+  return `You are a deep-dive research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+The desk's analyst reviewed today's field research and commissioned this targeted probe:
+
+QUESTION: ${q.query}
+WHY THE DESK ASKS: ${q.reason}
+
+Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}`;
+}
+
+// ---------------------------------------------------------------------------
+// The pipeline
+// ---------------------------------------------------------------------------
+
 /**
- * Execute the daily pipeline for a run created by startRun():
- *   1) Gemini grounded sweeps (per signal bundle + one broad sweep)
- *   2) Claude synthesis: signal readings, digest, brief, new-signal discovery
+ * Execute the deep multi-agent pipeline for a run created by startRun():
+ *   1) Wave-1 breadth sweeps (grounded scouts, parallel): per-signal bundles,
+ *      broad company news, primary sources, culture scuttlebutt
+ *   2) Gap analysis: the analyst triages evidence vs. the board and
+ *      commissions targeted follow-up probes
+ *   3) Wave-2 deep-dive sweeps (parallel, stronger scout model)
+ *   4) Deep synthesis: signal readings with per-source citations, digest,
+ *      brief, new-signal discovery
  */
 export async function executeRun(runId: string, symbol: string): Promise<void> {
   try {
@@ -126,60 +174,38 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
 
     const days = await windowDays(symbol);
     const bundles = chunk(signals, 5);
+    const waveOneCount = bundles.length + 3;
     await setRunStage(
       runId,
       "sweeping",
-      `Gemini scouts sweeping the open web (${bundles.length + 1} parallel sweeps, ${days}-day window)…`
+      `Scouts (${GEMINI_MODEL}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
     );
 
-    const sweepJobs: Promise<Sweep>[] = [
-      ...bundles.map((b, i) =>
-        geminiGroundedSearch(sweepPrompt(symbol, ticker.name, days, b, false)).then((r) => ({
-          label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
-          text: r.text,
-          sources: r.sources,
-        }))
-      ),
-      geminiGroundedSearch(sweepPrompt(symbol, ticker.name, days, [], true)).then((r) => ({
-        label: "Broad company sweep",
-        text: r.text,
-        sources: r.sources,
+    const waveOneJobs: { label: string; prompt: string }[] = [
+      ...bundles.map((b, i) => ({
+        label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
+        prompt: signalSweepPrompt(symbol, ticker.name, days, b),
       })),
+      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) },
+      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) },
+      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) },
     ];
-    const settled = await Promise.allSettled(sweepJobs);
-    const sweeps = settled
+    const waveOneSettled = await Promise.allSettled(
+      waveOneJobs.map((j) =>
+        geminiGroundedSearch(j.prompt).then(
+          (r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources })
+        )
+      )
+    );
+    const sweeps: Sweep[] = waveOneSettled
       .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
       .map((s) => s.value);
     if (sweeps.length === 0) {
-      const firstErr = settled.find((s) => s.status === "rejected") as PromiseRejectedResult;
+      const firstErr = waveOneSettled.find(
+        (s) => s.status === "rejected"
+      ) as PromiseRejectedResult;
       throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
     }
-
-    // Number the de-duplicated sources across sweeps so Claude cites by index.
-    const allSources: Citation[] = [];
-    const indexOf = new Map<string, number>();
-    for (const s of sweeps) {
-      for (const src of s.sources) {
-        if (!indexOf.has(src.url)) {
-          indexOf.set(src.url, allSources.length);
-          allSources.push(src);
-        }
-      }
-    }
-
-    await setRunStage(
-      runId,
-      "synthesizing",
-      "Claude analyst reading the field research and updating the signal board…"
-    );
-
-    const quote = await getQuote(symbol).catch(() => null);
-    const focusAreas = await listFocusAreas(symbol);
-    const guidance = (await listMessages(symbol))
-      .filter((m) => m.role === "user")
-      .slice(-6)
-      .map((m) => `- ${m.content.slice(0, 300)}`)
-      .join("\n");
 
     // Stable short keys so synthesis readings can't miss on name drift.
     const keyed = signals.map((s, i) => ({ key: `S${i + 1}`, signal: s }));
@@ -197,16 +223,105 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
       )
     ).join("\n");
 
+    // ---- Stage 2: the analyst triages wave 1 and commissions deep dives ----
+    await setRunStage(
+      runId,
+      "probing",
+      `Analyst (${TRIAGE_MODEL}) triaging the field research for gaps worth a deep dive…`
+    );
+
+    let followUps: GapOutput["followUps"] = [];
+    try {
+      const waveOneBlock = sweeps
+        .map((s) => `=== ${s.label} ===\n${s.text}`)
+        .join("\n\n");
+      const gap = await claudeJSON<GapOutput>({
+        model: TRIAGE_MODEL,
+        system: `${analystPersona(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}`,
+        messages: [
+          {
+            role: "user",
+            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
+          },
+        ],
+        schema: GAP_SCHEMA as unknown as Record<string, unknown>,
+        maxTokens: 4000,
+        effort: "medium",
+      });
+      followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_FOLLOW_UPS);
+    } catch (e) {
+      console.error(`[scalae] gap analysis failed (continuing without wave 2):`, e);
+    }
+
+    // ---- Stage 3: wave-2 deep dives on the stronger scout model ----
+    if (followUps.length > 0) {
+      await setRunStage(
+        runId,
+        "probing",
+        `Deep-dive scouts (${GEMINI_DEEP_MODEL}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"}: ${followUps.map((f) => `“${f.query.slice(0, 80)}${f.query.length > 80 ? "…" : ""}”`).join(" · ")}`
+      );
+      const waveTwoSettled = await Promise.allSettled(
+        followUps.map((f) =>
+          geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+            model: GEMINI_DEEP_MODEL,
+          }).then(
+            (r): Sweep => ({
+              label: `Deep dive: ${f.query}`,
+              wave: 2,
+              text: r.text,
+              sources: r.sources,
+            })
+          )
+        )
+      );
+      for (const s of waveTwoSettled) {
+        if (s.status === "fulfilled") sweeps.push(s.value);
+      }
+    }
+
+    // Number the de-duplicated sources across all sweeps so the analyst cites
+    // by index — and record which sweep(s) surfaced each source (provenance).
+    const allSources: Citation[] = [];
+    const indexOf = new Map<string, number>();
+    for (const s of sweeps) {
+      for (const src of s.sources) {
+        const existing = indexOf.get(src.url);
+        if (existing == null) {
+          indexOf.set(src.url, allSources.length);
+          allSources.push(withDomain({ ...src, foundBy: [s.label] }));
+        } else {
+          const foundBy = allSources[existing].foundBy;
+          if (foundBy && !foundBy.includes(s.label)) foundBy.push(s.label);
+        }
+      }
+    }
+
+    await setRunStage(
+      runId,
+      "synthesizing",
+      `Analyst (${SYNTHESIS_MODEL}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into the signal board…`
+    );
+
+    const quote = await getQuote(symbol).catch(() => null);
+    const focusAreas = await listFocusAreas(symbol);
+    const guidance = (await listMessages(symbol))
+      .filter((m) => m.role === "user")
+      .slice(-6)
+      .map((m) => `- ${m.content.slice(0, 300)}`)
+      .join("\n");
+
     const researchBlock = sweeps
       .map(
         (s) =>
-          `=== ${s.label} ===\n${s.text}\nSources used by this sweep: ${
+          `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
             s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
           }`
       )
       .join("\n\n");
 
-    const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
+    const sourceList = allSources
+      .map((s, i) => `[${i}] ${s.title} — ${s.url}`)
+      .join("\n");
     // Full non-duplication context: pending + previously rejected/retired signals.
     const [pendingSignals, dismissedSignals, retiredSignals] = await Promise.all([
       listSignals(symbol, "suggested"),
@@ -227,23 +342,25 @@ ${boardBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-FIELD RESEARCH (grounded web sweeps from the scout desk; numbered sources listed at the end):
+FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
 ${sourceList || "(none)"}
 
 TASK — produce today's desk output:
-1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. If there is no new evidence for a signal: keep the level close to the previous one (or "unclear" if none), delta "flat", confidence <= 0.4, and a rationale saying no new evidence emerged. For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes point into the numbered sources.
+1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. If there is no new evidence for a signal: keep the level close to the previous one (or "unclear" if none), delta "flat", confidence <= 0.4, and a rationale saying no new evidence emerged. For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading's rationale actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added.
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore.
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses (this is the desk's self-reinforcing discovery loop). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). If an existing signal should be sharpened instead, mention it in the brief rather than proposing a near-twin. Return an empty array when nothing genuinely new emerged.`;
 
     const out = await claudeJSON<SynthesisOutput>({
+      model: SYNTHESIS_MODEL,
       system: `${analystPersona(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
-      maxTokens: 16000,
+      maxTokens: 20000,
+      effort: "high",
     });
 
     await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");

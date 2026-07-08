@@ -257,6 +257,45 @@ export const CHAT_SCHEMA = {
   },
 } as const;
 
+/**
+ * Mid-run gap analysis: after the breadth sweeps, the analyst triages the
+ * evidence against the board and commissions targeted deep-dive sweeps for
+ * threads that are thin, conflicting, or red-flag-adjacent. Empty when the
+ * first wave already covers the board — never invent work (evidence
+ * discipline: an honest "no gaps" beats a manufactured probe).
+ */
+export const GAP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["followUps"],
+  properties: {
+    followUps: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["query", "reason", "signalKeys"],
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "A focused research question for a web scout, specific enough to answer with searches (name the company, metric, event or period).",
+          },
+          reason: {
+            type: "string",
+            description: "Why this gap matters to the board (1 sentence).",
+          },
+          signalKeys: {
+            type: "array",
+            description: 'Bracketed keys of the signals this probe serves, e.g. ["S2"]. Empty if board-level.',
+            items: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,

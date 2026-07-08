@@ -1,6 +1,7 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import type {
+  Attachment,
   ChatMessage,
   Citation,
   DigestItem,
@@ -114,9 +115,11 @@ export const SCHEMA_STATEMENTS: string[] = [
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     "proposalIds" TEXT NOT NULL DEFAULT '[]',
+    attachments TEXT NOT NULL DEFAULT '[]',
     "createdAt" TEXT NOT NULL,
     seq BIGINT GENERATED ALWAYS AS IDENTITY
   )`,
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]'`,
   `CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals(symbol, status)`,
   `CREATE INDEX IF NOT EXISTS idx_readings_signal ON readings("signalId", date)`,
   `CREATE INDEX IF NOT EXISTS idx_digest_symbol ON digest_items(symbol, date)`,
@@ -340,25 +343,65 @@ export async function reapStuckRuns(symbol: string): Promise<void> {
 
 // ---------- messages ----------
 
-interface MessageRow extends Omit<ChatMessage, "proposalIds"> {
+interface MessageRow extends Omit<ChatMessage, "proposalIds" | "attachments"> {
   proposalIds: string;
+  attachments: string;
+}
+
+function parseMessage(r: MessageRow): ChatMessage {
+  return {
+    ...r,
+    proposalIds: JSON.parse(r.proposalIds) as string[],
+    attachments: JSON.parse(r.attachments) as Attachment[],
+  };
 }
 
 export async function insertMessage(
   symbol: string,
   role: "user" | "assistant",
   content: string,
-  proposalIds: string[] = []
+  proposalIds: string[] = [],
+  attachments: Attachment[] = []
 ): Promise<ChatMessage> {
-  const m: ChatMessage = { id: uid(), symbol, role, content, proposalIds, createdAt: now() };
-  await q`INSERT INTO messages (id, symbol, role, content, "proposalIds", "createdAt")
-          VALUES (${m.id}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.proposalIds)}, ${m.createdAt})`;
+  const m: ChatMessage = {
+    id: uid(),
+    symbol,
+    role,
+    content,
+    proposalIds,
+    attachments,
+    createdAt: now(),
+  };
+  await q`INSERT INTO messages (id, symbol, role, content, "proposalIds", attachments, "createdAt")
+          VALUES (${m.id}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.proposalIds)},
+                  ${JSON.stringify(m.attachments)}, ${m.createdAt})`;
   return m;
 }
 
+/**
+ * Messages with attachment payloads stripped to metadata — what the browser
+ * polls. Full payloads stay server-side (see listMessagesWithAttachments).
+ */
 export async function listMessages(symbol: string, limit = 200): Promise<ChatMessage[]> {
+  const rows = await listMessagesWithAttachments(symbol, limit);
+  return rows.map((m) => ({
+    ...m,
+    attachments: m.attachments.map((a) => ({
+      kind: a.kind,
+      name: a.name,
+      mediaType: a.mediaType,
+      size: a.size,
+    })),
+  }));
+}
+
+/** Messages including full attachment data — for building model requests only. */
+export async function listMessagesWithAttachments(
+  symbol: string,
+  limit = 200
+): Promise<ChatMessage[]> {
   const rows = await q<MessageRow>`
-    SELECT id, symbol, role, content, "proposalIds", "createdAt"
+    SELECT id, symbol, role, content, "proposalIds", attachments, "createdAt"
     FROM messages WHERE symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
-  return rows.map((r) => ({ ...r, proposalIds: JSON.parse(r.proposalIds) as string[] }));
+  return rows.map(parseMessage);
 }
