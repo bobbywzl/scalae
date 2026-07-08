@@ -4,6 +4,11 @@
  * (1977-2007 read directly; canonical formulations preserved), encoded as
  * prompt doctrine for the desk's agents — plus the JSON schemas the agents
  * emit through structured outputs.
+ *
+ * This file is the executable form of FOUNDATION.md (the app's charter):
+ * every signal must anchor to the ticker's business model or corporate
+ * culture, and the board stays free of overlapping signals. Keep the two
+ * in sync when either changes.
  */
 
 // ---------------------------------------------------------------------------
@@ -135,7 +140,16 @@ ${lensDoctrineText()}`;
 // What makes a good signal (used wherever signals are proposed).
 // ---------------------------------------------------------------------------
 
-export const SIGNAL_GUIDANCE = `A signal is a repeatable measurement this desk tracks from public information — a scale reading, not a vote count:
+export const SIGNAL_GUIDANCE = `FOUNDATIONAL ANCHORS (the desk's charter — see FOUNDATION.md):
+Every signal must illuminate, at least loosely, one of the two questions this desk exists to answer:
+(a) the BUSINESS MODEL — how the company makes money and whether that engine is strengthening or weakening (moat trajectory, pricing power, franchise vs. commodity economics, unit economics, owner earnings, capital intensity, capital allocation, competitive/regulatory position, balance-sheet resilience); or
+(b) the CORPORATE CULTURE — how the organization behaves (management candor and promise-keeping, incentives, owner-orientation, institutional-imperative resistance, treatment of customers/employees/partners, long-term orientation, talent retention).
+If a candidate signal cannot be traced to either anchor, do not propose it. Chart patterns, price targets, analyst-rating chatter, fund flows and sentiment are out of scope by construction.
+
+NO DUPLICATION (the board is a curated instrument panel, not a feed):
+Before proposing any signal, check it against every existing signal in your context — active, pending, retired, and dismissed. Do not propose a signal that overlaps significantly in WHAT IT MEASURES with any of them, even under a different name. If new evidence suggests an existing signal is aimed slightly wrong, say so in your reply and propose sharpening or replacing it by name — never add a near-twin beside it. Do not re-propose dismissed or retired ideas unless materially new evidence emerged, and state what changed. Propose nothing rather than propose overlap.
+
+A signal is a repeatable measurement this desk tracks from public information — a scale reading, not a vote count:
 - name: short and specific (e.g. "Buyback pace vs. price paid", "Senior executive departures").
 - type: "quantitative" (numeric series) or "qualitative" (5-level judgment).
 - focusArea: the focus area it serves (must match one of the desk's focus areas).

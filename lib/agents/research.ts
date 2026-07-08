@@ -207,7 +207,14 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
       .join("\n\n");
 
     const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
-    const pendingNames = (await listSignals(symbol, "suggested")).map((s) => `"${s.name}"`);
+    // Full non-duplication context: pending + previously rejected/retired signals.
+    const [pendingSignals, dismissedSignals, retiredSignals] = await Promise.all([
+      listSignals(symbol, "suggested"),
+      listSignals(symbol, "dismissed"),
+      listSignals(symbol, "retired"),
+    ]);
+    const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
+    const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
 
     const task = `Today is ${new Date().toDateString()}. ${quoteLine(quote)}
 
@@ -230,7 +237,7 @@ TASK — produce today's desk output:
 1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. If there is no new evidence for a signal: keep the level close to the previous one (or "unclear" if none), delta "flat", confidence <= 0.4, and a rationale saying no new evidence emerged. For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes point into the numbered sources.
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore.
-4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses (this is the desk's self-reinforcing discovery loop). Do not duplicate existing or pending signals: ${pendingNames.join(", ") || "(none pending)"}. Return an empty array when nothing genuinely new emerged.`;
+4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses (this is the desk's self-reinforcing discovery loop). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). If an existing signal should be sharpened instead, mention it in the brief rather than proposing a near-twin. Return an empty array when nothing genuinely new emerged.`;
 
     const out = await claudeJSON<SynthesisOutput>({
       system: `${analystPersona(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,

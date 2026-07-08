@@ -4,6 +4,8 @@
 
 Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famously used by Warren Buffett, of gathering business intelligence from hundreds of conversations) as an orchestration of AI agents, one desk per ticker.
 
+**The product charter lives in [FOUNDATION.md](FOUNDATION.md)** — the two anchors (every signal must illuminate the ticker's *business model* or *corporate culture*), the no-duplicate-signals rule, human approval gates, and the evidence discipline. All agent behavior derives from it.
+
 ## What it does
 
 - **Watchlist** (Apple Stocks-style): add any public-market ticker.

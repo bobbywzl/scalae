@@ -70,10 +70,12 @@ export async function handleChatTurn(
   if (!opts.retry) await insertMessage(symbol, "user", userText);
 
   const mode = ticker.onboarded ? "working" : "onboarding";
-  const [focusAreas, active, suggested, run, quote] = await Promise.all([
+  const [focusAreas, active, suggested, dismissed, retired, run, quote] = await Promise.all([
     listFocusAreas(symbol),
     listSignals(symbol, "active"),
     listSignals(symbol, "suggested"),
+    listSignals(symbol, "dismissed"),
+    listSignals(symbol, "retired"),
     latestRun(symbol),
     getQuote(symbol).catch(() => null),
   ]);
@@ -96,6 +98,7 @@ Focus areas: ${focusAreas.length ? focusAreas.map((f) => `${f.title} — ${f.des
 Active signal board:
 ${boardLines || "(empty)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
+Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
