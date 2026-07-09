@@ -212,12 +212,21 @@ ${modeInstructions}`;
   const history = (await listMessagesWithAttachments(symbol, 40)).slice(-16);
   const messages = historyToMessages(history);
 
+  // Adaptive thinking shares the max_tokens budget with the reply, so a hard
+  // turn can spend most of the budget reasoning and leave the schema-constrained
+  // reply as a stub (a lone "," in the worst case). Give it real headroom, and
+  // more when the turn carries a document/image the analyst has to work through.
+  const hasAttachmentBlocks = messages.some(
+    (m) =>
+      Array.isArray(m.content) &&
+      m.content.some((b) => b.type === "document" || b.type === "image")
+  );
   const out = await claudeJSON<ChatOutput>({
     model: CHAT_MODEL,
     system,
     messages,
     schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
-    maxTokens: 8000,
+    maxTokens: hasAttachmentBlocks ? 24000 : 16000,
     effort: "medium",
   });
 
@@ -265,7 +274,15 @@ ${modeInstructions}`;
     activatedDesk = true;
   }
 
-  const message = await insertMessage(symbol, "assistant", out.reply, proposalIds);
+  // Defence in depth: never persist/show a degenerate reply (empty or
+  // punctuation-only — the classic budget-starved stub). Actions above still
+  // stand; the investor just gets a coherent nudge instead of a blank bubble.
+  const meaningful = /[\p{L}\p{N}]/u.test(out.reply ?? "");
+  const replyText = meaningful
+    ? out.reply
+    : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
+
+  const message = await insertMessage(symbol, "assistant", replyText, proposalIds);
   const hasActive = (await listSignals(symbol, "active")).length > 0;
   return {
     message,
