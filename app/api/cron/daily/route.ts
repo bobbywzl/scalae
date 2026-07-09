@@ -2,7 +2,9 @@ import { NextResponse, after } from "next/server";
 import { listSignals, listTickers } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 
-export const maxDuration = 800;
+// 300s is the Vercel Hobby ceiling (Fluid Compute); above the plan cap Vercel
+// rejects the deployment. Pro/Enterprise allow up to 800.
+export const maxDuration = 300;
 
 const STALE_MS = 20 * 3600_000;
 

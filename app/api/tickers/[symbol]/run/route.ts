@@ -2,10 +2,12 @@ import { NextResponse, after } from "next/server";
 import { getTicker, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 
-// The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps → Fable 5
-// synthesis) runs entirely inside this budget via after(); give it headroom.
-// Vercel clamps to the plan's max, so this is safe below-plan on Hobby.
-export const maxDuration = 800;
+// The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps →
+// synthesis) runs inside this budget via after(). 300s is the Vercel Hobby
+// ceiling (Fluid Compute); Pro/Enterprise allow up to 800. A run that outlasts
+// it is reaped and retried (see reapStuckRuns). Setting it above the plan cap
+// makes Vercel reject the deployment, so keep this at the plan maximum.
+export const maxDuration = 300;
 
 type Params = { params: Promise<{ symbol: string }> };
 

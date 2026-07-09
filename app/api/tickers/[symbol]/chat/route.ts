@@ -5,8 +5,9 @@ import { executeRun, startRun } from "@/lib/agents/research";
 import { getTicker } from "@/lib/db";
 import type { Attachment, AttachmentKind } from "@/lib/types";
 
-// A chat turn may kick off a full research run via after(); give it headroom.
-export const maxDuration = 800;
+// A chat turn may kick off a full research run via after(). 300s is the Vercel
+// Hobby ceiling; above the plan cap Vercel rejects the deployment.
+export const maxDuration = 300;
 
 type Params = { params: Promise<{ symbol: string }> };
 

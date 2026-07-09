@@ -80,7 +80,7 @@ The model defaults are set per stage in code (see **Why these models**); overrid
 
 ## Cost & latency note
 
-The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: a handful of parallel breadth sweeps (per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one Sonnet-5 synthesis. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries; synthesis is one large Claude call. To go bigger, set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8` or `claude-fable-5` for the top tier; to trim scout cost, point both Gemini tiers at `gemini-3.5-flash`. Research runs execute inside the route's `maxDuration` (800s, clamped to your Vercel plan) via `after()`; transient Anthropic overloads (429/529) retry with backoff, and chat failures keep your message with one-click retry.
+The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: a handful of parallel breadth sweeps (per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one Sonnet-5 synthesis. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries; synthesis is one large Claude call. To go bigger, set `CLAUDE_SYNTHESIS_MODEL=claude-opus-4-8` or `claude-fable-5` for the top tier; to trim scout cost, point both Gemini tiers at `gemini-3.5-flash`. Research runs execute inside the route's `maxDuration` (300s — the Vercel Hobby ceiling with Fluid Compute; raise to 800 on Pro/Enterprise) via `after()`; a run that outlasts the budget is reaped and retried. Transient Anthropic overloads (429/529) retry with backoff, and chat failures keep your message with one-click retry.
 
 ## Deploying
 
