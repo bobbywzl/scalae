@@ -1,14 +1,7 @@
-/**
- * Scout models (see README "Why these models"). Breadth sweeps run 6-10x per
- * daily run in parallel — gemini-3.5-flash is Pro-tier intelligence at Flash
- * speed/price and ranks #1 on vals.ai's finance-agent retrieval benchmark. The
- * deep tier handles the analyst's targeted follow-ups where multi-hop
- * cross-checking of primary sources matters most; gemini-3.1-pro leads FACTS
- * Grounding faithfulness. Both keep native Google-Search grounding on the
- * (now "legacy" but fully supported) generateContent endpoint. Env-overridable.
- */
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-export const GEMINI_DEEP_MODEL = process.env.GEMINI_DEEP_MODEL || "gemini-3.1-pro-preview";
+// Which Gemini model runs each scout tier is decided by lib/ai/models.ts
+// (automatic best-available selection, env-overridable) and passed in via
+// opts.model. This is only the stable floor used if a caller omits the model.
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 export interface GroundedResult {
   text: string;
@@ -36,7 +29,7 @@ export async function geminiGroundedSearch(
 ): Promise<GroundedResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set.");
-  const model = opts.model ?? GEMINI_MODEL;
+  const model = opts.model ?? DEFAULT_GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const body = JSON.stringify({
@@ -90,3 +83,34 @@ export async function geminiGroundedSearch(
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * List Gemini model IDs that support text generation (grounded scouting), for
+ * automatic best-model selection. Returns [] on any failure — the caller falls
+ * back to a pinned default.
+ */
+export async function listGeminiModels(): Promise<string[]> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return [];
+  const out: string[] = [];
+  let pageToken = "";
+  for (let page = 0; page < 5; page++) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=200${
+      pageToken ? `&pageToken=${pageToken}` : ""
+    }`;
+    const res = await fetch(url);
+    if (!res.ok) break;
+    const data = (await res.json()) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+      nextPageToken?: string;
+    };
+    for (const m of data.models ?? []) {
+      if (!(m.supportedGenerationMethods ?? []).includes("generateContent")) continue;
+      const id = (m.name ?? "").replace(/^models\//, "");
+      if (id) out.push(id);
+    }
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+  return out;
+}

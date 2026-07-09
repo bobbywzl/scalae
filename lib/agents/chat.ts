@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { CHAT_MODEL, claudeJSON } from "../ai/claude";
+import { claudeJSON } from "../ai/claude";
+import { resolveModel } from "../ai/models";
 import {
   analystPersona,
   CHAT_SCHEMA,
@@ -222,7 +223,7 @@ ${modeInstructions}`;
       m.content.some((b) => b.type === "document" || b.type === "image")
   );
   const out = await claudeJSON<ChatOutput>({
-    model: CHAT_MODEL,
+    model: await resolveModel("chat"),
     system,
     messages,
     schema: CHAT_SCHEMA as unknown as Record<string, unknown>,

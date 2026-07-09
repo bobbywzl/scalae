@@ -5,30 +5,35 @@ const g = globalThis as unknown as { __anthropic?: Anthropic };
 // longer backoff on top for overload bursts and transport drops.
 const client = g.__anthropic ?? (g.__anthropic = new Anthropic({ maxRetries: 3 }));
 
-/**
- * Model per pipeline stage (see README "Why these models"), all env-overridable.
- * Claude Sonnet 5 runs the deep daily synthesis: near-Opus analytical quality
- * on long-context reasoning at Sonnet cost and speed, with no data-retention
- * constraint — the right default for the run's one heavy insight-extraction
- * call. Claude Opus 4.8 handles interactive chat + mid-run triage. Override
- * CLAUDE_SYNTHESIS_MODEL with claude-opus-4-8 or claude-fable-5 to trade cost
- * for the top tier (a Fable/Mythos override auto-gets the refusal fallback
- * wired below).
- */
-export const SYNTHESIS_MODEL =
-  process.env.CLAUDE_SYNTHESIS_MODEL || process.env.CLAUDE_MODEL || "claude-sonnet-5";
-export const CHAT_MODEL =
-  process.env.CLAUDE_CHAT_MODEL || process.env.CLAUDE_MODEL || "claude-opus-4-8";
-export const TRIAGE_MODEL = process.env.CLAUDE_TRIAGE_MODEL || CHAT_MODEL;
-/** Where a Fable 5 request reroutes if safety classifiers decline it (rare). */
+// Which model runs each pipeline stage is decided by lib/ai/models.ts
+// (automatic best-available selection, env-overridable) and passed in via
+// opts.model. This module just executes the call the caller asks for.
+
+/** Where a Fable/Mythos request reroutes if safety classifiers decline it (rare). */
 const FALLBACK_MODEL = "claude-opus-4-8";
+/** Last-resort default if a caller omits opts.model (callers normally pass one). */
+const DEFAULT_MODEL = "claude-opus-4-8";
+
+/**
+ * List available Claude model IDs (Models API, auto-paginated), for automatic
+ * best-model selection. Returns [] on any failure — the caller falls back to a
+ * pinned default.
+ */
+export async function listClaudeModels(): Promise<string[]> {
+  const out: string[] = [];
+  for await (const m of client.models.list()) {
+    const id = (m as { id?: string }).id;
+    if (id) out.push(id);
+  }
+  return out;
+}
 
 export interface ClaudeJSONOptions {
   system: string;
   messages: Anthropic.MessageParam[];
   /** JSON Schema (additionalProperties:false everywhere) the response must satisfy. */
   schema: Record<string, unknown>;
-  /** Defaults to CHAT_MODEL. */
+  /** Model to call; defaults to DEFAULT_MODEL. Normally resolved via lib/ai/models.ts. */
   model?: string;
   maxTokens?: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
@@ -107,7 +112,7 @@ export async function claudeJSON<T>(opts: ClaudeJSONOptions): Promise<T> {
 }
 
 async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
-  const model = opts.model ?? CHAT_MODEL;
+  const model = opts.model ?? DEFAULT_MODEL;
   const params = {
     model,
     max_tokens: opts.maxTokens ?? 8000,

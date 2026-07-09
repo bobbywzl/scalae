@@ -41,17 +41,39 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 
 Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the desk UI + full-screen mode).
 
-## Why these models
+## Why these models — and how they stay current
 
-The stages have different jobs, so they use different models (all env-overridable — see `.env.example`). Chosen against July-2026 benchmarks:
+Each stage has a different job, so each uses a different model. Rather than pin
+model IDs that go stale (or break when a provider retires them), the desk
+**selects the best currently-available model per role automatically**
+(`lib/ai/models.ts`): each role declares what *kind* of model it wants, and the
+resolver picks the top-scoring match from the provider's **live model list** on
+each run.
 
-| Stage | Default | Why |
+- **Self-healing** — a retired/unavailable model is never selected.
+- **Auto-latest** — a newer version in the same line is adopted automatically (`gemini-3.5-flash` → `gemini-4-flash`, `claude-opus-4-8` → `claude-opus-5`, …), preferring a stable release over a preview of the same version.
+- **Overridable** — a per-role env var always wins, to pin a model by hand (see `.env.example`).
+
+| Role | Selects | Why this kind of model |
 |---|---|---|
-| Breadth scouts (parallel) | `gemini-3.5-flash` | Native Google-Search grounding returns per-claim source metadata no competitor matches; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price — right for the 6–10 sweeps that run in parallel each cycle. |
-| Deep-dive scouts | `gemini-3.1-pro-preview` | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of commissioned probes that cross-check conflicting primary sources. |
-| Gap triage | `claude-opus-4-8` | Frontier judgment, fast turns — decides what's worth a deep dive between the two scout waves. |
-| Deep synthesis | `claude-sonnet-5` | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump. Sonnet 5 delivers near-Opus long-context analytical reasoning at Sonnet cost and speed, with no data-retention constraint. Step up to `claude-opus-4-8` or `claude-fable-5` (top of HLE / GDPval-AA / Vals Index / 1M retrieval) via `CLAUDE_SYNTHESIS_MODEL` when you want the ceiling; a Fable/Mythos override auto-falls back to `claude-opus-4-8` on the rare safety refusal. |
-| Analyst-desk chat | `claude-opus-4-8` | Frontier quality with fast interactive turns; reads attachments (images, PDFs, text) natively. |
+| Breadth scouts (parallel) | newest full Gemini **Flash** | Native Google-Search grounding with per-claim source metadata; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price for the 6–10 parallel sweeps. |
+| Deep-dive scouts | newest Gemini **Pro** | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of probes that cross-check conflicting primary sources. |
+| Gap triage & analyst-desk chat | newest flagship **Opus** | Frontier judgment with fast interactive turns; chat reads attachments (images, PDFs, text) natively. |
+| Deep synthesis | newest flagship **Opus** | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump, where Claude leads. |
+
+The **flagship** tier (Opus-class) is used for Claude rather than the pricier
+Fable/Mythos tier, which needs 30-day data retention and costs ~2×. To move
+synthesis to that ceiling, add `fable|mythos` to the `synthesis` include in
+`lib/ai/models.ts` or set `CLAUDE_SYNTHESIS_MODEL=claude-fable-5` (a Fable/Mythos
+model auto-falls back to Opus on the rare safety refusal). To drop to the value
+tier, set it to a Sonnet model.
+
+**Updated monthly:** `.github/workflows/model-review.yml` runs on the 1st of each
+month and opens an issue summarising each provider's current lineup and what the
+resolver picks — so a genuinely new model *family* gets a human approval before
+adoption (consistent with the app's approval-gate design). Version bumps within a
+known line need no action; they're adopted automatically. Requires repo secrets
+`ANTHROPIC_API_KEY` and `GEMINI_API_KEY` (read-only model-list access).
 
 Both research stages keep Gemini's native grounding on the `generateContent` endpoint (now labelled "legacy" but fully supported). Synthesis stays on Claude because long-context analytical insight-extraction is exactly where it leads the field — no benchmark supported switching providers for either stage.
 

@@ -1,5 +1,6 @@
-import { claudeJSON, SYNTHESIS_MODEL, TRIAGE_MODEL } from "../ai/claude";
-import { GEMINI_DEEP_MODEL, GEMINI_MODEL, geminiGroundedSearch } from "../ai/gemini";
+import { claudeJSON } from "../ai/claude";
+import { geminiGroundedSearch } from "../ai/gemini";
+import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
 import {
   analystPersona,
@@ -172,13 +173,22 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     const signals = await listSignals(symbol, "active");
     if (signals.length === 0) throw new Error("No active signals — approve some signals first.");
 
+    // Resolve the best currently-available model for each role (self-healing;
+    // auto-adopts newer models; env-overridable). See lib/ai/models.ts.
+    const [breadthModel, deepModel, triageModel, synthModel] = await Promise.all([
+      resolveModel("scoutBreadth"),
+      resolveModel("scoutDeep"),
+      resolveModel("triage"),
+      resolveModel("synthesis"),
+    ]);
+
     const days = await windowDays(symbol);
     const bundles = chunk(signals, 5);
     const waveOneCount = bundles.length + 3;
     await setRunStage(
       runId,
       "sweeping",
-      `Scouts (${GEMINI_MODEL}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
+      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
     );
 
     const waveOneJobs: { label: string; prompt: string }[] = [
@@ -192,7 +202,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
-        geminiGroundedSearch(j.prompt).then(
+        geminiGroundedSearch(j.prompt, { model: breadthModel }).then(
           (r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources })
         )
       )
@@ -227,7 +237,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     await setRunStage(
       runId,
       "probing",
-      `Analyst (${TRIAGE_MODEL}) triaging the field research for gaps worth a deep dive…`
+      `Analyst (${triageModel}) triaging the field research for gaps worth a deep dive…`
     );
 
     let followUps: GapOutput["followUps"] = [];
@@ -236,7 +246,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
         .map((s) => `=== ${s.label} ===\n${s.text}`)
         .join("\n\n");
       const gap = await claudeJSON<GapOutput>({
-        model: TRIAGE_MODEL,
+        model: triageModel,
         system: `${analystPersona(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}`,
         messages: [
           {
@@ -258,12 +268,12 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
       await setRunStage(
         runId,
         "probing",
-        `Deep-dive scouts (${GEMINI_DEEP_MODEL}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"}: ${followUps.map((f) => `“${f.query.slice(0, 80)}${f.query.length > 80 ? "…" : ""}”`).join(" · ")}`
+        `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"}: ${followUps.map((f) => `“${f.query.slice(0, 80)}${f.query.length > 80 ? "…" : ""}”`).join(" · ")}`
       );
       const waveTwoSettled = await Promise.allSettled(
         followUps.map((f) =>
           geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
-            model: GEMINI_DEEP_MODEL,
+            model: deepModel,
           }).then(
             (r): Sweep => ({
               label: `Deep dive: ${f.query}`,
@@ -299,7 +309,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     await setRunStage(
       runId,
       "synthesizing",
-      `Analyst (${SYNTHESIS_MODEL}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into the signal board…`
+      `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into the signal board…`
     );
 
     const quote = await getQuote(symbol).catch(() => null);
@@ -355,7 +365,7 @@ TASK — produce today's desk output:
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses (this is the desk's self-reinforcing discovery loop). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). If an existing signal should be sharpened instead, mention it in the brief rather than proposing a near-twin. Return an empty array when nothing genuinely new emerged.`;
 
     const out = await claudeJSON<SynthesisOutput>({
-      model: SYNTHESIS_MODEL,
+      model: synthModel,
       system: `${analystPersona(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
