@@ -14,6 +14,7 @@ import type {
   SignalSource,
   SignalStatus,
   Ticker,
+  Trade,
 } from "./types";
 
 /**
@@ -71,9 +72,11 @@ export const SCHEMA_STATEMENTS: string[] = [
     scale TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
     origin TEXT NOT NULL,
+    replaces TEXT,
     "createdAt" TEXT NOT NULL,
     "approvedAt" TEXT
   )`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS replaces TEXT`,
   `CREATE TABLE IF NOT EXISTS readings (
     id TEXT PRIMARY KEY,
     "signalId" TEXT NOT NULL,
@@ -85,8 +88,10 @@ export const SCHEMA_STATEMENTS: string[] = [
     delta TEXT NOT NULL,
     confidence DOUBLE PRECISION NOT NULL,
     rationale TEXT NOT NULL,
+    "newEvidence" INTEGER,
     citations TEXT NOT NULL DEFAULT '[]'
   )`,
+  `ALTER TABLE readings ADD COLUMN IF NOT EXISTS "newEvidence" INTEGER`,
   `CREATE TABLE IF NOT EXISTS digest_items (
     id TEXT PRIMARY KEY,
     symbol TEXT NOT NULL,
@@ -109,8 +114,10 @@ export const SCHEMA_STATEMENTS: string[] = [
     stage TEXT NOT NULL DEFAULT '',
     "stageDetail" TEXT NOT NULL DEFAULT '',
     brief TEXT,
+    sources TEXT NOT NULL DEFAULT '[]',
     error TEXT
   )`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS sources TEXT NOT NULL DEFAULT '[]'`,
   `CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     symbol TEXT NOT NULL,
@@ -118,10 +125,33 @@ export const SCHEMA_STATEMENTS: string[] = [
     content TEXT NOT NULL,
     "proposalIds" TEXT NOT NULL DEFAULT '[]',
     attachments TEXT NOT NULL DEFAULT '[]',
+    "signalId" TEXT,
     "createdAt" TEXT NOT NULL,
     seq BIGINT GENERATED ALWAYS AS IDENTITY
   )`,
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachments TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS "signalId" TEXT`,
+  `CREATE TABLE IF NOT EXISTS trades (
+    id TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    side TEXT NOT NULL,
+    quantity DOUBLE PRECISION NOT NULL,
+    price DOUBLE PRECISION NOT NULL,
+    fees DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "tradeDate" TEXT NOT NULL,
+    "optionType" TEXT,
+    strike DOUBLE PRECISION,
+    expiry TEXT,
+    multiplier DOUBLE PRECISION NOT NULL DEFAULT 100,
+    note TEXT NOT NULL DEFAULT '',
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol, "tradeDate")`,
+  `CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals(symbol, status)`,
   `CREATE INDEX IF NOT EXISTS idx_readings_signal ON readings("signalId", date)`,
   `CREATE INDEX IF NOT EXISTS idx_digest_symbol ON digest_items(symbol, date)`,
@@ -216,7 +246,12 @@ export async function getSignal(id: string): Promise<Signal | undefined> {
   return rows[0];
 }
 
-/** Insert a proposal as a `suggested` signal. Skips near-duplicate names. Returns id or null. */
+/**
+ * Insert a proposal as a `suggested` signal. Skips near-duplicate names. If the
+ * proposal names an active signal it replaces, the resolved id is stored so
+ * approval can retire it (the desk's refine-don't-duplicate mechanism).
+ * Returns id or null.
+ */
 export async function insertProposal(
   symbol: string,
   p: SignalProposal,
@@ -226,11 +261,22 @@ export async function insertProposal(
     SELECT id FROM signals
     WHERE symbol = ${symbol} AND lower(name) = lower(${p.name}) AND status IN ('suggested','active')`;
   if (existing.length > 0) return null;
+
+  let replacesId: string | null = null;
+  const replacesName = (p.replaces ?? "").trim();
+  if (replacesName) {
+    const hit = await q<{ id: string }>`
+      SELECT id FROM signals
+      WHERE symbol = ${symbol} AND status = 'active' AND lower(name) = lower(${replacesName})
+      LIMIT 1`;
+    replacesId = hit[0]?.id ?? null;
+  }
+
   const id = uid();
-  await q`INSERT INTO signals (id, symbol, "focusArea", name, type, thesis, "measurementPlan", scale, status, origin, "createdAt")
+  await q`INSERT INTO signals (id, symbol, "focusArea", name, type, thesis, "measurementPlan", scale, status, origin, replaces, "createdAt")
           VALUES (${id}, ${symbol}, ${p.focusArea}, ${p.name},
                   ${p.type === "quantitative" ? "quantitative" : "qualitative"},
-                  ${p.thesis}, ${p.measurementPlan}, ${p.scale}, 'suggested', ${origin}, ${now()})`;
+                  ${p.thesis}, ${p.measurementPlan}, ${p.scale}, 'suggested', ${origin}, ${replacesId}, ${now()})`;
   return id;
 }
 
@@ -242,21 +288,46 @@ export async function setSignalStatus(id: string, status: SignalStatus): Promise
   }
 }
 
+/**
+ * Approve a proposal. If it replaces an active signal, that signal retires in
+ * the same gesture — the board swaps to the sharper crux signal instead of
+ * accreting near-twins. Returns the id of the retired signal, if any.
+ */
+export async function approveSignal(id: string): Promise<{ retiredId: string | null }> {
+  const signal = await getSignal(id);
+  await setSignalStatus(id, "active");
+  let retiredId: string | null = null;
+  if (signal?.replaces) {
+    const target = await getSignal(signal.replaces);
+    if (target && target.status === "active") {
+      await setSignalStatus(target.id, "retired");
+      retiredId = target.id;
+    }
+  }
+  return { retiredId };
+}
+
 // ---------- readings ----------
 
-interface ReadingRow extends Omit<Reading, "citations"> {
+interface ReadingRow extends Omit<Reading, "citations" | "newEvidence"> {
   citations: string;
+  newEvidence: number | null;
 }
 
 function parseReading(r: ReadingRow): Reading {
-  return { ...r, citations: JSON.parse(r.citations) as Citation[] };
+  return {
+    ...r,
+    newEvidence: r.newEvidence == null ? null : r.newEvidence === 1,
+    citations: JSON.parse(r.citations) as Citation[],
+  };
 }
 
 export async function insertReading(r: Omit<Reading, "id">): Promise<Reading> {
   const id = uid();
-  await q`INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, citations)
+  await q`INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, "newEvidence", citations)
           VALUES (${id}, ${r.signalId}, ${r.runId}, ${r.date}, ${r.value}, ${r.valueUnit},
-                  ${r.level}, ${r.delta}, ${r.confidence}, ${r.rationale}, ${JSON.stringify(r.citations)})`;
+                  ${r.level}, ${r.delta}, ${r.confidence}, ${r.rationale},
+                  ${r.newEvidence == null ? null : r.newEvidence ? 1 : 0}, ${JSON.stringify(r.citations)})`;
   return { ...r, id };
 }
 
@@ -355,6 +426,21 @@ export async function recentDigest(symbol: string, limit = 24): Promise<DigestIt
 
 // ---------- runs ----------
 
+interface RunRow extends Omit<Run, "sources"> {
+  sources: string;
+}
+
+function parseRun(r: RunRow | undefined): Run | undefined {
+  if (!r) return undefined;
+  let sources: Citation[] = [];
+  try {
+    sources = JSON.parse(r.sources || "[]") as Citation[];
+  } catch {
+    /* legacy row */
+  }
+  return { ...r, sources };
+}
+
 export async function createRun(symbol: string): Promise<Run> {
   const run: Run = {
     id: uid(),
@@ -365,6 +451,7 @@ export async function createRun(symbol: string): Promise<Run> {
     stage: "queued",
     stageDetail: "Preparing the desk…",
     brief: null,
+    sources: [],
     error: null,
   };
   await q`INSERT INTO runs (id, symbol, "startedAt", status, stage, "stageDetail")
@@ -376,9 +463,10 @@ export async function setRunStage(id: string, stage: string, stageDetail: string
   await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
 }
 
-export async function finishRun(id: string, brief: string): Promise<void> {
+/** Complete a run: store the brief plus the numbered source list it cites ([n] → link). */
+export async function finishRun(id: string, brief: string, sources: Citation[] = []): Promise<void> {
   await q`UPDATE runs SET status = 'done', stage = 'done', "stageDetail" = 'Desk updated',
-          brief = ${brief}, "finishedAt" = ${now()} WHERE id = ${id}`;
+          brief = ${brief}, sources = ${JSON.stringify(sources)}, "finishedAt" = ${now()} WHERE id = ${id}`;
 }
 
 export async function failRun(id: string, error: string): Promise<void> {
@@ -387,19 +475,19 @@ export async function failRun(id: string, error: string): Promise<void> {
 }
 
 export async function getRun(id: string): Promise<Run | undefined> {
-  const rows = await q<Run>`SELECT * FROM runs WHERE id = ${id}`;
-  return rows[0];
+  const rows = await q<RunRow>`SELECT * FROM runs WHERE id = ${id}`;
+  return parseRun(rows[0]);
 }
 
 export async function latestRun(symbol: string): Promise<Run | undefined> {
-  const rows = await q<Run>`SELECT * FROM runs WHERE symbol = ${symbol} ORDER BY "startedAt" DESC LIMIT 1`;
-  return rows[0];
+  const rows = await q<RunRow>`SELECT * FROM runs WHERE symbol = ${symbol} ORDER BY "startedAt" DESC LIMIT 1`;
+  return parseRun(rows[0]);
 }
 
 export async function runningRun(symbol: string): Promise<Run | undefined> {
-  const rows = await q<Run>`
+  const rows = await q<RunRow>`
     SELECT * FROM runs WHERE symbol = ${symbol} AND status = 'running' ORDER BY "startedAt" DESC LIMIT 1`;
-  return rows[0];
+  return parseRun(rows[0]);
 }
 
 /** Mark runs stuck in `running` for over 15 minutes as failed (e.g. instance died mid-run). */
@@ -426,12 +514,24 @@ function parseMessage(r: MessageRow): ChatMessage {
   };
 }
 
+/**
+ * Chat scoping: every message belongs either to the ticker-level desk
+ * (signalId null) or to one signal's focused chat (signalId set).
+ *   { signalId: null }  → desk-level messages only
+ *   { signalId: "…" }   → that signal's chat only
+ *   omitted             → ALL messages (e.g. research guidance sweep)
+ */
+export interface MessageScope {
+  signalId?: string | null;
+}
+
 export async function insertMessage(
   symbol: string,
   role: "user" | "assistant",
   content: string,
   proposalIds: string[] = [],
-  attachments: Attachment[] = []
+  attachments: Attachment[] = [],
+  signalId: string | null = null
 ): Promise<ChatMessage> {
   const m: ChatMessage = {
     id: uid(),
@@ -440,11 +540,12 @@ export async function insertMessage(
     content,
     proposalIds,
     attachments,
+    signalId,
     createdAt: now(),
   };
-  await q`INSERT INTO messages (id, symbol, role, content, "proposalIds", attachments, "createdAt")
+  await q`INSERT INTO messages (id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt")
           VALUES (${m.id}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.proposalIds)},
-                  ${JSON.stringify(m.attachments)}, ${m.createdAt})`;
+                  ${JSON.stringify(m.attachments)}, ${m.signalId}, ${m.createdAt})`;
   return m;
 }
 
@@ -452,8 +553,12 @@ export async function insertMessage(
  * Messages with attachment payloads stripped to metadata — what the browser
  * polls. Full payloads stay server-side (see listMessagesWithAttachments).
  */
-export async function listMessages(symbol: string, limit = 200): Promise<ChatMessage[]> {
-  const rows = await listMessagesWithAttachments(symbol, limit);
+export async function listMessages(
+  symbol: string,
+  limit = 200,
+  scope?: MessageScope
+): Promise<ChatMessage[]> {
+  const rows = await listMessagesWithAttachments(symbol, limit, scope);
   return rows.map((m) => ({
     ...m,
     attachments: m.attachments.map((a) => ({
@@ -468,10 +573,69 @@ export async function listMessages(symbol: string, limit = 200): Promise<ChatMes
 /** Messages including full attachment data — for building model requests only. */
 export async function listMessagesWithAttachments(
   symbol: string,
-  limit = 200
+  limit = 200,
+  scope?: MessageScope
 ): Promise<ChatMessage[]> {
-  const rows = await q<MessageRow>`
-    SELECT id, symbol, role, content, "proposalIds", attachments, "createdAt"
-    FROM messages WHERE symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+  let rows: MessageRow[];
+  if (scope?.signalId === undefined) {
+    rows = await q<MessageRow>`
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
+      FROM messages WHERE symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+  } else if (scope.signalId === null) {
+    rows = await q<MessageRow>`
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
+      FROM messages WHERE symbol = ${symbol} AND "signalId" IS NULL
+      ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+  } else {
+    rows = await q<MessageRow>`
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
+      FROM messages WHERE symbol = ${symbol} AND "signalId" = ${scope.signalId}
+      ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+  }
   return rows.map(parseMessage);
+}
+
+// ---------- settings ----------
+
+export async function getSetting(key: string): Promise<string | null> {
+  const rows = await q<{ value: string }>`SELECT value FROM settings WHERE key = ${key}`;
+  return rows[0]?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  await q`INSERT INTO settings (key, value) VALUES (${key}, ${value})
+          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+}
+
+/**
+ * Global auto-research switch (the token budget lever). When OFF, neither the
+ * cron nor stale-desk-open starts a run — only explicit human asks do (the
+ * "Run research now" button, telling the analyst to run, or activating a desk).
+ * Defaults ON.
+ */
+export async function autoResearchEnabled(): Promise<boolean> {
+  return (await getSetting("autoResearch")) !== "off";
+}
+
+// ---------- trades (portfolio ledger) ----------
+
+export async function insertTrade(t: Omit<Trade, "id" | "createdAt">): Promise<Trade> {
+  const trade: Trade = { ...t, id: uid(), createdAt: now() };
+  await q`INSERT INTO trades (id, symbol, kind, side, quantity, price, fees, "tradeDate",
+                              "optionType", strike, expiry, multiplier, note, "createdAt")
+          VALUES (${trade.id}, ${trade.symbol}, ${trade.kind}, ${trade.side}, ${trade.quantity},
+                  ${trade.price}, ${trade.fees}, ${trade.tradeDate}, ${trade.optionType},
+                  ${trade.strike}, ${trade.expiry}, ${trade.multiplier}, ${trade.note}, ${trade.createdAt})`;
+  return trade;
+}
+
+export async function deleteTrade(id: string): Promise<void> {
+  await q`DELETE FROM trades WHERE id = ${id}`;
+}
+
+export async function listTrades(symbol?: string): Promise<Trade[]> {
+  if (symbol) {
+    return q<Trade>`SELECT * FROM trades WHERE symbol = ${symbol} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
+  }
+  return q<Trade>`SELECT * FROM trades ORDER BY "tradeDate" ASC, "createdAt" ASC`;
 }

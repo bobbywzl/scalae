@@ -203,6 +203,8 @@ export function ChatPanel({
   tall = false,
   expanded = false,
   onToggleExpand,
+  title = "Analyst desk",
+  emptyHint,
 }: {
   messages: ChatMessage[];
   signalsById: Map<string, Signal>;
@@ -217,6 +219,9 @@ export function ChatPanel({
   /** Fullscreen desk mode — the page controls positioning, this styles the frame. */
   expanded?: boolean;
   onToggleExpand?: () => void;
+  title?: string;
+  /** Muted intro bubble shown while the thread is empty. */
+  emptyHint?: string;
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -329,7 +334,7 @@ export function ChatPanel({
     >
       <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-gain" />
-        <p className="text-sm font-semibold">Analyst desk</p>
+        <p className="text-sm font-semibold">{title}</p>
         <p className="text-[10px] text-muted ml-auto hidden sm:block">
           your feedback steers tomorrow’s research
         </p>
@@ -346,6 +351,13 @@ export function ChatPanel({
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {messages.length === 0 && !sending && emptyHint && (
+          <div className="flex justify-start">
+            <div className="max-w-[92%] rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 text-xs text-muted leading-relaxed">
+              {emptyHint}
+            </div>
+          </div>
+        )}
         {messages.map((m) => (
           <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
             <div

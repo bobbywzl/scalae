@@ -6,10 +6,13 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { PositionCard } from "@/components/PositionCard";
 import { RunBanner } from "@/components/RunBanner";
 import { SignalCard } from "@/components/SignalCard";
+import { SignalDetail } from "@/components/SignalDetail";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
+import { linkCitations } from "@/lib/citations";
 import type { Attachment, DeskPayload, Run, Signal } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
@@ -24,6 +27,9 @@ export default function DeskPage() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [fullDesk, setFullDesk] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const autoRan = useRef(false);
 
   // Full-screen analyst desk: Esc exits, page scroll locks underneath.
@@ -72,9 +78,11 @@ export default function DeskPage() {
     }
   }, [symbol, load]);
 
-  // Daily regeneration: when a set-up desk is opened and its research is stale, run it.
+  // Daily regeneration: when a set-up desk is opened and its research is stale,
+  // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
     if (!desk || autoRan.current) return;
+    if (!desk.autoResearch) return;
     const { ticker, active, latestRun } = desk;
     const stale = !ticker.lastRunAt || Date.now() - Date.parse(ticker.lastRunAt) > STALE_MS;
     if (ticker.onboarded && active.length > 0 && latestRun?.status !== "running" && stale) {
@@ -100,6 +108,7 @@ export default function DeskPage() {
                 content: text,
                 proposalIds: [],
                 attachments,
+                signalId: null,
                 createdAt: new Date().toISOString(),
               },
             ],
@@ -143,6 +152,12 @@ export default function DeskPage() {
         method: "PATCH",
         body: JSON.stringify({ action }),
       });
+      setSelected((s) => {
+        if (!s.has(id)) return s;
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
       await load();
       // First approval activates the desk — kick off the first research run.
       if (res.onboardedNow) {
@@ -153,6 +168,36 @@ export default function DeskPage() {
       setActingId(null);
     }
   }
+
+  // Bulk proposal management: approve or ignore the whole selection at once.
+  async function bulkAct(action: "approve" | "dismiss", ids: string[]) {
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await api<{ onboardedNow?: boolean }>(`/api/signals/bulk`, {
+        method: "POST",
+        body: JSON.stringify({ ids, action }),
+      });
+      setSelected(new Set());
+      await load();
+      if (res.onboardedNow) {
+        autoRan.current = true;
+        startRun();
+      }
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "Bulk action failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const signalsById = useMemo(() => {
     const m = new Map<string, Signal>();
@@ -199,6 +244,8 @@ export default function DeskPage() {
   const { ticker, quote, latestRun, suggested } = desk;
   const up = (quote?.changePercent ?? 0) >= 0;
   const onboarding = !ticker.onboarded;
+  // Signal detail overlay: derived from the live payload so polls keep it fresh.
+  const detailSignal = detailId ? (desk.active.find((s) => s.id === detailId) ?? null) : null;
 
   const header = (
     <header className="flex items-center gap-4 flex-wrap">
@@ -254,9 +301,27 @@ export default function DeskPage() {
             <SectionTitle>
               Proposed signal board <Badge>{suggested.length} awaiting approval</Badge>
             </SectionTitle>
+            <BulkBar
+              suggested={suggested}
+              selected={selected}
+              busy={bulkBusy}
+              onSelectAll={() => setSelected(new Set(suggested.map((s) => s.id)))}
+              onClear={() => setSelected(new Set())}
+              onBulk={bulkAct}
+            />
             <div className="grid sm:grid-cols-2 gap-3 mt-2">
               {suggested.map((s) => (
-                <SuggestionCard key={s.id} signal={s} busy={actingId === s.id} onAct={act} />
+                <SuggestionCard
+                  key={s.id}
+                  signal={s}
+                  busy={actingId === s.id || bulkBusy}
+                  onAct={act}
+                  selected={selected.has(s.id)}
+                  onToggleSelect={toggleSelect}
+                  replacesName={
+                    s.replaces ? desk.active.find((a) => a.id === s.replaces)?.name ?? null : null
+                  }
+                />
               ))}
             </div>
           </section>
@@ -310,6 +375,11 @@ export default function DeskPage() {
             <RunBanner run={latestRun} onRetry={startRun} />
           )}
 
+          {desk.position &&
+            (desk.position.stock || desk.position.options.length > 0 || desk.position.realized !== 0) && (
+              <PositionCard position={desk.position} />
+            )}
+
           <section className="rounded-2xl bg-card border border-hairline p-5">
             <SectionTitle>
               Today’s brief
@@ -321,7 +391,7 @@ export default function DeskPage() {
             </SectionTitle>
             {latestRun?.brief ? (
               <div className="mt-2">
-                <Markdown>{latestRun.brief}</Markdown>
+                <Markdown>{linkCitations(latestRun.brief, latestRun.sources)}</Markdown>
               </div>
             ) : (
               <p className="text-muted text-xs italic mt-2">
@@ -348,11 +418,29 @@ export default function DeskPage() {
               </SectionTitle>
               <p className="text-[11px] text-muted mt-1">
                 The desk rediscovers candidate signals as the story evolves — nothing is tracked
-                without your sign-off.
+                without your sign-off. Proposals marked ⇄ replace an active signal on approval.
               </p>
-              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+              <BulkBar
+                suggested={suggested}
+                selected={selected}
+                busy={bulkBusy}
+                onSelectAll={() => setSelected(new Set(suggested.map((s) => s.id)))}
+                onClear={() => setSelected(new Set())}
+                onBulk={bulkAct}
+              />
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
                 {suggested.map((s) => (
-                  <SuggestionCard key={s.id} signal={s} busy={actingId === s.id} onAct={act} />
+                  <SuggestionCard
+                    key={s.id}
+                    signal={s}
+                    busy={actingId === s.id || bulkBusy}
+                    onAct={act}
+                    selected={selected.has(s.id)}
+                    onToggleSelect={toggleSelect}
+                    replacesName={
+                      s.replaces ? desk.active.find((a) => a.id === s.replaces)?.name ?? null : null
+                    }
+                  />
                 ))}
               </div>
             </section>
@@ -376,7 +464,7 @@ export default function DeskPage() {
                     )}
                     <div className="grid sm:grid-cols-2 gap-3 mt-2">
                       {signals.map((s) => (
-                        <SignalCard key={s.id} signal={s} onRetire={(id) => act(id, "retire")} />
+                        <SignalCard key={s.id} signal={s} onOpen={(sig) => setDetailId(sig.id)} />
                       ))}
                     </div>
                   </div>
@@ -422,6 +510,20 @@ export default function DeskPage() {
           </div>
         </div>
       </div>
+
+      {detailSignal && (
+        <SignalDetail
+          signal={detailSignal}
+          signalsById={signalsById}
+          onClose={() => setDetailId(null)}
+          onAct={act}
+          actingId={actingId}
+          onRetire={(id) => {
+            setDetailId(null);
+            act(id, "retire");
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -467,6 +569,55 @@ function FullDeskBar({
       >
         Back to board <span className="text-muted">(Esc)</span>
       </button>
+    </div>
+  );
+}
+
+/** Bulk proposal management: select, select all, approve/ignore the selection. */
+function BulkBar({
+  suggested,
+  selected,
+  busy,
+  onSelectAll,
+  onClear,
+  onBulk,
+}: {
+  suggested: Signal[];
+  selected: Set<string>;
+  busy: boolean;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onBulk: (action: "approve" | "dismiss", ids: string[]) => void;
+}) {
+  const ids = suggested.filter((s) => selected.has(s.id)).map((s) => s.id);
+  const allSelected = ids.length === suggested.length && suggested.length > 0;
+  return (
+    <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
+      <button
+        onClick={allSelected ? onClear : onSelectAll}
+        className="rounded-lg border border-hairline bg-white/4 hover:bg-white/8 px-2.5 py-1 font-medium text-[#c7c7cc] transition-colors"
+      >
+        {allSelected ? "Clear selection" : "Select all"}
+      </button>
+      {ids.length > 0 && (
+        <>
+          <span className="text-muted">{ids.length} selected</span>
+          <button
+            onClick={() => onBulk("approve", ids)}
+            disabled={busy}
+            className="rounded-lg bg-gain/15 text-gain font-semibold px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+          >
+            {busy ? "Working…" : `Approve ${ids.length}`}
+          </button>
+          <button
+            onClick={() => onBulk("dismiss", ids)}
+            disabled={busy}
+            className="rounded-lg bg-white/6 text-muted font-medium px-2.5 py-1 hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+          >
+            Ignore {ids.length}
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -34,6 +34,7 @@ interface SynthesisOutput {
   brief: string;
   readings: {
     signalKey: string;
+    newEvidence: boolean;
     value: number | null;
     valueUnit: string | null;
     level: ReadingLevel;
@@ -359,10 +360,13 @@ NUMBERED SOURCES:
 ${sourceList || "(none)"}
 
 TASK — produce today's desk output:
-1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. If there is no new evidence for a signal: keep the level close to the previous one (or "unclear" if none), delta "flat", confidence <= 0.4, and a rationale saying no new evidence emerged. For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading's rationale actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added.
+1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. First decide "newEvidence": did today's research add ANYTHING for this signal that the previous reading didn't already say?
+   - newEvidence=false (pure carry-forward): rationale must be ONE short sentence — "No new information this run." optionally plus a brief note of what was checked (max ~140 chars total). Do NOT re-narrate the prior story, figures, or history — the board already shows them. Keep the previous level and value, delta "flat", and confidence at or slightly below the previous reading's.
+   - newEvidence=true: the rationale must LEAD with what is new versus the previous reading (the delta), then its implication — never restate the whole running story.
+   For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added. Never write bracketed [n] references inside rationale text — cite only via citationIndexes (the app renders them as linked chips).
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
-3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore.
-4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses (this is the desk's self-reinforcing discovery loop). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). If an existing signal should be sharpened instead, mention it in the brief rather than proposing a near-twin. Return an empty array when nothing genuinely new emerged.`;
+3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
+4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.`;
 
     const out = await claudeJSON<SynthesisOutput>({
       model: synthModel,
@@ -392,6 +396,7 @@ TASK — produce today's desk output:
         delta: r.delta ?? "flat",
         confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)),
         rationale: r.rationale ?? "",
+        newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
         citations,
       });
     }
@@ -418,7 +423,7 @@ TASK — produce today's desk output:
       if (p.name?.trim()) await insertProposal(symbol, p, "research");
     }
 
-    await finishRun(runId, out.brief ?? "");
+    await finishRun(runId, out.brief ?? "", allSources);
     await touchLastRun(symbol);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

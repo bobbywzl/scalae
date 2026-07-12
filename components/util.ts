@@ -11,6 +11,16 @@ export function fmtPct(v: number | null | undefined): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
+/** ISO date string `days` ago (UTC). */
+export function daysAgoISO(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Whole days from now until an ISO date (negative = past). */
+export function daysUntil(iso: string): number {
+  return Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000);
+}
+
 export function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "never";
   const s = (Date.now() - Date.parse(iso)) / 1000;

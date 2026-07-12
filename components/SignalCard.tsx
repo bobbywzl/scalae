@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { domainOf } from "@/lib/citations";
 import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
 import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
@@ -42,8 +42,7 @@ function SourceChip({ citation }: { citation: Citation }) {
 
 /**
  * The signal's full evidence catalog — every source it has accumulated across
- * daily runs, deduped and freshest-first. Grows over time as research enriches
- * the signal. Opened from the "N sources" count on the card.
+ * daily runs, deduped and freshest-first. Opened from the "N sources" count.
  */
 function SourcesModal({
   name,
@@ -54,22 +53,13 @@ function SourcesModal({
   sources: SignalSource[];
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
     >
       <div
         className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl bg-card border border-white/15 shadow-2xl overflow-hidden"
@@ -93,29 +83,16 @@ function SourcesModal({
           {sources.map((s, i) => (
             <li key={i} className="text-xs">
               <div className="flex items-baseline gap-2">
-                <a
-                  href={s.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-accent/90 hover:underline truncate"
-                >
+                <a href={s.url} target="_blank" rel="noreferrer" className="font-semibold text-accent/90 hover:underline truncate">
                   {s.domain}
                 </a>
                 {s.count > 1 && (
-                  <span
-                    className="shrink-0 rounded-full bg-white/8 px-1.5 py-px text-[9px] text-muted"
-                    title={`Cited in ${s.count} readings`}
-                  >
+                  <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-px text-[9px] text-muted" title={`Cited in ${s.count} readings`}>
                     ×{s.count}
                   </span>
                 )}
               </div>
-              <a
-                href={s.url}
-                target="_blank"
-                rel="noreferrer"
-                className="block text-[#c7c7cc] hover:text-white leading-snug mt-0.5"
-              >
+              <a href={s.url} target="_blank" rel="noreferrer" className="block text-[#c7c7cc] hover:text-white leading-snug mt-0.5">
                 {s.title.length > 110 ? s.title.slice(0, 110) + "…" : s.title}
               </a>
               <p className="text-[10px] text-muted mt-0.5">
@@ -131,27 +108,27 @@ function SourcesModal({
   );
 }
 
+/**
+ * Board card for one signal. Clicking it opens the signal's dedicated
+ * segmented view (reading, evidence, history + a signal-scoped analyst desk).
+ */
 export function SignalCard({
   signal,
-  onRetire,
+  onOpen,
 }: {
   signal: SignalWithReadings;
-  onRetire: (id: string) => void;
+  onOpen: (signal: SignalWithReadings) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const r = signal.latest;
   const level = r ? LEVEL_STYLE[r.level] : null;
   const delta = r ? DELTA_ARROW[r.delta] : null;
   const sources = signal.sources ?? [];
+  const carriedForward = r?.newEvidence === false;
 
   return (
-    <div
-      className={`rounded-xl bg-card border border-hairline transition-colors ${
-        open ? "border-white/20" : "hover:border-white/15"
-      }`}
-    >
-      <button onClick={() => setOpen(!open)} className="w-full text-left px-4 py-3">
+    <div className="rounded-xl bg-card border border-hairline hover:border-white/20 transition-colors">
+      <button onClick={() => onOpen(signal)} className="w-full text-left px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="text-sm font-semibold leading-tight">{signal.name}</div>
@@ -160,9 +137,7 @@ export function SignalCard({
             </div>
           </div>
           {level && delta && (
-            <span
-              className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}
-            >
+            <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}>
               {level.label} <span className={delta.cls}>{delta.ch}</span>
             </span>
           )}
@@ -176,22 +151,37 @@ export function SignalCard({
                 <span className="text-xs text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
               </div>
             )}
-            <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed line-clamp-2">{r.rationale}</p>
+            {carriedForward ? (
+              <p className="mt-1.5 text-xs text-muted italic leading-relaxed">
+                No change — no new information this run.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed line-clamp-2">{r.rationale}</p>
+            )}
             <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
               <ConfidenceDots value={r.confidence} />
               <span>{timeAgo(r.date)}</span>
               {sources.length > 0 && (
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSourcesOpen(true);
                   }}
-                  className="text-accent/90 hover:text-accent hover:underline transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.stopPropagation();
+                      setSourcesOpen(true);
+                    }
+                  }}
+                  className="text-accent/90 hover:text-accent hover:underline transition-colors cursor-pointer"
                   title="View all sources this signal has accumulated"
                 >
                   🔗 {sources.length} {sources.length === 1 ? "source" : "sources"}
-                </button>
+                </span>
               )}
+              <span className="ml-auto text-muted/60">open ⤢</span>
             </div>
           </>
         ) : (
@@ -199,8 +189,8 @@ export function SignalCard({
         )}
       </button>
 
-      {/* Evidence at a glance: the freshest sources; the count above opens all. */}
-      {!open && sources.length > 0 && (
+      {/* Freshest sources at a glance; the count opens the whole catalog. */}
+      {sources.length > 0 && (
         <div className="px-4 pb-3 -mt-0.5 flex flex-wrap items-center gap-1.5">
           {sources.slice(0, 3).map((s, i) => (
             <SourceChip key={i} citation={s} />
@@ -213,83 +203,6 @@ export function SignalCard({
               +{sources.length - 3} more
             </button>
           )}
-        </div>
-      )}
-
-      {open && (
-        <div className="border-t border-hairline px-4 py-3 space-y-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted mb-1">Why we track this</p>
-            <p className="text-xs text-[#c7c7cc]">{signal.thesis}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted mb-1">Measurement plan</p>
-            <p className="text-xs text-[#c7c7cc]">{signal.measurementPlan}</p>
-            {signal.scale && <p className="text-[11px] text-muted mt-1">Scale: {signal.scale}</p>}
-          </div>
-          {sources.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">
-                Evidence catalog
-              </p>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {sources.slice(0, 6).map((s, i) => (
-                  <SourceChip key={i} citation={s} />
-                ))}
-                <button
-                  onClick={() => setSourcesOpen(true)}
-                  className="rounded-full border border-accent/30 bg-accent/10 hover:bg-accent/20 px-2 py-0.5 text-[10px] text-accent transition-colors"
-                >
-                  View all {sources.length}
-                </button>
-              </div>
-            </div>
-          )}
-          {signal.history.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">History</p>
-              <ul className="space-y-2">
-                {signal.history.map((h) => (
-                  <li key={h.id} className="text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted tabular-nums">{h.date.slice(0, 10)}</span>
-                      <span className={`rounded px-1.5 py-px text-[10px] font-medium ${LEVEL_STYLE[h.level].cls}`}>
-                        {LEVEL_STYLE[h.level].label}
-                      </span>
-                      {h.value != null && (
-                        <span className="tabular-nums">
-                          {h.value.toLocaleString()} {h.valueUnit ?? ""}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[#a8a8ad] mt-0.5 leading-relaxed">{h.rationale}</p>
-                    {h.citations.length > 0 && (
-                      <p className="mt-0.5 space-x-2">
-                        {h.citations.map((c, i) => (
-                          <a
-                            key={i}
-                            href={c.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            title={c.foundBy?.length ? `via ${c.foundBy.join(" · ")}` : c.title}
-                            className="text-accent/90 hover:underline text-[11px]"
-                          >
-                            {domainOf(c)}
-                          </a>
-                        ))}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <button
-            onClick={() => onRetire(signal.id)}
-            className="text-[11px] text-muted hover:text-loss transition-colors"
-          >
-            Retire this signal
-          </button>
         </div>
       )}
 

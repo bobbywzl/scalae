@@ -27,3 +27,19 @@ export function domainOf(c: Citation): string {
 export function withDomain(c: Citation): Citation {
   return { ...c, domain: domainOf(c) };
 }
+
+/**
+ * Resolve bracketed citation indexes in analyst markdown ("…program [37][40].")
+ * into clickable links against the run's numbered source list. Unresolvable
+ * indexes are left as-is; already-linked text (e.g. "[12](http…)") is skipped.
+ */
+export function linkCitations(md: string, sources: Citation[] | undefined): string {
+  if (!md || !sources || sources.length === 0) return md;
+  return md.replace(/\[(\d{1,3})\](?!\()/g, (match, nStr: string) => {
+    const n = Number(nStr);
+    const src = sources[n];
+    if (!src?.url) return match;
+    // Link text keeps the bracket style; angle-bracket destination survives odd URLs.
+    return `[[${n}]](<${src.url}> "${(src.title ?? domainOf(src)).replace(/"/g, "'")}")`;
+  });
+}

@@ -8,6 +8,8 @@ import {
   SIGNAL_GUIDANCE,
 } from "./framework";
 import {
+  approveSignal,
+  getSignal,
   getTicker,
   insertMessage,
   insertProposal,
@@ -17,10 +19,13 @@ import {
   listSignals,
   markOnboarded,
   readingsForSignal,
+  recentDigest,
   setSignalStatus,
+  sourcesForSignals,
   upsertFocusArea,
 } from "../db";
 import { getQuote, quoteLine } from "../market";
+import { computeInvolvement, involvementLine } from "../portfolio";
 import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
 
 interface ChatOutput {
@@ -140,25 +145,34 @@ function historyToMessages(history: ChatMessage[]): Anthropic.MessageParam[] {
 export async function handleChatTurn(
   symbol: string,
   userText: string,
-  opts: { retry?: boolean; attachments?: Attachment[] } = {}
+  opts: { retry?: boolean; attachments?: Attachment[]; signalId?: string } = {}
 ): Promise<ChatTurnResult> {
   const ticker = await getTicker(symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
 
+  // Signal-scoped desk: same analyst, context narrowed to one signal's world.
+  const focusSignal = opts.signalId ? await getSignal(opts.signalId) : undefined;
+  if (opts.signalId && (!focusSignal || focusSignal.symbol !== symbol)) {
+    throw new Error("Unknown signal for this desk.");
+  }
+  const scopeId = focusSignal?.id ?? null;
+
   if (!opts.retry) {
-    await insertMessage(symbol, "user", userText, [], opts.attachments ?? []);
+    await insertMessage(symbol, "user", userText, [], opts.attachments ?? [], scopeId);
   }
 
   const mode = ticker.onboarded ? "working" : "onboarding";
-  const [focusAreas, active, suggested, dismissed, retired, run, quote] = await Promise.all([
-    listFocusAreas(symbol),
-    listSignals(symbol, "active"),
-    listSignals(symbol, "suggested"),
-    listSignals(symbol, "dismissed"),
-    listSignals(symbol, "retired"),
-    latestRun(symbol),
-    getQuote(symbol).catch(() => null),
-  ]);
+  const [focusAreas, active, suggested, dismissed, retired, run, quote, involvement] =
+    await Promise.all([
+      listFocusAreas(symbol),
+      listSignals(symbol, "active"),
+      listSignals(symbol, "suggested"),
+      listSignals(symbol, "dismissed"),
+      listSignals(symbol, "retired"),
+      latestRun(symbol),
+      getQuote(symbol).catch(() => null),
+      computeInvolvement(symbol).catch(() => null),
+    ]);
 
   const boardLines = (
     await Promise.all(
@@ -172,8 +186,10 @@ export async function handleChatTurn(
     )
   ).join("\n");
 
+  const positionLine = involvementLine(involvement);
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
 Market: ${quoteLine(quote)}
+Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position." : ""}
 Focus areas: ${focusAreas.length ? focusAreas.map((f) => `${f.title} — ${f.description}`).join("; ") : "none yet"}
 Active signal board:
 ${boardLines || "(empty)"}
@@ -182,8 +198,53 @@ Previously dismissed or retired signals (do NOT re-propose without materially ne
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
-  const modeInstructions =
-    mode === "onboarding"
+  // Signal-focused context: the one signal's full world, in depth.
+  let signalContext = "";
+  if (focusSignal) {
+    const [readings, catalog, digest] = await Promise.all([
+      readingsForSignal(focusSignal.id, 10),
+      sourcesForSignals(symbol).then((m) => m.get(focusSignal.id) ?? []),
+      recentDigest(symbol, 40),
+    ]);
+    const readingLines = readings
+      .map(
+        (r) =>
+          `- ${r.date.slice(0, 10)}: ${r.level}${r.value != null ? `, ${r.value} ${r.valueUnit ?? ""}` : ""} (delta ${r.delta}, confidence ${r.confidence}) — ${r.rationale}${
+            r.citations.length ? ` [sources: ${r.citations.map((c) => c.domain ?? c.title).join(", ")}]` : ""
+          }`
+      )
+      .join("\n");
+    const catalogLines = catalog
+      .slice(0, 20)
+      .map((s) => `- ${s.domain}: ${s.title}${s.count > 1 ? ` (cited in ${s.count} readings)` : ""}`)
+      .join("\n");
+    const related = digest
+      .filter((d) => d.signalNames.some((n) => n.toLowerCase() === focusSignal.name.toLowerCase()))
+      .slice(0, 6)
+      .map((d) => `- ${d.date.slice(0, 10)}: ${d.headline}`)
+      .join("\n");
+    signalContext = `SIGNAL IN FOCUS — the investor opened this signal's dedicated view:
+"${focusSignal.name}" (${focusSignal.type}, focus area: ${focusSignal.focusArea}, status: ${focusSignal.status})
+Thesis: ${focusSignal.thesis}
+Measurement plan: ${focusSignal.measurementPlan}
+Scale: ${focusSignal.scale}
+Reading history (newest first):
+${readingLines || "(no readings yet)"}
+Accumulated evidence catalog (${catalog.length} distinct sources):
+${catalogLines || "(none yet)"}
+Digest items tied to this signal:
+${related || "(none)"}`;
+  }
+
+  const modeInstructions = focusSignal
+    ? `MODE: Signal-focused working session.
+This conversation lives inside the dedicated view for "${focusSignal.name}" — answer from THIS signal's thesis, readings, and evidence catalog first; bring in the wider board or brief only as supporting context and say when you do. The ticker-level desk chat (separate) keeps the global picture.
+- Interrogate the signal itself, not just its readings: is it still aimed at the crux of the business model/culture? If the investor's feedback (or the evidence) shows it is aimed wrong, too narrow, or subsumable by something sharper, propose the upgraded signal with replaces="${focusSignal.name}" — approval swaps it in and retires this one.
+- New adjacent threads → normal additive proposals (approval-gated; no overlap with the board).
+- Investor explicitly asks to retire this signal → put "${focusSignal.name}" in retireSignals and confirm.
+- Investor asks to run/refresh research → startResearch=true.
+Keep replies concrete and evidence-first; cite sources by domain when you lean on them. Set onboardingComplete=false.`
+    : mode === "onboarding"
       ? `MODE: Onboarding interview.
 The investor just opened this desk. Follow the question-generation method above:
 1. First, silently classify ${ticker.name}: great/good/gruesome economics, franchise vs. commodity — and identify which of the four filters carries the most open doubt for this specific company. Let that drive your questions and proposals, not a generic checklist.
@@ -208,9 +269,9 @@ ATTACHMENTS: The investor can attach images (charts, product photos, screenshots
 
 ${deskContext}
 
-${modeInstructions}`;
+${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
 
-  const history = (await listMessagesWithAttachments(symbol, 40)).slice(-16);
+  const history = (await listMessagesWithAttachments(symbol, 40, { signalId: scopeId })).slice(-16);
   const messages = historyToMessages(history);
 
   // Adaptive thinking shares the max_tokens budget with the reply, so a hard
@@ -256,7 +317,7 @@ ${modeInstructions}`;
   for (const name of out.approveProposals ?? []) {
     const hit = pendingNow.find((s) => norm(s.name) === norm(name));
     if (hit) {
-      await setSignalStatus(hit.id, "active");
+      await approveSignal(hit.id); // retires the replaced signal too, if any
       approvedAny = true;
     }
   }
@@ -283,7 +344,7 @@ ${modeInstructions}`;
     ? out.reply
     : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
-  const message = await insertMessage(symbol, "assistant", replyText, proposalIds);
+  const message = await insertMessage(symbol, "assistant", replyText, proposalIds, [], scopeId);
   const hasActive = (await listSignals(symbol, "active")).length > 0;
   return {
     message,

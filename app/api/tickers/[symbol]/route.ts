@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  autoResearchEnabled,
   getTicker,
   latestRun,
   listFocusAreas,
@@ -12,6 +13,7 @@ import {
   sourcesForSignals,
 } from "@/lib/db";
 import { getQuote } from "@/lib/market";
+import { computeInvolvement } from "@/lib/portfolio";
 import type { DeskPayload, SignalWithReadings } from "@/lib/types";
 
 type Params = { params: Promise<{ symbol: string }> };
@@ -23,18 +25,30 @@ export async function GET(_req: Request, { params }: Params) {
   if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await reapStuckRuns(symbol);
-  const [quote, activeSignals, focusAreas, suggested, retired, run, digest, messages, sourcesMap] =
-    await Promise.all([
-      getQuote(symbol),
-      listSignals(symbol, "active"),
-      listFocusAreas(symbol),
-      listSignals(symbol, "suggested"),
-      listSignals(symbol, "retired"),
-      latestRun(symbol),
-      recentDigest(symbol),
-      listMessages(symbol),
-      sourcesForSignals(symbol),
-    ]);
+  const [
+    quote,
+    activeSignals,
+    focusAreas,
+    suggested,
+    retired,
+    run,
+    digest,
+    messages,
+    sourcesMap,
+    position,
+  ] = await Promise.all([
+    getQuote(symbol),
+    listSignals(symbol, "active"),
+    listFocusAreas(symbol),
+    listSignals(symbol, "suggested"),
+    listSignals(symbol, "retired"),
+    latestRun(symbol),
+    recentDigest(symbol),
+    listMessages(symbol, 200, { signalId: null }), // desk-level thread only
+    sourcesForSignals(symbol),
+    computeInvolvement(symbol).catch(() => null),
+  ]);
+  const autoResearch = await autoResearchEnabled();
 
   const active: SignalWithReadings[] = await Promise.all(
     activeSignals.map(async (s) => {
@@ -53,6 +67,8 @@ export async function GET(_req: Request, { params }: Params) {
     latestRun: run ?? null,
     digest,
     messages,
+    position,
+    autoResearch,
   };
   return NextResponse.json(payload);
 }
