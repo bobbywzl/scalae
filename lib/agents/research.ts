@@ -98,7 +98,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 const SCOUT_RULES = `Ground every finding in search results. For each finding output:
 - HEADLINE (date, source)
 - 2-3 sentence factual summary with concrete numbers where available
-Skip stock-price commentary and analyst price-target chatter. Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly.`;
+Skip stock-price commentary, analyst price-target chatter, and peer-momentum/FOMO framing. Prefer revealed behavior and primary mechanism evidence (filings, transcripts, regulator documents, observed pricing/hiring/insider actions) over narrative retellings, and note when a finding's only source is an interested party (the company itself, its bankers, or paid promotion). Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly — an honest "nothing" beats manufactured news.`;
 
 function signalSweepPrompt(symbol: string, name: string, days: number, signals: Signal[]): string {
   const signalBlock = signals
@@ -135,6 +135,8 @@ function scuttlebuttPrompt(symbol: string, name: string, days: number): string {
   return `You are a scuttlebutt scout (Phil Fisher's method, run at machine scale) for a value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Search the web for corporate-culture and conduct evidence from roughly the last ${days} days — how the organization actually behaves: employee sentiment and senior-talent moves (reviews, hiring/layoffs, notable departures), customer experience shifts (product/service quality complaints or praise with substance), treatment of suppliers and partners, management interviews and candor in their own words, trade-press and industry chatter, litigation or regulatory conduct.
+
+Hunt the incentive layer specifically (Munger: behavior follows the comp plan, not the mission statement): executive compensation changes and their metrics/horizons (proxy filings), insider buying and selling, buyback timing vs. option vesting, guidance promises made vs. kept, treatment of bad-news messengers and whistleblowers, and any gap between management's adjusted metrics and GAAP.
 
 Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
 }
@@ -253,7 +255,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
         messages: [
           {
             role: "user",
-            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
+            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
           },
         ],
         schema: GAP_SCHEMA as unknown as Record<string, unknown>,
