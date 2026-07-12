@@ -47,6 +47,11 @@ export default function PortfolioPage() {
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [divBusy, setDivBusy] = useState<string | null>(null);
   const [orderBusy, setOrderBusy] = useState<string | null>(null);
+  const [capEditing, setCapEditing] = useState(false);
+  const [capInput, setCapInput] = useState("");
+  const [capBusy, setCapBusy] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +109,35 @@ export default function PortfolioPage() {
     }
   }
 
+  async function saveCapital(raw: string) {
+    const trimmed = raw.replace(/[$,\s]/g, "");
+    const amount = trimmed === "" ? null : Number(trimmed);
+    if (amount != null && (!Number.isFinite(amount) || amount < 0)) return;
+    setCapBusy(true);
+    try {
+      await api(`/api/portfolio/capital`, { method: "POST", body: JSON.stringify({ amount }) });
+      setCapEditing(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save capital");
+    } finally {
+      setCapBusy(false);
+    }
+  }
+
+  async function resetBook() {
+    setResetBusy(true);
+    try {
+      await api(`/api/portfolio`, { method: "DELETE" });
+      setResetConfirm(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reset the book");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   async function toggleDrip(symbol: string, enabled: boolean) {
     // optimistic: settings write is cheap, avoid whole-payload flash
     setData((d) => (d ? { ...d, drip: { ...d.drip, [symbol]: enabled } } : d));
@@ -129,13 +163,52 @@ export default function PortfolioPage() {
           <h1 className="text-xl font-bold leading-tight">Portfolio</h1>
           <p className="text-muted text-xs">{s?.currencyNote ?? "Positions, options and P&L."}</p>
         </div>
-        <button
-          onClick={() => setAdding((v) => !v)}
-          className="ml-auto rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
-        >
-          + Trade
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {data && data.trades.length + data.openOrders.length > 0 && (
+            <button
+              onClick={() => setResetConfirm((v) => !v)}
+              title="Clear the whole book (trades, orders, dividends)"
+              className="rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              Reset book
+            </button>
+          )}
+          <button
+            onClick={() => setAdding((v) => !v)}
+            className="rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+          >
+            + Trade
+          </button>
+        </div>
       </header>
+
+      {resetConfirm && data && (
+        <div className="mb-5 rounded-2xl border border-loss/30 bg-loss/8 px-4 py-3">
+          <p className="text-sm font-semibold text-loss">Reset the whole book?</p>
+          <p className="text-xs text-[#c7c7cc] mt-1">
+            This permanently deletes {data.trades.length} trade{data.trades.length === 1 ? "" : "s"},{" "}
+            {data.openOrders.length + data.orderHistory.length} order
+            {data.openOrders.length + data.orderHistory.length === 1 ? "" : "s"} and{" "}
+            {data.dividends.length} dividend receipt{data.dividends.length === 1 ? "" : "s"}. Your
+            initial capital and DRIP settings are kept. This cannot be undone.
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              onClick={resetBook}
+              disabled={resetBusy}
+              className="rounded-lg bg-loss/20 hover:bg-loss/30 text-loss text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+            >
+              {resetBusy ? "Deleting…" : "Delete everything"}
+            </button>
+            <button
+              onClick={() => setResetConfirm(false)}
+              className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-loss text-sm mb-4">{error}</p>}
       {adding && (
@@ -146,6 +219,7 @@ export default function PortfolioPage() {
               load();
             }}
             onCancel={() => setAdding(false)}
+            cashUsd={data?.cash ?? null}
           />
         </div>
       )}
@@ -170,13 +244,20 @@ export default function PortfolioPage() {
         <div className="space-y-5">
           {/* Summary tiles */}
           {s && (
-            <section className={`grid grid-cols-2 sm:grid-cols-4 ${s.dividends !== 0 ? "lg:grid-cols-5" : ""} gap-3`}>
+            <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatTile label="Market value" value={fmtUsd(s.marketValue)} sub={`cost ${fmtUsd(s.costBasis)}`} />
               <StatTile
                 label="Total P&L"
                 value={fmtUsd(s.totalPnl, { sign: true })}
                 tone={signCls(s.totalPnl)}
-                sub={s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : undefined}
+                sub={[
+                  s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : null,
+                  data.initialCapital != null && data.initialCapital > 0
+                    ? `${s.totalPnl >= 0 ? "+" : ""}${((s.totalPnl / data.initialCapital) * 100).toFixed(1)}% on capital`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined}
               />
               <StatTile label="Unrealized" value={fmtUsd(s.unrealized, { sign: true })} tone={signCls(s.unrealized)} />
               <StatTile label="Realized" value={fmtUsd(s.realized, { sign: true })} tone={signCls(s.realized)} />
@@ -188,6 +269,83 @@ export default function PortfolioPage() {
                   sub="cash + reinvested"
                 />
               )}
+              {data.initialCapital != null && data.cash != null ? (
+                <div className="rounded-xl bg-card border border-hairline px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted flex items-center">
+                    Cash
+                    <button
+                      onClick={() => {
+                        setCapInput(String(data.initialCapital ?? ""));
+                        setCapEditing(true);
+                      }}
+                      title="Edit initial capital"
+                      className="ml-auto normal-case tracking-normal text-muted hover:text-[#c7c7cc] transition-colors"
+                    >
+                      ✎ edit
+                    </button>
+                  </p>
+                  <p className={`text-lg font-bold tabular-nums mt-0.5 ${data.cash < 0 ? "text-loss" : ""}`}>
+                    {fmtUsd(data.cash)}
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5 tabular-nums">
+                    of {fmtUsd(data.initialCapital)} initial
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setCapInput("");
+                    setCapEditing(true);
+                  }}
+                  className="rounded-xl border border-dashed border-white/20 hover:border-accent/50 px-4 py-3 text-left transition-colors group"
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-muted">Cash</p>
+                  <p className="text-sm font-semibold text-muted group-hover:text-accent mt-1 transition-colors">
+                    + Set initial capital
+                  </p>
+                  <p className="text-[11px] text-muted/70 mt-0.5">unlocks cash & return tracking</p>
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* Initial-capital editor */}
+          {capEditing && (
+            <section className="rounded-2xl bg-card border border-accent/25 px-4 py-3 flex items-end gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted">Initial capital · USD</p>
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={capInput}
+                  onChange={(e) => setCapInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveCapital(capInput);
+                    if (e.key === "Escape") setCapEditing(false);
+                  }}
+                  placeholder="100000"
+                  className="mt-1 rounded-lg bg-card2 border border-hairline focus:border-accent/50 px-2.5 py-2 text-sm outline-none tabular-nums w-44 transition-colors placeholder:text-muted/60"
+                />
+              </div>
+              <p className="text-[11px] text-muted max-w-sm pb-1">
+                The cash you started this book with. Cash on hand = this + every buy/sell/fee/dividend
+                since. Leave empty to stop tracking cash.
+              </p>
+              <div className="flex gap-2 pb-0.5 ml-auto">
+                <button
+                  onClick={() => saveCapital(capInput)}
+                  disabled={capBusy}
+                  className="rounded-lg bg-accent text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+                >
+                  {capBusy ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setCapEditing(false)}
+                  className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </section>
           )}
 
