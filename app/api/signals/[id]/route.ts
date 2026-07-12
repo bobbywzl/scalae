@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { approveSignal, getSignal, getTicker, markOnboarded, setSignalStatus } from "@/lib/db";
+import {
+  approveSignal,
+  getSignal,
+  getTicker,
+  listSignals,
+  markOnboarded,
+  setSignalStatus,
+} from "@/lib/db";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -43,5 +50,25 @@ export async function PATCH(req: Request, { params }: Params) {
     await setSignalStatus(id, signal.status === "retired" ? "active" : "suggested");
     return NextResponse.json({ signal: await getSignal(id) });
   }
-  return NextResponse.json({ error: "action must be approve | dismiss | retire | reactivate" }, { status: 400 });
+  // Undo a ⇄ swap atomically: bring the retired signal back AND retire the
+  // active signal that replaced it, so the board never silently holds both
+  // (FOUNDATION's no-duplication rule). The UI offers this as an explicit
+  // human choice next to plain "keep both" reactivation.
+  if (action === "swap_back") {
+    if (signal.status !== "retired") {
+      return NextResponse.json({ error: "swap_back applies to retired signals" }, { status: 400 });
+    }
+    const active = await listSignals(signal.symbol, "active");
+    const replacement = active.find((s) => s.replaces === id) ?? null;
+    await setSignalStatus(id, "active");
+    if (replacement) await setSignalStatus(replacement.id, "retired");
+    return NextResponse.json({
+      signal: await getSignal(id),
+      retiredId: replacement?.id ?? null,
+    });
+  }
+  return NextResponse.json(
+    { error: "action must be approve | dismiss | retire | reactivate | swap_back" },
+    { status: 400 }
+  );
 }

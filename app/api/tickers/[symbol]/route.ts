@@ -9,12 +9,13 @@ import {
   readingsForSignal,
   reapStuckRuns,
   recentDigest,
+  recentRuns,
   removeTicker,
   sourcesForSignals,
 } from "@/lib/db";
 import { getQuote } from "@/lib/market";
 import { computeInvolvement } from "@/lib/portfolio";
-import type { DeskPayload, SignalWithReadings } from "@/lib/types";
+import type { DeskPayload, Signal, SignalWithReadings } from "@/lib/types";
 
 type Params = { params: Promise<{ symbol: string }> };
 
@@ -30,9 +31,10 @@ export async function GET(_req: Request, { params }: Params) {
     activeSignals,
     focusAreas,
     suggested,
-    retired,
+    retiredSignals,
     dismissed,
     run,
+    runsForProvenance,
     digest,
     messages,
     sourcesMap,
@@ -45,6 +47,7 @@ export async function GET(_req: Request, { params }: Params) {
     listSignals(symbol, "retired"),
     listSignals(symbol, "dismissed"),
     latestRun(symbol),
+    recentRuns(symbol, 15),
     recentDigest(symbol),
     listMessages(symbol, 200, { signalId: null }), // desk-level thread only
     sourcesForSignals(symbol),
@@ -52,12 +55,32 @@ export async function GET(_req: Request, { params }: Params) {
   ]);
   const autoResearch = await autoResearchEnabled();
 
-  const active: SignalWithReadings[] = await Promise.all(
-    activeSignals.map(async (s) => {
-      const history = await readingsForSignal(s.id, 20);
-      return { ...s, latest: history[0] ?? null, history, sources: sourcesMap.get(s.id) ?? [] };
-    })
-  );
+  const withReadings = (s: Signal): Promise<SignalWithReadings> =>
+    readingsForSignal(s.id, 20).then((history) => ({
+      ...s,
+      latest: history[0] ?? null,
+      history,
+      sources: sourcesMap.get(s.id) ?? [],
+    }));
+  // Retired signals keep their evidence trail — a swap never erases history.
+  const [active, retired] = await Promise.all([
+    Promise.all(activeSignals.map(withReadings)),
+    Promise.all(retiredSignals.map(withReadings)),
+  ]);
+
+  // Dossier provenance: when did the standing view last actually change, and
+  // for how many runs has it held? (Newest-first run list.)
+  let dossierRevisedAt: string | null = null;
+  let dossierHeldRuns = 0;
+  const current = run?.dossier ?? null;
+  if (current) {
+    for (const r of runsForProvenance) {
+      if (r.dossier === current) {
+        dossierHeldRuns++;
+        dossierRevisedAt = r.startedAt;
+      } else break;
+    }
+  }
 
   const payload: DeskPayload = {
     ticker,
@@ -68,6 +91,8 @@ export async function GET(_req: Request, { params }: Params) {
     retired,
     dismissed,
     latestRun: run ?? null,
+    dossierRevisedAt,
+    dossierHeldRuns,
     digest,
     messages,
     position,

@@ -44,6 +44,18 @@ export function chipLabel(c: Citation, siblings: Citation[]): string {
 }
 
 /**
+ * Resolve a dossier's [[sig:<id>]] signal markers into markdown links
+ * ("[Name](#sig:<id>)") the Markdown component renders as inline clickable
+ * chips. Unresolvable ids drop; legacy dossiers pass through untouched.
+ */
+export function dossierToMarkdown(md: string, resolveName: (id: string) => string | null): string {
+  return md.replace(/\s?\[\[sig:([\w-]+)\]\]/g, (_m, id: string) => {
+    const name = resolveName(id);
+    return name ? ` [${name.replace(/[[\]]/g, "")}](#sig:${id})` : "";
+  });
+}
+
+/**
  * Resolve bracketed citation indexes in analyst markdown ("…program [37][40].")
  * into clickable links against the run's numbered source list. Unresolvable
  * indexes are left as-is; already-linked text (e.g. "[12](http…)") is skipped.

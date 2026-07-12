@@ -499,6 +499,17 @@ export async function setRunStage(id: string, stage: string, stageDetail: string
   await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
 }
 
+/** Recent finished runs (newest first) — enough to compute dossier provenance. */
+export async function recentRuns(
+  symbol: string,
+  limit = 15
+): Promise<{ id: string; startedAt: string; dossier: string | null }[]> {
+  return q<{ id: string; startedAt: string; dossier: string | null }>`
+    SELECT id, "startedAt", dossier FROM runs
+    WHERE symbol = ${symbol} AND status = 'done'
+    ORDER BY "startedAt" DESC LIMIT ${limit}`;
+}
+
 /** Complete a run: store the brief + standing dossier + numbered source list ([n] → link). */
 export async function finishRun(
   id: string,

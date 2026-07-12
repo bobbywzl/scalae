@@ -12,7 +12,7 @@ import { SignalCard } from "@/components/SignalCard";
 import { SignalDetail } from "@/components/SignalDetail";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
-import { linkCitations } from "@/lib/citations";
+import { dossierToMarkdown, linkCitations } from "@/lib/citations";
 import type { Attachment, DeskPayload, Run, Signal } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
@@ -147,7 +147,10 @@ export default function DeskPage() {
     }
   }
 
-  async function act(id: string, action: "approve" | "dismiss" | "retire" | "reactivate") {
+  async function act(
+    id: string,
+    action: "approve" | "dismiss" | "retire" | "reactivate" | "swap_back"
+  ) {
     setActingId(id);
     try {
       const res = await api<{ onboardedNow?: boolean }>(`/api/signals/${id}`, {
@@ -221,18 +224,45 @@ export default function DeskPage() {
     return m;
   }, [desk]);
 
-  // Diligence pulse for the board: how much of today's picture moved on fresh
-  // evidence vs. carried forward, and how deep the evidence base runs.
+  // Retired signal → its still-ACTIVE replacement (reactivation duplicate guard).
+  const activeReplacementOf = useMemo(() => {
+    const m = new Map<string, Signal>();
+    if (desk) {
+      for (const s of desk.active) if (s.replaces) m.set(s.replaces, s);
+    }
+    return m;
+  }, [desk]);
+
+  // Diligence pulse for the board. Honest numbers only: distinct sources (not
+  // per-signal double counts), signals still awaiting their first reading, and
+  // confidence averaged over evidence-backed readings — never over priors.
   const boardStats = useMemo(() => {
     if (!desk) return null;
     const withReading = desk.active.filter((s) => s.latest);
-    const fresh = withReading.filter((s) => s.latest!.newEvidence !== false).length;
-    const carried = withReading.length - fresh;
-    const sourceCount = desk.active.reduce((a, s) => a + (s.sources?.length ?? 0), 0);
-    const avgConf = withReading.length
-      ? withReading.reduce((a, s) => a + s.latest!.confidence, 0) / withReading.length
+    const freshOnes = withReading.filter((s) => s.latest!.newEvidence !== false);
+    const carried = withReading.length - freshOnes.length;
+    const unread = desk.active.length - withReading.length;
+    const urls = new Set<string>();
+    let links = 0;
+    for (const s of desk.active) {
+      for (const src of s.sources ?? []) {
+        urls.add(src.url);
+        links++;
+      }
+    }
+    const avgConf = freshOnes.length
+      ? freshOnes.reduce((a, s) => a + s.latest!.confidence, 0) / freshOnes.length
       : null;
-    return { total: desk.active.length, read: withReading.length, fresh, carried, sourceCount, avgConf };
+    return {
+      total: desk.active.length,
+      read: withReading.length,
+      fresh: freshOnes.length,
+      carried,
+      unread,
+      distinctSources: urls.size,
+      links,
+      avgConf,
+    };
   }, [desk]);
 
   const grouped = useMemo(() => {
@@ -272,8 +302,19 @@ export default function DeskPage() {
   const { ticker, quote, latestRun, suggested } = desk;
   const up = (quote?.changePercent ?? 0) >= 0;
   const onboarding = !ticker.onboarded;
-  // Signal detail overlay: derived from the live payload so polls keep it fresh.
-  const detailSignal = detailId ? (desk.active.find((s) => s.id === detailId) ?? null) : null;
+  // Signal detail overlay: derived from the live payload so polls keep it
+  // fresh. Retired signals open too — read-only, full evidence trail.
+  const activeDetail = detailId ? (desk.active.find((s) => s.id === detailId) ?? null) : null;
+  const retiredDetail =
+    !activeDetail && detailId ? (desk.retired.find((s) => s.id === detailId) ?? null) : null;
+  const detailSignal = activeDetail ?? retiredDetail;
+  const detailLineage =
+    activeDetail?.replaces && desk.retired.some((r) => r.id === activeDetail.replaces)
+      ? {
+          name: signalsById.get(activeDetail.replaces)?.name ?? "its predecessor",
+          onOpen: () => setDetailId(activeDetail.replaces),
+        }
+      : null;
 
   const header = (
     <header className="flex items-center gap-4 flex-wrap">
@@ -333,6 +374,7 @@ export default function DeskPage() {
               suggested={suggested}
               selected={selected}
               busy={bulkBusy}
+              signalsById={signalsById}
               onSelectAll={() => setSelected(new Set(suggested.map((s) => s.id)))}
               onClear={() => setSelected(new Set())}
               onBulk={bulkAct}
@@ -423,10 +465,26 @@ export default function DeskPage() {
               </div>
               {dossierOpen && (
                 <div className="mt-2">
-                  <Markdown>{linkCitations(latestRun.dossier, latestRun.sources)}</Markdown>
+                  <Markdown onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}>
+                    {dossierToMarkdown(
+                      linkCitations(latestRun.dossier, latestRun.sources),
+                      (id) => {
+                        const s = signalsById.get(id);
+                        if (!s) return null;
+                        return s.status === "retired" ? `${s.name} (retired)` : s.name;
+                      }
+                    )}
+                  </Markdown>
                   <p className="mt-3 text-[10px] text-muted/70">
                     Standing view synthesized from the signal board — evolves only when evidence
                     moves it, unlike the daily brief below.
+                    {desk.dossierRevisedAt && (
+                      <span className="text-muted">
+                        {" "}
+                        Last revised {timeAgo(desk.dossierRevisedAt)}
+                        {desk.dossierHeldRuns > 1 && ` · held for ${desk.dossierHeldRuns} runs`}.
+                      </span>
+                    )}
                   </p>
                 </div>
               )}
@@ -481,6 +539,7 @@ export default function DeskPage() {
                 suggested={suggested}
                 selected={selected}
                 busy={bulkBusy}
+                signalsById={signalsById}
                 onSelectAll={() => setSelected(new Set(suggested.map((s) => s.id)))}
                 onClear={() => setSelected(new Set())}
                 onBulk={bulkAct}
@@ -516,14 +575,26 @@ export default function DeskPage() {
                     <span className="text-[#c7c7cc]">{boardStats.carried}</span> carried forward
                   </>
                 )}
-                {boardStats.sourceCount > 0 && (
+                {boardStats.unread > 0 && (
                   <>
                     {" · "}
-                    <span className="text-[#c7c7cc]">{boardStats.sourceCount}</span> sources in catalog
+                    <span className="text-warn/90">{boardStats.unread}</span> awaiting first reading
+                  </>
+                )}
+                {boardStats.distinctSources > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-[#c7c7cc]">{boardStats.distinctSources}</span> distinct sources
+                    {boardStats.links !== boardStats.distinctSources && (
+                      <span className="text-muted/70"> ({boardStats.links} signal links)</span>
+                    )}
                   </>
                 )}
                 {boardStats.avgConf != null && (
-                  <> · avg confidence <span className="text-[#c7c7cc]">{(boardStats.avgConf * 100).toFixed(0)}%</span></>
+                  <>
+                    {" · "}avg confidence (fresh){" "}
+                    <span className="text-[#c7c7cc]">{(boardStats.avgConf * 100).toFixed(0)}%</span>
+                  </>
                 )}
               </p>
             )}
@@ -580,6 +651,9 @@ export default function DeskPage() {
                       replacedByName={replacedBy.get(s.id) ?? null}
                       busy={actingId === s.id}
                       onReactivate={() => act(s.id, "reactivate")}
+                      onOpen={() => setDetailId(s.id)}
+                      activeReplacement={activeReplacementOf.get(s.id)?.name ?? null}
+                      onSwapBack={() => act(s.id, "swap_back")}
                     />
                   ))}
                   {(desk.dismissed ?? []).map((s) => (
@@ -590,6 +664,9 @@ export default function DeskPage() {
                       replacedByName={null}
                       busy={actingId === s.id}
                       onReactivate={() => act(s.id, "reactivate")}
+                      onOpen={null}
+                      activeReplacement={null}
+                      onSwapBack={null}
                     />
                   ))}
                 </div>
@@ -630,6 +707,10 @@ export default function DeskPage() {
               onRetry={retryChat}
               expanded={fullDesk}
               onToggleExpand={() => setFullDesk((v) => !v)}
+              onOpenSignal={(id) => {
+                setFullDesk(false);
+                setDetailId(id);
+              }}
             />
           </div>
         </div>
@@ -646,6 +727,9 @@ export default function DeskPage() {
             setDetailId(null);
             act(id, "retire");
           }}
+          readOnly={!!retiredDetail}
+          supersededBy={retiredDetail ? (replacedBy.get(retiredDetail.id) ?? null) : null}
+          lineage={detailLineage}
         />
       )}
     </main>
@@ -702,6 +786,7 @@ function BulkBar({
   suggested,
   selected,
   busy,
+  signalsById,
   onSelectAll,
   onClear,
   onBulk,
@@ -709,14 +794,17 @@ function BulkBar({
   suggested: Signal[];
   selected: Set<string>;
   busy: boolean;
+  signalsById: Map<string, Signal>;
   onSelectAll: () => void;
   onClear: () => void;
   onBulk: (action: "approve" | "dismiss", ids: string[]) => void;
 }) {
   const ids = suggested.filter((s) => selected.has(s.id)).map((s) => s.id);
   const allSelected = ids.length === suggested.length && suggested.length > 0;
-  // Consequence disclosure: bulk-approving swaps retires the replaced signals.
-  const swaps = suggested.filter((s) => selected.has(s.id) && s.replaces).length;
+  // Consequence disclosure: name the signals a bulk approval would retire.
+  const casualties = suggested
+    .filter((s) => selected.has(s.id) && s.replaces)
+    .map((s) => signalsById.get(s.replaces!)?.name ?? "an active signal");
   return (
     <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
       <button
@@ -735,10 +823,14 @@ function BulkBar({
           >
             {busy ? "Working…" : `Approve ${ids.length}`}
           </button>
-          {swaps > 0 && (
+          {casualties.length > 0 && (
             <span className="text-warn">
-              ⇄ {swaps} of these replace{swaps === 1 ? "s" : ""} an active signal — approving retires{" "}
-              {swaps === 1 ? "it" : "them"}
+              ⇄ approving retires{" "}
+              {casualties
+                .slice(0, 2)
+                .map((n) => `“${n}”`)
+                .join(", ")}
+              {casualties.length > 2 && ` +${casualties.length - 2} more`}
             </span>
           )}
           <button
@@ -754,25 +846,49 @@ function BulkBar({
   );
 }
 
-/** One archived (retired or dismissed) signal — auditable and reversible. */
+/**
+ * One archived (retired or dismissed) signal — auditable and reversible.
+ * Reactivating a superseded signal while its replacement is still active asks
+ * whether to swap back (retiring the replacement) or knowingly keep both —
+ * the no-duplication rule stays a human choice, never an automatic side effect.
+ */
 function ArchiveRow({
   signal,
   kind,
   replacedByName,
   busy,
   onReactivate,
+  onOpen,
+  activeReplacement,
+  onSwapBack,
 }: {
   signal: Signal;
   kind: "retired" | "dismissed";
   replacedByName: string | null;
   busy: boolean;
   onReactivate: () => void;
+  /** Opens the read-only evidence trail (retired signals only). */
+  onOpen: (() => void) | null;
+  /** Name of the still-active replacement, when one exists. */
+  activeReplacement: string | null;
+  onSwapBack: (() => void) | null;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  const needsGuard = kind === "retired" && activeReplacement != null && onSwapBack != null;
   return (
-    <div className="rounded-xl bg-card/60 border border-hairline px-4 py-2.5 flex items-center gap-3">
-      <div className="min-w-0 flex-1">
+    <div className="rounded-xl bg-card/60 border border-hairline px-4 py-2.5 flex items-center gap-3 flex-wrap">
+      <div
+        className={`min-w-0 flex-1 ${onOpen ? "cursor-pointer" : ""}`}
+        onClick={onOpen ?? undefined}
+        role={onOpen ? "button" : undefined}
+        title={onOpen ? "View this signal's full evidence trail (read-only)" : undefined}
+      >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#c7c7cc] truncate">{signal.name}</span>
+          <span
+            className={`text-sm font-medium truncate ${onOpen ? "text-[#c7c7cc] hover:text-accent transition-colors" : "text-[#c7c7cc]"}`}
+          >
+            {signal.name}
+          </span>
           <span
             className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
               kind === "retired" ? "bg-white/8 text-muted" : "bg-warn/10 text-warn/80"
@@ -780,6 +896,7 @@ function ArchiveRow({
           >
             {kind}
           </span>
+          {onOpen && <span className="text-[10px] text-muted/60 shrink-0">history ⤢</span>}
         </div>
         <p className="text-[11px] text-muted truncate mt-0.5">
           {signal.focusArea}
@@ -789,18 +906,53 @@ function ArchiveRow({
           {!replacedByName && ` · ${signal.thesis}`}
         </p>
       </div>
-      <button
-        onClick={onReactivate}
-        disabled={busy}
-        title={
-          kind === "retired"
-            ? "Return this signal to the active board"
-            : "Return this proposal to the approval queue"
-        }
-        className="shrink-0 rounded-lg bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2.5 py-1.5 disabled:opacity-50 transition-colors"
-      >
-        {busy ? "…" : kind === "retired" ? "Reactivate" : "Restore proposal"}
-      </button>
+      {confirming && needsGuard ? (
+        <span className="flex items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/8 px-2 py-1 flex-wrap">
+          <span className="text-[11px] text-[#c7c7cc]">
+            “{activeReplacement}” replaced this signal and is still active:
+          </span>
+          <button
+            onClick={() => {
+              setConfirming(false);
+              onSwapBack();
+            }}
+            disabled={busy}
+            className="rounded-md bg-warn/20 hover:bg-warn/30 text-warn text-[11px] font-semibold px-2 py-1 disabled:opacity-50 transition-colors"
+          >
+            Swap back — retires “{activeReplacement}”
+          </button>
+          <button
+            onClick={() => {
+              setConfirming(false);
+              onReactivate();
+            }}
+            disabled={busy}
+            className="rounded-md bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2 py-1 disabled:opacity-50 transition-colors"
+            title="Both signals will be active — watch for overlap"
+          >
+            Keep both anyway
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="rounded-md text-muted hover:text-[#c7c7cc] text-[11px] px-1.5 py-1 transition-colors"
+          >
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={() => (needsGuard ? setConfirming(true) : onReactivate())}
+          disabled={busy}
+          title={
+            kind === "retired"
+              ? "Return this signal to the active board"
+              : "Return this proposal to the approval queue"
+          }
+          className="shrink-0 rounded-lg bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2.5 py-1.5 disabled:opacity-50 transition-colors"
+        >
+          {busy ? "…" : kind === "retired" ? "Reactivate" : "Restore proposal"}
+        </button>
+      )}
     </div>
   );
 }
