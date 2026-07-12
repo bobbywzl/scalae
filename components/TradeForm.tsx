@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { QuoteCard } from "./QuoteCard";
 import { api } from "./util";
 import type { SearchHit } from "@/lib/market";
-import type { TradeKind, TradeSide, OptionType } from "@/lib/types";
+import type { RichQuote, TradeKind, TradeSide, OptionType } from "@/lib/types";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -51,6 +52,8 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quote, setQuote] = useState<RichQuote | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +72,37 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
       }
     }, 250);
     return () => clearTimeout(t);
+  }, [symbol]);
+
+  // Pre-trade information (brokerage-style): fetch a full quote for the typed
+  // or picked ticker; auto-fill the price field the first time so orders start
+  // from the live market, not a blank.
+  useEffect(() => {
+    const raw = symbol.trim().toUpperCase();
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      if (!/^[A-Z0-9][A-Z0-9.\-=]{0,11}$/.test(raw)) {
+        if (!cancelled) setQuote(null);
+        return;
+      }
+      setQuoteBusy(true);
+      try {
+        const { quote } = await api<{ quote: RichQuote }>(`/api/quote/${encodeURIComponent(raw)}`);
+        if (cancelled) return;
+        setQuote(quote);
+        if (quote.price != null) {
+          setPrice((p) => (p === "" ? String(quote.price) : p));
+        }
+      } catch {
+        if (!cancelled) setQuote(null);
+      } finally {
+        if (!cancelled) setQuoteBusy(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [symbol]);
 
   useEffect(() => {
@@ -105,12 +139,24 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
     }
   }
 
+  // A stock trade at 0 is almost certainly a data-entry slip; options can
+  // legitimately close at 0 (expired worthless).
+  const priceOk = kind === "option" ? Number(price) >= 0 : Number(price) > 0;
   const canSubmit =
     symbol.trim() &&
     Number(quantity) > 0 &&
-    Number(price) >= 0 &&
+    priceOk &&
+    price.trim() !== "" &&
     tradeDate &&
     (kind === "stock" || (Number(strike) > 0 && expiry));
+
+  // Fat-finger guard: entered stock price far from the live market usually
+  // means wrong units or currency.
+  const deviates =
+    kind === "stock" &&
+    quote?.price != null &&
+    Number(price) > 0 &&
+    Math.abs(Number(price) - quote.price) / quote.price > 0.4;
 
   const field =
     "rounded-lg bg-card2 border border-hairline focus-within:border-accent/50 px-2.5 py-2 text-sm outline-none w-full transition-colors placeholder:text-muted/60";
@@ -163,6 +209,19 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
         </div>
       </div>
 
+      {/* Pre-trade information — complete picture before the order (click a price to use it). */}
+      {quote ? (
+        <QuoteCard quote={quote} onUsePrice={(v) => setPrice(String(v))} />
+      ) : quoteBusy ? (
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted pulse-soft">
+          Fetching quote…
+        </div>
+      ) : symbol.trim().length > 0 ? (
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted">
+          No live quote for “{symbol.trim().toUpperCase()}” yet — pick a ticker from the search results.
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <p className={label}>Instrument</p>
@@ -203,7 +262,10 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
           <input inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="10" className={`${field} mt-1 tabular-nums`} />
         </div>
         <div>
-          <p className={label}>{kind === "option" ? "Premium / share" : "Price / share"}</p>
+          <p className={label}>
+            {kind === "option" ? "Premium / share" : "Price / share"}
+            {quote && <span className="normal-case tracking-normal"> · {quote.currency}</span>}
+          </p>
           <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="84.50" className={`${field} mt-1 tabular-nums`} />
           {kind === "option" && <p className="text-[10px] text-muted mt-0.5">×100 per contract, in the ticker’s currency</p>}
         </div>
@@ -218,6 +280,12 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="thesis, broker, lot…" className={`${field} mt-1`} />
       </div>
 
+      {deviates && quote?.price != null && (
+        <p className="text-warn text-[11px]">
+          ⚠ Entered price is far from the live market ({quote.currency === "USD" ? "$" : quote.currency + " "}
+          {quote.price.toLocaleString()}) — check units and currency before recording.
+        </p>
+      )}
       {error && <p className="text-loss text-xs">{error}</p>}
       <button
         onClick={submit}
