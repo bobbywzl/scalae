@@ -409,6 +409,14 @@ export interface PortfolioPayload {
   dividends: DividendReceipt[];
   /** Per-symbol dividend-reinvestment setting for held stocks. */
   drip: Record<string, boolean>;
+  /** Starting cash (USD) the investor set for this book; null = not set. */
+  initialCapital: number | null;
+  /**
+   * Cash on hand (USD): initial capital + every ledger cashflow to date
+   * (sells − buys − fees + dividends, at trade-date FX). Null until initial
+   * capital is set.
+   */
+  cash: number | null;
   /** Symbols whose market data could not be fetched (excluded from series). */
   unpriced: string[];
 }

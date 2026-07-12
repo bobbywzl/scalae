@@ -62,7 +62,16 @@ const ORDER_TYPE_HINT: Record<OrderType, string> = {
  * record a past fill manually (stocks and options, any date). Working orders
  * fill — simulated — when live quotes cross them.
  */
-export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
+export function TradeForm({
+  onSaved,
+  onCancel,
+  cashUsd = null,
+}: {
+  onSaved: () => void;
+  onCancel: () => void;
+  /** Cash on hand (USD) when the investor tracks initial capital. */
+  cashUsd?: number | null;
+}) {
   const [mode, setMode] = useState<"order" | "record">("order");
 
   // Shared: ticker + live quote
@@ -415,6 +424,13 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
               {marketable && (
                 <p className="text-[11px] text-warn">
                   ⚡ Marketable — the live price already satisfies this order, so it will fill immediately.
+                </p>
+              )}
+              {side === "buy" && cashUsd != null && currency === "USD" && estTotal != null && (
+                <p className={`text-[11px] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
+                  Cash available: {fmtMoney(cashUsd, "USD")}
+                  {estTotal > cashUsd &&
+                    " — this order exceeds it (the book records it anyway; no margin is modeled)."}
                 </p>
               )}
             </div>

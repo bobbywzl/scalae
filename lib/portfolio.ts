@@ -1,4 +1,11 @@
-import { dripEnabled, listDividends, listOpenOrders, listOrderHistory, listTrades } from "./db";
+import {
+  dripEnabled,
+  getInitialCapital,
+  listDividends,
+  listOpenOrders,
+  listOrderHistory,
+  listTrades,
+} from "./db";
 import {
   getDailyCloses,
   getFxCloses,
@@ -150,11 +157,12 @@ async function seriesInputs(
 
 /** The full portfolio payload for /api/portfolio. */
 export async function computePortfolio(): Promise<PortfolioPayload> {
-  const [trades, dividends, openOrders, orderHistory] = await Promise.all([
+  const [trades, dividends, openOrders, orderHistory, initialCapital] = await Promise.all([
     listTrades(),
     listDividends(),
     listOpenOrders(),
     listOrderHistory(),
+    getInitialCapital(),
   ]);
   const { valued, unpriced } = await valueAll(trades);
   const series = computeSeries(await seriesInputs(trades, valued, dividends));
@@ -218,6 +226,11 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     .filter((v) => v.kind === "option")
     .sort((a, b) => (a.expiry ?? "").localeCompare(b.expiry ?? ""));
 
+  // Cash = initial capital + cumulative ledger cashflow. The series identity
+  // P&L = equity + cashflow makes that (last.pnl − last.value) — no new math.
+  const cashflowToDate = last ? last.pnl - last.value : 0;
+  const cash = initialCapital != null ? initialCapital + cashflowToDate : null;
+
   return {
     summary,
     series,
@@ -229,6 +242,8 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     pendingDividends: pending,
     dividends,
     drip,
+    initialCapital,
+    cash,
     unpriced,
   };
 }

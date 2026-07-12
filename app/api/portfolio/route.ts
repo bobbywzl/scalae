@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clearPortfolio } from "@/lib/db";
 import { sweepOpenOrders } from "@/lib/orders";
 import { computePortfolio } from "@/lib/portfolio";
 
@@ -19,4 +20,14 @@ export async function GET() {
     console.error("[scalae] portfolio failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Failed to compute portfolio." }, { status: 500 });
   }
+}
+
+/**
+ * Reset the book: permanently deletes every trade, order and dividend
+ * receipt. Settings (initial capital, DRIP, auto-research) survive. The UI
+ * gates this behind an explicit typed-out confirmation.
+ */
+export async function DELETE() {
+  const deleted = await clearPortfolio();
+  return NextResponse.json({ deleted });
 }
