@@ -202,9 +202,14 @@ export interface DeskPayload {
   focusAreas: FocusArea[];
   active: SignalWithReadings[];
   suggested: Signal[];
-  retired: Signal[];
+  /** Retired signals keep their full evidence trail — a swap never erases history. */
+  retired: SignalWithReadings[];
   dismissed: Signal[];
   latestRun: Run | null;
+  /** When the standing dossier last actually changed (run startedAt), if known. */
+  dossierRevisedAt: string | null;
+  /** How many consecutive runs (incl. latest) have held the dossier unchanged. */
+  dossierHeldRuns: number;
   digest: DigestItem[];
   /** Ticker-level desk chat only (signal-scoped chats load per signal). */
   messages: ChatMessage[];

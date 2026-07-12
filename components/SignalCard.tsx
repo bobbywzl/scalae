@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { domainOf } from "@/lib/citations";
+import { chipLabel } from "@/lib/citations";
 import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
@@ -25,8 +25,8 @@ const fmtDay = (iso: string) => {
   return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-/** Clickable source chip showing the domain (e.g. "fastretailing.com"). */
-function SourceChip({ citation }: { citation: Citation }) {
+/** Clickable source chip — domain plus a title fragment when siblings share it. */
+function SourceChip({ citation, siblings }: { citation: Citation; siblings: Citation[] }) {
   return (
     <a
       href={citation.url}
@@ -34,9 +34,9 @@ function SourceChip({ citation }: { citation: Citation }) {
       rel="noreferrer"
       title={citation.title}
       onClick={(e) => e.stopPropagation()}
-      className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 hover:border-white/25 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[160px] truncate"
+      className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 hover:border-white/25 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[220px] truncate"
     >
-      {domainOf(citation)}
+      {chipLabel(citation, siblings)}
     </a>
   );
 }
@@ -202,7 +202,7 @@ export function SignalCard({
       {sources.length > 0 && (
         <div className="px-4 pb-3 -mt-0.5 flex flex-wrap items-center gap-1.5">
           {sources.slice(0, 3).map((s, i) => (
-            <SourceChip key={i} citation={s} />
+            <SourceChip key={i} citation={s} siblings={sources.slice(0, 3)} />
           ))}
           {sources.length > 3 && (
             <button

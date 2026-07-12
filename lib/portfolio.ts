@@ -176,9 +176,22 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
   const costBasis = sum(openPositions.map((v) => v.qty * v.avgCost * v.multiplier * v.fxToUsd));
   const unrealized = sum(openPositions.map((v) => (v.unrealized ?? 0) * v.fxToUsd));
   const realized = sum(valued.map((v) => v.realized * v.fxToUsd));
-  const fxOf = new Map(valued.map((v) => [v.symbol, v.fxToUsd] as const));
+  // Convert dividend receipts by their own currency — a receipt can outlive
+  // its position, so the valued-position FX map is not a safe fallback.
+  const divCurrencies = [...new Set(dividends.map((d) => d.currency).filter((c) => c !== "USD"))];
+  const divFx = new Map<string, number | null>(
+    await Promise.all(divCurrencies.map(async (c) => [c, await getFxRate(c)] as const))
+  );
   const dividendsUsd = sum(
-    dividends.map((d) => d.amount * (d.currency === "USD" ? 1 : (fxOf.get(d.symbol) ?? 1)))
+    dividends.map((d) => {
+      if (d.currency === "USD") return d.amount;
+      const rate = divFx.get(d.currency);
+      if (rate == null) {
+        console.warn(`[scalae] no FX rate for ${d.currency} dividend on ${d.symbol} — excluded from USD total`);
+        return 0;
+      }
+      return d.amount * rate;
+    })
   );
   const last = series[series.length - 1];
   const prev = series[series.length - 2];

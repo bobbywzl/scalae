@@ -28,6 +28,9 @@ export function SignalDetail({
   onAct,
   actingId,
   onRetire,
+  readOnly = false,
+  supersededBy = null,
+  lineage = null,
 }: {
   signal: SignalWithReadings;
   signalsById: Map<string, Signal>;
@@ -35,6 +38,12 @@ export function SignalDetail({
   onAct: (id: string, action: "approve" | "dismiss") => void;
   actingId: string | null;
   onRetire: (id: string) => void;
+  /** Archive mode for retired signals: full evidence trail, no chat/retire. */
+  readOnly?: boolean;
+  /** Name of the active signal that replaced this one (read-only mode). */
+  supersededBy?: string | null;
+  /** For an active replacement: its retired predecessor, openable. */
+  lineage?: { name: string; onOpen: () => void } | null;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -55,12 +64,13 @@ export function SignalDetail({
   }, [signal.id]);
 
   useEffect(() => {
+    if (readOnly) return; // archive view: no chat thread to load
     // Same initial-fetch-then-poll idiom as the watchlist/desk pages.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadChat();
     const t = setInterval(loadChat, 30_000);
     return () => clearInterval(t);
-  }, [loadChat]);
+  }, [loadChat, readOnly]);
 
   // Esc closes; page scroll locks underneath.
   useEffect(() => {
@@ -127,15 +137,18 @@ export function SignalDetail({
   const sectionTitle = "text-[10px] uppercase tracking-wider text-muted font-semibold";
 
   const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
-  // When today is a carry-forward, the date fresh evidence last moved this signal.
+  // When today is a carry-forward, the date fresh evidence last moved this signal —
+  // and the honest third state: it has NEVER moved on evidence.
+  const neverFresh =
+    r?.newEvidence === false && !signal.history.some((h) => h.newEvidence !== false);
   const freshSince =
-    r?.newEvidence === false
+    r?.newEvidence === false && !neverFresh
       ? (signal.history.find((h) => h.newEvidence !== false)?.date ?? null)
       : null;
   const filteredHistory = filterUrl
     ? signal.history.filter((h) => h.citations.some((c) => c.url === filterUrl))
     : signal.history;
-  const filterDomain = filterUrl ? sources.find((s) => s.url === filterUrl)?.domain : null;
+  const tracedSource = filterUrl ? (sources.find((s) => s.url === filterUrl) ?? null) : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-3 sm:p-6">
@@ -154,7 +167,14 @@ export function SignalDetail({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {confirmRetire ? (
+          {readOnly ? (
+            <span className="rounded-lg border border-hairline bg-white/4 px-2.5 py-1.5 text-[11px] text-muted">
+              Retired — history preserved
+              {supersededBy && (
+                <span className="text-warn/80"> · superseded by “{supersededBy}”</span>
+              )}
+            </span>
+          ) : confirmRetire ? (
             <span className="flex items-center gap-1.5 rounded-lg border border-loss/30 bg-loss/8 px-2 py-1">
               <span className="text-[11px] text-[#c7c7cc] hidden sm:inline">
                 Stop tracking? It moves to the archive (reversible).
@@ -189,8 +209,13 @@ export function SignalDetail({
         </div>
       </div>
 
-      {/* Segmented layout: signal world left, scoped analyst desk right */}
-      <div className="flex-1 min-h-0 w-full max-w-6xl mx-auto grid lg:grid-cols-[minmax(0,1fr)_400px] gap-4">
+      {/* Segmented layout: signal world left, scoped analyst desk right
+          (archive mode drops the desk — the record speaks for itself) */}
+      <div
+        className={`flex-1 min-h-0 w-full mx-auto grid gap-4 ${
+          readOnly ? "max-w-4xl" : "max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px]"
+        }`}
+      >
         <div className="overflow-y-auto rounded-2xl bg-card border border-hairline p-5 space-y-5">
           {/* Latest reading hero */}
           <section>
@@ -215,8 +240,15 @@ export function SignalDetail({
                   )}
                   <span className="text-[11px] text-muted pb-0.5">
                     {timeAgo(r.date)} · confidence {(r.confidence * 100).toFixed(0)}%
+                    {neverFresh && " (prior — no evidence yet)"}
                   </span>
                 </div>
+                {neverFresh && (
+                  <p className="mt-1.5 text-[11px] text-warn/90">
+                    No evidence-backed reading yet — carried forward since approval ·{" "}
+                    {signal.history.length} run{signal.history.length === 1 ? "" : "s"}.
+                  </p>
+                )}
                 {freshSince && (
                   <p className="mt-1.5 text-[11px] text-muted">
                     Carried forward — no new evidence since{" "}
@@ -251,6 +283,16 @@ export function SignalDetail({
               <p className="text-xs text-muted italic mt-2">Awaiting first research run.</p>
             )}
           </section>
+
+          {lineage && (
+            <button
+              onClick={lineage.onOpen}
+              className="w-full text-left rounded-lg border border-hairline bg-white/4 hover:bg-white/8 px-3 py-2 text-[11px] text-[#c7c7cc] transition-colors"
+            >
+              ⇄ Replaced <span className="font-semibold">“{lineage.name}”</span>
+              <span className="text-accent"> — view its history</span>
+            </button>
+          )}
 
           <section>
             <p className={sectionTitle}>Why we track this</p>
@@ -314,7 +356,8 @@ export function SignalDetail({
                   <span className="normal-case tracking-normal font-normal">
                     {" "}
                     <span className="text-accent">
-                      · {filteredHistory.length} of {signal.history.length} citing {filterDomain ?? "this source"}
+                      · {filteredHistory.length} of {signal.history.length} citing{" "}
+                      {tracedSource ? chipLabel(tracedSource, sources) : "this source"}
                     </span>{" "}
                     <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-[#c7c7cc] underline underline-offset-2">
                       clear
@@ -322,6 +365,13 @@ export function SignalDetail({
                   </span>
                 )}
               </p>
+              {tracedSource && filteredHistory.length < tracedSource.count && (
+                <p className="mt-1 text-[11px] text-muted">
+                  {filteredHistory.length === 0
+                    ? `None of the last ${signal.history.length} readings cite this source — its ${tracedSource.count} citing reading${tracedSource.count === 1 ? " is" : "s are"} older than what's shown here.`
+                    : `${filteredHistory.length} of ${tracedSource.count} citing readings shown — the rest are older than the last ${signal.history.length} readings.`}
+                </p>
+              )}
               <ul className="mt-2 space-y-2.5">
                 {filteredHistory.map((h) => (
                   <li key={h.id} className="text-xs">
@@ -371,6 +421,7 @@ export function SignalDetail({
         </div>
 
         {/* Signal-scoped analyst desk */}
+        {!readOnly && (
         <div className="min-h-[320px] lg:min-h-0">
           <ChatPanel
             title="Signal desk"
@@ -386,6 +437,7 @@ export function SignalDetail({
             emptyHint={`This thread is scoped to “${signal.name}” — the analyst has its thesis, full reading history and evidence catalog in front of it. Ask why the reading moved, challenge the measurement plan, or ask for a sharper replacement signal. (The ticker-level desk keeps the global picture.)`}
           />
         </div>
+        )}
       </div>
     </div>
   );

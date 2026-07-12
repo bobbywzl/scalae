@@ -205,6 +205,7 @@ export function ChatPanel({
   onToggleExpand,
   title = "Analyst desk",
   emptyHint,
+  onOpenSignal,
 }: {
   messages: ChatMessage[];
   signalsById: Map<string, Signal>;
@@ -222,6 +223,8 @@ export function ChatPanel({
   title?: string;
   /** Muted intro bubble shown while the thread is empty. */
   emptyHint?: string;
+  /** Makes resolved (now-active) proposal chips open that signal's detail. */
+  onOpenSignal?: (id: string) => void;
 }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -405,10 +408,16 @@ export function ChatPanel({
                         />
                       );
                     }
+                    const openable = s.status === "active" && onOpenSignal;
                     return (
                       <div
                         key={id}
-                        className="rounded-lg bg-white/4 border border-hairline px-3 py-2 text-xs flex items-center justify-between"
+                        role={openable ? "button" : undefined}
+                        onClick={openable ? () => onOpenSignal(id) : undefined}
+                        title={openable ? "Open this signal" : undefined}
+                        className={`rounded-lg bg-white/4 border border-hairline px-3 py-2 text-xs flex items-center justify-between ${
+                          openable ? "cursor-pointer hover:bg-white/8 hover:border-white/25 transition-colors" : ""
+                        }`}
                       >
                         <span className="font-medium">{s.name}</span>
                         <span
@@ -418,7 +427,7 @@ export function ChatPanel({
                               : "text-muted text-[11px]"
                           }
                         >
-                          {s.status === "active" ? "✓ active" : s.status}
+                          {s.status === "active" ? "✓ active — open ⤢" : s.status}
                         </span>
                       </div>
                     );

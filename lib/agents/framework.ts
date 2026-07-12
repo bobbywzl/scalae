@@ -313,7 +313,7 @@ export const SYNTHESIS_SCHEMA = {
     dossier: {
       type: "string",
       description:
-        "A STANDING 150-300 word markdown statement of the business as the desk currently reads it: (1) how the company makes money today — segments, earnings engine, moat trajectory — and (2) the current culture/trust verdict, each synthesized FROM the board's current signal readings (anchor every paragraph to the business-model or culture anchor), updated where today's evidence moved a signal, citing inline [n] indexes into the numbered sources.",
+        "A STANDING 150-300 word markdown statement of the business as the desk currently reads it: (1) how the company makes money today — segments, earnings engine, moat trajectory — and (2) the current culture/trust verdict, each synthesized FROM the board's current signal readings (anchor every paragraph to the business-model or culture anchor), updated where today's evidence moved a signal. Every load-bearing claim must cite its inline [n] source indexes, and every claim that reads off a board signal must ALSO carry that signal's bracketed key as a marker in double braces, e.g. {{S2}}, immediately after the claim (the app renders these as links into the signal; the syntax must stay distinct from [n]).",
     },
     readings: {
       type: "array",
