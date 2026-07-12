@@ -152,6 +152,8 @@ export const SCHEMA_STATEMENTS: string[] = [
     note TEXT NOT NULL DEFAULT '',
     "createdAt" TEXT NOT NULL
   )`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "dismissedAt" TEXT`,
+  `ALTER TABLE dividends ADD COLUMN IF NOT EXISTS "withholdingPct" DOUBLE PRECISION NOT NULL DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol, "tradeDate")`,
   `CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
@@ -318,6 +320,10 @@ export async function insertProposal(
 export async function setSignalStatus(id: string, status: SignalStatus): Promise<void> {
   if (status === "active") {
     await q`UPDATE signals SET status = 'active', "approvedAt" = ${now()} WHERE id = ${id}`;
+  } else if (status === "dismissed") {
+    // Stamp the dismissal so re-proposals and restored proposals can say
+    // "previously dismissed on <date>" — institutional memory for the gate.
+    await q`UPDATE signals SET status = 'dismissed', "dismissedAt" = ${now()} WHERE id = ${id}`;
   } else {
     await q`UPDATE signals SET status = ${status} WHERE id = ${id}`;
   }
@@ -754,9 +760,10 @@ export async function insertDividend(
   const rec: DividendReceipt = { ...d, id: uid(), appliedAt: now() };
   // The unique (symbol, exDate) key makes double-applies a no-op.
   const rows = await q<{ id: string }>`INSERT INTO dividends
-      (id, symbol, "exDate", "perShare", shares, amount, currency, reinvested, "reinvestTradeId", "appliedAt")
+      (id, symbol, "exDate", "perShare", shares, amount, currency, "withholdingPct",
+       reinvested, "reinvestTradeId", "appliedAt")
     VALUES (${rec.id}, ${rec.symbol}, ${rec.exDate}, ${rec.perShare}, ${rec.shares}, ${rec.amount},
-            ${rec.currency}, ${rec.reinvested}, ${rec.reinvestTradeId}, ${rec.appliedAt})
+            ${rec.currency}, ${rec.withholdingPct}, ${rec.reinvested}, ${rec.reinvestTradeId}, ${rec.appliedAt})
     ON CONFLICT (symbol, "exDate") DO NOTHING RETURNING id`;
   return rows.length > 0 ? rec : null;
 }

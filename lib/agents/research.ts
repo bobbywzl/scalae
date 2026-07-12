@@ -2,6 +2,7 @@ import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
+import { citationOverlap } from "../compare";
 import {
   analystPersona,
   GAP_SCHEMA,
@@ -227,14 +228,24 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
 
     // Keep-both pairs: an active replacement whose replaced signal was
     // knowingly reactivated. The no-duplication discipline must survive that
-    // choice — the desk should keep watching for a single merged crux signal.
+    // choice — the desk should keep watching for a single merged crux signal,
+    // and when the pair's readings demonstrably cite the same evidence, the
+    // nudge escalates from "watch for overlap" to "merge now".
     const overlapWith = new Map<string, string>();
+    const overlapMeasured = new Map<string, number>();
     const byId = new Map(signals.map((s) => [s.id, s]));
     for (const s of signals) {
       const other = s.replaces ? byId.get(s.replaces) : undefined;
       if (other) {
         overlapWith.set(s.id, other.name);
         overlapWith.set(other.id, s.name);
+        const [ra, rb] = await Promise.all([
+          readingsForSignal(s.id, 3),
+          readingsForSignal(other.id, 3),
+        ]);
+        const ov = citationOverlap(ra, rb);
+        overlapMeasured.set(s.id, ov);
+        overlapMeasured.set(other.id, ov);
       }
     }
 
@@ -245,8 +256,11 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
           const prevLine = prev
             ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
             : " No previous reading.";
+          const measured = overlapMeasured.get(s.id) ?? 0;
           const overlapNote = overlapWith.has(s.id)
-            ? ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
+            ? measured >= 0.5
+              ? ` NOTE: kept alongside "${overlapWith.get(s.id)}" — their recent readings HAVE cited the same evidence (${Math.round(measured * 100)}% source overlap). They are one signal wearing two names: propose the merged replacement NOW with "replaces" set, unless today's evidence clearly separates them.`
+              : ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
             : "";
           return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${overlapNote}`;
         })
