@@ -31,6 +31,7 @@ export async function GET(_req: Request, { params }: Params) {
     focusAreas,
     suggested,
     retired,
+    dismissed,
     run,
     digest,
     messages,
@@ -42,6 +43,7 @@ export async function GET(_req: Request, { params }: Params) {
     listFocusAreas(symbol),
     listSignals(symbol, "suggested"),
     listSignals(symbol, "retired"),
+    listSignals(symbol, "dismissed"),
     latestRun(symbol),
     recentDigest(symbol),
     listMessages(symbol, 200, { signalId: null }), // desk-level thread only
@@ -64,6 +66,7 @@ export async function GET(_req: Request, { params }: Params) {
     active,
     suggested,
     retired,
+    dismissed,
     latestRun: run ?? null,
     digest,
     messages,

@@ -30,6 +30,8 @@ export default function DeskPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [dossierOpen, setDossierOpen] = useState(true);
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const autoRan = useRef(false);
 
   // Full-screen analyst desk: Esc exits, page scroll locks underneath.
@@ -145,7 +147,7 @@ export default function DeskPage() {
     }
   }
 
-  async function act(id: string, action: "approve" | "dismiss" | "retire") {
+  async function act(id: string, action: "approve" | "dismiss" | "retire" | "reactivate") {
     setActingId(id);
     try {
       const res = await api<{ onboardedNow?: boolean }>(`/api/signals/${id}`, {
@@ -202,9 +204,35 @@ export default function DeskPage() {
   const signalsById = useMemo(() => {
     const m = new Map<string, Signal>();
     if (desk) {
-      for (const s of [...desk.active, ...desk.suggested, ...desk.retired]) m.set(s.id, s);
+      for (const s of [...desk.active, ...desk.suggested, ...desk.retired, ...(desk.dismissed ?? [])])
+        m.set(s.id, s);
     }
     return m;
+  }, [desk]);
+
+  // Which retired signals were superseded by a replacement (archive context).
+  const replacedBy = useMemo(() => {
+    const m = new Map<string, string>();
+    if (desk) {
+      for (const s of [...desk.active, ...desk.suggested]) {
+        if (s.replaces) m.set(s.replaces, s.name);
+      }
+    }
+    return m;
+  }, [desk]);
+
+  // Diligence pulse for the board: how much of today's picture moved on fresh
+  // evidence vs. carried forward, and how deep the evidence base runs.
+  const boardStats = useMemo(() => {
+    if (!desk) return null;
+    const withReading = desk.active.filter((s) => s.latest);
+    const fresh = withReading.filter((s) => s.latest!.newEvidence !== false).length;
+    const carried = withReading.length - fresh;
+    const sourceCount = desk.active.reduce((a, s) => a + (s.sources?.length ?? 0), 0);
+    const avgConf = withReading.length
+      ? withReading.reduce((a, s) => a + s.latest!.confidence, 0) / withReading.length
+      : null;
+    return { total: desk.active.length, read: withReading.length, fresh, carried, sourceCount, avgConf };
   }, [desk]);
 
   const grouped = useMemo(() => {
@@ -380,6 +408,31 @@ export default function DeskPage() {
               <PositionCard position={desk.position} />
             )}
 
+          {/* The standing thesis — live synthesis of the whole board into a
+              business-model + culture statement, updated by each run. */}
+          {latestRun?.dossier && (
+            <section className="rounded-2xl bg-card border border-accent/20 p-5">
+              <div className="flex items-center gap-2">
+                <SectionTitle>The business, as the desk reads it</SectionTitle>
+                <button
+                  onClick={() => setDossierOpen((v) => !v)}
+                  className="ml-auto rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[10px] text-muted hover:text-[#c7c7cc] transition-colors"
+                >
+                  {dossierOpen ? "Collapse" : "Expand"}
+                </button>
+              </div>
+              {dossierOpen && (
+                <div className="mt-2">
+                  <Markdown>{linkCitations(latestRun.dossier, latestRun.sources)}</Markdown>
+                  <p className="mt-3 text-[10px] text-muted/70">
+                    Standing view synthesized from the signal board — evolves only when evidence
+                    moves it, unlike the daily brief below.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="rounded-2xl bg-card border border-hairline p-5">
             <SectionTitle>
               Today’s brief
@@ -405,7 +458,11 @@ export default function DeskPage() {
                 <div className="border-t border-hairline my-4" />
                 <SectionTitle>Evidence feed</SectionTitle>
                 <div className="mt-3">
-                  <DigestFeed items={desk.digest.slice(0, 10)} />
+                  <DigestFeed
+                    items={desk.digest.slice(0, 10)}
+                    signals={[...desk.active, ...desk.retired, ...(desk.dismissed ?? [])]}
+                    onOpenSignal={(id) => setDetailId(id)}
+                  />
                 </div>
               </>
             )}
@@ -448,6 +505,28 @@ export default function DeskPage() {
 
           <section>
             <SectionTitle>Signal board</SectionTitle>
+            {boardStats && boardStats.total > 0 && (
+              <p className="mt-1.5 text-[11px] text-muted tabular-nums">
+                {boardStats.total} active signal{boardStats.total === 1 ? "" : "s"}
+                {boardStats.read > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-[#c7c7cc]">{boardStats.fresh}</span> moved on new evidence
+                    {" · "}
+                    <span className="text-[#c7c7cc]">{boardStats.carried}</span> carried forward
+                  </>
+                )}
+                {boardStats.sourceCount > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-[#c7c7cc]">{boardStats.sourceCount}</span> sources in catalog
+                  </>
+                )}
+                {boardStats.avgConf != null && (
+                  <> · avg confidence <span className="text-[#c7c7cc]">{(boardStats.avgConf * 100).toFixed(0)}%</span></>
+                )}
+              </p>
+            )}
             {grouped.length === 0 && (
               <p className="text-muted text-xs italic mt-2">No active signals.</p>
             )}
@@ -472,6 +551,51 @@ export default function DeskPage() {
               })}
             </div>
           </section>
+
+          {/* Nothing on this desk is deleted — retired and dismissed signals
+              stay auditable and reversible. */}
+          {(desk.retired.length > 0 || (desk.dismissed ?? []).length > 0) && (
+            <section>
+              <button
+                onClick={() => setArchiveOpen((v) => !v)}
+                className="flex items-center gap-2 text-left w-full group"
+              >
+                <SectionTitle>
+                  Archive{" "}
+                  <span className="rounded-full bg-white/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                    {desk.retired.length} retired · {(desk.dismissed ?? []).length} dismissed
+                  </span>
+                </SectionTitle>
+                <span className="text-muted text-[10px] group-hover:text-[#c7c7cc] transition-colors">
+                  {archiveOpen ? "▾ hide" : "▸ show"}
+                </span>
+              </button>
+              {archiveOpen && (
+                <div className="mt-2 space-y-2">
+                  {desk.retired.map((s) => (
+                    <ArchiveRow
+                      key={s.id}
+                      signal={s}
+                      kind="retired"
+                      replacedByName={replacedBy.get(s.id) ?? null}
+                      busy={actingId === s.id}
+                      onReactivate={() => act(s.id, "reactivate")}
+                    />
+                  ))}
+                  {(desk.dismissed ?? []).map((s) => (
+                    <ArchiveRow
+                      key={s.id}
+                      signal={s}
+                      kind="dismissed"
+                      replacedByName={null}
+                      busy={actingId === s.id}
+                      onReactivate={() => act(s.id, "reactivate")}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         {/* right column: the human-feedback loop. In full-screen mode the same
@@ -591,6 +715,8 @@ function BulkBar({
 }) {
   const ids = suggested.filter((s) => selected.has(s.id)).map((s) => s.id);
   const allSelected = ids.length === suggested.length && suggested.length > 0;
+  // Consequence disclosure: bulk-approving swaps retires the replaced signals.
+  const swaps = suggested.filter((s) => selected.has(s.id) && s.replaces).length;
   return (
     <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
       <button
@@ -609,6 +735,12 @@ function BulkBar({
           >
             {busy ? "Working…" : `Approve ${ids.length}`}
           </button>
+          {swaps > 0 && (
+            <span className="text-warn">
+              ⇄ {swaps} of these replace{swaps === 1 ? "s" : ""} an active signal — approving retires{" "}
+              {swaps === 1 ? "it" : "them"}
+            </span>
+          )}
           <button
             onClick={() => onBulk("dismiss", ids)}
             disabled={busy}
@@ -618,6 +750,57 @@ function BulkBar({
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+/** One archived (retired or dismissed) signal — auditable and reversible. */
+function ArchiveRow({
+  signal,
+  kind,
+  replacedByName,
+  busy,
+  onReactivate,
+}: {
+  signal: Signal;
+  kind: "retired" | "dismissed";
+  replacedByName: string | null;
+  busy: boolean;
+  onReactivate: () => void;
+}) {
+  return (
+    <div className="rounded-xl bg-card/60 border border-hairline px-4 py-2.5 flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#c7c7cc] truncate">{signal.name}</span>
+          <span
+            className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+              kind === "retired" ? "bg-white/8 text-muted" : "bg-warn/10 text-warn/80"
+            }`}
+          >
+            {kind}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted truncate mt-0.5">
+          {signal.focusArea}
+          {replacedByName && (
+            <span className="text-warn/80"> · superseded by “{replacedByName}”</span>
+          )}
+          {!replacedByName && ` · ${signal.thesis}`}
+        </p>
+      </div>
+      <button
+        onClick={onReactivate}
+        disabled={busy}
+        title={
+          kind === "retired"
+            ? "Return this signal to the active board"
+            : "Return this proposal to the approval queue"
+        }
+        className="shrink-0 rounded-lg bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2.5 py-1.5 disabled:opacity-50 transition-colors"
+      >
+        {busy ? "…" : kind === "retired" ? "Reactivate" : "Restore proposal"}
+      </button>
     </div>
   );
 }

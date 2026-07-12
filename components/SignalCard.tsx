@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { domainOf } from "@/lib/citations";
 import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
+import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
 
 function ConfidenceDots({ value }: { value: number }) {
@@ -125,6 +126,7 @@ export function SignalCard({
   const delta = r ? DELTA_ARROW[r.delta] : null;
   const sources = signal.sources ?? [];
   const carriedForward = r?.newEvidence === false;
+  const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
 
   return (
     <div className="rounded-xl bg-card border border-hairline hover:border-white/20 transition-colors">
@@ -146,9 +148,16 @@ export function SignalCard({
         {r ? (
           <>
             {r.value != null && (
-              <div className="mt-2 text-lg font-semibold tabular-nums">
-                {r.value.toLocaleString()}{" "}
-                <span className="text-xs text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <div className="text-lg font-semibold tabular-nums">
+                  {r.value.toLocaleString()}{" "}
+                  <span className="text-xs text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
+                </div>
+                {spark.length >= 2 && (
+                  <span title={`${spark.length} readings · ${Math.min(...spark).toLocaleString()} → ${Math.max(...spark).toLocaleString()} range`}>
+                    <ReadingSparkline values={spark} />
+                  </span>
+                )}
               </div>
             )}
             {carriedForward ? (

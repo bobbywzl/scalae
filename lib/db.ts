@@ -6,7 +6,10 @@ import type {
   ChatMessage,
   Citation,
   DigestItem,
+  DividendReceipt,
   FocusArea,
+  Order,
+  OrderStatus,
   Reading,
   Run,
   Signal,
@@ -114,10 +117,12 @@ export const SCHEMA_STATEMENTS: string[] = [
     stage TEXT NOT NULL DEFAULT '',
     "stageDetail" TEXT NOT NULL DEFAULT '',
     brief TEXT,
+    dossier TEXT,
     sources TEXT NOT NULL DEFAULT '[]',
     error TEXT
   )`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS sources TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS dossier TEXT`,
   `CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     symbol TEXT NOT NULL,
@@ -148,6 +153,36 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol, "tradeDate")`,
+  `CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    side TEXT NOT NULL,
+    quantity DOUBLE PRECISION NOT NULL,
+    "orderType" TEXT NOT NULL,
+    "limitPrice" DOUBLE PRECISION,
+    "stopPrice" DOUBLE PRECISION,
+    tif TEXT NOT NULL DEFAULT 'gtc',
+    status TEXT NOT NULL DEFAULT 'open',
+    "placedAt" TEXT NOT NULL,
+    "filledAt" TEXT,
+    "fillPrice" DOUBLE PRECISION,
+    "tradeId" TEXT,
+    note TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, symbol)`,
+  `CREATE TABLE IF NOT EXISTS dividends (
+    id TEXT PRIMARY KEY,
+    symbol TEXT NOT NULL,
+    "exDate" TEXT NOT NULL,
+    "perShare" DOUBLE PRECISION NOT NULL,
+    shares DOUBLE PRECISION NOT NULL,
+    amount DOUBLE PRECISION NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    reinvested INTEGER NOT NULL DEFAULT 0,
+    "reinvestTradeId" TEXT,
+    "appliedAt" TEXT NOT NULL,
+    UNIQUE (symbol, "exDate")
+  )`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -451,6 +486,7 @@ export async function createRun(symbol: string): Promise<Run> {
     stage: "queued",
     stageDetail: "Preparing the desk…",
     brief: null,
+    dossier: null,
     sources: [],
     error: null,
   };
@@ -463,10 +499,16 @@ export async function setRunStage(id: string, stage: string, stageDetail: string
   await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
 }
 
-/** Complete a run: store the brief plus the numbered source list it cites ([n] → link). */
-export async function finishRun(id: string, brief: string, sources: Citation[] = []): Promise<void> {
+/** Complete a run: store the brief + standing dossier + numbered source list ([n] → link). */
+export async function finishRun(
+  id: string,
+  brief: string,
+  sources: Citation[] = [],
+  dossier: string | null = null
+): Promise<void> {
   await q`UPDATE runs SET status = 'done', stage = 'done', "stageDetail" = 'Desk updated',
-          brief = ${brief}, sources = ${JSON.stringify(sources)}, "finishedAt" = ${now()} WHERE id = ${id}`;
+          brief = ${brief}, dossier = ${dossier}, sources = ${JSON.stringify(sources)},
+          "finishedAt" = ${now()} WHERE id = ${id}`;
 }
 
 export async function failRun(id: string, error: string): Promise<void> {
@@ -638,4 +680,88 @@ export async function listTrades(symbol?: string): Promise<Trade[]> {
     return q<Trade>`SELECT * FROM trades WHERE symbol = ${symbol} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
   }
   return q<Trade>`SELECT * FROM trades ORDER BY "tradeDate" ASC, "createdAt" ASC`;
+}
+
+// ---------- orders (paper execution against live quotes) ----------
+
+export async function insertOrder(
+  o: Pick<Order, "symbol" | "side" | "quantity" | "orderType" | "limitPrice" | "stopPrice" | "tif" | "note">
+): Promise<Order> {
+  const order: Order = {
+    ...o,
+    id: uid(),
+    status: "open",
+    placedAt: now(),
+    filledAt: null,
+    fillPrice: null,
+    tradeId: null,
+  };
+  await q`INSERT INTO orders (id, symbol, side, quantity, "orderType", "limitPrice", "stopPrice",
+                              tif, status, "placedAt", note)
+          VALUES (${order.id}, ${order.symbol}, ${order.side}, ${order.quantity}, ${order.orderType},
+                  ${order.limitPrice}, ${order.stopPrice}, ${order.tif}, ${order.status},
+                  ${order.placedAt}, ${order.note})`;
+  return order;
+}
+
+export async function getOrder(id: string): Promise<Order | null> {
+  const rows = await q<Order>`SELECT * FROM orders WHERE id = ${id}`;
+  return rows[0] ?? null;
+}
+
+export async function listOpenOrders(): Promise<Order[]> {
+  return q<Order>`SELECT * FROM orders WHERE status = 'open' ORDER BY "placedAt" ASC`;
+}
+
+/** Completed orders (filled/canceled/expired), newest first. */
+export async function listOrderHistory(limit = 30): Promise<Order[]> {
+  return q<Order>`SELECT * FROM orders WHERE status <> 'open'
+                  ORDER BY COALESCE("filledAt", "placedAt") DESC LIMIT ${limit}`;
+}
+
+/** Cancel a working order; returns false if it wasn't open (e.g. already filled). */
+export async function cancelOrder(id: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`UPDATE orders SET status = 'canceled'
+    WHERE id = ${id} AND status = 'open' RETURNING id`;
+  return rows.length > 0;
+}
+
+export async function markOrderFilled(id: string, fillPrice: number, tradeId: string): Promise<void> {
+  await q`UPDATE orders SET status = 'filled', "fillPrice" = ${fillPrice},
+          "tradeId" = ${tradeId}, "filledAt" = ${now()} WHERE id = ${id}`;
+}
+
+export async function setOrderStatus(id: string, status: OrderStatus): Promise<void> {
+  await q`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+}
+
+// ---------- dividends ----------
+
+export async function insertDividend(
+  d: Omit<DividendReceipt, "id" | "appliedAt">
+): Promise<DividendReceipt | null> {
+  const rec: DividendReceipt = { ...d, id: uid(), appliedAt: now() };
+  // The unique (symbol, exDate) key makes double-applies a no-op.
+  const rows = await q<{ id: string }>`INSERT INTO dividends
+      (id, symbol, "exDate", "perShare", shares, amount, currency, reinvested, "reinvestTradeId", "appliedAt")
+    VALUES (${rec.id}, ${rec.symbol}, ${rec.exDate}, ${rec.perShare}, ${rec.shares}, ${rec.amount},
+            ${rec.currency}, ${rec.reinvested}, ${rec.reinvestTradeId}, ${rec.appliedAt})
+    ON CONFLICT (symbol, "exDate") DO NOTHING RETURNING id`;
+  return rows.length > 0 ? rec : null;
+}
+
+export async function listDividends(symbol?: string): Promise<DividendReceipt[]> {
+  if (symbol) {
+    return q<DividendReceipt>`SELECT * FROM dividends WHERE symbol = ${symbol} ORDER BY "exDate" DESC`;
+  }
+  return q<DividendReceipt>`SELECT * FROM dividends ORDER BY "exDate" DESC`;
+}
+
+/** Per-symbol dividend-reinvestment setting (default off = receive cash). */
+export async function dripEnabled(symbol: string): Promise<boolean> {
+  return (await getSetting(`drip:${symbol.toUpperCase()}`)) === "on";
+}
+
+export async function setDrip(symbol: string, on: boolean): Promise<void> {
+  await setSetting(`drip:${symbol.toUpperCase()}`, on ? "on" : "off");
 }

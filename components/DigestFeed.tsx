@@ -1,12 +1,27 @@
 "use client";
 
-import type { DigestItem } from "@/lib/types";
+import type { DigestItem, Signal } from "@/lib/types";
 import { IMPACT_DOT, timeAgo } from "./util";
 
-export function DigestFeed({ items }: { items: DigestItem[] }) {
+/**
+ * Evidence feed. Signal tags resolve against the live board: active signals
+ * open their detail view on click; retired/dismissed ones render muted so the
+ * investor can see which threads of the story are no longer tracked.
+ */
+export function DigestFeed({
+  items,
+  signals = [],
+  onOpenSignal,
+}: {
+  items: DigestItem[];
+  /** Board signals of any status, used to resolve tag names. */
+  signals?: Pick<Signal, "id" | "name" | "status">[];
+  onOpenSignal?: (id: string) => void;
+}) {
   if (items.length === 0) {
     return <p className="text-muted text-xs italic">No digest yet — run today’s research.</p>;
   }
+  const byName = new Map(signals.map((s) => [s.name, s]));
   return (
     <ul className="space-y-3.5">
       {items.map((d) => (
@@ -30,7 +45,43 @@ export function DigestFeed({ items }: { items: DigestItem[] }) {
               {d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date)}
               {d.signalNames.length > 0 && (
-                <span className="ml-2 text-muted/80">→ {d.signalNames.join(" · ")}</span>
+                <span className="ml-2 text-muted/80">
+                  →{" "}
+                  {d.signalNames.map((name, i) => {
+                    const s = byName.get(name);
+                    const sep = i < d.signalNames.length - 1 ? " · " : "";
+                    if (s && s.status === "active" && onOpenSignal) {
+                      return (
+                        <span key={name}>
+                          <button
+                            onClick={() => onOpenSignal(s.id)}
+                            className="hover:text-accent hover:underline underline-offset-2 transition-colors"
+                            title="Open this signal"
+                          >
+                            {name}
+                          </button>
+                          {sep}
+                        </span>
+                      );
+                    }
+                    if (s && s.status !== "active") {
+                      return (
+                        <span key={name}>
+                          <span className="opacity-60 line-through decoration-muted/50" title={`${s.status} signal`}>
+                            {name}
+                          </span>
+                          {sep}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span key={name}>
+                        {name}
+                        {sep}
+                      </span>
+                    );
+                  })}
+                </span>
               )}
             </p>
           </div>
