@@ -5,15 +5,38 @@ const g = globalThis as unknown as { __anthropic?: Anthropic };
 // longer backoff on top for overload bursts and transport drops.
 const client = g.__anthropic ?? (g.__anthropic = new Anthropic({ maxRetries: 3 }));
 
-export const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-4-8";
+// Which model runs each pipeline stage is decided by lib/ai/models.ts
+// (automatic best-available selection, env-overridable) and passed in via
+// opts.model. This module just executes the call the caller asks for.
+
+/** Where a Fable/Mythos request reroutes if safety classifiers decline it (rare). */
+const FALLBACK_MODEL = "claude-opus-4-8";
+/** Last-resort default if a caller omits opts.model (callers normally pass one). */
+const DEFAULT_MODEL = "claude-opus-4-8";
+
+/**
+ * List available Claude model IDs (Models API, auto-paginated), for automatic
+ * best-model selection. Returns [] on any failure — the caller falls back to a
+ * pinned default.
+ */
+export async function listClaudeModels(): Promise<string[]> {
+  const out: string[] = [];
+  for await (const m of client.models.list()) {
+    const id = (m as { id?: string }).id;
+    if (id) out.push(id);
+  }
+  return out;
+}
 
 export interface ClaudeJSONOptions {
   system: string;
   messages: Anthropic.MessageParam[];
   /** JSON Schema (additionalProperties:false everywhere) the response must satisfy. */
   schema: Record<string, unknown>;
+  /** Model to call; defaults to DEFAULT_MODEL. Normally resolved via lib/ai/models.ts. */
+  model?: string;
   maxTokens?: number;
-  effort?: "low" | "medium" | "high";
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 // Transport failures that escape the SDK's typed wrappers (undici stream
@@ -65,10 +88,11 @@ export function friendlyAIError(e: unknown): string {
 }
 
 /**
- * One structured-output call to Claude. Adaptive thinking stays on (default
- * for Opus 4.8); the response text is schema-constrained JSON which we parse.
- * Streams under the hood — synthesis calls run for minutes and non-streaming
- * requests are prone to connection drops.
+ * One structured-output call to Claude. Adaptive thinking stays on (always-on
+ * for Fable 5, default-configured for Opus 4.8); the response text is
+ * schema-constrained JSON which we parse. Streams under the hood — synthesis
+ * calls run for minutes and non-streaming requests are prone to connection
+ * drops.
  */
 export async function claudeJSON<T>(opts: ClaudeJSONOptions): Promise<T> {
   let lastErr: unknown;
@@ -88,8 +112,9 @@ export async function claudeJSON<T>(opts: ClaudeJSONOptions): Promise<T> {
 }
 
 async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
-  const stream = client.messages.stream({
-    model: CLAUDE_MODEL,
+  const model = opts.model ?? DEFAULT_MODEL;
+  const params = {
+    model,
     max_tokens: opts.maxTokens ?? 8000,
     system: opts.system,
     messages: opts.messages,
@@ -101,7 +126,20 @@ async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
         schema: opts.schema,
       },
     },
-  } as Anthropic.MessageStreamParams);
+  };
+
+  // Fable 5 runs safety classifiers that can decline a request (finance
+  // content practically never trips them, but the API contract requires
+  // handling it): opt into the server-side fallback so a declined call is
+  // transparently re-run on Opus 4.8 in the same request.
+  const fable = model.startsWith("claude-fable") || model.startsWith("claude-mythos");
+  const stream = fable
+    ? client.beta.messages.stream({
+        ...params,
+        betas: ["server-side-fallback-2026-06-01"],
+        fallbacks: [{ model: FALLBACK_MODEL }],
+      } as unknown as Parameters<typeof client.beta.messages.stream>[0])
+    : client.messages.stream(params as Anthropic.MessageStreamParams);
   const response = await stream.finalMessage();
 
   if (response.stop_reason === "refusal") {
@@ -111,9 +149,11 @@ async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
     throw new Error("Claude response was truncated (max_tokens reached).");
   }
 
-  const text = response.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
+  // response is Message | BetaMessage depending on the path — same text shape.
+  const blocks = response.content as Array<{ type: string; text?: string }>;
+  const text = blocks
+    .filter((b) => b.type === "text")
+    .map((b) => b.text ?? "")
     .join("");
   if (!text) throw new Error("Claude returned no text content.");
   try {

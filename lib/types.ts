@@ -39,6 +39,8 @@ export interface Signal {
   scale: string;
   status: SignalStatus;
   origin: SignalOrigin;
+  /** Id of the ACTIVE signal this proposal replaces (retired on approval), or null. */
+  replaces: string | null;
   createdAt: string;
   approvedAt: string | null;
 }
@@ -46,6 +48,10 @@ export interface Signal {
 export interface Citation {
   title: string;
   url: string;
+  /** Best-effort source domain (e.g. "fastretailing.com"), resolved at research time. */
+  domain?: string;
+  /** Labels of the research sweeps that surfaced this source (provenance). */
+  foundBy?: string[];
 }
 
 export interface Reading {
@@ -59,6 +65,8 @@ export interface Reading {
   delta: Delta;
   confidence: number;
   rationale: string;
+  /** False = pure carry-forward day ("no new information"); null on legacy rows. */
+  newEvidence: boolean | null;
   citations: Citation[];
 }
 
@@ -84,7 +92,25 @@ export interface Run {
   stage: string;
   stageDetail: string;
   brief: string | null;
+  /** The run's numbered source list — resolves the brief's [n] citations to links. */
+  sources: Citation[];
   error: string | null;
+}
+
+export type AttachmentKind = "image" | "pdf" | "text";
+
+/** A file the investor attached to a chat message. */
+export interface Attachment {
+  kind: AttachmentKind;
+  name: string;
+  mediaType: string;
+  /** Original size in bytes (pre-encoding). */
+  size: number;
+  /**
+   * base64 payload (image/pdf) or raw text (text files). Stripped from desk
+   * payloads sent to the browser; loaded server-side when the analyst reads it.
+   */
+  data?: string;
 }
 
 export interface ChatMessage {
@@ -93,6 +119,9 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   proposalIds: string[];
+  attachments: Attachment[];
+  /** null = ticker-level desk chat; set = that signal's focused chat. */
+  signalId: string | null;
   createdAt: string;
 }
 
@@ -108,9 +137,30 @@ export interface Quote {
   spark: number[];
 }
 
+/**
+ * One distinct source in a signal's accumulated evidence catalog — deduped
+ * across every reading in the signal's history, so the list grows as each
+ * daily run corroborates or adds sources.
+ */
+export interface SignalSource {
+  title: string;
+  url: string;
+  domain: string;
+  /** Research sweeps that surfaced this source, unioned across readings. */
+  foundBy: string[];
+  /** Date this source first entered the signal's evidence (ISO). */
+  firstSeen: string;
+  /** Most recent reading that cited it (ISO). */
+  lastSeen: string;
+  /** How many of the signal's readings have cited it. */
+  count: number;
+}
+
 export interface SignalWithReadings extends Signal {
   latest: Reading | null;
   history: Reading[];
+  /** Accumulated, deduped source catalog across all readings (freshest first). */
+  sources: SignalSource[];
 }
 
 /** Full payload for the ticker detail page. */
@@ -123,7 +173,12 @@ export interface DeskPayload {
   retired: Signal[];
   latestRun: Run | null;
   digest: DigestItem[];
+  /** Ticker-level desk chat only (signal-scoped chats load per signal). */
   messages: ChatMessage[];
+  /** The investor's involvement in this name, if any trades exist. */
+  position: TickerInvolvement | null;
+  /** Global auto-research switch — gates the stale-desk auto-run client-side. */
+  autoResearch: boolean;
 }
 
 export interface WatchlistRow {
@@ -133,6 +188,115 @@ export interface WatchlistRow {
   suggestedCount: number;
   running: boolean;
   stale: boolean;
+  /** Compact involvement badge when the investor holds this name. */
+  position: TickerInvolvement | null;
+}
+
+// ---------------------------------------------------------------------------
+// Portfolio: manual trade ledger (stocks + options), average-cost method.
+// ---------------------------------------------------------------------------
+
+export type TradeKind = "stock" | "option";
+export type TradeSide = "buy" | "sell";
+export type OptionType = "call" | "put";
+
+export interface Trade {
+  id: string;
+  symbol: string;
+  kind: TradeKind;
+  side: TradeSide;
+  /** Shares (stock) or contracts (option); always positive — side carries direction. */
+  quantity: number;
+  /** Per share; for options the premium per share (total = price × multiplier × contracts). */
+  price: number;
+  fees: number;
+  /** ISO date of execution. */
+  tradeDate: string;
+  optionType: OptionType | null;
+  strike: number | null;
+  expiry: string | null;
+  multiplier: number;
+  note: string;
+  createdAt: string;
+}
+
+export type TradeInput = Omit<Trade, "id" | "createdAt">;
+
+/** One open (or fully-closed) instrument computed from the ledger. */
+export interface Position {
+  /** stock → symbol; option → symbol|C/P|strike|expiry. */
+  key: string;
+  symbol: string;
+  kind: TradeKind;
+  optionType: OptionType | null;
+  strike: number | null;
+  expiry: string | null;
+  multiplier: number;
+  /** Signed: negative = short. Shares or contracts. */
+  qty: number;
+  /** Average cost per unit (per share / premium per share), native currency. */
+  avgCost: number;
+  /** Realized P&L to date (native currency, fees deducted). */
+  realized: number;
+  trades: number;
+}
+
+/** A position valued against the market (native currency unless noted). */
+export interface ValuedPosition extends Position {
+  currency: string;
+  /** Per-unit mark: live price, option market quote, or intrinsic fallback. */
+  mark: number | null;
+  /** How the mark was obtained. */
+  markSource: "live" | "intrinsic" | "none";
+  marketValue: number | null;
+  unrealized: number | null;
+  unrealizedPct: number | null;
+  dayChangePct: number | null;
+  /** Options: expired flag (record a closing trade to realize). */
+  expired: boolean;
+  /** USD conversion rate applied for portfolio totals (1 for USD). */
+  fxToUsd: number;
+}
+
+export interface PnlPoint {
+  /** ISO date (trading day). */
+  date: string;
+  /** Total P&L in USD: open-position value + cumulative signed cashflow. */
+  pnl: number;
+  /** Market value of open positions (USD). */
+  value: number;
+}
+
+export interface PortfolioSummary {
+  /** All USD. */
+  marketValue: number;
+  costBasis: number;
+  unrealized: number;
+  realized: number;
+  totalPnl: number;
+  dayChange: number | null;
+  currencyNote: string;
+}
+
+export interface PortfolioPayload {
+  summary: PortfolioSummary;
+  series: PnlPoint[];
+  stocks: ValuedPosition[];
+  options: ValuedPosition[];
+  trades: Trade[];
+  /** Symbols whose market data could not be fetched (excluded from series). */
+  unpriced: string[];
+}
+
+/** Involvement in one ticker, for the desk page + watchlist badge + analyst context. */
+export interface TickerInvolvement {
+  symbol: string;
+  currency: string;
+  stock: ValuedPosition | null;
+  options: ValuedPosition[];
+  /** Native currency. */
+  realized: number;
+  unrealized: number | null;
 }
 
 /** Shape the agents emit when proposing a new signal (pre-approval). */
@@ -143,6 +307,12 @@ export interface SignalProposal {
   thesis: string;
   measurementPlan: string;
   scale: string;
+  /**
+   * Exact name of the ACTIVE signal this proposal replaces and subsumes
+   * (a sharper/more comprehensive crux signal), or "" if purely additive.
+   * Approving a replacement retires the named signal.
+   */
+  replaces?: string;
 }
 
 export interface FocusAreaProposal {

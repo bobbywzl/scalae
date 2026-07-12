@@ -10,6 +10,7 @@ import {
 } from "@/lib/db";
 import { getQuote, resolveSymbol } from "@/lib/market";
 import { welcomeMessage } from "@/lib/agents/chat";
+import { computeInvolvement } from "@/lib/portfolio";
 import type { WatchlistRow } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
@@ -19,11 +20,12 @@ export async function GET() {
   const rows: WatchlistRow[] = await Promise.all(
     tickers.map(async (t) => {
       await reapStuckRuns(t.symbol);
-      const [quote, active, suggested, running] = await Promise.all([
+      const [quote, active, suggested, running, position] = await Promise.all([
         getQuote(t.symbol),
         listSignals(t.symbol, "active"),
         listSignals(t.symbol, "suggested"),
         runningRun(t.symbol),
+        computeInvolvement(t.symbol).catch(() => null),
       ]);
       const stale =
         !!t.onboarded &&
@@ -36,6 +38,7 @@ export async function GET() {
         suggestedCount: suggested.length,
         running: !!running,
         stale,
+        position,
       };
     })
   );

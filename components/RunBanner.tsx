@@ -4,8 +4,9 @@ import type { Run } from "@/lib/types";
 import { timeAgo } from "./util";
 
 const STAGES: { key: string; label: string }[] = [
-  { key: "sweeping", label: "Gemini scouts sweep the web" },
-  { key: "synthesizing", label: "Claude analyst synthesizes" },
+  { key: "sweeping", label: "Scouts sweep the web" },
+  { key: "probing", label: "Analyst commissions deep dives" },
+  { key: "synthesizing", label: "Deep synthesis" },
   { key: "recording", label: "Board updated" },
 ];
 

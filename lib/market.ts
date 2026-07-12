@@ -77,6 +77,132 @@ async function getSpark(symbol: string): Promise<number[]> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Portfolio market data: light quotes, daily closes, FX, option marks.
+// Small in-process TTL caches — /api/portfolio is polled and re-valuates
+// everything on each call.
+// ---------------------------------------------------------------------------
+
+export interface PriceQuote {
+  price: number | null;
+  currency: string;
+  changePercent: number | null;
+}
+
+const caches = ((globalThis as unknown as {
+  __scalaeMkt?: Map<string, { v: unknown; at: number }>;
+}).__scalaeMkt ??= new Map<string, { v: unknown; at: number }>());
+
+async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = caches.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.v as T;
+  const v = await fn();
+  // Don't cache nulls long — retry sooner.
+  caches.set(key, { v, at: v == null ? Date.now() - ttlMs + 30_000 : Date.now() });
+  return v;
+}
+
+/** Price/currency/day-change only (no spark) — cheap enough to batch. */
+export async function getPriceQuote(symbol: string): Promise<PriceQuote | null> {
+  return cached(`pq:${symbol}`, 60_000, async () => {
+    try {
+      const q = await yf.quote(symbol);
+      if (!q) return null;
+      return {
+        price: q.regularMarketPrice ?? null,
+        currency: q.currency ?? "USD",
+        changePercent: q.regularMarketChangePercent ?? null,
+      };
+    } catch {
+      return null;
+    }
+  });
+}
+
+/** Daily closes (ISO date → close), ascending, from `fromISO` to today. */
+export async function getDailyCloses(
+  symbol: string,
+  fromISO: string
+): Promise<{ date: string; close: number }[]> {
+  return cached(`cl:${symbol}:${fromISO}`, 15 * 60_000, async () => {
+    try {
+      const c = await yf.chart(symbol, {
+        period1: new Date(fromISO),
+        interval: "1d",
+      });
+      const out: { date: string; close: number }[] = [];
+      for (const p of c.quotes) {
+        if (typeof p.close === "number" && Number.isFinite(p.close) && p.date) {
+          out.push({ date: new Date(p.date).toISOString().slice(0, 10), close: p.close });
+        }
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Live CUR→USD rate (1 for USD; null if unavailable). */
+export async function getFxRate(currency: string): Promise<number | null> {
+  if (!currency || currency.toUpperCase() === "USD") return 1;
+  // LSE quotes arrive in pence ("GBp"): 1 GBp = GBP/100.
+  if (currency === "GBp") {
+    const q = await getPriceQuote("GBPUSD=X");
+    return q?.price != null ? q.price / 100 : null;
+  }
+  const q = await getPriceQuote(`${currency.toUpperCase()}USD=X`);
+  return q?.price ?? null;
+}
+
+/** Historical CUR→USD daily rates from `fromISO` (empty for USD/unavailable). */
+export async function getFxCloses(
+  currency: string,
+  fromISO: string
+): Promise<{ date: string; close: number }[]> {
+  if (!currency || currency.toUpperCase() === "USD") return [];
+  if (currency === "GBp") {
+    const rows = await getDailyCloses("GBPUSD=X", fromISO);
+    return rows.map((r) => ({ date: r.date, close: r.close / 100 }));
+  }
+  return getDailyCloses(`${currency.toUpperCase()}USD=X`, fromISO);
+}
+
+/** Yahoo/OCC option contract symbol, e.g. AAPL260116C00200000. */
+export function occSymbol(
+  underlying: string,
+  optionType: "call" | "put",
+  strike: number,
+  expiryISO: string
+): string {
+  const root = underlying.toUpperCase();
+  const ymd = expiryISO.slice(2, 10).replace(/-/g, "");
+  const k = String(Math.round(strike * 1000)).padStart(8, "0");
+  return `${root}${ymd}${optionType === "call" ? "C" : "P"}${k}`;
+}
+
+/**
+ * Live market mark for an option contract (per share), or null. Works for
+ * US-listed contracts; non-US underlyings fall back to intrinsic upstream.
+ */
+export async function getOptionMark(
+  underlying: string,
+  optionType: "call" | "put",
+  strike: number,
+  expiryISO: string
+): Promise<number | null> {
+  const sym = occSymbol(underlying, optionType, strike, expiryISO);
+  return cached(`om:${sym}`, 5 * 60_000, async () => {
+    try {
+      const q = await yf.quote(sym);
+      const p = q?.regularMarketPrice;
+      return typeof p === "number" && Number.isFinite(p) ? p : null;
+    } catch {
+      return null;
+    }
+  });
+}
+
 /** One-line valuation context for prompts, e.g. "Price $311.61 (+0.96% today), mkt cap $4.6T, trailing P/E 33.8". */
 export function quoteLine(q: Quote | null): string {
   if (!q || q.price == null) return "No market quote available.";

@@ -146,8 +146,8 @@ Every signal must illuminate, at least loosely, one of the two questions this de
 (b) the CORPORATE CULTURE — how the organization behaves (management candor and promise-keeping, incentives, owner-orientation, institutional-imperative resistance, treatment of customers/employees/partners, long-term orientation, talent retention).
 If a candidate signal cannot be traced to either anchor, do not propose it. Chart patterns, price targets, analyst-rating chatter, fund flows and sentiment are out of scope by construction.
 
-NO DUPLICATION (the board is a curated instrument panel, not a feed):
-Before proposing any signal, check it against every existing signal in your context — active, pending, retired, and dismissed. Do not propose a signal that overlaps significantly in WHAT IT MEASURES with any of them, even under a different name. If new evidence suggests an existing signal is aimed slightly wrong, say so in your reply and propose sharpening or replacing it by name — never add a near-twin beside it. Do not re-propose dismissed or retired ideas unless materially new evidence emerged, and state what changed. Propose nothing rather than propose overlap.
+NO DUPLICATION — REPLACE, DON'T ACCRETE (the board is a curated instrument panel, not a feed):
+Before proposing any signal, check it against every existing signal in your context — active, pending, retired, and dismissed. Do not propose a signal that overlaps significantly in WHAT IT MEASURES with any of them, even under a different name. The desk's purpose is the BEST possible signal set, so actively look for upgrades: when an existing active signal is aimed slightly wrong, too narrow, or a new formulation would be more comprehensive and closer to the crux of the business model or culture, propose the sharper signal WITH its "replaces" field set to the exact name of the active signal it supersedes — approving it retires the old one in the same gesture (still human-gated). A replacement must subsume what the old signal guarded, not merely rename it. Do not re-propose dismissed or retired ideas unless materially new evidence emerged, and state what changed. Propose nothing rather than propose overlap.
 
 A signal is a repeatable measurement this desk tracks from public information — a scale reading, not a vote count:
 - name: short and specific (e.g. "Buyback pace vs. price paid", "Senior executive departures").
@@ -181,7 +181,7 @@ export const SYNTHESIS_DOCTRINE = `WEIGHING THE EVIDENCE (daily-synthesis doctri
 export const SIGNAL_PROPOSAL_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "type", "focusArea", "thesis", "measurementPlan", "scale"],
+  required: ["name", "type", "focusArea", "thesis", "measurementPlan", "scale", "replaces"],
   properties: {
     name: { type: "string" },
     type: { type: "string", enum: ["quantitative", "qualitative"] },
@@ -189,6 +189,11 @@ export const SIGNAL_PROPOSAL_SCHEMA = {
     thesis: { type: "string" },
     measurementPlan: { type: "string" },
     scale: { type: "string" },
+    replaces: {
+      type: "string",
+      description:
+        'Exact name of the ACTIVE signal this proposal replaces because it is sharper or closer to the crux of the business (approving the proposal retires that signal). "" when the proposal is purely additive.',
+    },
   },
 } as const;
 
@@ -257,6 +262,45 @@ export const CHAT_SCHEMA = {
   },
 } as const;
 
+/**
+ * Mid-run gap analysis: after the breadth sweeps, the analyst triages the
+ * evidence against the board and commissions targeted deep-dive sweeps for
+ * threads that are thin, conflicting, or red-flag-adjacent. Empty when the
+ * first wave already covers the board — never invent work (evidence
+ * discipline: an honest "no gaps" beats a manufactured probe).
+ */
+export const GAP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["followUps"],
+  properties: {
+    followUps: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["query", "reason", "signalKeys"],
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "A focused research question for a web scout, specific enough to answer with searches (name the company, metric, event or period).",
+          },
+          reason: {
+            type: "string",
+            description: "Why this gap matters to the board (1 sentence).",
+          },
+          signalKeys: {
+            type: "array",
+            description: 'Bracketed keys of the signals this probe serves, e.g. ["S2"]. Empty if board-level.',
+            items: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -273,6 +317,7 @@ export const SYNTHESIS_SCHEMA = {
         additionalProperties: false,
         required: [
           "signalKey",
+          "newEvidence",
           "value",
           "valueUnit",
           "level",
@@ -285,6 +330,11 @@ export const SYNTHESIS_SCHEMA = {
           signalKey: {
             type: "string",
             description: 'The bracketed key of the signal this reading is for, e.g. "S1".',
+          },
+          newEvidence: {
+            type: "boolean",
+            description:
+              "True only if TODAY'S research added information for this signal that the previous reading did not already reflect. False = pure carry-forward.",
           },
           value: { anyOf: [{ type: "number" }, { type: "null" }] },
           valueUnit: { anyOf: [{ type: "string" }, { type: "null" }] },

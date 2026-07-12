@@ -1,0 +1,44 @@
+name: Monthly model review
+
+# Opens an issue on the 1st of each month summarising which model the desk's
+# auto-selector (lib/ai/models.ts) resolves for each role from each provider's
+# live model list, plus the full flagship lineup — so a human can approve
+# adopting any genuinely new model family. Requires repo secrets
+# ANTHROPIC_API_KEY and GEMINI_API_KEY (read-only model-list access is enough).
+# Runs without them too — it just reports "none returned".
+
+on:
+  schedule:
+    - cron: "0 12 1 * *" # 12:00 UTC, 1st of each month
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Resolve current best models
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/model-review.mjs
+      - name: Open review issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('model-review-report.md', 'utf8');
+            const title = `Monthly model review — ${new Date().toISOString().slice(0, 7)}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['model-review'],
+            });

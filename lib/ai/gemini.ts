@@ -1,4 +1,7 @@
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// Which Gemini model runs each scout tier is decided by lib/ai/models.ts
+// (automatic best-available selection, env-overridable) and passed in via
+// opts.model. This is only the stable floor used if a caller omits the model.
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 export interface GroundedResult {
   text: string;
@@ -20,10 +23,14 @@ interface GeminiResponse {
  * One Google-Search-grounded research call to Gemini. Returns the model's
  * findings plus the list of web sources from grounding metadata.
  */
-export async function geminiGroundedSearch(prompt: string): Promise<GroundedResult> {
+export async function geminiGroundedSearch(
+  prompt: string,
+  opts: { model?: string } = {}
+): Promise<GroundedResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set.");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  const model = opts.model ?? DEFAULT_GEMINI_MODEL;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -76,3 +83,34 @@ export async function geminiGroundedSearch(prompt: string): Promise<GroundedResu
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * List Gemini model IDs that support text generation (grounded scouting), for
+ * automatic best-model selection. Returns [] on any failure — the caller falls
+ * back to a pinned default.
+ */
+export async function listGeminiModels(): Promise<string[]> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return [];
+  const out: string[] = [];
+  let pageToken = "";
+  for (let page = 0; page < 5; page++) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=200${
+      pageToken ? `&pageToken=${pageToken}` : ""
+    }`;
+    const res = await fetch(url);
+    if (!res.ok) break;
+    const data = (await res.json()) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+      nextPageToken?: string;
+    };
+    for (const m of data.models ?? []) {
+      if (!(m.supportedGenerationMethods ?? []).includes("generateContent")) continue;
+      const id = (m.name ?? "").replace(/^models\//, "");
+      if (id) out.push(id);
+    }
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+  return out;
+}
