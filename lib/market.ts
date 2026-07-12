@@ -1,5 +1,5 @@
 import YahooFinance from "yahoo-finance2";
-import type { Quote } from "./types";
+import type { Quote, RichQuote } from "./types";
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -166,6 +166,55 @@ export async function getFxCloses(
     return rows.map((r) => ({ date: r.date, close: r.close / 100 }));
   }
   return getDailyCloses(`${currency.toUpperCase()}USD=X`, fromISO);
+}
+
+/**
+ * Brokerage-grade quote for the trade ticket: last/bid/ask, ranges, volume,
+ * valuation basics and a sparkline — everything a broker shows before an
+ * order. Cached briefly; null when the symbol has no market data.
+ */
+export async function getQuoteCard(symbol: string): Promise<RichQuote | null> {
+  return cached(`rq:${symbol}`, 45_000, async () => {
+    try {
+      const [q, spark] = await Promise.all([
+        yf.quote(symbol),
+        getSpark(symbol).catch(() => [] as number[]),
+      ]);
+      if (!q || q.regularMarketPrice == null) return null;
+      const divFrac =
+        q.trailingAnnualDividendYield ??
+        (typeof q.dividendYield === "number" ? q.dividendYield / 100 : null);
+      return {
+        symbol: q.symbol ?? symbol,
+        name: q.longName || q.shortName || symbol,
+        exchange: q.fullExchangeName ?? null,
+        currency: q.currency ?? "USD",
+        marketState: q.marketState ?? null,
+        price: q.regularMarketPrice ?? null,
+        change: q.regularMarketChange ?? null,
+        changePercent: q.regularMarketChangePercent ?? null,
+        previousClose: q.regularMarketPreviousClose ?? null,
+        open: q.regularMarketOpen ?? null,
+        bid: q.bid ?? null,
+        ask: q.ask ?? null,
+        bidSize: q.bidSize ?? null,
+        askSize: q.askSize ?? null,
+        dayLow: q.regularMarketDayLow ?? null,
+        dayHigh: q.regularMarketDayHigh ?? null,
+        wk52Low: q.fiftyTwoWeekLow ?? null,
+        wk52High: q.fiftyTwoWeekHigh ?? null,
+        volume: q.regularMarketVolume ?? null,
+        avgVolume: q.averageDailyVolume3Month ?? null,
+        marketCap: q.marketCap ?? null,
+        trailingPE: q.trailingPE ?? null,
+        epsTTM: q.epsTrailingTwelveMonths ?? null,
+        dividendYieldPct: divFrac != null ? divFrac * 100 : null,
+        spark,
+      } satisfies RichQuote;
+    } catch {
+      return null;
+    }
+  });
 }
 
 /** Yahoo/OCC option contract symbol, e.g. AAPL260116C00200000. */

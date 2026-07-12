@@ -137,6 +137,36 @@ export interface Quote {
   spark: number[];
 }
 
+/** Brokerage-grade quote for the trade ticket (Schwab-style pre-trade info). */
+export interface RichQuote {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  currency: string;
+  marketState: string | null;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  previousClose: number | null;
+  open: number | null;
+  bid: number | null;
+  ask: number | null;
+  bidSize: number | null;
+  askSize: number | null;
+  dayLow: number | null;
+  dayHigh: number | null;
+  wk52Low: number | null;
+  wk52High: number | null;
+  volume: number | null;
+  avgVolume: number | null;
+  marketCap: number | null;
+  trailingPE: number | null;
+  epsTTM: number | null;
+  /** Trailing dividend yield in percent (e.g. 1.2 = 1.2%). */
+  dividendYieldPct: number | null;
+  spark: number[];
+}
+
 /**
  * One distinct source in a signal's accumulated evidence catalog — deduped
  * across every reading in the signal's history, so the list grows as each
