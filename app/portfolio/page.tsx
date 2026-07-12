@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PnlChart, fmtUsd } from "@/components/PnlChart";
 import { TradeForm } from "@/components/TradeForm";
@@ -9,6 +9,8 @@ import { orderLabel } from "@/lib/order-math";
 import { optionLabel } from "@/lib/portfolio-math";
 import { daysUntil } from "@/components/util";
 import type { Order, PortfolioPayload, Trade } from "@/lib/types";
+
+type PositionAction = "sell" | "buy" | "record";
 
 const fmtNative = (v: number, currency: string, digits = 2) =>
   `${currency === "USD" ? "$" : currency + " "}${v.toLocaleString(undefined, {
@@ -39,6 +41,35 @@ function PctChip({ v }: { v: number | null }) {
   );
 }
 
+/** One quick-action chip in a stock row's expanded panel. */
+function ActionChip({
+  active,
+  tone,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  tone?: "gain" | "loss";
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const toneCls =
+    tone === "loss"
+      ? `text-loss border-loss/30 hover:bg-loss/10 ${active ? "bg-loss/10" : ""}`
+      : tone === "gain"
+        ? `text-gain border-gain/30 hover:bg-gain/10 ${active ? "bg-gain/10" : ""}`
+        : `text-[#c7c7cc] border-hairline hover:bg-white/8 ${active ? "bg-white/8" : ""}`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${toneCls}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function PortfolioPage() {
   const [data, setData] = useState<PortfolioPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +85,9 @@ export default function PortfolioPage() {
   const [resetBusy, setResetBusy] = useState(false);
   const [showReceipts, setShowReceipts] = useState(false);
   const [withholding, setWithholding] = useState<Record<string, string>>({});
+  /** Which stock row is expanded into its actions panel, and which action is open. */
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [posAction, setPosAction] = useState<PositionAction | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -133,6 +167,8 @@ export default function PortfolioPage() {
     try {
       await api(`/api/portfolio`, { method: "DELETE" });
       setResetConfirm(false);
+      setExpanded(null);
+      setPosAction(null);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to reset the book");
@@ -152,6 +188,11 @@ export default function PortfolioPage() {
     } catch {
       load();
     }
+  }
+
+  function toggleRow(key: string) {
+    setExpanded((cur) => (cur === key ? null : key));
+    setPosAction(null);
   }
 
   const s = data?.summary;
@@ -479,81 +520,164 @@ export default function PortfolioPage() {
             </section>
           )}
 
-          {/* Stock positions */}
+          {/* Stock positions — click a row for everything you can do with it */}
           <section>
             <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">Stocks</p>
             {data.stocks.length === 0 ? (
               <p className="text-muted text-xs italic mt-2">No open stock positions.</p>
             ) : (
               <ul className="mt-2 divide-y divide-hairline rounded-2xl bg-card border border-hairline overflow-hidden">
-                {data.stocks.map((p) => (
-                  <li key={p.key}>
-                    <Link href={`/t/${encodeURIComponent(p.symbol)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-white/4 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm">
-                          {p.symbol} {p.qty < 0 && <span className="text-loss text-[10px] font-semibold ml-1">SHORT</span>}
-                          {p.qty > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                toggleDrip(p.symbol, !data.drip[p.symbol]);
-                              }}
-                              title={
-                                data.drip[p.symbol]
-                                  ? "Dividend reinvestment ON — dividends buy more shares when applied"
-                                  : "Dividend reinvestment OFF — dividends credit as cash when applied"
-                              }
-                              className={`ml-2 rounded-full px-2 py-px text-[9px] font-semibold uppercase tracking-wider transition-colors ${
-                                data.drip[p.symbol]
-                                  ? "bg-gain/15 text-gain"
-                                  : "bg-white/6 text-muted hover:bg-white/10"
-                              }`}
-                            >
-                              DRIP {data.drip[p.symbol] ? "on" : "off"}
-                            </button>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-muted tabular-nums">
-                          {Math.abs(p.qty).toLocaleString()} sh @ {fmtNative(p.avgCost, p.currency)} avg
-                          {s && s.marketValue > 0 && p.marketValue != null && (
-                            <span
-                              className="ml-2 rounded bg-white/6 px-1.5 py-px text-[10px]"
-                              title="Share of the book's total market value"
-                            >
-                              {(((p.marketValue ?? 0) * p.fxToUsd * 100) / s.marketValue).toFixed(0)}% of book
-                            </span>
-                          )}
-                          {p.avgCost === 0 && (
-                            <span
-                              className="ml-1.5 text-warn"
-                              title="This position was recorded at price 0, so its P&L is overstated — delete the trade in Trade history and re-record it with the real fill price."
-                            >
-                              ⚠ no cost recorded
-                            </span>
-                          )}
-                          {p.realized !== 0 && <span className="ml-2">realized {fmtNative(p.realized, p.currency, 0)}</span>}
-                        </p>
+                {data.stocks.map((p) => {
+                  const open = expanded === p.key;
+                  return (
+                    <li key={p.key}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={open}
+                        onClick={() => toggleRow(p.key)}
+                        onKeyDown={(e) => {
+                          if (e.target !== e.currentTarget) return; // let the DRIP chip keep its keys
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleRow(p.key);
+                          }
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-white/4 transition-colors cursor-pointer"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm">
+                            {p.symbol} {p.qty < 0 && <span className="text-loss text-[10px] font-semibold ml-1">SHORT</span>}
+                            {p.qty > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  toggleDrip(p.symbol, !data.drip[p.symbol]);
+                                }}
+                                title={
+                                  data.drip[p.symbol]
+                                    ? "Dividend reinvestment ON — dividends buy more shares when applied"
+                                    : "Dividend reinvestment OFF — dividends credit as cash when applied"
+                                }
+                                className={`ml-2 rounded-full px-2 py-px text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+                                  data.drip[p.symbol]
+                                    ? "bg-gain/15 text-gain"
+                                    : "bg-white/6 text-muted hover:bg-white/10"
+                                }`}
+                              >
+                                DRIP {data.drip[p.symbol] ? "on" : "off"}
+                              </button>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted tabular-nums">
+                            {Math.abs(p.qty).toLocaleString()} sh @ {fmtNative(p.avgCost, p.currency)} avg
+                            {s && s.marketValue > 0 && p.marketValue != null && (
+                              <span
+                                className="ml-2 rounded bg-white/6 px-1.5 py-px text-[10px]"
+                                title="Share of the book's total market value"
+                              >
+                                {(((p.marketValue ?? 0) * p.fxToUsd * 100) / s.marketValue).toFixed(0)}% of book
+                              </span>
+                            )}
+                            {p.avgCost === 0 && (
+                              <span
+                                className="ml-1.5 text-warn"
+                                title="This position was recorded at price 0, so its P&L is overstated — delete the trade in Trade history and re-record it with the real fill price."
+                              >
+                                ⚠ no cost recorded
+                              </span>
+                            )}
+                            {p.realized !== 0 && <span className="ml-2">realized {fmtNative(p.realized, p.currency, 0)}</span>}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-medium tabular-nums">
+                            {p.mark != null ? fmtNative(p.mark, p.currency) : "—"}
+                            {p.dayChangePct != null && (
+                              <span className={`ml-1.5 text-[10px] ${signCls(p.dayChangePct)}`}>
+                                {p.dayChangePct >= 0 ? "+" : ""}
+                                {p.dayChangePct.toFixed(1)}%
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] tabular-nums mt-0.5">
+                            <span className={signCls(p.unrealized)}>
+                              {p.unrealized != null ? fmtNative(p.unrealized, p.currency, 0) : "—"}
+                            </span>{" "}
+                            <PctChip v={p.unrealizedPct} />
+                          </p>
+                        </div>
+                        <span
+                          aria-hidden
+                          className={`shrink-0 text-[10px] transition-transform ${
+                            open ? "rotate-90 text-[#c7c7cc]" : "text-muted/60"
+                          }`}
+                        >
+                          ▸
+                        </span>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-medium tabular-nums">
-                          {p.mark != null ? fmtNative(p.mark, p.currency) : "—"}
-                          {p.dayChangePct != null && (
-                            <span className={`ml-1.5 text-[10px] ${signCls(p.dayChangePct)}`}>
-                              {p.dayChangePct >= 0 ? "+" : ""}
-                              {p.dayChangePct.toFixed(1)}%
-                            </span>
+
+                      {/* Everything you can do with this position, in one place. */}
+                      {open && (
+                        <div className="px-4 pb-4 pt-2.5 bg-white/2 border-t border-hairline/60">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ActionChip
+                              tone="loss"
+                              active={posAction === "sell"}
+                              onClick={() => setPosAction((a) => (a === "sell" ? null : "sell"))}
+                            >
+                              {p.qty < 0 ? "Sell more" : "Sell"}
+                            </ActionChip>
+                            <ActionChip
+                              tone="gain"
+                              active={posAction === "buy"}
+                              onClick={() => setPosAction((a) => (a === "buy" ? null : "buy"))}
+                            >
+                              {p.qty < 0 ? "Buy to cover" : "Buy more"}
+                            </ActionChip>
+                            <ActionChip
+                              active={posAction === "record"}
+                              onClick={() => setPosAction((a) => (a === "record" ? null : "record"))}
+                            >
+                              Record past trade
+                            </ActionChip>
+                            <Link
+                              href={`/t/${encodeURIComponent(p.symbol)}`}
+                              className="ml-auto text-xs text-accent font-medium hover:opacity-80 transition-opacity"
+                            >
+                              Open desk →
+                            </Link>
+                          </div>
+                          {posAction && (
+                            <div className="mt-3">
+                              <TradeForm
+                                key={`${p.key}:${posAction}`}
+                                initialSymbol={p.symbol}
+                                initialSide={posAction === "buy" ? "buy" : posAction === "sell" ? "sell" : undefined}
+                                initialMode={posAction === "record" ? "record" : "order"}
+                                initialQuantity={
+                                  posAction === "sell" && p.qty > 0
+                                    ? p.qty
+                                    : posAction === "buy" && p.qty < 0
+                                      ? Math.abs(p.qty)
+                                      : undefined
+                                }
+                                held={p.qty}
+                                cashUsd={data.cash ?? null}
+                                onSaved={() => {
+                                  setPosAction(null);
+                                  load();
+                                }}
+                                onCancel={() => setPosAction(null)}
+                              />
+                            </div>
                           )}
-                        </p>
-                        <p className="text-[11px] tabular-nums mt-0.5">
-                          <span className={signCls(p.unrealized)}>
-                            {p.unrealized != null ? fmtNative(p.unrealized, p.currency, 0) : "—"}
-                          </span>{" "}
-                          <PctChip v={p.unrealizedPct} />
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
