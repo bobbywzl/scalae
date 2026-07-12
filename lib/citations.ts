@@ -29,6 +29,21 @@ export function withDomain(c: Citation): Citation {
 }
 
 /**
+ * Display label for a source chip: the domain, plus enough of the title to
+ * tell same-domain siblings apart (an evidence trail citing three SEC filings
+ * needs more than "sec.gov ×3" to be auditable).
+ */
+export function chipLabel(c: Citation, siblings: Citation[]): string {
+  const domain = domainOf(c);
+  const dupes = siblings.filter((s) => domainOf(s) === domain).length;
+  if (dupes <= 1) return domain;
+  const title = (c.title ?? "").trim();
+  if (!title || DOMAIN_RX.test(title)) return domain;
+  const short = title.length > 42 ? title.slice(0, 40).trimEnd() + "…" : title;
+  return `${domain} · ${short}`;
+}
+
+/**
  * Resolve bracketed citation indexes in analyst markdown ("…program [37][40].")
  * into clickable links against the run's numbered source list. Unresolvable
  * indexes are left as-is; already-linked text (e.g. "[12](http…)") is skipped.

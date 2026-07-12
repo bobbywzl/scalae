@@ -399,6 +399,9 @@ export function ChatPanel({
                           busy={actingId === id}
                           onAct={onAct}
                           compact
+                          replacesName={
+                            s.replaces ? (signalsById.get(s.replaces)?.name ?? null) : null
+                          }
                         />
                       );
                     }

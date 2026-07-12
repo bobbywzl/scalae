@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { domainOf } from "@/lib/citations";
+import { chipLabel } from "@/lib/citations";
 import type { Attachment, ChatMessage, Signal, SignalWithReadings } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
+import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { api, DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
 
 const fmtDay = (iso: string) => {
@@ -38,6 +39,9 @@ export function SignalDetail({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [confirmRetire, setConfirmRetire] = useState(false);
+  // Evidence traceability: pick a catalog source to see exactly which readings cited it.
+  const [filterUrl, setFilterUrl] = useState<string | null>(null);
 
   const loadChat = useCallback(async () => {
     try {
@@ -122,6 +126,17 @@ export function SignalDetail({
   const sources = signal.sources ?? [];
   const sectionTitle = "text-[10px] uppercase tracking-wider text-muted font-semibold";
 
+  const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
+  // When today is a carry-forward, the date fresh evidence last moved this signal.
+  const freshSince =
+    r?.newEvidence === false
+      ? (signal.history.find((h) => h.newEvidence !== false)?.date ?? null)
+      : null;
+  const filteredHistory = filterUrl
+    ? signal.history.filter((h) => h.citations.some((c) => c.url === filterUrl))
+    : signal.history;
+  const filterDomain = filterUrl ? sources.find((s) => s.url === filterUrl)?.domain : null;
+
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-3 sm:p-6">
       {/* Header */}
@@ -139,12 +154,32 @@ export function SignalDetail({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => onRetire(signal.id)}
-            className="rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1.5 transition-colors"
-          >
-            Retire signal
-          </button>
+          {confirmRetire ? (
+            <span className="flex items-center gap-1.5 rounded-lg border border-loss/30 bg-loss/8 px-2 py-1">
+              <span className="text-[11px] text-[#c7c7cc] hidden sm:inline">
+                Stop tracking? It moves to the archive (reversible).
+              </span>
+              <button
+                onClick={() => onRetire(signal.id)}
+                className="rounded-md bg-loss/20 hover:bg-loss/30 text-loss text-[11px] font-semibold px-2 py-1 transition-colors"
+              >
+                Confirm retire
+              </button>
+              <button
+                onClick={() => setConfirmRetire(false)}
+                className="rounded-md bg-white/6 hover:bg-white/10 text-muted text-[11px] font-medium px-2 py-1 transition-colors"
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              onClick={() => setConfirmRetire(true)}
+              className="rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1.5 transition-colors"
+            >
+              Retire signal
+            </button>
+          )}
           <button
             onClick={onClose}
             className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
@@ -162,17 +197,32 @@ export function SignalDetail({
             <p className={sectionTitle}>Latest reading</p>
             {r ? (
               <div className="mt-2">
-                <div className="flex items-baseline gap-3 flex-wrap">
+                <div className="flex items-end gap-3 flex-wrap">
                   {r.value != null && (
                     <span className="text-2xl font-bold tabular-nums">
                       {r.value.toLocaleString()}{" "}
                       <span className="text-sm text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
                     </span>
                   )}
-                  <span className="text-[11px] text-muted">
+                  {spark.length >= 2 && (
+                    <span className="flex items-end gap-2 pb-0.5">
+                      <ReadingSparkline values={spark} width={120} height={30} />
+                      <span className="text-[10px] text-muted tabular-nums">
+                        {Math.min(...spark).toLocaleString()}–{Math.max(...spark).toLocaleString()} over{" "}
+                        {spark.length} readings
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-[11px] text-muted pb-0.5">
                     {timeAgo(r.date)} · confidence {(r.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
+                {freshSince && (
+                  <p className="mt-1.5 text-[11px] text-muted">
+                    Carried forward — no new evidence since{" "}
+                    <span className="text-[#c7c7cc]">{fmtDay(freshSince)}</span>.
+                  </p>
+                )}
                 <p
                   className={`mt-2 text-sm leading-relaxed ${
                     r.newEvidence === false ? "text-muted italic" : "text-[#e0e0e4]"
@@ -189,9 +239,9 @@ export function SignalDetail({
                         target="_blank"
                         rel="noreferrer"
                         title={c.title}
-                        className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors"
+                        className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[280px] truncate"
                       >
-                        {domainOf(c)}
+                        {chipLabel(c, r.citations)}
                       </a>
                     ))}
                   </div>
@@ -217,19 +267,31 @@ export function SignalDetail({
             <section>
               <p className={sectionTitle}>
                 Evidence catalog · {sources.length} {sources.length === 1 ? "source" : "sources"}
+                <span className="normal-case tracking-normal font-normal text-muted/70"> — click ⧉ to trace a source through the readings</span>
               </p>
               <ul className="mt-2 space-y-2">
                 {sources.map((src, i) => (
-                  <li key={i} className="text-xs leading-snug">
+                  <li
+                    key={i}
+                    className={`text-xs leading-snug rounded-lg -mx-1.5 px-1.5 py-1 transition-colors ${
+                      filterUrl === src.url ? "bg-accent/10 border border-accent/30" : "border border-transparent"
+                    }`}
+                  >
                     <div className="flex items-baseline gap-2">
                       <a href={src.url} target="_blank" rel="noreferrer" className="font-semibold text-accent/90 hover:underline">
                         {src.domain}
                       </a>
-                      {src.count > 1 && (
-                        <span className="rounded-full bg-white/8 px-1.5 py-px text-[9px] text-muted" title={`Cited in ${src.count} readings`}>
-                          ×{src.count}
-                        </span>
-                      )}
+                      <button
+                        onClick={() => setFilterUrl((u) => (u === src.url ? null : src.url))}
+                        title={filterUrl === src.url ? "Stop tracing this source" : `Show the ${src.count} reading${src.count === 1 ? "" : "s"} citing this source`}
+                        className={`rounded-full px-1.5 py-px text-[9px] transition-colors ${
+                          filterUrl === src.url
+                            ? "bg-accent/25 text-accent"
+                            : "bg-white/8 text-muted hover:bg-white/15 hover:text-[#c7c7cc]"
+                        }`}
+                      >
+                        ⧉ {src.count} {src.count === 1 ? "reading" : "readings"}
+                      </button>
                       <span className="text-[10px] text-muted/70 ml-auto shrink-0">
                         {fmtDay(src.firstSeen)}
                         {src.lastSeen !== src.firstSeen && ` → ${fmtDay(src.lastSeen)}`}
@@ -246,9 +308,22 @@ export function SignalDetail({
 
           {signal.history.length > 0 && (
             <section>
-              <p className={sectionTitle}>Reading history</p>
+              <p className={sectionTitle}>
+                Reading history
+                {filterUrl && (
+                  <span className="normal-case tracking-normal font-normal">
+                    {" "}
+                    <span className="text-accent">
+                      · {filteredHistory.length} of {signal.history.length} citing {filterDomain ?? "this source"}
+                    </span>{" "}
+                    <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-[#c7c7cc] underline underline-offset-2">
+                      clear
+                    </button>
+                  </span>
+                )}
+              </p>
               <ul className="mt-2 space-y-2.5">
-                {signal.history.map((h) => (
+                {filteredHistory.map((h) => (
                   <li key={h.id} className="text-xs">
                     <div className="flex items-center gap-2">
                       <span className="text-muted tabular-nums">{h.date.slice(0, 10)}</span>
@@ -273,8 +348,17 @@ export function SignalDetail({
                     {h.citations.length > 0 && (
                       <p className="mt-0.5 space-x-2">
                         {h.citations.map((c, i) => (
-                          <a key={i} href={c.url} target="_blank" rel="noreferrer" title={c.title} className="text-accent/90 hover:underline text-[11px]">
-                            {domainOf(c)}
+                          <a
+                            key={i}
+                            href={c.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={c.title}
+                            className={`hover:underline text-[11px] ${
+                              filterUrl === c.url ? "text-accent font-semibold" : "text-accent/90"
+                            }`}
+                          >
+                            {chipLabel(c, h.citations)}
                           </a>
                         ))}
                       </p>

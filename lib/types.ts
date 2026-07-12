@@ -92,7 +92,9 @@ export interface Run {
   stage: string;
   stageDetail: string;
   brief: string | null;
-  /** The run's numbered source list — resolves the brief's [n] citations to links. */
+  /** Standing business-model & culture dossier synthesized from the board. */
+  dossier: string | null;
+  /** The run's numbered source list — resolves [n] citations to links. */
   sources: Citation[];
   error: string | null;
 }
@@ -201,6 +203,7 @@ export interface DeskPayload {
   active: SignalWithReadings[];
   suggested: Signal[];
   retired: Signal[];
+  dismissed: Signal[];
   latestRun: Run | null;
   digest: DigestItem[];
   /** Ticker-level desk chat only (signal-scoped chats load per signal). */
@@ -251,6 +254,81 @@ export interface Trade {
 }
 
 export type TradeInput = Omit<Trade, "id" | "createdAt">;
+
+// ---------------------------------------------------------------------------
+// Order ticket (brokerage-style, paper execution): market orders fill
+// immediately at the live quote; limit/stop/stop-limit orders stay working
+// and fill — simulated — when the live price crosses them. Fills become
+// ordinary ledger trades.
+// ---------------------------------------------------------------------------
+
+export type OrderType = "market" | "limit" | "stop" | "stop_limit";
+export type OrderTif = "day" | "gtc";
+export type OrderStatus = "open" | "filled" | "canceled" | "expired";
+
+export interface Order {
+  id: string;
+  symbol: string;
+  side: TradeSide;
+  /** Shares; always positive — side carries direction. */
+  quantity: number;
+  orderType: OrderType;
+  /** Required for limit / stop_limit. */
+  limitPrice: number | null;
+  /** Required for stop / stop_limit. */
+  stopPrice: number | null;
+  tif: OrderTif;
+  status: OrderStatus;
+  placedAt: string;
+  filledAt: string | null;
+  fillPrice: number | null;
+  /** Ledger trade created by the fill. */
+  tradeId: string | null;
+  note: string;
+}
+
+export type OrderInput = Pick<Order, "symbol" | "side" | "quantity" | "orderType"> &
+  Partial<Pick<Order, "limitPrice" | "stopPrice" | "tif" | "note">>;
+
+// ---------------------------------------------------------------------------
+// Dividends: detected from market data for held positions, applied into the
+// ledger on your confirmation — as cash, or reinvested (DRIP) per symbol.
+// ---------------------------------------------------------------------------
+
+/** A dividend applied to the book (cash received, or reinvested via DRIP). */
+export interface DividendReceipt {
+  id: string;
+  symbol: string;
+  /** Ex-dividend date (ISO). */
+  exDate: string;
+  /** Per-share amount, native currency. */
+  perShare: number;
+  /** Shares held before the ex-date (negative = short, i.e. dividend owed). */
+  shares: number;
+  /** Total cash, native currency (perShare × shares; negative for shorts). */
+  amount: number;
+  currency: string;
+  reinvested: number; // 0 | 1
+  /** The DRIP buy trade, when reinvested. */
+  reinvestTradeId: string | null;
+  appliedAt: string;
+}
+
+/** A detected dividend awaiting your confirmation. */
+export interface PendingDividend {
+  symbol: string;
+  exDate: string;
+  perShare: number;
+  shares: number;
+  amount: number;
+  currency: string;
+  /** The symbol's dividend-reinvestment setting right now. */
+  drip: boolean;
+  /** Price the DRIP buy would use (close on/after ex-date, else live). */
+  reinvestPrice: number | null;
+  /** Estimated shares the DRIP buy would add. */
+  reinvestShares: number | null;
+}
 
 /** One open (or fully-closed) instrument computed from the ledger. */
 export interface Position {
@@ -303,6 +381,8 @@ export interface PortfolioSummary {
   costBasis: number;
   unrealized: number;
   realized: number;
+  /** Dividend cash received to date (USD; included in totalPnl). */
+  dividends: number;
   totalPnl: number;
   dayChange: number | null;
   currencyNote: string;
@@ -314,6 +394,16 @@ export interface PortfolioPayload {
   stocks: ValuedPosition[];
   options: ValuedPosition[];
   trades: Trade[];
+  /** Working orders (paper execution against live quotes). */
+  openOrders: Order[];
+  /** Recent completed orders (filled / canceled / expired), newest first. */
+  orderHistory: Order[];
+  /** Detected dividends awaiting confirmation. */
+  pendingDividends: PendingDividend[];
+  /** Applied dividends, newest first. */
+  dividends: DividendReceipt[];
+  /** Per-symbol dividend-reinvestment setting for held stocks. */
+  drip: Record<string, boolean>;
   /** Symbols whose market data could not be fetched (excluded from series). */
   unpriced: string[];
 }

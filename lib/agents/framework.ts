@@ -304,11 +304,16 @@ export const GAP_SCHEMA = {
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["brief", "readings", "digestItems", "proposals"],
+  required: ["brief", "dossier", "readings", "digestItems", "proposals"],
   properties: {
     brief: {
       type: "string",
       description: "Morning note in markdown, 120-250 words, addressed to the investor.",
+    },
+    dossier: {
+      type: "string",
+      description:
+        "A STANDING 150-300 word markdown statement of the business as the desk currently reads it: (1) how the company makes money today — segments, earnings engine, moat trajectory — and (2) the current culture/trust verdict, each synthesized FROM the board's current signal readings (anchor every paragraph to the business-model or culture anchor), updated where today's evidence moved a signal, citing inline [n] indexes into the numbered sources.",
     },
     readings: {
       type: "array",

@@ -102,6 +102,20 @@ export function buildPositions(trades: Trade[]): Map<string, Position> {
   return out;
 }
 
+/**
+ * Stock shares held in `symbol` strictly before `dateISO` (signed; negative =
+ * short). Dividend entitlement: you must own before the ex-date.
+ */
+export function sharesHeldOn(trades: Trade[], symbol: string, dateISO: string): number {
+  let qty = 0;
+  for (const t of trades) {
+    if (t.kind !== "stock" || t.symbol !== symbol) continue;
+    if (t.tradeDate.slice(0, 10) >= dateISO) continue;
+    qty += t.side === "buy" ? t.quantity : -t.quantity;
+  }
+  return qty;
+}
+
 /** Carry-forward series lookup that walks an ascending date axis in order. */
 export class Walker {
   private i = 0;
@@ -126,6 +140,8 @@ export interface SeriesInputs {
   currencyOf: Map<string, string>;
   /** live per-unit marks for the final point, by position key (optional) */
   liveMarks?: Map<string, number>;
+  /** non-trade cash events (dividends), native currency, converted at that day's FX */
+  cashEvents?: { date: string; amount: number; currency: string }[];
   /** injectable "today" for tests (ISO date) */
   today?: string;
 }
@@ -176,9 +192,15 @@ export function computeSeries(inp: SeriesInputs): PnlPoint[] {
   const open = new Map<string, Open>();
   let cashUsd = 0;
   let ti = 0;
+  let ei = 0;
+  const events = [...(inp.cashEvents ?? [])].sort((a, b) => a.date.localeCompare(b.date));
   const points: PnlPoint[] = [];
 
   for (const date of axis) {
+    while (ei < events.length && events[ei].date <= date) {
+      const ev = events[ei++];
+      cashUsd += ev.amount * fxAt(ev.currency, date);
+    }
     while (ti < trades.length && trades[ti].tradeDate.slice(0, 10) <= date) {
       const t = trades[ti++];
       const key = positionKey(t);

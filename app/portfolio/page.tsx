@@ -5,9 +5,10 @@ import Link from "next/link";
 import { PnlChart, fmtUsd } from "@/components/PnlChart";
 import { TradeForm } from "@/components/TradeForm";
 import { api } from "@/components/util";
+import { orderLabel } from "@/lib/order-math";
 import { optionLabel } from "@/lib/portfolio-math";
 import { daysUntil } from "@/components/util";
-import type { PortfolioPayload, Trade } from "@/lib/types";
+import type { Order, PortfolioPayload, Trade } from "@/lib/types";
 
 const fmtNative = (v: number, currency: string, digits = 2) =>
   `${currency === "USD" ? "$" : currency + " "}${v.toLocaleString(undefined, {
@@ -43,6 +44,9 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [showTrades, setShowTrades] = useState(false);
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [divBusy, setDivBusy] = useState<string | null>(null);
+  const [orderBusy, setOrderBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -67,6 +71,52 @@ export default function PortfolioPage() {
     load();
   }
 
+  async function cancelOrder(o: Order) {
+    setOrderBusy(o.id);
+    try {
+      await api(`/api/portfolio/orders/${o.id}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setOrderBusy(null);
+    }
+  }
+
+  async function applyDividend(symbol: string, exDate: string) {
+    setDivBusy(`${symbol}|${exDate}`);
+    try {
+      await api(`/api/portfolio/dividends`, {
+        method: "POST",
+        body: JSON.stringify({ symbol, exDate }),
+      });
+      await load();
+    } finally {
+      setDivBusy(null);
+    }
+  }
+
+  async function applyAllDividends() {
+    setDivBusy("all");
+    try {
+      await api(`/api/portfolio/dividends`, { method: "POST", body: JSON.stringify({ all: true }) });
+      await load();
+    } finally {
+      setDivBusy(null);
+    }
+  }
+
+  async function toggleDrip(symbol: string, enabled: boolean) {
+    // optimistic: settings write is cheap, avoid whole-payload flash
+    setData((d) => (d ? { ...d, drip: { ...d.drip, [symbol]: enabled } } : d));
+    try {
+      await api(`/api/portfolio/drip`, {
+        method: "POST",
+        body: JSON.stringify({ symbol, enabled }),
+      });
+    } catch {
+      load();
+    }
+  }
+
   const s = data?.summary;
 
   return (
@@ -83,7 +133,7 @@ export default function PortfolioPage() {
           onClick={() => setAdding((v) => !v)}
           className="ml-auto rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
         >
-          + Record trade
+          + Trade
         </button>
       </header>
 
@@ -102,25 +152,25 @@ export default function PortfolioPage() {
 
       {!data ? (
         <div className="text-muted text-sm py-16 text-center">Loading portfolio…</div>
-      ) : data.trades.length === 0 && !adding ? (
+      ) : data.trades.length === 0 && data.openOrders.length === 0 && !adding ? (
         <div className="py-16 text-center">
-          <p className="text-lg font-medium">No trades recorded yet</p>
+          <p className="text-lg font-medium">No trades yet</p>
           <p className="text-muted text-sm mt-2 max-w-sm mx-auto">
-            Record your buys and sells (stocks and options) to see live P&L, cost basis, and your
-            involvement on each ticker’s desk.
+            Place orders (market, limit, stop…) or record past fills — stocks and options — to see
+            live P&L, cost basis, dividends, and your involvement on each ticker’s desk.
           </p>
           <button
             onClick={() => setAdding(true)}
             className="mt-4 rounded-lg bg-accent text-white text-sm font-semibold px-4 py-2"
           >
-            Record your first trade
+            Place your first trade
           </button>
         </div>
       ) : (
         <div className="space-y-5">
           {/* Summary tiles */}
           {s && (
-            <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <section className={`grid grid-cols-2 sm:grid-cols-4 ${s.dividends !== 0 ? "lg:grid-cols-5" : ""} gap-3`}>
               <StatTile label="Market value" value={fmtUsd(s.marketValue)} sub={`cost ${fmtUsd(s.costBasis)}`} />
               <StatTile
                 label="Total P&L"
@@ -130,6 +180,61 @@ export default function PortfolioPage() {
               />
               <StatTile label="Unrealized" value={fmtUsd(s.unrealized, { sign: true })} tone={signCls(s.unrealized)} />
               <StatTile label="Realized" value={fmtUsd(s.realized, { sign: true })} tone={signCls(s.realized)} />
+              {s.dividends !== 0 && (
+                <StatTile
+                  label="Dividends"
+                  value={fmtUsd(s.dividends, { sign: true })}
+                  tone={signCls(s.dividends)}
+                  sub="cash + reinvested"
+                />
+              )}
+            </section>
+          )}
+
+          {/* Detected dividends awaiting confirmation */}
+          {data.pendingDividends.length > 0 && (
+            <section className="rounded-2xl border border-warn/25 bg-warn/6 p-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-[11px] uppercase tracking-widest text-warn font-semibold">
+                  {data.pendingDividends.length} dividend{data.pendingDividends.length === 1 ? "" : "s"} detected
+                </p>
+                <p className="text-[11px] text-muted">
+                  paid on shares you held before the ex-date — apply to add them to your book
+                </p>
+                <button
+                  onClick={applyAllDividends}
+                  disabled={divBusy != null}
+                  className="ml-auto rounded-lg bg-warn/15 text-warn text-[11px] font-semibold px-2.5 py-1 hover:bg-warn/25 disabled:opacity-50 transition-colors"
+                >
+                  {divBusy === "all" ? "Applying…" : "Apply all"}
+                </button>
+              </div>
+              <ul className="mt-2 divide-y divide-hairline">
+                {data.pendingDividends.map((p) => (
+                  <li key={`${p.symbol}|${p.exDate}`} className="flex items-center gap-3 py-2 text-xs">
+                    <span className="font-semibold">{p.symbol}</span>
+                    <span className="text-muted tabular-nums">{p.exDate}</span>
+                    <span className="tabular-nums">
+                      {fmtNative(p.perShare, p.currency)} × {p.shares.toLocaleString()} sh ={" "}
+                      <span className={signCls(p.amount)}>{fmtNative(p.amount, p.currency)}</span>
+                    </span>
+                    <span className="text-muted">
+                      {p.drip && p.reinvestShares != null
+                        ? `DRIP: +${p.reinvestShares} sh @ ${p.reinvestPrice != null ? fmtNative(p.reinvestPrice, p.currency) : "market"}`
+                        : p.amount < 0
+                          ? "short — dividend owed"
+                          : "cash"}
+                    </span>
+                    <button
+                      onClick={() => applyDividend(p.symbol, p.exDate)}
+                      disabled={divBusy != null}
+                      className="ml-auto rounded-lg bg-white/8 hover:bg-white/12 text-[11px] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
+                    >
+                      {divBusy === `${p.symbol}|${p.exDate}` ? "…" : "Apply"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 
@@ -149,6 +254,42 @@ export default function PortfolioPage() {
             )}
           </section>
 
+          {/* Working orders (paper execution) */}
+          {data.openOrders.length > 0 && (
+            <section>
+              <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+                Open orders{" "}
+                <span className="normal-case tracking-normal font-normal">
+                  — simulated fills at live prices, checked on refresh
+                </span>
+              </p>
+              <ul className="mt-2 divide-y divide-hairline rounded-2xl bg-card border border-hairline overflow-hidden">
+                {data.openOrders.map((o) => (
+                  <li key={o.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                    <span className={`font-semibold ${o.side === "buy" ? "text-gain" : "text-loss"}`}>
+                      {o.side.toUpperCase()}
+                    </span>
+                    <span className="font-semibold">
+                      {o.quantity.toLocaleString()} {o.symbol}
+                    </span>
+                    <span className="text-[#c7c7cc] tabular-nums">{orderLabel(o)}</span>
+                    <span className="text-muted tabular-nums hidden sm:inline">
+                      placed {o.placedAt.slice(0, 10)}
+                    </span>
+                    {o.note && <span className="text-muted truncate hidden md:inline">— {o.note}</span>}
+                    <button
+                      onClick={() => cancelOrder(o)}
+                      disabled={orderBusy === o.id}
+                      className="ml-auto rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
+                    >
+                      {orderBusy === o.id ? "…" : "Cancel"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Stock positions */}
           <section>
             <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">Stocks</p>
@@ -162,9 +303,37 @@ export default function PortfolioPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm">
                           {p.symbol} {p.qty < 0 && <span className="text-loss text-[10px] font-semibold ml-1">SHORT</span>}
+                          {p.qty > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleDrip(p.symbol, !data.drip[p.symbol]);
+                              }}
+                              title={
+                                data.drip[p.symbol]
+                                  ? "Dividend reinvestment ON — dividends buy more shares when applied"
+                                  : "Dividend reinvestment OFF — dividends credit as cash when applied"
+                              }
+                              className={`ml-2 rounded-full px-2 py-px text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+                                data.drip[p.symbol]
+                                  ? "bg-gain/15 text-gain"
+                                  : "bg-white/6 text-muted hover:bg-white/10"
+                              }`}
+                            >
+                              DRIP {data.drip[p.symbol] ? "on" : "off"}
+                            </button>
+                          )}
                         </p>
                         <p className="text-[11px] text-muted tabular-nums">
                           {Math.abs(p.qty).toLocaleString()} sh @ {fmtNative(p.avgCost, p.currency)} avg
+                          {p.avgCost === 0 && (
+                            <span
+                              className="ml-1.5 text-warn"
+                              title="This position was recorded at price 0, so its P&L is overstated — delete the trade in Trade history and re-record it with the real fill price."
+                            >
+                              ⚠ no cost recorded
+                            </span>
+                          )}
                           {p.realized !== 0 && <span className="ml-2">realized {fmtNative(p.realized, p.currency, 0)}</span>}
                         </p>
                       </div>
@@ -238,6 +407,49 @@ export default function PortfolioPage() {
               </p>
             )}
           </section>
+
+          {/* Order history */}
+          {data.orderHistory.length > 0 && (
+            <section>
+              <button
+                onClick={() => setShowOrderHistory((v) => !v)}
+                className="text-[11px] uppercase tracking-widest text-muted font-semibold hover:text-[#c7c7cc] transition-colors"
+              >
+                Order history ({data.orderHistory.length}) {showOrderHistory ? "▾" : "▸"}
+              </button>
+              {showOrderHistory && (
+                <ul className="mt-2 divide-y divide-hairline rounded-2xl bg-card border border-hairline overflow-hidden">
+                  {data.orderHistory.map((o) => (
+                    <li key={o.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                      <span className="text-muted tabular-nums shrink-0">
+                        {(o.filledAt ?? o.placedAt).slice(0, 10)}
+                      </span>
+                      <span className={`font-semibold ${o.side === "buy" ? "text-gain" : "text-loss"}`}>
+                        {o.side.toUpperCase()}
+                      </span>
+                      <span className="min-w-0 truncate">
+                        {o.quantity.toLocaleString()} {o.symbol} · {orderLabel(o)}
+                        {o.status === "filled" && o.fillPrice != null && (
+                          <span className="tabular-nums"> — filled @ {o.fillPrice.toLocaleString()}</span>
+                        )}
+                      </span>
+                      <span
+                        className={`ml-auto shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+                          o.status === "filled"
+                            ? "bg-gain/15 text-gain"
+                            : o.status === "canceled"
+                              ? "bg-white/8 text-muted"
+                              : "bg-warn/10 text-warn/80"
+                        }`}
+                      >
+                        {o.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           {/* Trade history */}
           <section>
