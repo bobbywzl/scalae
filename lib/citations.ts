@@ -28,6 +28,47 @@ export function withDomain(c: Citation): Citation {
   return { ...c, domain: domainOf(c) };
 }
 
+// ---------------------------------------------------------------------------
+// Source independence: who controls the evidence? Display/statistics metadata
+// ONLY — evidence weighting lives in the synthesis doctrine, and nothing here
+// may bias readings or confidence.
+// ---------------------------------------------------------------------------
+
+export type SourceClass = "company" | "regulator" | "independent";
+
+const REGULATOR_DOMAINS = ["sec.gov", "sedarplus.ca", "europa.eu", "hkexnews.hk", "fsa.go.jp", "fca.org.uk"];
+const COMPANY_HOST_LABELS = new Set(["ir", "investor", "investors", "corporate"]);
+const COMPANY_TITLE_RX =
+  /investor relations|press release|earnings (call|release)|annual report|form (10-[kq]|20-f|6-k)/i;
+
+/**
+ * Conservative, pure heuristic classification off the resolved domain (never
+ * the raw URL host — grounding returns redirect URLs): regulator filings,
+ * company-controlled channels (IR sites, releases), or independent.
+ */
+export function sourceClass(c: {
+  url: string;
+  title?: string;
+  domain?: string;
+}): SourceClass {
+  const domain = domainOf({ title: c.title ?? "", url: c.url, domain: c.domain }).toLowerCase();
+  if (
+    domain.endsWith(".gov") ||
+    domain.includes(".gov.") ||
+    REGULATOR_DOMAINS.some((d) => domain === d || domain.endsWith("." + d))
+  ) {
+    return "regulator";
+  }
+  if (COMPANY_HOST_LABELS.has(domain.split(".")[0])) return "company";
+  if (COMPANY_TITLE_RX.test(c.title ?? "")) return "company";
+  return "independent";
+}
+
+/** Short display text for a source class chip. */
+export function sourceClassLabel(cls: SourceClass): string {
+  return cls === "company" ? "company IR" : cls === "regulator" ? "regulator" : "independent";
+}
+
 /**
  * Display label for a source chip: the domain, plus enough of the title to
  * tell same-domain siblings apart (an evidence trail citing three SEC filings

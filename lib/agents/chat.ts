@@ -174,6 +174,19 @@ export async function handleChatTurn(
       computeInvolvement(symbol).catch(() => null),
     ]);
 
+  // Keep-both pairs (active replacement + knowingly reactivated original):
+  // surface the overlap so the analyst keeps steering toward one crux signal.
+  const overlapWith = new Map<string, string>();
+  {
+    const byId = new Map(active.map((s) => [s.id, s]));
+    for (const s of active) {
+      const other = s.replaces ? byId.get(s.replaces) : undefined;
+      if (other) {
+        overlapWith.set(s.id, other.name);
+        overlapWith.set(other.id, s.name);
+      }
+    }
+  }
   const boardLines = (
     await Promise.all(
       active.map(async (s) => {
@@ -181,7 +194,10 @@ export async function handleChatTurn(
         const reading = latest
           ? ` Latest (${latest.date.slice(0, 10)}): ${latest.level}${latest.value != null ? `, ${latest.value} ${latest.valueUnit ?? ""}` : ""} — ${latest.rationale}`
           : " No readings yet.";
-        return `- "${s.name}" (${s.type}, ${s.focusArea}): ${s.measurementPlan}${reading}`;
+        const overlapNote = overlapWith.has(s.id)
+          ? ` NOTE: investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement.`
+          : "";
+        return `- "${s.name}" (${s.type}, ${s.focusArea}): ${s.measurementPlan}${reading}${overlapNote}`;
       })
     )
   ).join("\n");

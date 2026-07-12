@@ -12,7 +12,14 @@ import { SignalCard } from "@/components/SignalCard";
 import { SignalDetail } from "@/components/SignalDetail";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
-import { dossierToMarkdown, linkCitations } from "@/lib/citations";
+import {
+  chipLabel,
+  dossierToMarkdown,
+  linkCitations,
+  sourceClass,
+  sourceClassLabel,
+  type SourceClass,
+} from "@/lib/citations";
 import type { Attachment, DeskPayload, Run, Signal } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
@@ -32,6 +39,7 @@ export default function DeskPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [dossierOpen, setDossierOpen] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
   const autoRan = useRef(false);
 
   // Full-screen analyst desk: Esc exits, page scroll locks underneath.
@@ -233,6 +241,25 @@ export default function DeskPage() {
     return m;
   }, [desk]);
 
+  // Keep-both pairs: two ACTIVE signals linked by `replaces` (the investor
+  // reactivated a superseded signal and chose to keep both). The overlap
+  // stays visible on both members — the one-time modal choice never fades
+  // into silent duplication.
+  const overlapPairs = useMemo(() => {
+    const m = new Map<string, { id: string; name: string }>();
+    if (desk) {
+      const byId = new Map(desk.active.map((s) => [s.id, s]));
+      for (const s of desk.active) {
+        const other = s.replaces ? byId.get(s.replaces) : undefined;
+        if (other) {
+          m.set(s.id, { id: other.id, name: other.name });
+          m.set(other.id, { id: s.id, name: s.name });
+        }
+      }
+    }
+    return m;
+  }, [desk]);
+
   // Diligence pulse for the board. Honest numbers only: distinct sources (not
   // per-signal double counts), signals still awaiting their first reading, and
   // confidence averaged over evidence-backed readings — never over priors.
@@ -242,14 +269,28 @@ export default function DeskPage() {
     const freshOnes = withReading.filter((s) => s.latest!.newEvidence !== false);
     const carried = withReading.length - freshOnes.length;
     const unread = desk.active.length - withReading.length;
-    const urls = new Set<string>();
-    let links = 0;
+    // Source roster: every distinct URL across the board, who cites it, and
+    // whether the company controls it (FOUNDATION evidence discipline —
+    // dependence on management's own account must be visible).
+    const byUrl = new Map<
+      string,
+      { url: string; title: string; domain: string; cls: SourceClass; signals: Set<string>; links: number }
+    >();
     for (const s of desk.active) {
       for (const src of s.sources ?? []) {
-        urls.add(src.url);
-        links++;
+        let row = byUrl.get(src.url);
+        if (!row) {
+          row = { url: src.url, title: src.title, domain: src.domain, cls: sourceClass(src), signals: new Set(), links: 0 };
+          byUrl.set(src.url, row);
+        }
+        row.signals.add(s.id);
+        row.links++;
       }
     }
+    const roster = [...byUrl.values()].sort((a, b) => b.links - a.links);
+    const links = roster.reduce((a, r) => a + r.links, 0);
+    const classLinks: Record<SourceClass, number> = { company: 0, regulator: 0, independent: 0 };
+    for (const r of roster) classLinks[r.cls] += r.links;
     const avgConf = freshOnes.length
       ? freshOnes.reduce((a, s) => a + s.latest!.confidence, 0) / freshOnes.length
       : null;
@@ -259,8 +300,10 @@ export default function DeskPage() {
       fresh: freshOnes.length,
       carried,
       unread,
-      distinctSources: urls.size,
+      distinctSources: roster.length,
       links,
+      roster,
+      classLinks,
       avgConf,
     };
   }, [desk]);
@@ -584,9 +627,25 @@ export default function DeskPage() {
                 {boardStats.distinctSources > 0 && (
                   <>
                     {" · "}
-                    <span className="text-[#c7c7cc]">{boardStats.distinctSources}</span> distinct sources
+                    <button
+                      onClick={() => setRosterOpen((v) => !v)}
+                      className="text-[#c7c7cc] hover:text-accent underline decoration-dotted underline-offset-2 transition-colors"
+                      title="Show the board's full source roster"
+                    >
+                      {boardStats.distinctSources} distinct sources {rosterOpen ? "▾" : "▸"}
+                    </button>
                     {boardStats.links !== boardStats.distinctSources && (
                       <span className="text-muted/70"> ({boardStats.links} signal links)</span>
+                    )}
+                    {boardStats.classLinks.company > 0 && (
+                      <span className="text-muted/80">
+                        {" "}
+                        — <span className="text-warn/90">{boardStats.classLinks.company} company</span> ·{" "}
+                        {boardStats.classLinks.regulator > 0 && (
+                          <>{boardStats.classLinks.regulator} regulator · </>
+                        )}
+                        {boardStats.classLinks.independent} independent
+                      </span>
                     )}
                   </>
                 )}
@@ -597,6 +656,42 @@ export default function DeskPage() {
                   </>
                 )}
               </p>
+            )}
+            {rosterOpen && boardStats && boardStats.roster.length > 0 && (
+              <div className="mt-2 rounded-xl bg-card border border-hairline px-4 py-3">
+                <ul className="space-y-1.5">
+                  {boardStats.roster.map((r) => (
+                    <li key={r.url} className="flex items-baseline gap-2 text-[11px]">
+                      <span
+                        className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
+                          r.cls === "company" ? "bg-warn/12 text-warn/90" : "bg-white/6 text-muted"
+                        }`}
+                      >
+                        {sourceClassLabel(r.cls)}
+                      </span>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={r.title}
+                        className="text-[#c7c7cc] hover:text-accent hover:underline truncate transition-colors"
+                      >
+                        {chipLabel(r, boardStats.roster)}
+                      </a>
+                      <span className="ml-auto shrink-0 text-muted tabular-nums">
+                        {r.signals.size} signal{r.signals.size === 1 ? "" : "s"} · {r.links} link
+                        {r.links === 1 ? "" : "s"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {boardStats.classLinks.company * 2 >= boardStats.links && (
+                  <p className="mt-2 text-[11px] text-warn/80">
+                    {boardStats.classLinks.company} of {boardStats.links} evidence links come from
+                    company-controlled sources — corroborate independently.
+                  </p>
+                )}
+              </div>
             )}
             {grouped.length === 0 && (
               <p className="text-muted text-xs italic mt-2">No active signals.</p>
@@ -613,9 +708,19 @@ export default function DeskPage() {
                       <p className="text-[11px] text-muted/80 mt-0.5">{fa.description}</p>
                     )}
                     <div className="grid sm:grid-cols-2 gap-3 mt-2">
-                      {signals.map((s) => (
-                        <SignalCard key={s.id} signal={s} onOpen={(sig) => setDetailId(sig.id)} />
-                      ))}
+                      {signals.map((s) => {
+                        const pair = overlapPairs.get(s.id);
+                        return (
+                          <SignalCard
+                            key={s.id}
+                            signal={s}
+                            onOpen={(sig) => setDetailId(sig.id)}
+                            overlapsWith={
+                              pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
+                            }
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -730,6 +835,14 @@ export default function DeskPage() {
           readOnly={!!retiredDetail}
           supersededBy={retiredDetail ? (replacedBy.get(retiredDetail.id) ?? null) : null}
           lineage={detailLineage}
+          overlapsWith={
+            activeDetail && overlapPairs.has(activeDetail.id)
+              ? {
+                  name: overlapPairs.get(activeDetail.id)!.name,
+                  onOpen: () => setDetailId(overlapPairs.get(activeDetail.id)!.id),
+                }
+              : null
+          }
         />
       )}
     </main>
