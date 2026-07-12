@@ -61,12 +61,34 @@ const ORDER_TYPE_HINT: Record<OrderType, string> = {
  * stop-limit, Day or GTC, shares or currency amount, estimate + review), or
  * record a past fill manually (stocks and options, any date). Working orders
  * fill — simulated — when live quotes cross them.
+ *
+ * The `initial*` props seed the ticket from a position row (the portfolio's
+ * per-ticker quick actions); `held` is the signed share count already owned,
+ * shown for context when selling or covering.
  */
-export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
-  const [mode, setMode] = useState<"order" | "record">("order");
+export function TradeForm({
+  onSaved,
+  onCancel,
+  initialSymbol,
+  initialSide,
+  initialMode,
+  initialQuantity,
+  held,
+}: {
+  onSaved: () => void;
+  onCancel: () => void;
+  initialSymbol?: string;
+  initialSide?: TradeSide;
+  initialMode?: "order" | "record";
+  initialQuantity?: number;
+  held?: number;
+}) {
+  const [mode, setMode] = useState<"order" | "record">(initialMode ?? "order");
 
   // Shared: ticker + live quote
-  const [symbol, setSymbol] = useState("");
+  const [symbol, setSymbol] = useState(initialSymbol ?? "");
+  // Seeded tickets skip the search dropdown until the ticker is actually edited.
+  const [tickerDirty, setTickerDirty] = useState(!initialSymbol);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [showHits, setShowHits] = useState(false);
   const [quote, setQuote] = useState<RichQuote | null>(null);
@@ -74,11 +96,11 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Order ticket
-  const [side, setSide] = useState<TradeSide>("buy");
+  const [side, setSide] = useState<TradeSide>(initialSide ?? "buy");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [tif, setTif] = useState<OrderTif>("gtc");
   const [qtyMode, setQtyMode] = useState<"shares" | "amount">("shares");
-  const [qtyStr, setQtyStr] = useState("");
+  const [qtyStr, setQtyStr] = useState(initialQuantity ? String(initialQuantity) : "");
   const [amountStr, setAmountStr] = useState("");
   const [limitStr, setLimitStr] = useState("");
   const [stopStr, setStopStr] = useState("");
@@ -90,7 +112,7 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
 
   // Manual record
   const [kind, setKind] = useState<TradeKind>("stock");
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState(initialQuantity ? String(initialQuantity) : "");
   const [price, setPrice] = useState("");
   const [fees, setFees] = useState("");
   const [tradeDate, setTradeDate] = useState(todayISO());
@@ -102,6 +124,7 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!tickerDirty) return; // don't pop suggestions over a pre-filled ticket
     const t = setTimeout(async () => {
       const q = symbol.trim();
       if (q.length < 1) {
@@ -117,7 +140,7 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [symbol]);
+  }, [symbol, tickerDirty]);
 
   // Pre-trade information (brokerage-style): fetch a full quote for the typed
   // or picked ticker; auto-fill the manual price the first time so records
@@ -184,6 +207,10 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
         : 0;
 
   const estTotal = effPrice != null && shares > 0 ? shares * effPrice : null;
+
+  // Position context only makes sense while the ticket is on the seeded symbol.
+  const heldApplies =
+    held != null && symbol.trim().toUpperCase() === (initialSymbol ?? "").trim().toUpperCase();
 
   const orderInput = {
     symbol: symbol.trim().toUpperCase(),
@@ -341,7 +368,10 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
         <p className={label}>Ticker</p>
         <input
           value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
+          onChange={(e) => {
+            setTickerDirty(true);
+            setSymbol(e.target.value);
+          }}
           onFocus={() => hits.length && setShowHits(true)}
           placeholder="AAPL, PDD, 9983.T…"
           className={`${field} mt-1 uppercase`}
@@ -552,6 +582,46 @@ export function TradeForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
                 ≈ {shares.toLocaleString()} shares at{" "}
                 {effPrice != null ? fmtMoney(effPrice, currency) : "market"}
                 {" "}(fractional supported)
+              </p>
+            )}
+            {heldApplies && side === "sell" && (held as number) > 0 && (
+              <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
+                You hold {(held as number).toLocaleString()} sh
+                {shares > (held as number) && (
+                  <span className="text-warn"> — selling more opens a short</span>
+                )}
+                {shares !== held && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQtyMode("shares");
+                      setQtyStr(String(held));
+                    }}
+                    className="ml-2 text-accent hover:opacity-80 font-medium"
+                  >
+                    Sell all
+                  </button>
+                )}
+              </p>
+            )}
+            {heldApplies && side === "buy" && (held as number) < 0 && (
+              <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
+                You’re short {Math.abs(held as number).toLocaleString()} sh
+                {shares > Math.abs(held as number) && (
+                  <span className="text-warn"> — buying more than that goes net long</span>
+                )}
+                {shares !== Math.abs(held as number) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQtyMode("shares");
+                      setQtyStr(String(Math.abs(held as number)));
+                    }}
+                    className="ml-2 text-accent hover:opacity-80 font-medium"
+                  >
+                    Cover all
+                  </button>
+                )}
               </p>
             )}
 

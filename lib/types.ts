@@ -391,6 +391,14 @@ export interface PortfolioSummary {
   totalPnl: number;
   dayChange: number | null;
   currencyNote: string;
+  /** Investor-set starting capital (USD), or null when unset. */
+  initialCapital: number | null;
+  /** Cash on hand = starting capital + every signed trade/dividend cashflow; null when capital unset. */
+  cash: number | null;
+  /** Account value = cash + market value; null when capital unset. */
+  accountValue: number | null;
+  /** Total P&L as a percent of starting capital; null when capital unset or 0. */
+  returnPct: number | null;
 }
 
 export interface PortfolioPayload {

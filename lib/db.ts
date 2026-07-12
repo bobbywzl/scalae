@@ -670,6 +670,18 @@ export async function autoResearchEnabled(): Promise<boolean> {
   return (await getSetting("autoResearch")) !== "off";
 }
 
+/** Investor-set starting capital for the paper book (USD), or null when unset. */
+export async function initialCapitalUsd(): Promise<number | null> {
+  const raw = await getSetting("initialCapital");
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export async function setInitialCapital(v: number | null): Promise<void> {
+  await setSetting("initialCapital", v == null ? "" : String(v));
+}
+
 // ---------- trades (portfolio ledger) ----------
 
 export async function insertTrade(t: Omit<Trade, "id" | "createdAt">): Promise<Trade> {
@@ -691,6 +703,17 @@ export async function listTrades(symbol?: string): Promise<Trade[]> {
     return q<Trade>`SELECT * FROM trades WHERE symbol = ${symbol} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
   }
   return q<Trade>`SELECT * FROM trades ORDER BY "tradeDate" ASC, "createdAt" ASC`;
+}
+
+/**
+ * Wipe the whole paper book: trades, orders, dividend receipts, and per-symbol
+ * DRIP settings. Starting capital survives — it's account config, not ledger.
+ */
+export async function clearPortfolio(): Promise<void> {
+  await q`DELETE FROM trades`;
+  await q`DELETE FROM orders`;
+  await q`DELETE FROM dividends`;
+  await q`DELETE FROM settings WHERE key LIKE 'drip:%'`;
 }
 
 // ---------- orders (paper execution against live quotes) ----------
