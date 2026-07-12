@@ -52,6 +52,8 @@ export default function PortfolioPage() {
   const [capBusy, setCapBusy] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+  const [showReceipts, setShowReceipts] = useState(false);
+  const [withholding, setWithholding] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     try {
@@ -89,9 +91,10 @@ export default function PortfolioPage() {
   async function applyDividend(symbol: string, exDate: string) {
     setDivBusy(`${symbol}|${exDate}`);
     try {
+      const withholdingPct = Number(withholding[`${symbol}|${exDate}`]) || 0;
       await api(`/api/portfolio/dividends`, {
         method: "POST",
-        body: JSON.stringify({ symbol, exDate }),
+        body: JSON.stringify({ symbol, exDate, withholdingPct }),
       });
       await load();
     } finally {
@@ -220,6 +223,21 @@ export default function PortfolioPage() {
             }}
             onCancel={() => setAdding(false)}
             cashUsd={data?.cash ?? null}
+            book={
+              data
+                ? {
+                    totalUsd: data.summary.marketValue,
+                    positions: data.stocks.map((p) => ({
+                      symbol: p.symbol,
+                      qty: p.qty,
+                      avgCost: p.avgCost,
+                      currency: p.currency,
+                      marketValueUsd: (p.marketValue ?? 0) * p.fxToUsd,
+                    })),
+                    openOrders: data.openOrders.map((o) => ({ symbol: o.symbol })),
+                  }
+                : null
+            }
           />
         </div>
       )}
@@ -383,6 +401,19 @@ export default function PortfolioPage() {
                           ? "short — dividend owed"
                           : "cash"}
                     </span>
+                    <label className="ml-auto flex items-center gap-1 text-muted shrink-0" title="Tax withheld at source — the credited amount is net of it">
+                      w/h
+                      <input
+                        inputMode="decimal"
+                        value={withholding[`${p.symbol}|${p.exDate}`] ?? ""}
+                        onChange={(e) =>
+                          setWithholding((m) => ({ ...m, [`${p.symbol}|${p.exDate}`]: e.target.value }))
+                        }
+                        placeholder="0"
+                        className="w-10 rounded bg-card2 border border-hairline px-1 py-0.5 text-[11px] tabular-nums outline-none focus:border-accent/50 transition-colors"
+                      />
+                      %
+                    </label>
                     <button
                       onClick={() => applyDividend(p.symbol, p.exDate)}
                       disabled={divBusy != null}
@@ -484,6 +515,14 @@ export default function PortfolioPage() {
                         </p>
                         <p className="text-[11px] text-muted tabular-nums">
                           {Math.abs(p.qty).toLocaleString()} sh @ {fmtNative(p.avgCost, p.currency)} avg
+                          {s && s.marketValue > 0 && p.marketValue != null && (
+                            <span
+                              className="ml-2 rounded bg-white/6 px-1.5 py-px text-[10px]"
+                              title="Share of the book's total market value"
+                            >
+                              {(((p.marketValue ?? 0) * p.fxToUsd * 100) / s.marketValue).toFixed(0)}% of book
+                            </span>
+                          )}
                           {p.avgCost === 0 && (
                             <span
                               className="ml-1.5 text-warn"
@@ -605,6 +644,54 @@ export default function PortfolioPage() {
                     </li>
                   ))}
                 </ul>
+              )}
+            </section>
+          )}
+
+          {/* Dividend receipts */}
+          {data.dividends.length > 0 && (
+            <section>
+              <button
+                onClick={() => setShowReceipts((v) => !v)}
+                className="text-[11px] uppercase tracking-widest text-muted font-semibold hover:text-[#c7c7cc] transition-colors"
+              >
+                Dividend receipts ({data.dividends.length}) {showReceipts ? "▾" : "▸"}
+              </button>
+              {showReceipts && (
+                <>
+                  <ul className="mt-2 divide-y divide-hairline rounded-2xl bg-card border border-hairline overflow-hidden">
+                    {data.dividends.map((d) => (
+                      <li key={d.id} className="flex items-center gap-3 px-4 py-2.5 text-xs flex-wrap">
+                        <span className="text-muted tabular-nums shrink-0">{d.exDate}</span>
+                        <span className="font-semibold">{d.symbol}</span>
+                        <span className="tabular-nums">
+                          {fmtNative(d.perShare, d.currency)} × {d.shares.toLocaleString()} sh
+                        </span>
+                        <span className={`tabular-nums font-medium ${signCls(d.amount)}`}>
+                          {fmtNative(d.amount, d.currency)}
+                        </span>
+                        {d.withholdingPct > 0 && (
+                          <span className="rounded bg-white/6 px-1.5 py-px text-[10px] text-muted" title="Credited net of tax withheld at source">
+                            net of {d.withholdingPct}% w/h
+                          </span>
+                        )}
+                        <span
+                          className={`rounded px-1.5 py-px text-[10px] ${
+                            d.reinvested ? "bg-gain/12 text-gain" : "bg-white/6 text-muted"
+                          }`}
+                        >
+                          {d.reinvested ? "DRIP — reinvested" : "cash"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {data.dividends.some((d) => d.currency !== "USD") && (
+                    <p className="text-[10px] text-muted mt-1.5">
+                      Non-USD receipts are shown in their native currency and converted at the live
+                      rate in the USD totals above.
+                    </p>
+                  )}
+                </>
               )}
             </section>
           )}

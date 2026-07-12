@@ -43,6 +43,8 @@ export interface Signal {
   replaces: string | null;
   createdAt: string;
   approvedAt: string | null;
+  /** When the investor dismissed it (kept after restore — gate memory). */
+  dismissedAt?: string | null;
 }
 
 export interface Citation {
@@ -313,6 +315,8 @@ export interface DividendReceipt {
   /** Total cash, native currency (perShare × shares; negative for shorts). */
   amount: number;
   currency: string;
+  /** Tax withheld at source, percent (amount is net of it). */
+  withholdingPct: number;
   reinvested: number; // 0 | 1
   /** The DRIP buy trade, when reinvested. */
   reinvestTradeId: string | null;

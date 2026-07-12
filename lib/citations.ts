@@ -44,13 +44,18 @@ const COMPANY_TITLE_RX =
 /**
  * Conservative, pure heuristic classification off the resolved domain (never
  * the raw URL host — grounding returns redirect URLs): regulator filings,
- * company-controlled channels (IR sites, releases), or independent.
+ * company-controlled channels (IR sites, releases), or independent. Pass the
+ * ticker's learned company domains (learnCompanyDomains) for exact matching —
+ * then www.pddholdings.com press pages classify like ir.pddholdings.com.
  */
-export function sourceClass(c: {
-  url: string;
-  title?: string;
-  domain?: string;
-}): SourceClass {
+export function sourceClass(
+  c: {
+    url: string;
+    title?: string;
+    domain?: string;
+  },
+  companyDomains: string[] = []
+): SourceClass {
   const domain = domainOf({ title: c.title ?? "", url: c.url, domain: c.domain }).toLowerCase();
   if (
     domain.endsWith(".gov") ||
@@ -59,9 +64,30 @@ export function sourceClass(c: {
   ) {
     return "regulator";
   }
+  if (companyDomains.some((d) => domain === d || domain.endsWith("." + d))) return "company";
   if (COMPANY_HOST_LABELS.has(domain.split(".")[0])) return "company";
   if (COMPANY_TITLE_RX.test(c.title ?? "")) return "company";
   return "independent";
+}
+
+/**
+ * Learn a ticker's company-controlled base domains from its own evidence:
+ * every source whose host label marks it company (ir.pddholdings.com)
+ * teaches the base domain (pddholdings.com), so sibling hosts classify
+ * exactly without any stored configuration.
+ */
+export function learnCompanyDomains(
+  sources: { url: string; title?: string; domain?: string }[]
+): string[] {
+  const out = new Set<string>();
+  for (const s of sources) {
+    const domain = domainOf({ title: s.title ?? "", url: s.url, domain: s.domain }).toLowerCase();
+    const labels = domain.split(".");
+    if (labels.length >= 3 && COMPANY_HOST_LABELS.has(labels[0])) {
+      out.add(labels.slice(1).join("."));
+    }
+  }
+  return [...out];
 }
 
 /** Short display text for a source class chip. */

@@ -8,6 +8,13 @@ const ORIGIN_LABEL: Record<Signal["origin"], string> = {
   research: "discovered in today's research",
 };
 
+const fmtDay = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso.slice(0, 10)
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
 export function SuggestionCard({
   signal,
   busy,
@@ -16,6 +23,7 @@ export function SuggestionCard({
   replacesName,
   selected,
   onToggleSelect,
+  previouslyDismissedAt = null,
 }: {
   signal: Signal;
   busy: boolean;
@@ -26,6 +34,8 @@ export function SuggestionCard({
   /** Bulk-selection state; when provided a checkbox renders. */
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  /** Gate memory: when you dismissed this (or a same-named) proposal before. */
+  previouslyDismissedAt?: string | null;
 }) {
   return (
     <div
@@ -58,6 +68,14 @@ export function SuggestionCard({
       {replacesName && (
         <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warn/12 border border-warn/25 px-2 py-1 text-[11px] text-warn">
           ⇄ Replaces “{replacesName}” — approving swaps it in and retires the old signal
+        </p>
+      )}
+      {previouslyDismissedAt && (
+        <p
+          className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-white/6 border border-hairline px-2 py-1 text-[11px] text-muted"
+          title="Institutional memory: the approval gate remembers what you turned down — expect materially new evidence in the thesis"
+        >
+          ↩ You dismissed this on {fmtDay(previouslyDismissedAt)} — it’s back
         </p>
       )}
       <p className="mt-2 text-xs text-[#c7c7cc] leading-relaxed">{signal.thesis}</p>

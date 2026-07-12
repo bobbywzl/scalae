@@ -15,12 +15,13 @@ import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
 import {
   chipLabel,
   dossierToMarkdown,
+  learnCompanyDomains,
   linkCitations,
   sourceClass,
   sourceClassLabel,
   type SourceClass,
 } from "@/lib/citations";
-import type { Attachment, DeskPayload, Run, Signal } from "@/lib/types";
+import type { Attachment, DeskPayload, DigestItem, Run, Signal } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
 
@@ -40,7 +41,17 @@ export default function DeskPage() {
   const [dossierOpen, setDossierOpen] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [boardSort, setBoardSort] = useState<"focus" | "stale" | "confidence" | "health">("focus");
+  // Undo window: retire/dismiss/swap get one low-friction second chance.
+  const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRan = useRef(false);
+
+  const showUndo = useCallback((msg: string, undo: () => void) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, undo });
+    toastTimer.current = setTimeout(() => setToast(null), 8000);
+  }, []);
 
   // Full-screen analyst desk: Esc exits, page scroll locks underneath.
   useEffect(() => {
@@ -155,10 +166,20 @@ export default function DeskPage() {
     }
   }
 
+  const signalsById = useMemo(() => {
+    const m = new Map<string, Signal>();
+    if (desk) {
+      for (const s of [...desk.active, ...desk.suggested, ...desk.retired, ...(desk.dismissed ?? [])])
+        m.set(s.id, s);
+    }
+    return m;
+  }, [desk]);
+
   async function act(
     id: string,
     action: "approve" | "dismiss" | "retire" | "reactivate" | "swap_back"
   ) {
+    const signal = signalsById.get(id);
     setActingId(id);
     try {
       const res = await api<{ onboardedNow?: boolean }>(`/api/signals/${id}`, {
@@ -172,6 +193,21 @@ export default function DeskPage() {
         return next;
       });
       await load();
+      // One-click second chance on the consequential actions.
+      if (signal) {
+        if (action === "retire") {
+          showUndo(`Retired “${signal.name}”`, () => act(id, "reactivate"));
+        } else if (action === "dismiss") {
+          showUndo(`Dismissed “${signal.name}” — it moved to the archive`, () =>
+            act(id, "reactivate")
+          );
+        } else if (action === "approve" && signal.replaces) {
+          const oldName = signalsById.get(signal.replaces)?.name ?? "the replaced signal";
+          showUndo(`Swapped in “${signal.name}” — retired “${oldName}”`, () =>
+            act(signal.replaces!, "swap_back")
+          );
+        }
+      }
       // First approval activates the desk — kick off the first research run.
       if (res.onboardedNow) {
         autoRan.current = true;
@@ -212,15 +248,6 @@ export default function DeskPage() {
       return next;
     });
 
-  const signalsById = useMemo(() => {
-    const m = new Map<string, Signal>();
-    if (desk) {
-      for (const s of [...desk.active, ...desk.suggested, ...desk.retired, ...(desk.dismissed ?? [])])
-        m.set(s.id, s);
-    }
-    return m;
-  }, [desk]);
-
   // Which retired signals were superseded by a replacement (archive context).
   const replacedBy = useMemo(() => {
     const m = new Map<string, string>();
@@ -260,6 +287,40 @@ export default function DeskPage() {
     return m;
   }, [desk]);
 
+  // Exact company-source matching, learned from the board's own evidence:
+  // ir.pddholdings.com teaches pddholdings.com, so sibling hosts classify too.
+  const companyDomains = useMemo(() => {
+    if (!desk) return [];
+    return learnCompanyDomains([...desk.active, ...desk.retired].flatMap((s) => s.sources ?? []));
+  }, [desk]);
+
+  // Flat sorted view of the board (default stays grouped by focus area).
+  // Worst-first everywhere: staleness, thin confidence and weak health are
+  // what a diligence pass wants surfaced, not buried.
+  const sortedActive = useMemo(() => {
+    if (!desk || boardSort === "focus") return [];
+    const lastFresh = (s: DeskPayload["active"][number]) =>
+      s.history.find((h) => h.newEvidence !== false)?.date ?? "";
+    const LEVEL_RANK: Record<string, number> = {
+      weak: 0,
+      deteriorating: 1,
+      unclear: 2,
+      neutral: 3,
+      improving: 4,
+      strong: 5,
+    };
+    const rows = [...desk.active];
+    if (boardSort === "stale") rows.sort((a, b) => lastFresh(a).localeCompare(lastFresh(b)));
+    if (boardSort === "confidence")
+      rows.sort((a, b) => (a.latest?.confidence ?? -1) - (b.latest?.confidence ?? -1));
+    if (boardSort === "health")
+      rows.sort(
+        (a, b) =>
+          (a.latest ? LEVEL_RANK[a.latest.level] : -1) - (b.latest ? LEVEL_RANK[b.latest.level] : -1)
+      );
+    return rows;
+  }, [desk, boardSort]);
+
   // Diligence pulse for the board. Honest numbers only: distinct sources (not
   // per-signal double counts), signals still awaiting their first reading, and
   // confidence averaged over evidence-backed readings — never over priors.
@@ -280,7 +341,7 @@ export default function DeskPage() {
       for (const src of s.sources ?? []) {
         let row = byUrl.get(src.url);
         if (!row) {
-          row = { url: src.url, title: src.title, domain: src.domain, cls: sourceClass(src), signals: new Set(), links: 0 };
+          row = { url: src.url, title: src.title, domain: src.domain, cls: sourceClass(src, companyDomains), signals: new Set(), links: 0 };
           byUrl.set(src.url, row);
         }
         row.signals.add(s.id);
@@ -306,7 +367,7 @@ export default function DeskPage() {
       classLinks,
       avgConf,
     };
-  }, [desk]);
+  }, [desk, companyDomains]);
 
   const grouped = useMemo(() => {
     if (!desk) return [];
@@ -563,6 +624,11 @@ export default function DeskPage() {
                     items={desk.digest.slice(0, 10)}
                     signals={[...desk.active, ...desk.retired, ...(desk.dismissed ?? [])]}
                     onOpenSignal={(id) => setDetailId(id)}
+                    onTrackStory={(d: DigestItem) =>
+                      sendChat(
+                        `No signal on the board watches this thread — draft a trackable signal from it (I'll approve or ignore): "${d.headline}" — ${d.summary}${d.url ? ` (${d.url})` : ""}. Anchor it to the business model or culture, give it a measurement plan, and set "replaces" if it subsumes an active signal.`
+                      )
+                    }
                   />
                 </div>
               </>
@@ -599,6 +665,13 @@ export default function DeskPage() {
                     replacesName={
                       s.replaces ? desk.active.find((a) => a.id === s.replaces)?.name ?? null : null
                     }
+                    previouslyDismissedAt={
+                      s.dismissedAt ??
+                      (desk.dismissed ?? []).find(
+                        (x) => x.name.toLowerCase() === s.name.toLowerCase()
+                      )?.dismissedAt ??
+                      null
+                    }
                   />
                 ))}
               </div>
@@ -606,7 +679,34 @@ export default function DeskPage() {
           )}
 
           <section>
-            <SectionTitle>Signal board</SectionTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <SectionTitle>Signal board</SectionTitle>
+              {desk.active.length >= 4 && (
+                <div className="ml-auto flex items-center gap-1 text-[10px]">
+                  <span className="text-muted mr-0.5">view:</span>
+                  {(
+                    [
+                      { v: "focus", label: "Focus areas" },
+                      { v: "stale", label: "Stalest first" },
+                      { v: "confidence", label: "Thinnest confidence" },
+                      { v: "health", label: "Weakest first" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.v}
+                      onClick={() => setBoardSort(o.v)}
+                      className={`rounded-md px-2 py-0.5 transition-colors ${
+                        boardSort === o.v
+                          ? "bg-white/12 text-foreground font-semibold"
+                          : "text-muted hover:text-[#c7c7cc] bg-white/4"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {boardStats && boardStats.total > 0 && (
               <p className="mt-1.5 text-[11px] text-muted tabular-nums">
                 {boardStats.total} active signal{boardStats.total === 1 ? "" : "s"}
@@ -696,7 +796,24 @@ export default function DeskPage() {
             {grouped.length === 0 && (
               <p className="text-muted text-xs italic mt-2">No active signals.</p>
             )}
-            <div className="space-y-5 mt-2">
+            {boardSort !== "focus" && sortedActive.length > 0 && (
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                {sortedActive.map((s) => {
+                  const pair = overlapPairs.get(s.id);
+                  return (
+                    <SignalCard
+                      key={s.id}
+                      signal={s}
+                      onOpen={(sig) => setDetailId(sig.id)}
+                      overlapsWith={
+                        pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+            <div className={`space-y-5 mt-2 ${boardSort !== "focus" ? "hidden" : ""}`}>
               {grouped.map(([area, signals]) => {
                 const fa = desk.focusAreas.find((f) => f.title === area);
                 return (
@@ -843,7 +960,31 @@ export default function DeskPage() {
                 }
               : null
           }
+          companyDomains={companyDomains}
         />
+      )}
+
+      {/* Undo window for retire / dismiss / swap */}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-white/15 shadow-2xl shadow-black/60 px-4 py-2.5">
+          <span className="text-xs text-[#e0e0e4]">{toast.msg}</span>
+          <button
+            onClick={() => {
+              setToast(null);
+              toast.undo();
+            }}
+            className="rounded-lg bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-3 py-1 transition-colors"
+          >
+            Undo
+          </button>
+          <button
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+            className="text-muted hover:text-[#c7c7cc] text-xs transition-colors"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </main>
   );

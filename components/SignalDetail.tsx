@@ -32,6 +32,7 @@ export function SignalDetail({
   supersededBy = null,
   lineage = null,
   overlapsWith = null,
+  companyDomains = [],
 }: {
   signal: SignalWithReadings;
   signalsById: Map<string, Signal>;
@@ -47,6 +48,8 @@ export function SignalDetail({
   lineage?: { name: string; onOpen: () => void } | null;
   /** Keep-both pair: the other active signal this one overlaps with. */
   overlapsWith?: { name: string; onOpen: () => void } | null;
+  /** The ticker's learned company-controlled domains (exact source classing). */
+  companyDomains?: string[];
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -339,19 +342,19 @@ export function SignalDetail({
                       </a>
                       <span
                         className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
-                          sourceClass(src) === "company"
+                          sourceClass(src, companyDomains) === "company"
                             ? "bg-warn/12 text-warn/90"
                             : "bg-white/6 text-muted"
                         }`}
                         title={
-                          sourceClass(src) === "company"
+                          sourceClass(src, companyDomains) === "company"
                             ? "Company-controlled source — management's own account; corroborate independently"
-                            : sourceClass(src) === "regulator"
+                            : sourceClass(src, companyDomains) === "regulator"
                               ? "Regulator filing or notice"
                               : "Independent source"
                         }
                       >
-                        {sourceClassLabel(sourceClass(src))}
+                        {sourceClassLabel(sourceClass(src, companyDomains))}
                       </span>
                       <button
                         onClick={() => setFilterUrl((u) => (u === src.url ? null : src.url))}
@@ -389,7 +392,7 @@ export function SignalDetail({
                       · {filteredHistory.length} of {signal.history.length} citing{" "}
                       {tracedSource ? chipLabel(tracedSource, sources) : "this source"}
                       {tracedSource && (
-                        <span className="text-muted"> ({sourceClassLabel(sourceClass(tracedSource))})</span>
+                        <span className="text-muted"> ({sourceClassLabel(sourceClass(tracedSource, companyDomains))})</span>
                       )}
                     </span>{" "}
                     <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-[#c7c7cc] underline underline-offset-2">

@@ -12,11 +12,14 @@ export function DigestFeed({
   items,
   signals = [],
   onOpenSignal,
+  onTrackStory,
 }: {
   items: DigestItem[];
   /** Board signals of any status, used to resolve tag names. */
   signals?: Pick<Signal, "id" | "name" | "status">[];
   onOpenSignal?: (id: string) => void;
+  /** Untagged stories get a "track this" affordance — asks the analyst to draft a signal (approval-gated). */
+  onTrackStory?: (item: DigestItem) => void;
 }) {
   if (items.length === 0) {
     return <p className="text-muted text-xs italic">No digest yet — run today’s research.</p>;
@@ -44,6 +47,15 @@ export function DigestFeed({
             <p className="text-[10px] text-muted mt-1">
               {d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date)}
+              {d.signalNames.length === 0 && onTrackStory && (
+                <button
+                  onClick={() => onTrackStory(d)}
+                  title="No signal watches this thread — ask the analyst to draft one (you approve it)"
+                  className="ml-2 rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-1.5 py-px text-[10px] text-[#c7c7cc] hover:text-accent transition-colors"
+                >
+                  ✚ track this
+                </button>
+              )}
               {d.signalNames.length > 0 && (
                 <span className="ml-2 text-muted/80">
                   →{" "}

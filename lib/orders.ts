@@ -176,38 +176,48 @@ export async function pendingDividends(appliedKeys: Set<string>): Promise<Pendin
 }
 
 /**
- * Apply one detected dividend into the book: a cash receipt, plus a DRIP buy
- * (fractional shares at the ex-date close) when reinvestment is on for the
- * symbol and the position is long.
+ * Apply one detected dividend into the book: a cash receipt (net of any tax
+ * withheld at source), plus a DRIP buy (fractional shares at the ex-date
+ * close, funded by the net amount) when reinvestment is on for the symbol
+ * and the position is long.
  */
-export async function applyDividend(p: PendingDividend): Promise<DividendReceipt | null> {
+export async function applyDividend(
+  p: PendingDividend,
+  withholdingPct = 0
+): Promise<DividendReceipt | null> {
+  const w = Math.max(0, Math.min(60, withholdingPct)) || 0;
+  const net = round(p.amount * (1 - w / 100), 2);
   let reinvestTradeId: string | null = null;
   let reinvested = 0;
-  if (p.drip && p.shares > 0 && p.reinvestPrice != null && p.reinvestShares != null && p.reinvestShares > 0) {
-    const trade = await insertTrade({
-      symbol: p.symbol,
-      kind: "stock",
-      side: "buy",
-      quantity: p.reinvestShares,
-      price: p.reinvestPrice,
-      fees: 0,
-      tradeDate: p.exDate,
-      optionType: null,
-      strike: null,
-      expiry: null,
-      multiplier: 1,
-      note: `DRIP — ${p.perShare}/sh dividend reinvested`,
-    });
-    reinvestTradeId = trade.id;
-    reinvested = 1;
+  if (p.drip && p.shares > 0 && p.reinvestPrice != null && net > 0) {
+    const netShares = round(net / p.reinvestPrice);
+    if (netShares > 0) {
+      const trade = await insertTrade({
+        symbol: p.symbol,
+        kind: "stock",
+        side: "buy",
+        quantity: netShares,
+        price: p.reinvestPrice,
+        fees: 0,
+        tradeDate: p.exDate,
+        optionType: null,
+        strike: null,
+        expiry: null,
+        multiplier: 1,
+        note: `DRIP — ${p.perShare}/sh dividend reinvested${w > 0 ? ` (net of ${w}% withholding)` : ""}`,
+      });
+      reinvestTradeId = trade.id;
+      reinvested = 1;
+    }
   }
   return insertDividend({
     symbol: p.symbol,
     exDate: p.exDate,
     perShare: p.perShare,
     shares: p.shares,
-    amount: p.amount,
+    amount: net,
     currency: p.currency,
+    withholdingPct: w,
     reinvested,
     reinvestTradeId,
   });

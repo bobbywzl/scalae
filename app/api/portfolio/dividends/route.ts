@@ -21,6 +21,8 @@ export async function POST(req: Request) {
     symbol?: string;
     exDate?: string;
     all?: boolean;
+    /** Tax withheld at source, percent (0-60); credited amount is net of it. */
+    withholdingPct?: number;
   };
   const applied = await listDividends();
   const pending = await pendingDividends(new Set(applied.map((d) => `${d.symbol}|${d.exDate}`)));
@@ -33,9 +35,10 @@ export async function POST(req: Request) {
   if (targets.length === 0) {
     return NextResponse.json({ error: "No matching pending dividend." }, { status: 404 });
   }
+  const withholding = Number.isFinite(body.withholdingPct) ? Number(body.withholdingPct) : 0;
   let count = 0;
   for (const p of targets) {
-    if (await applyDividend(p)) count++;
+    if (await applyDividend(p, withholding)) count++;
   }
   return NextResponse.json({ applied: count });
 }
