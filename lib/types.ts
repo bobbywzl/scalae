@@ -391,14 +391,6 @@ export interface PortfolioSummary {
   totalPnl: number;
   dayChange: number | null;
   currencyNote: string;
-  /** Investor-set starting capital (USD), or null when unset. */
-  initialCapital: number | null;
-  /** Cash on hand = starting capital + every signed trade/dividend cashflow; null when capital unset. */
-  cash: number | null;
-  /** Account value = cash + market value; null when capital unset. */
-  accountValue: number | null;
-  /** Total P&L as a percent of starting capital; null when capital unset or 0. */
-  returnPct: number | null;
 }
 
 export interface PortfolioPayload {
@@ -417,6 +409,14 @@ export interface PortfolioPayload {
   dividends: DividendReceipt[];
   /** Per-symbol dividend-reinvestment setting for held stocks. */
   drip: Record<string, boolean>;
+  /** Starting cash (USD) the investor set for this book; null = not set. */
+  initialCapital: number | null;
+  /**
+   * Cash on hand (USD): initial capital + every ledger cashflow to date
+   * (sells − buys − fees + dividends, at trade-date FX). Null until initial
+   * capital is set.
+   */
+  cash: number | null;
   /** Symbols whose market data could not be fetched (excluded from series). */
   unpriced: string[];
 }

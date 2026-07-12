@@ -8,7 +8,7 @@ import { api } from "@/components/util";
 import { orderLabel } from "@/lib/order-math";
 import { optionLabel } from "@/lib/portfolio-math";
 import { daysUntil } from "@/components/util";
-import type { Order, PortfolioPayload, PortfolioSummary, Trade } from "@/lib/types";
+import type { Order, PortfolioPayload, Trade } from "@/lib/types";
 
 type PositionAction = "sell" | "buy" | "record";
 
@@ -21,25 +21,23 @@ const fmtNative = (v: number, currency: string, digits = 2) =>
 const signCls = (v: number | null | undefined) =>
   v == null ? "text-muted" : v >= 0 ? "text-gain" : "text-loss";
 
-function StatTile({
-  label,
-  value,
-  sub,
-  tone,
-  subTone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: string;
-  subTone?: string;
-}) {
+function StatTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <div className="rounded-xl bg-card border border-hairline px-4 py-3">
       <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
       <p className={`text-lg font-bold tabular-nums mt-0.5 ${tone ?? ""}`}>{value}</p>
-      {sub && <p className={`text-[11px] mt-0.5 tabular-nums ${subTone ?? "text-muted"}`}>{sub}</p>}
+      {sub && <p className="text-[11px] text-muted mt-0.5 tabular-nums">{sub}</p>}
     </div>
+  );
+}
+
+function PctChip({ v }: { v: number | null }) {
+  if (v == null) return null;
+  return (
+    <span className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums ${v >= 0 ? "bg-gain/15 text-gain" : "bg-loss/15 text-loss"}`}>
+      {v >= 0 ? "+" : ""}
+      {v.toFixed(1)}%
+    </span>
   );
 }
 
@@ -72,139 +70,6 @@ function ActionChip({
   );
 }
 
-/**
- * Book admin strip: starting capital (set / edit / remove, driving cash,
- * account value and % return) and the clear-the-whole-book button.
- */
-function CapitalBar({
-  summary,
-  hasBook,
-  clearing,
-  onSave,
-  onClear,
-}: {
-  summary: PortfolioSummary;
-  hasBook: boolean;
-  clearing: boolean;
-  onSave: (v: number | null) => Promise<void>;
-  onClear: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [str, setStr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const cap = summary.initialCapital;
-  const valid = str.trim() !== "" && Number.isFinite(Number(str)) && Number(str) >= 0;
-
-  async function save(v: number | null) {
-    setBusy(true);
-    try {
-      await onSave(v);
-      setEditing(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="mb-5 rounded-xl bg-card border border-hairline px-3.5 py-2 flex items-center gap-x-3 gap-y-1.5 flex-wrap text-[11px]">
-      <span className="uppercase tracking-wider text-muted font-semibold text-[10px]">
-        Starting capital
-      </span>
-      {editing ? (
-        <>
-          <input
-            autoFocus
-            inputMode="decimal"
-            value={str}
-            onChange={(e) => setStr(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && valid && !busy) save(Number(str));
-              if (e.key === "Escape") setEditing(false);
-            }}
-            placeholder="100000"
-            className="w-28 rounded-md bg-card2 border border-hairline focus:border-accent/50 px-2 py-1 text-xs tabular-nums outline-none"
-          />
-          <span className="text-muted">USD</span>
-          <button
-            onClick={() => save(Number(str))}
-            disabled={!valid || busy}
-            className="text-accent font-semibold hover:opacity-80 disabled:opacity-40 transition-opacity"
-          >
-            {busy ? "Saving…" : "Save"}
-          </button>
-          <button onClick={() => setEditing(false)} disabled={busy} className="text-muted hover:text-[#c7c7cc]">
-            Cancel
-          </button>
-          {cap != null && (
-            <button onClick={() => save(null)} disabled={busy} className="text-muted hover:text-loss">
-              Remove
-            </button>
-          )}
-        </>
-      ) : cap != null ? (
-        <>
-          <span className="font-semibold tabular-nums text-xs">{fmtUsd(cap)}</span>
-          {summary.cash != null && (
-            <span className={`tabular-nums ${summary.cash < 0 ? "text-loss" : "text-muted"}`}>
-              cash {fmtUsd(summary.cash)}
-              {summary.cash < 0 && " (over-invested)"}
-            </span>
-          )}
-          {summary.returnPct != null && (
-            <span
-              className={`tabular-nums font-semibold ${summary.returnPct >= 0 ? "text-gain" : "text-loss"}`}
-            >
-              {summary.returnPct >= 0 ? "+" : ""}
-              {summary.returnPct.toFixed(1)}% return
-            </span>
-          )}
-          <button
-            onClick={() => {
-              setStr(String(cap));
-              setEditing(true);
-            }}
-            className="text-accent hover:opacity-80 font-medium transition-opacity"
-          >
-            Edit
-          </button>
-        </>
-      ) : (
-        <>
-          <span className="text-muted">not set — set it to track cash, account value and % return</span>
-          <button
-            onClick={() => {
-              setStr("");
-              setEditing(true);
-            }}
-            className="text-accent hover:opacity-80 font-medium transition-opacity"
-          >
-            Set
-          </button>
-        </>
-      )}
-      {hasBook && (
-        <button
-          onClick={onClear}
-          disabled={clearing}
-          className="ml-auto rounded-md border border-hairline px-2 py-1 font-medium text-muted hover:text-loss hover:border-loss/40 disabled:opacity-50 transition-colors"
-        >
-          {clearing ? "Clearing…" : "Clear book"}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function PctChip({ v }: { v: number | null }) {
-  if (v == null) return null;
-  return (
-    <span className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums ${v >= 0 ? "bg-gain/15 text-gain" : "bg-loss/15 text-loss"}`}>
-      {v >= 0 ? "+" : ""}
-      {v.toFixed(1)}%
-    </span>
-  );
-}
-
 export default function PortfolioPage() {
   const [data, setData] = useState<PortfolioPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +78,11 @@ export default function PortfolioPage() {
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [divBusy, setDivBusy] = useState<string | null>(null);
   const [orderBusy, setOrderBusy] = useState<string | null>(null);
-  const [clearing, setClearing] = useState(false);
+  const [capEditing, setCapEditing] = useState(false);
+  const [capInput, setCapInput] = useState("");
+  const [capBusy, setCapBusy] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
   /** Which stock row is expanded into its actions panel, and which action is open. */
   const [expanded, setExpanded] = useState<string | null>(null);
   const [posAction, setPosAction] = useState<PositionAction | null>(null);
@@ -274,6 +143,37 @@ export default function PortfolioPage() {
     }
   }
 
+  async function saveCapital(raw: string) {
+    const trimmed = raw.replace(/[$,\s]/g, "");
+    const amount = trimmed === "" ? null : Number(trimmed);
+    if (amount != null && (!Number.isFinite(amount) || amount < 0)) return;
+    setCapBusy(true);
+    try {
+      await api(`/api/portfolio/capital`, { method: "POST", body: JSON.stringify({ amount }) });
+      setCapEditing(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save capital");
+    } finally {
+      setCapBusy(false);
+    }
+  }
+
+  async function resetBook() {
+    setResetBusy(true);
+    try {
+      await api(`/api/portfolio`, { method: "DELETE" });
+      setResetConfirm(false);
+      setExpanded(null);
+      setPosAction(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reset the book");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   async function toggleDrip(symbol: string, enabled: boolean) {
     // optimistic: settings write is cheap, avoid whole-payload flash
     setData((d) => (d ? { ...d, drip: { ...d.drip, [symbol]: enabled } } : d));
@@ -292,39 +192,6 @@ export default function PortfolioPage() {
     setPosAction(null);
   }
 
-  async function saveCapital(v: number | null) {
-    await api(`/api/settings`, { method: "POST", body: JSON.stringify({ initialCapital: v }) });
-    await load();
-  }
-
-  async function clearBook() {
-    if (!data) return;
-    const n = (c: number, word: string) => `${c} ${word}${c === 1 ? "" : "s"}`;
-    const what = [
-      n(data.trades.length, "trade"),
-      n(data.openOrders.length, "open order"),
-      n(data.dividends.length, "dividend receipt"),
-    ].join(", ");
-    if (
-      !confirm(
-        `Clear the whole book? This permanently deletes ${what}, all order history, and DRIP settings — every position and its P&L goes with them. Starting capital is kept. This cannot be undone.`
-      )
-    )
-      return;
-    setClearing(true);
-    try {
-      await api(`/api/portfolio`, { method: "DELETE" });
-      setExpanded(null);
-      setPosAction(null);
-      setAdding(false);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to clear the book");
-    } finally {
-      setClearing(false);
-    }
-  }
-
   const s = data?.summary;
 
   return (
@@ -337,13 +204,52 @@ export default function PortfolioPage() {
           <h1 className="text-xl font-bold leading-tight">Portfolio</h1>
           <p className="text-muted text-xs">{s?.currencyNote ?? "Positions, options and P&L."}</p>
         </div>
-        <button
-          onClick={() => setAdding((v) => !v)}
-          className="ml-auto rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
-        >
-          + Trade
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {data && data.trades.length + data.openOrders.length > 0 && (
+            <button
+              onClick={() => setResetConfirm((v) => !v)}
+              title="Clear the whole book (trades, orders, dividends)"
+              className="rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              Reset book
+            </button>
+          )}
+          <button
+            onClick={() => setAdding((v) => !v)}
+            className="rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+          >
+            + Trade
+          </button>
+        </div>
       </header>
+
+      {resetConfirm && data && (
+        <div className="mb-5 rounded-2xl border border-loss/30 bg-loss/8 px-4 py-3">
+          <p className="text-sm font-semibold text-loss">Reset the whole book?</p>
+          <p className="text-xs text-[#c7c7cc] mt-1">
+            This permanently deletes {data.trades.length} trade{data.trades.length === 1 ? "" : "s"},{" "}
+            {data.openOrders.length + data.orderHistory.length} order
+            {data.openOrders.length + data.orderHistory.length === 1 ? "" : "s"} and{" "}
+            {data.dividends.length} dividend receipt{data.dividends.length === 1 ? "" : "s"}. Your
+            initial capital and DRIP settings are kept. This cannot be undone.
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              onClick={resetBook}
+              disabled={resetBusy}
+              className="rounded-lg bg-loss/20 hover:bg-loss/30 text-loss text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+            >
+              {resetBusy ? "Deleting…" : "Delete everything"}
+            </button>
+            <button
+              onClick={() => setResetConfirm(false)}
+              className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-loss text-sm mb-4">{error}</p>}
       {adding && (
@@ -354,23 +260,9 @@ export default function PortfolioPage() {
               load();
             }}
             onCancel={() => setAdding(false)}
+            cashUsd={data?.cash ?? null}
           />
         </div>
-      )}
-
-      {data && (
-        <CapitalBar
-          summary={data.summary}
-          hasBook={
-            data.trades.length > 0 ||
-            data.openOrders.length > 0 ||
-            data.orderHistory.length > 0 ||
-            data.dividends.length > 0
-          }
-          clearing={clearing}
-          onSave={saveCapital}
-          onClear={clearBook}
-        />
       )}
 
       {!data ? (
@@ -393,29 +285,20 @@ export default function PortfolioPage() {
         <div className="space-y-5">
           {/* Summary tiles */}
           {s && (
-            <section
-              className={`grid grid-cols-2 sm:grid-cols-4 ${
-                (s.dividends !== 0 ? 1 : 0) + (s.accountValue != null ? 1 : 0) >= 2
-                  ? "lg:grid-cols-6"
-                  : (s.dividends !== 0 ? 1 : 0) + (s.accountValue != null ? 1 : 0) === 1
-                    ? "lg:grid-cols-5"
-                    : ""
-              } gap-3`}
-            >
-              {s.accountValue != null && (
-                <StatTile
-                  label="Account value"
-                  value={fmtUsd(s.accountValue)}
-                  sub={s.cash != null ? `cash ${fmtUsd(s.cash)}` : undefined}
-                  subTone={s.cash != null && s.cash < 0 ? "text-loss" : undefined}
-                />
-              )}
+            <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatTile label="Market value" value={fmtUsd(s.marketValue)} sub={`cost ${fmtUsd(s.costBasis)}`} />
               <StatTile
                 label="Total P&L"
                 value={fmtUsd(s.totalPnl, { sign: true })}
                 tone={signCls(s.totalPnl)}
-                sub={s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : undefined}
+                sub={[
+                  s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : null,
+                  data.initialCapital != null && data.initialCapital > 0
+                    ? `${s.totalPnl >= 0 ? "+" : ""}${((s.totalPnl / data.initialCapital) * 100).toFixed(1)}% on capital`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined}
               />
               <StatTile label="Unrealized" value={fmtUsd(s.unrealized, { sign: true })} tone={signCls(s.unrealized)} />
               <StatTile label="Realized" value={fmtUsd(s.realized, { sign: true })} tone={signCls(s.realized)} />
@@ -427,6 +310,83 @@ export default function PortfolioPage() {
                   sub="cash + reinvested"
                 />
               )}
+              {data.initialCapital != null && data.cash != null ? (
+                <div className="rounded-xl bg-card border border-hairline px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted flex items-center">
+                    Cash
+                    <button
+                      onClick={() => {
+                        setCapInput(String(data.initialCapital ?? ""));
+                        setCapEditing(true);
+                      }}
+                      title="Edit initial capital"
+                      className="ml-auto normal-case tracking-normal text-muted hover:text-[#c7c7cc] transition-colors"
+                    >
+                      ✎ edit
+                    </button>
+                  </p>
+                  <p className={`text-lg font-bold tabular-nums mt-0.5 ${data.cash < 0 ? "text-loss" : ""}`}>
+                    {fmtUsd(data.cash)}
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5 tabular-nums">
+                    of {fmtUsd(data.initialCapital)} initial
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setCapInput("");
+                    setCapEditing(true);
+                  }}
+                  className="rounded-xl border border-dashed border-white/20 hover:border-accent/50 px-4 py-3 text-left transition-colors group"
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-muted">Cash</p>
+                  <p className="text-sm font-semibold text-muted group-hover:text-accent mt-1 transition-colors">
+                    + Set initial capital
+                  </p>
+                  <p className="text-[11px] text-muted/70 mt-0.5">unlocks cash & return tracking</p>
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* Initial-capital editor */}
+          {capEditing && (
+            <section className="rounded-2xl bg-card border border-accent/25 px-4 py-3 flex items-end gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted">Initial capital · USD</p>
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={capInput}
+                  onChange={(e) => setCapInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveCapital(capInput);
+                    if (e.key === "Escape") setCapEditing(false);
+                  }}
+                  placeholder="100000"
+                  className="mt-1 rounded-lg bg-card2 border border-hairline focus:border-accent/50 px-2.5 py-2 text-sm outline-none tabular-nums w-44 transition-colors placeholder:text-muted/60"
+                />
+              </div>
+              <p className="text-[11px] text-muted max-w-sm pb-1">
+                The cash you started this book with. Cash on hand = this + every buy/sell/fee/dividend
+                since. Leave empty to stop tracking cash.
+              </p>
+              <div className="flex gap-2 pb-0.5 ml-auto">
+                <button
+                  onClick={() => saveCapital(capInput)}
+                  disabled={capBusy}
+                  className="rounded-lg bg-accent text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+                >
+                  {capBusy ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setCapEditing(false)}
+                  className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </section>
           )}
 
@@ -529,7 +489,7 @@ export default function PortfolioPage() {
             </section>
           )}
 
-          {/* Stock positions */}
+          {/* Stock positions — click a row for everything you can do with it */}
           <section>
             <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">Stocks</p>
             {data.stocks.length === 0 ? (
@@ -665,6 +625,7 @@ export default function PortfolioPage() {
                                       : undefined
                                 }
                                 held={p.qty}
+                                cashUsd={data.cash ?? null}
                                 onSaved={() => {
                                   setPosAction(null);
                                   load();

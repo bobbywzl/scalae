@@ -74,6 +74,7 @@ export function TradeForm({
   initialMode,
   initialQuantity,
   held,
+  cashUsd = null,
 }: {
   onSaved: () => void;
   onCancel: () => void;
@@ -82,6 +83,8 @@ export function TradeForm({
   initialMode?: "order" | "record";
   initialQuantity?: number;
   held?: number;
+  /** Cash on hand (USD) when the investor tracks initial capital. */
+  cashUsd?: number | null;
 }) {
   const [mode, setMode] = useState<"order" | "record">(initialMode ?? "order");
 
@@ -445,6 +448,13 @@ export function TradeForm({
               {marketable && (
                 <p className="text-[11px] text-warn">
                   ⚡ Marketable — the live price already satisfies this order, so it will fill immediately.
+                </p>
+              )}
+              {side === "buy" && cashUsd != null && currency === "USD" && estTotal != null && (
+                <p className={`text-[11px] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
+                  Cash available: {fmtMoney(cashUsd, "USD")}
+                  {estTotal > cashUsd &&
+                    " — this order exceeds it (the book records it anyway; no margin is modeled)."}
                 </p>
               )}
             </div>

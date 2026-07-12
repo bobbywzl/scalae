@@ -116,9 +116,12 @@ function SourcesModal({
 export function SignalCard({
   signal,
   onOpen,
+  overlapsWith = null,
 }: {
   signal: SignalWithReadings;
   onOpen: (signal: SignalWithReadings) => void;
+  /** Keep-both pair: the other active signal this one overlaps with. */
+  overlapsWith?: { name: string; onOpen: () => void } | null;
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const r = signal.latest;
@@ -197,6 +200,22 @@ export function SignalCard({
           <p className="mt-2 text-xs text-muted italic">Awaiting first research run.</p>
         )}
       </button>
+
+      {/* Keep-both overlap: the pair stays visibly linked after the one-time choice. */}
+      {overlapsWith && (
+        <div className="px-4 pb-2 -mt-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              overlapsWith.onOpen();
+            }}
+            title="You chose to keep both — open the overlapping signal"
+            className="rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[10px] text-warn transition-colors max-w-full truncate"
+          >
+            ⇄ overlaps: {overlapsWith.name}
+          </button>
+        </div>
+      )}
 
       {/* Freshest sources at a glance; the count opens the whole catalog. */}
       {sources.length > 0 && (

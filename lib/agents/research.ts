@@ -225,6 +225,19 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     const keyed = signals.map((s, i) => ({ key: `S${i + 1}`, signal: s }));
     const byKey = new Map(keyed.map((k) => [k.key, k.signal]));
 
+    // Keep-both pairs: an active replacement whose replaced signal was
+    // knowingly reactivated. The no-duplication discipline must survive that
+    // choice — the desk should keep watching for a single merged crux signal.
+    const overlapWith = new Map<string, string>();
+    const byId = new Map(signals.map((s) => [s.id, s]));
+    for (const s of signals) {
+      const other = s.replaces ? byId.get(s.replaces) : undefined;
+      if (other) {
+        overlapWith.set(s.id, other.name);
+        overlapWith.set(other.id, s.name);
+      }
+    }
+
     const boardBlock = (
       await Promise.all(
         keyed.map(async ({ key, signal: s }) => {
@@ -232,7 +245,10 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
           const prevLine = prev
             ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
             : " No previous reading.";
-          return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}`;
+          const overlapNote = overlapWith.has(s.id)
+            ? ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
+            : "";
+          return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${overlapNote}`;
         })
       )
     ).join("\n");

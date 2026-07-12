@@ -22,13 +22,12 @@ export async function GET() {
   }
 }
 
-/** Clear the whole paper book (trades, orders, dividends, DRIP settings). */
+/**
+ * Reset the book: permanently deletes every trade, order and dividend
+ * receipt. Settings (initial capital, DRIP, auto-research) survive. The UI
+ * gates this behind an explicit typed-out confirmation.
+ */
 export async function DELETE() {
-  try {
-    await clearPortfolio();
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("[scalae] clear portfolio failed:", e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: "Failed to clear portfolio." }, { status: 500 });
-  }
+  const deleted = await clearPortfolio();
+  return NextResponse.json({ deleted });
 }

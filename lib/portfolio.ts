@@ -1,6 +1,6 @@
 import {
   dripEnabled,
-  initialCapitalUsd,
+  getInitialCapital,
   listDividends,
   listOpenOrders,
   listOrderHistory,
@@ -162,7 +162,7 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     listDividends(),
     listOpenOrders(),
     listOrderHistory(),
-    initialCapitalUsd(),
+    getInitialCapital(),
   ]);
   const { valued, unpriced } = await valueAll(trades);
   const series = computeSeries(await seriesInputs(trades, valued, dividends));
@@ -205,38 +205,18 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
   const prev = series[series.length - 2];
   const nonUsd = new Set(openPositions.filter((v) => v.currency !== "USD").map((v) => v.currency));
 
-  // Cash accounting against the investor's starting capital. Non-USD cashflows
-  // are converted at today's FX rate (good enough for a paper book — historical
-  // FX would need a rate-by-date feed). DRIP dividends net to ~0 here: the
-  // receipt credits cash and its reinvestment buy trade debits it back.
-  const fxOf = new Map(valued.map((v) => [v.symbol, v.fxToUsd] as const));
-  const tradeCash = sum(
-    trades.map((t) => {
-      const fx = fxOf.get(t.symbol) ?? 1;
-      const gross = t.quantity * t.price * t.multiplier * fx;
-      const feesUsd = t.fees * fx;
-      return t.side === "buy" ? -(gross + feesUsd) : gross - feesUsd;
-    })
-  );
-  const cash = initialCapital != null ? initialCapital + tradeCash + dividendsUsd : null;
-  const totalPnl = unrealized + realized + dividendsUsd;
-
   const summary: PortfolioSummary = {
     marketValue,
     costBasis,
     unrealized,
     realized,
     dividends: dividendsUsd,
-    totalPnl,
+    totalPnl: unrealized + realized + dividendsUsd,
     dayChange: last && prev ? Math.round((last.pnl - prev.pnl) * 100) / 100 : null,
     currencyNote:
       nonUsd.size > 0
         ? `Totals in USD (${[...nonUsd].join(", ")} converted); positions shown in native currency.`
         : "All amounts USD.",
-    initialCapital,
-    cash,
-    accountValue: cash != null ? cash + marketValue : null,
-    returnPct: initialCapital != null && initialCapital > 0 ? (totalPnl / initialCapital) * 100 : null,
   };
 
   const stocks = openPositions
@@ -245,6 +225,11 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
   const options = openPositions
     .filter((v) => v.kind === "option")
     .sort((a, b) => (a.expiry ?? "").localeCompare(b.expiry ?? ""));
+
+  // Cash = initial capital + cumulative ledger cashflow. The series identity
+  // P&L = equity + cashflow makes that (last.pnl − last.value) — no new math.
+  const cashflowToDate = last ? last.pnl - last.value : 0;
+  const cash = initialCapital != null ? initialCapital + cashflowToDate : null;
 
   return {
     summary,
@@ -257,6 +242,8 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     pendingDividends: pending,
     dividends,
     drip,
+    initialCapital,
+    cash,
     unpriced,
   };
 }

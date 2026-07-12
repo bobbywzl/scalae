@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { chipLabel } from "@/lib/citations";
+import { chipLabel, sourceClass, sourceClassLabel } from "@/lib/citations";
 import type { Attachment, ChatMessage, Signal, SignalWithReadings } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
@@ -31,6 +31,7 @@ export function SignalDetail({
   readOnly = false,
   supersededBy = null,
   lineage = null,
+  overlapsWith = null,
 }: {
   signal: SignalWithReadings;
   signalsById: Map<string, Signal>;
@@ -44,6 +45,8 @@ export function SignalDetail({
   supersededBy?: string | null;
   /** For an active replacement: its retired predecessor, openable. */
   lineage?: { name: string; onOpen: () => void } | null;
+  /** Keep-both pair: the other active signal this one overlaps with. */
+  overlapsWith?: { name: string; onOpen: () => void } | null;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -294,6 +297,17 @@ export function SignalDetail({
             </button>
           )}
 
+          {overlapsWith && (
+            <button
+              onClick={overlapsWith.onOpen}
+              title="You chose to keep both — the desk will propose one merged signal if they keep reading the same evidence"
+              className="w-full text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[11px] text-warn transition-colors"
+            >
+              ⇄ Knowingly kept alongside <span className="font-semibold">“{overlapsWith.name}”</span>
+              <span className="opacity-80"> — watch for overlap · open it</span>
+            </button>
+          )}
+
           <section>
             <p className={sectionTitle}>Why we track this</p>
             <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed">{signal.thesis}</p>
@@ -323,6 +337,22 @@ export function SignalDetail({
                       <a href={src.url} target="_blank" rel="noreferrer" className="font-semibold text-accent/90 hover:underline">
                         {src.domain}
                       </a>
+                      <span
+                        className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
+                          sourceClass(src) === "company"
+                            ? "bg-warn/12 text-warn/90"
+                            : "bg-white/6 text-muted"
+                        }`}
+                        title={
+                          sourceClass(src) === "company"
+                            ? "Company-controlled source — management's own account; corroborate independently"
+                            : sourceClass(src) === "regulator"
+                              ? "Regulator filing or notice"
+                              : "Independent source"
+                        }
+                      >
+                        {sourceClassLabel(sourceClass(src))}
+                      </span>
                       <button
                         onClick={() => setFilterUrl((u) => (u === src.url ? null : src.url))}
                         title={filterUrl === src.url ? "Stop tracing this source" : `Show the ${src.count} reading${src.count === 1 ? "" : "s"} citing this source`}
@@ -358,6 +388,9 @@ export function SignalDetail({
                     <span className="text-accent">
                       · {filteredHistory.length} of {signal.history.length} citing{" "}
                       {tracedSource ? chipLabel(tracedSource, sources) : "this source"}
+                      {tracedSource && (
+                        <span className="text-muted"> ({sourceClassLabel(sourceClass(tracedSource))})</span>
+                      )}
                     </span>{" "}
                     <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-[#c7c7cc] underline underline-offset-2">
                       clear
