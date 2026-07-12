@@ -1,0 +1,41 @@
+import { NextResponse } from "next/server";
+import { listDividends } from "@/lib/db";
+import { applyDividend, pendingDividends } from "@/lib/orders";
+
+export const maxDuration = 60;
+
+export async function GET() {
+  const applied = await listDividends();
+  const pending = await pendingDividends(new Set(applied.map((d) => `${d.symbol}|${d.exDate}`)));
+  return NextResponse.json({ pending, applied });
+}
+
+/**
+ * Apply detected dividends into the book — one ({symbol, exDate}) or all
+ * ({all: true}). Cash receipt, plus a DRIP reinvestment buy when the symbol's
+ * DRIP setting is on. Human-confirmed, like everything else that changes
+ * the ledger.
+ */
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as {
+    symbol?: string;
+    exDate?: string;
+    all?: boolean;
+  };
+  const applied = await listDividends();
+  const pending = await pendingDividends(new Set(applied.map((d) => `${d.symbol}|${d.exDate}`)));
+
+  const targets = body.all
+    ? pending
+    : pending.filter(
+        (p) => p.symbol === String(body.symbol ?? "").toUpperCase() && p.exDate === body.exDate
+      );
+  if (targets.length === 0) {
+    return NextResponse.json({ error: "No matching pending dividend." }, { status: 404 });
+  }
+  let count = 0;
+  for (const p of targets) {
+    if (await applyDividend(p)) count++;
+  }
+  return NextResponse.json({ applied: count });
+}

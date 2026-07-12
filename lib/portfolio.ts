@@ -1,4 +1,4 @@
-import { listTrades } from "./db";
+import { dripEnabled, listDividends, listOpenOrders, listOrderHistory, listTrades } from "./db";
 import {
   getDailyCloses,
   getFxCloses,
@@ -6,6 +6,7 @@ import {
   getOptionMark,
   getPriceQuote,
 } from "./market";
+import { pendingDividends } from "./orders";
 import {
   buildPositions,
   computeSeries,
@@ -15,6 +16,7 @@ import {
   type SeriesInputs,
 } from "./portfolio-math";
 import type {
+  DividendReceipt,
   PortfolioPayload,
   PortfolioSummary,
   Position,
@@ -107,7 +109,11 @@ async function valueAll(trades: Trade[]): Promise<{ valued: ValuedPosition[]; un
   return { valued, unpriced };
 }
 
-async function seriesInputs(trades: Trade[], valued: ValuedPosition[]): Promise<SeriesInputs> {
+async function seriesInputs(
+  trades: Trade[],
+  valued: ValuedPosition[],
+  dividends: DividendReceipt[] = []
+): Promise<SeriesInputs> {
   if (trades.length === 0) {
     return { trades, closes: new Map(), fx: new Map(), currencyOf: new Map() };
   }
@@ -134,14 +140,35 @@ async function seriesInputs(trades: Trade[], valued: ValuedPosition[]): Promise<
 
   const liveMarks = new Map<string, number>();
   for (const v of valued) if (v.mark != null) liveMarks.set(v.key, v.mark);
-  return { trades, closes, fx, currencyOf, liveMarks };
+  const cashEvents = dividends.map((d) => ({
+    date: d.exDate,
+    amount: d.amount,
+    currency: d.currency,
+  }));
+  return { trades, closes, fx, currencyOf, liveMarks, cashEvents };
 }
 
 /** The full portfolio payload for /api/portfolio. */
 export async function computePortfolio(): Promise<PortfolioPayload> {
-  const trades = await listTrades();
+  const [trades, dividends, openOrders, orderHistory] = await Promise.all([
+    listTrades(),
+    listDividends(),
+    listOpenOrders(),
+    listOrderHistory(),
+  ]);
   const { valued, unpriced } = await valueAll(trades);
-  const series = computeSeries(await seriesInputs(trades, valued));
+  const series = computeSeries(await seriesInputs(trades, valued, dividends));
+
+  // Detected-but-unapplied dividends and per-symbol DRIP settings for the UI.
+  const appliedKeys = new Set(dividends.map((d) => `${d.symbol}|${d.exDate}`));
+  const pending = await pendingDividends(appliedKeys).catch(() => []);
+  const heldSymbols = [...new Set(valued.filter((v) => v.kind === "stock" && v.qty !== 0).map((v) => v.symbol))];
+  const drip: Record<string, boolean> = {};
+  await Promise.all(
+    heldSymbols.map(async (s) => {
+      drip[s] = await dripEnabled(s);
+    })
+  );
 
   const openPositions = valued.filter((v) => v.qty !== 0);
   const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
@@ -149,6 +176,10 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
   const costBasis = sum(openPositions.map((v) => v.qty * v.avgCost * v.multiplier * v.fxToUsd));
   const unrealized = sum(openPositions.map((v) => (v.unrealized ?? 0) * v.fxToUsd));
   const realized = sum(valued.map((v) => v.realized * v.fxToUsd));
+  const fxOf = new Map(valued.map((v) => [v.symbol, v.fxToUsd] as const));
+  const dividendsUsd = sum(
+    dividends.map((d) => d.amount * (d.currency === "USD" ? 1 : (fxOf.get(d.symbol) ?? 1)))
+  );
   const last = series[series.length - 1];
   const prev = series[series.length - 2];
   const nonUsd = new Set(openPositions.filter((v) => v.currency !== "USD").map((v) => v.currency));
@@ -158,7 +189,8 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     costBasis,
     unrealized,
     realized,
-    totalPnl: unrealized + realized,
+    dividends: dividendsUsd,
+    totalPnl: unrealized + realized + dividendsUsd,
     dayChange: last && prev ? Math.round((last.pnl - prev.pnl) * 100) / 100 : null,
     currencyNote:
       nonUsd.size > 0
@@ -179,6 +211,11 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
     stocks,
     options,
     trades: [...trades].reverse(),
+    openOrders,
+    orderHistory,
+    pendingDividends: pending,
+    dividends,
+    drip,
     unpriced,
   };
 }

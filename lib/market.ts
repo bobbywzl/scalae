@@ -143,6 +143,39 @@ export async function getDailyCloses(
   });
 }
 
+/**
+ * Dividend events (ex-date, per-share amount) since `fromISO`, ascending.
+ * Cached long — dividend calendars move slowly.
+ */
+export async function getDividendEvents(
+  symbol: string,
+  fromISO: string
+): Promise<{ date: string; amount: number }[]> {
+  return cached(`dv:${symbol}:${fromISO}`, 6 * 3600_000, async () => {
+    try {
+      const c = await yf.chart(symbol, {
+        period1: new Date(fromISO),
+        interval: "1d",
+        events: "div",
+      });
+      const divs = (c as { events?: { dividends?: { date: Date | number; amount: number }[] } })
+        .events?.dividends;
+      if (!divs) return [];
+      return divs
+        .filter((d) => typeof d.amount === "number" && Number.isFinite(d.amount) && d.amount > 0)
+        .map((d) => ({
+          date: new Date(typeof d.date === "number" ? d.date * 1000 : d.date)
+            .toISOString()
+            .slice(0, 10),
+          amount: d.amount,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    } catch {
+      return [];
+    }
+  });
+}
+
 /** Live CUR→USD rate (1 for USD; null if unavailable). */
 export async function getFxRate(currency: string): Promise<number | null> {
   if (!currency || currency.toUpperCase() === "USD") return 1;
