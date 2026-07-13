@@ -94,16 +94,6 @@ export default function WatchlistPage() {
             </p>
           </div>
           <div className="shrink-0 mt-5 flex items-center gap-2">
-            {me?.user && me.user.role === "admin" && (
-              <Link
-                href="/admin"
-                title="Admin — all accounts across the app"
-                className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-white/25 hover:bg-white/4 px-3 py-2 transition-colors"
-              >
-                <span className="text-accent text-sm leading-none">⌘</span>
-                <span className="text-xs font-semibold">Admin</span>
-              </Link>
-            )}
             {(rows?.length ?? 0) >= 2 && (
               <Link
                 href="/compare"
@@ -127,22 +117,41 @@ export default function WatchlistPage() {
               <span className="text-xs font-semibold">Portfolio</span>
             </Link>
             {me?.authEnabled && me.user && (
-              <a
-                href="/api/auth/logout"
-                title={`${me.user.name} (${me.user.email}) — sign out`}
-                className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-loss/40 px-2.5 py-2 transition-colors group"
+              <Link
+                href="/settings"
+                title={`${me.user.name} (${me.user.email}) — profile`}
+                className="flex items-center rounded-xl bg-card border border-hairline hover:border-white/25 hover:bg-white/4 p-2 transition-colors"
               >
                 {me.user.picture ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={me.user.picture} alt="" className="h-5 w-5 rounded-full" />
+                  <img src={me.user.picture} alt="Profile" className="h-5 w-5 rounded-full" />
                 ) : (
                   <span className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center text-[10px]">
                     {me.user.name[0]?.toUpperCase()}
                   </span>
                 )}
-                <span className="text-xs text-muted group-hover:text-loss transition-colors">
-                  Sign out
-                </span>
+              </Link>
+            )}
+            <Link
+              href="/settings"
+              title="Settings"
+              className="flex items-center rounded-xl bg-card border border-hairline hover:border-white/25 hover:bg-white/4 p-2 transition-colors text-muted hover:text-foreground"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-label="Settings">
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="2" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.12-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.85a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10.05 3V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01c.26.62.86 1.03 1.53 1.03H21a2 2 0 1 1 0 4h-.09c-.67 0-1.27.4-1.51 1.03Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            {me?.authEnabled && me.user && (
+              <a
+                href="/api/auth/logout"
+                title="Sign out"
+                className="flex items-center rounded-xl bg-card border border-hairline hover:border-loss/40 p-2 transition-colors text-muted hover:text-loss"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-label="Sign out">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </a>
             )}
           </div>
