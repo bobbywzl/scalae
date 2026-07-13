@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { fillDecision, validateOrder } from "@/lib/order-math";
 import type { SearchHit } from "@/lib/market";
 import type { Order, OptionType, OrderTif, OrderType, RichQuote, TradeKind, TradeSide } from "@/lib/types";
+import type { TFunc, TKey } from "@/lib/i18n/dictionaries";
 import { QuoteCard } from "./QuoteCard";
-import { api } from "./util";
+import { useT } from "./PrefsProvider";
+import { api, localizeError } from "./util";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -32,7 +34,7 @@ function Toggle<T extends string>({
           type="button"
           onClick={() => onChange(o.v)}
           className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors ${
-            value === o.v ? "bg-white/12 text-foreground" : "text-muted hover:text-[#c7c7cc]"
+            value === o.v ? "bg-ink/12 text-foreground" : "text-muted hover:text-emph"
           }`}
         >
           {o.label}
@@ -42,19 +44,41 @@ function Toggle<T extends string>({
   );
 }
 
-const ORDER_TYPE_LABEL: Record<OrderType, string> = {
-  market: "Market",
-  limit: "Limit",
-  stop: "Stop",
-  stop_limit: "Stop-limit",
+const ORDER_TYPE_KEY = {
+  market: "trade.typeMarket",
+  limit: "trade.typeLimit",
+  stop: "trade.typeStop",
+  stop_limit: "trade.typeStopLimit",
+} as const satisfies Record<OrderType, TKey>;
+
+const ORDER_TYPE_HINT_KEY = {
+  market: "trade.hintMarket",
+  limit: "trade.hintLimit",
+  stop: "trade.hintStop",
+  stop_limit: "trade.hintStopLimit",
+} as const satisfies Record<OrderType, TKey>;
+
+/**
+ * validateOrder() phrases (identical on client and server) mapped to the UI
+ * language; anything unrecognized falls through to localizeError / raw text.
+ */
+const VALIDATION_KEY: Record<string, TKey> = {
+  "quantity is implausibly large": "trade.valQtyHuge",
+  "limitPrice must be > 0 for limit orders": "trade.valLimitRequired",
+  "stopPrice must be > 0 for stop orders": "trade.valStopRequired",
+  "buy stop-limit: limit must be at or above the stop (or the order can never fill)": "trade.valBuyStopLimit",
+  "sell stop-limit: limit must be at or below the stop (or the order can never fill)": "trade.valSellStopLimit",
 };
 
-const ORDER_TYPE_HINT: Record<OrderType, string> = {
-  market: "Fills immediately at the live market price.",
-  limit: "Fills only at your limit price or better.",
-  stop: "Becomes a market order once the stop price trades.",
-  stop_limit: "Once the stop triggers, fills only at your limit or better.",
-};
+const NO_LIVE_MARKET_RX = /^No live market price for (\S+) — check the symbol, or record the trade manually\.$/;
+
+function localizeTradeMsg(msg: string, t: TFunc): string {
+  const key = VALIDATION_KEY[msg];
+  if (key) return t(key);
+  const m = msg.match(NO_LIVE_MARKET_RX);
+  if (m) return t("trade.errNoLiveMarket", { sym: m[1] });
+  return localizeError(msg, t);
+}
 
 /**
  * Brokerage-style ticket: place a paper order (market / limit / stop /
@@ -93,6 +117,7 @@ export function TradeForm({
     openOrders: { symbol: string }[];
   } | null;
 }) {
+  const { t } = useT();
   const [mode, setMode] = useState<"order" | "record">(initialMode ?? "order");
 
   // Shared: ticker + live quote
@@ -275,7 +300,7 @@ export function TradeForm({
       setPlaced(order);
       setReview(false);
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Failed to place order");
+      setOrderError(e instanceof Error ? localizeTradeMsg(e.message, t) : t("trade.errPlaceFailed"));
       setReview(false);
     } finally {
       setPlacing(false);
@@ -302,7 +327,7 @@ export function TradeForm({
       });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save trade");
+      setError(e instanceof Error ? localizeTradeMsg(e.message, t) : t("trade.errSaveTradeFailed"));
     } finally {
       setBusy(false);
     }
@@ -340,30 +365,30 @@ export function TradeForm({
       <div className="rounded-2xl bg-card border border-hairline p-4 space-y-3">
         <div className={`rounded-xl px-4 py-3 border ${filled ? "border-gain/30 bg-gain/8" : "border-accent/30 bg-accent/8"}`}>
           <p className="text-sm font-semibold">
-            {filled ? "✓ Order filled" : "◷ Order working"}
+            {filled ? t("trade.orderFilled") : t("trade.orderWorking")}
           </p>
-          <p className="text-xs text-[#c7c7cc] mt-1">
-            {placed.side.toUpperCase()} {placed.quantity.toLocaleString()} {placed.symbol} —{" "}
-            {ORDER_TYPE_LABEL[placed.orderType]}
-            {placed.orderType !== "market" && ` · ${placed.tif.toUpperCase()}`}
+          <p className="text-xs text-emph mt-1">
+            {t(placed.side === "buy" ? "trade.buy" : "trade.sell").toUpperCase()}{" "}
+            {placed.quantity.toLocaleString()} {placed.symbol} —{" "}
+            {t(ORDER_TYPE_KEY[placed.orderType])}
+            {placed.orderType !== "market" &&
+              ` · ${t(placed.tif === "gtc" ? "trade.tifGtc" : "trade.tifDay").toUpperCase()}`}
           </p>
           {filled ? (
-            <p className="text-xs text-[#c7c7cc] mt-0.5 tabular-nums">
-              Simulated fill at {placed.fillPrice != null ? fmtMoney(placed.fillPrice, currency) : "market"} — recorded in
-              your ledger.
+            <p className="text-xs text-emph mt-0.5 tabular-nums">
+              {t("trade.simFilledAt", {
+                price: placed.fillPrice != null ? fmtMoney(placed.fillPrice, currency) : t("trade.marketWord"),
+              })}
             </p>
           ) : (
-            <p className="text-xs text-muted mt-0.5">
-              Fills automatically when the live price crosses your trigger — checked whenever the
-              portfolio refreshes. Cancel any time from Open orders.
-            </p>
+            <p className="text-xs text-muted mt-0.5">{t("trade.workingDesc")}</p>
           )}
         </div>
         <button
           onClick={onSaved}
           className="w-full rounded-lg bg-accent text-white text-sm font-semibold py-2 transition-colors"
         >
-          Done
+          {t("trade.done")}
         </button>
       </div>
     );
@@ -375,8 +400,8 @@ export function TradeForm({
         <div className="flex rounded-lg bg-card2 border border-hairline p-0.5">
           {(
             [
-              { v: "order", label: "Place order" },
-              { v: "record", label: "Record past trade" },
+              { v: "order", label: t("trade.modeOrder") },
+              { v: "record", label: t("trade.modeRecord") },
             ] as const
           ).map((o) => (
             <button
@@ -384,21 +409,21 @@ export function TradeForm({
               type="button"
               onClick={() => setMode(o.v)}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                mode === o.v ? "bg-white/12 text-foreground" : "text-muted hover:text-[#c7c7cc]"
+                mode === o.v ? "bg-ink/12 text-foreground" : "text-muted hover:text-emph"
               }`}
             >
               {o.label}
             </button>
           ))}
         </div>
-        <button onClick={onCancel} className="text-[11px] text-muted hover:text-[#c7c7cc]">
-          Cancel
+        <button onClick={onCancel} className="text-[11px] text-muted hover:text-emph">
+          {t("common.cancel")}
         </button>
       </div>
 
       {/* Ticker (shared) */}
       <div ref={boxRef} className="relative">
-        <p className={label}>Ticker</p>
+        <p className={label}>{t("trade.ticker")}</p>
         <input
           value={symbol}
           onChange={(e) => {
@@ -406,7 +431,7 @@ export function TradeForm({
             setSymbol(e.target.value);
           }}
           onFocus={() => hits.length && setShowHits(true)}
-          placeholder="AAPL, PDD, 9983.T…"
+          placeholder={t("trade.tickerPlaceholder")}
           className={`${field} mt-1 uppercase`}
         />
         {showHits && hits.length > 0 && (
@@ -419,7 +444,7 @@ export function TradeForm({
                   setSymbol(h.symbol);
                   setShowHits(false);
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/6 text-left"
+                className="w-full flex items-center justify-between px-3 py-2 hover:bg-ink/6 text-left"
               >
                 <span>
                   <span className="font-semibold text-sm">{h.symbol}</span>
@@ -444,25 +469,27 @@ export function TradeForm({
         />
       ) : quoteBusy ? (
         <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted pulse-soft">
-          Fetching quote…
+          {t("trade.fetchingQuote")}
         </div>
       ) : symbol.trim().length > 0 ? (
         <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted">
-          No live quote for “{symbol.trim().toUpperCase()}” yet — pick a ticker from the search results.
+          {t("trade.noQuoteYet", { sym: symbol.trim().toUpperCase() })}
         </div>
       ) : null}
 
       {/* Your standing in this name, front and center while you trade it. */}
       {heldPos && heldPos.avgCost > 0 && (
-        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-2 text-[11px] text-[#c7c7cc] tabular-nums flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wider text-muted">Your position</span>
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-2 text-[11px] text-emph tabular-nums flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted">{t("trade.yourPosition")}</span>
           <span>
-            {heldPos.qty < 0 ? "short " : ""}
-            {Math.abs(heldPos.qty).toLocaleString()} sh @ {fmtMoney(heldPos.avgCost, heldPos.currency)} avg
+            {t(heldPos.qty < 0 ? "trade.posShort" : "trade.posLong", {
+              n: Math.abs(heldPos.qty).toLocaleString(),
+              price: fmtMoney(heldPos.avgCost, heldPos.currency),
+            })}
           </span>
           {workingOrders > 0 && (
             <span className="text-muted">
-              · {workingOrders} working order{workingOrders === 1 ? "" : "s"}
+              · {t(workingOrders === 1 ? "trade.workingOrdersOne" : "trade.workingOrdersMany", { n: workingOrders })}
             </span>
           )}
         </div>
@@ -473,45 +500,53 @@ export function TradeForm({
           /* ---------------- Review step ---------------- */
           <div className="space-y-3">
             <div className="rounded-xl bg-card2 border border-hairline px-4 py-3 space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted">Review order</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted">{t("trade.reviewOrder")}</p>
               <p className="text-sm font-semibold">
-                <span className={side === "buy" ? "text-gain" : "text-loss"}>{side.toUpperCase()}</span>{" "}
-                {shares.toLocaleString()} {symbol.trim().toUpperCase()} — {ORDER_TYPE_LABEL[orderType]}
-                {orderType !== "market" && <span className="text-muted font-normal"> · {tif.toUpperCase()}</span>}
+                <span className={side === "buy" ? "text-gain" : "text-loss"}>
+                  {t(side === "buy" ? "trade.buy" : "trade.sell").toUpperCase()}
+                </span>{" "}
+                {shares.toLocaleString()} {symbol.trim().toUpperCase()} — {t(ORDER_TYPE_KEY[orderType])}
+                {orderType !== "market" && (
+                  <span className="text-muted font-normal">
+                    {" "}
+                    · {t(tif === "gtc" ? "trade.tifGtc" : "trade.tifDay").toUpperCase()}
+                  </span>
+                )}
               </p>
               {needsStop && stopPrice != null && (
-                <p className="text-xs text-[#c7c7cc] tabular-nums">Stop {fmtMoney(stopPrice, currency)}</p>
+                <p className="text-xs text-emph tabular-nums">{t("trade.stopAt", { price: fmtMoney(stopPrice, currency) })}</p>
               )}
               {needsLimit && limitPrice != null && (
-                <p className="text-xs text-[#c7c7cc] tabular-nums">Limit {fmtMoney(limitPrice, currency)}</p>
+                <p className="text-xs text-emph tabular-nums">{t("trade.limitAt", { price: fmtMoney(limitPrice, currency) })}</p>
               )}
               {estTotal != null && (
-                <p className="text-xs text-[#c7c7cc] tabular-nums">
-                  Estimated {side === "buy" ? "cost" : "proceeds"}: {fmtMoney(estTotal, currency)}
-                  {orderType === "market" && <span className="text-muted"> (at live market — final price may differ)</span>}
+                <p className="text-xs text-emph tabular-nums">
+                  {t(side === "buy" ? "trade.reviewEstCost" : "trade.reviewEstProceeds", {
+                    amount: fmtMoney(estTotal, currency),
+                  })}
+                  {orderType === "market" && <span className="text-muted"> {t("trade.liveMarketMayDiffer")}</span>}
                 </p>
               )}
               {marketable && (
-                <p className="text-[11px] text-warn">
-                  ⚡ Marketable — the live price already satisfies this order, so it will fill immediately.
-                </p>
+                <p className="text-[11px] text-warn">{t("trade.marketableReview")}</p>
               )}
               {side === "buy" && cashUsd != null && currency === "USD" && estTotal != null && (
                 <p className={`text-[11px] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
-                  Cash available: {fmtMoney(cashUsd, "USD")}
-                  {estTotal > cashUsd &&
-                    " — this order exceeds it (the book records it anyway; no margin is modeled)."}
+                  {t("trade.cashAvailable", { amount: fmtMoney(cashUsd, "USD") })}
+                  {estTotal > cashUsd && ` ${t("trade.cashExceeds")}`}
                 </p>
               )}
               {weightPreview && (
                 <p className="text-[11px] text-muted tabular-nums">
-                  Position weight ≈ {weightPreview.now.toFixed(1)}% → {weightPreview.after.toFixed(1)}%
-                  of the book
+                  {t("trade.weightPreview", {
+                    now: weightPreview.now.toFixed(1),
+                    after: weightPreview.after.toFixed(1),
+                  })}
                 </p>
               )}
               {oversell && (
                 <p className="text-[11px] text-warn">
-                  ⚠ Sells more than you hold — fills open{heldPos && heldPos.qty > 0 ? " a" : "/extend a"} short.
+                  {t(heldPos && heldPos.qty > 0 ? "trade.oversellReviewOpen" : "trade.oversellReviewExtend")}
                 </p>
               )}
             </div>
@@ -521,17 +556,17 @@ export function TradeForm({
                 onClick={place}
                 disabled={placing}
                 className={`flex-1 rounded-lg text-white text-sm font-semibold py-2 transition-colors disabled:opacity-60 ${
-                  side === "buy" ? "bg-gain/80 hover:bg-gain/90 text-black" : "bg-loss/80 hover:bg-loss/90"
+                  side === "buy" ? "bg-gain/80 hover:bg-gain/90 text-chipfg" : "bg-loss/80 hover:bg-loss/90"
                 }`}
               >
-                {placing ? "Placing…" : `Place ${side} order`}
+                {placing ? t("trade.placing") : t(side === "buy" ? "trade.placeBuyOrder" : "trade.placeSellOrder")}
               </button>
               <button
                 onClick={() => setReview(false)}
                 disabled={placing}
-                className="rounded-lg bg-white/8 hover:bg-white/12 text-sm font-medium px-4 py-2 transition-colors"
+                className="rounded-lg bg-ink/8 hover:bg-ink/12 text-sm font-medium px-4 py-2 transition-colors"
               >
-                Edit
+                {t("common.edit")}
               </button>
             </div>
           </div>
@@ -540,31 +575,31 @@ export function TradeForm({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className={label}>Side</p>
+                <p className={label}>{t("trade.side")}</p>
                 <div className="mt-1">
                   <Toggle
                     value={side}
                     options={[
-                      { v: "buy", label: "Buy" },
-                      { v: "sell", label: "Sell" },
+                      { v: "buy", label: t("trade.buy") },
+                      { v: "sell", label: t("trade.sell") },
                     ]}
                     onChange={setSide}
                   />
                 </div>
               </div>
               <div>
-                <p className={label}>Time in force</p>
+                <p className={label}>{t("trade.timeInForce")}</p>
                 <div className="mt-1">
                   {orderType === "market" ? (
                     <div className="rounded-lg bg-card2 border border-hairline px-2.5 py-1.5 text-xs text-muted">
-                      Immediate
+                      {t("trade.tifImmediate")}
                     </div>
                   ) : (
                     <Toggle
                       value={tif}
                       options={[
-                        { v: "gtc", label: "GTC" },
-                        { v: "day", label: "Day" },
+                        { v: "gtc", label: t("trade.tifGtc") },
+                        { v: "day", label: t("trade.tifDay") },
                       ]}
                       onChange={setTif}
                     />
@@ -574,25 +609,25 @@ export function TradeForm({
             </div>
 
             <div>
-              <p className={label}>Order type</p>
+              <p className={label}>{t("trade.orderType")}</p>
               <div className="mt-1">
                 <Toggle
                   value={orderType}
-                  options={(Object.keys(ORDER_TYPE_LABEL) as OrderType[]).map((v) => ({
+                  options={(Object.keys(ORDER_TYPE_KEY) as OrderType[]).map((v) => ({
                     v,
-                    label: ORDER_TYPE_LABEL[v],
+                    label: t(ORDER_TYPE_KEY[v]),
                   }))}
                   onChange={setOrderType}
                 />
               </div>
-              <p className="text-[10px] text-muted mt-1">{ORDER_TYPE_HINT[orderType]}</p>
+              <p className="text-[10px] text-muted mt-1">{t(ORDER_TYPE_HINT_KEY[orderType])}</p>
             </div>
 
             {(needsStop || needsLimit) && (
               <div className="grid grid-cols-2 gap-3">
                 {needsStop && (
                   <div>
-                    <p className={label}>Stop price · {currency}</p>
+                    <p className={label}>{t("trade.stopPrice")} · {currency}</p>
                     <input
                       inputMode="decimal"
                       value={stopStr}
@@ -604,7 +639,7 @@ export function TradeForm({
                 )}
                 {needsLimit && (
                   <div>
-                    <p className={label}>Limit price · {currency}</p>
+                    <p className={label}>{t("trade.limitPrice")} · {currency}</p>
                     <input
                       inputMode="decimal"
                       value={limitStr}
@@ -618,20 +653,22 @@ export function TradeForm({
             )}
             {(needsStop || needsLimit) && (
               <div className="-mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                <span className="text-muted">anchors:</span>
+                <span className="text-muted">{t("trade.anchors")}</span>
                 {(
                   [
-                    market != null ? { label: `market ${market}`, v: market } : null,
-                    heldPos && heldPos.avgCost > 0 ? { label: `your cost ${heldPos.avgCost}`, v: heldPos.avgCost } : null,
-                    quote?.wk52Low != null ? { label: `52w low ${quote.wk52Low}`, v: quote.wk52Low } : null,
-                    quote?.wk52High != null ? { label: `52w high ${quote.wk52High}`, v: quote.wk52High } : null,
+                    market != null ? { label: t("trade.anchorMarket", { v: market }), v: market } : null,
+                    heldPos && heldPos.avgCost > 0
+                      ? { label: t("trade.anchorCost", { v: heldPos.avgCost }), v: heldPos.avgCost }
+                      : null,
+                    quote?.wk52Low != null ? { label: t("trade.anchorLow", { v: quote.wk52Low }), v: quote.wk52Low } : null,
+                    quote?.wk52High != null ? { label: t("trade.anchorHigh", { v: quote.wk52High }), v: quote.wk52High } : null,
                   ].filter(Boolean) as { label: string; v: number }[]
                 ).map((a) => (
                   <button
                     key={a.label}
                     onClick={() => (needsLimit ? setLimitStr(String(a.v)) : setStopStr(String(a.v)))}
-                    title={needsLimit ? "Use as limit price" : "Use as stop price"}
-                    className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[#c7c7cc] tabular-nums transition-colors"
+                    title={needsLimit ? t("trade.useAsLimit") : t("trade.useAsStop")}
+                    className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-emph tabular-nums transition-colors"
                   >
                     {a.label}
                   </button>
@@ -641,12 +678,12 @@ export function TradeForm({
 
             <div className="grid grid-cols-[auto_1fr] gap-3 items-end">
               <div>
-                <p className={label}>Quantity in</p>
+                <p className={label}>{t("trade.quantityIn")}</p>
                 <div className="mt-1">
                   <Toggle
                     value={qtyMode}
                     options={[
-                      { v: "shares", label: "Shares" },
+                      { v: "shares", label: t("trade.sharesToggle") },
                       { v: "amount", label: currency },
                     ]}
                     onChange={setQtyMode}
@@ -654,7 +691,9 @@ export function TradeForm({
                 </div>
               </div>
               <div>
-                <p className={label}>{qtyMode === "shares" ? "Shares" : `Amount · ${currency}`}</p>
+                <p className={label}>
+                  {qtyMode === "shares" ? t("trade.sharesField") : `${t("trade.amountField")} · ${currency}`}
+                </p>
                 <input
                   inputMode="decimal"
                   value={qtyMode === "shares" ? qtyStr : amountStr}
@@ -668,16 +707,17 @@ export function TradeForm({
             </div>
             {qtyMode === "amount" && shares > 0 && (
               <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
-                ≈ {shares.toLocaleString()} shares at{" "}
-                {effPrice != null ? fmtMoney(effPrice, currency) : "market"}
-                {" "}(fractional supported)
+                {t("trade.approxShares", {
+                  n: shares.toLocaleString(),
+                  price: effPrice != null ? fmtMoney(effPrice, currency) : t("trade.marketWord"),
+                })}
               </p>
             )}
             {heldApplies && side === "sell" && (held as number) > 0 && (
               <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
-                You hold {(held as number).toLocaleString()} sh
+                {t("trade.youHold", { n: (held as number).toLocaleString() })}
                 {shares > (held as number) && (
-                  <span className="text-warn"> — selling more opens a short</span>
+                  <span className="text-warn"> {t("trade.sellMoreShort")}</span>
                 )}
                 {shares !== held && (
                   <button
@@ -688,16 +728,16 @@ export function TradeForm({
                     }}
                     className="ml-2 text-accent hover:opacity-80 font-medium"
                   >
-                    Sell all
+                    {t("trade.sellAll")}
                   </button>
                 )}
               </p>
             )}
             {heldApplies && side === "buy" && (held as number) < 0 && (
               <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
-                You’re short {Math.abs(held as number).toLocaleString()} sh
+                {t("trade.youreShort", { n: Math.abs(held as number).toLocaleString() })}
                 {shares > Math.abs(held as number) && (
-                  <span className="text-warn"> — buying more than that goes net long</span>
+                  <span className="text-warn"> {t("trade.buyMoreLong")}</span>
                 )}
                 {shares !== Math.abs(held as number) && (
                   <button
@@ -708,64 +748,62 @@ export function TradeForm({
                     }}
                     className="ml-2 text-accent hover:opacity-80 font-medium"
                   >
-                    Cover all
+                    {t("trade.coverAll")}
                   </button>
                 )}
               </p>
             )}
 
             <div>
-              <p className={label}>Note (optional)</p>
+              <p className={label}>{t("trade.noteOptional")}</p>
               <input
                 value={orderNote}
                 onChange={(e) => setOrderNote(e.target.value)}
-                placeholder="thesis, margin-of-safety math…"
+                placeholder={t("trade.orderNotePlaceholder")}
                 className={`${field} mt-1`}
               />
             </div>
 
             {estTotal != null && (
-              <p className="text-xs text-[#c7c7cc] tabular-nums">
-                Estimated {side === "buy" ? "cost" : "proceeds"}:{" "}
+              <p className="text-xs text-emph tabular-nums">
+                {t(side === "buy" ? "trade.estCost" : "trade.estProceeds")}{" "}
                 <span className="font-semibold">{fmtMoney(estTotal, currency)}</span>
-                {orderType === "market" && <span className="text-muted"> at live market</span>}
+                {orderType === "market" && <span className="text-muted"> {t("trade.atLiveMarket")}</span>}
               </p>
             )}
             {marketable && (
               <p className="text-[11px] text-warn">
-                ⚡ The live price already satisfies this {ORDER_TYPE_LABEL[orderType].toLowerCase()} — it
-                will fill immediately at market, like a marketable order at any broker.
+                {t("trade.marketableEntry", { type: t(ORDER_TYPE_KEY[orderType]).toLowerCase() })}
               </p>
             )}
             {oversell && (
               <p className="text-[11px] text-warn">
-                ⚠{" "}
                 {heldPos && heldPos.qty > 0
-                  ? `You hold ${heldPos.qty.toLocaleString()} shares — selling ${shares.toLocaleString()} opens a ${(shares - heldPos.qty).toLocaleString()}-share short.`
-                  : "You have no long position in this name — this sell opens or extends a short."}
+                  ? t("trade.oversellHeld", {
+                      held: heldPos.qty.toLocaleString(),
+                      n: shares.toLocaleString(),
+                      diff: (shares - heldPos.qty).toLocaleString(),
+                    })
+                  : t("trade.oversellNone")}
               </p>
             )}
             {typeof validation === "string" && validation !== "incomplete" && (
-              <p className="text-[11px] text-loss">{validation}</p>
+              <p className="text-[11px] text-loss">{localizeTradeMsg(validation, t)}</p>
             )}
             {market == null && symbol.trim() !== "" && !quoteBusy && (
-              <p className="text-[11px] text-muted">
-                Orders need a live quote — no market data for this symbol. Use “Record past trade”
-                instead.
-              </p>
+              <p className="text-[11px] text-muted">{t("trade.needLiveQuote")}</p>
             )}
 
             <button
               onClick={() => setReview(true)}
               disabled={!canReview}
-              className="w-full rounded-lg bg-accent disabled:bg-white/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
+              className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
             >
-              Review {side} order — {symbol.trim().toUpperCase() || "…"}
+              {t(side === "buy" ? "trade.reviewBuyOrder" : "trade.reviewSellOrder", {
+                sym: symbol.trim().toUpperCase() || "…",
+              })}
             </button>
-            <p className="text-[10px] text-muted/70">
-              Paper execution: fills are simulated against live quotes when your portfolio refreshes —
-              options and off-market fills go in via “Record past trade”.
-            </p>
+            <p className="text-[10px] text-muted/70">{t("trade.paperNote")}</p>
           </div>
         )
       ) : (
@@ -773,26 +811,26 @@ export function TradeForm({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className={label}>Instrument</p>
+              <p className={label}>{t("trade.instrument")}</p>
               <div className="mt-1">
                 <Toggle
                   value={kind}
                   options={[
-                    { v: "stock", label: "Stock" },
-                    { v: "option", label: "Option" },
+                    { v: "stock", label: t("trade.stock") },
+                    { v: "option", label: t("trade.option") },
                   ]}
                   onChange={setKind}
                 />
               </div>
             </div>
             <div>
-              <p className={label}>Side</p>
+              <p className={label}>{t("trade.side")}</p>
               <div className="mt-1">
                 <Toggle
                   value={side}
                   options={[
-                    { v: "buy", label: "Buy" },
-                    { v: "sell", label: "Sell" },
+                    { v: "buy", label: t("trade.buy") },
+                    { v: "sell", label: t("trade.sell") },
                   ]}
                   onChange={setSide}
                 />
@@ -801,7 +839,7 @@ export function TradeForm({
           </div>
 
           <div>
-            <p className={label}>Trade date</p>
+            <p className={label}>{t("trade.tradeDate")}</p>
             <input
               type="date"
               value={tradeDate}
@@ -814,20 +852,20 @@ export function TradeForm({
           {kind === "option" && (
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <p className={label}>Type</p>
+                <p className={label}>{t("trade.optionType")}</p>
                 <div className="mt-1">
                   <Toggle
                     value={optionType}
                     options={[
-                      { v: "call", label: "Call" },
-                      { v: "put", label: "Put" },
+                      { v: "call", label: t("trade.call") },
+                      { v: "put", label: t("trade.put") },
                     ]}
                     onChange={setOptionType}
                   />
                 </div>
               </div>
               <div>
-                <p className={label}>Strike</p>
+                <p className={label}>{t("trade.strike")}</p>
                 <input
                   inputMode="decimal"
                   value={strike}
@@ -837,7 +875,7 @@ export function TradeForm({
                 />
               </div>
               <div>
-                <p className={label}>Expiry</p>
+                <p className={label}>{t("trade.expiry")}</p>
                 <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} className={`${field} mt-1`} />
               </div>
             </div>
@@ -845,7 +883,7 @@ export function TradeForm({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <p className={label}>{kind === "option" ? "Contracts" : "Shares"}</p>
+              <p className={label}>{kind === "option" ? t("trade.contracts") : t("trade.sharesField")}</p>
               <input
                 inputMode="decimal"
                 value={quantity}
@@ -856,7 +894,7 @@ export function TradeForm({
             </div>
             <div>
               <p className={label}>
-                {kind === "option" ? "Premium / share" : "Price / share"}
+                {kind === "option" ? t("trade.premiumPerShare") : t("trade.pricePerShare")}
                 {quote && <span className="normal-case tracking-normal"> · {quote.currency}</span>}
               </p>
               <input
@@ -867,11 +905,11 @@ export function TradeForm({
                 className={`${field} mt-1 tabular-nums`}
               />
               {kind === "option" && (
-                <p className="text-[10px] text-muted mt-0.5">×100 per contract, in the ticker’s currency</p>
+                <p className="text-[10px] text-muted mt-0.5">{t("trade.perContractNote")}</p>
               )}
             </div>
             <div>
-              <p className={label}>Fees (optional)</p>
+              <p className={label}>{t("trade.feesOptional")}</p>
               <input
                 inputMode="decimal"
                 value={fees}
@@ -883,30 +921,36 @@ export function TradeForm({
           </div>
 
           <div>
-            <p className={label}>Note (optional)</p>
+            <p className={label}>{t("trade.noteOptional")}</p>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="thesis, broker, lot…"
+              placeholder={t("trade.recordNotePlaceholder")}
               className={`${field} mt-1`}
             />
           </div>
 
           {deviates && quote?.price != null && (
             <p className="text-warn text-[11px]">
-              ⚠ Entered price is far from the live market ({fmtMoney(quote.price, quote.currency)}) —
-              check units and currency before recording.
+              {t("trade.priceDeviates", { price: fmtMoney(quote.price, quote.currency) })}
             </p>
           )}
           {error && <p className="text-loss text-xs">{error}</p>}
           <button
             onClick={submitRecord}
             disabled={!canSubmitRecord || busy}
-            className="w-full rounded-lg bg-accent disabled:bg-white/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
+            className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
           >
             {busy
-              ? "Saving…"
-              : `Record ${side} — ${kind === "option" ? `${optionType} on ` : ""}${symbol.trim().toUpperCase() || "…"}`}
+              ? t("common.saving")
+              : t(side === "buy" ? "trade.recordBuy" : "trade.recordSell", {
+                  inst:
+                    kind === "option"
+                      ? t(optionType === "call" ? "trade.callOn" : "trade.putOn", {
+                          sym: symbol.trim().toUpperCase() || "…",
+                        })
+                      : symbol.trim().toUpperCase() || "…",
+                })}
           </button>
         </div>
       )}

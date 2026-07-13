@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Markdown } from "@/components/Markdown";
-import { api, DELTA_ARROW, fmtPct, fmtPrice, LEVEL_STYLE } from "@/components/util";
+import { useT } from "@/components/PrefsProvider";
+import { api, DELTA_ARROW, fmtPct, fmtPrice, LEVEL_STYLE, levelLabel, localizeError } from "@/components/util";
 import { dossierToMarkdown, linkCitations } from "@/lib/citations";
 import { pairSignals } from "@/lib/compare";
 import type { DeskPayload, SignalWithReadings, WatchlistRow } from "@/lib/types";
@@ -64,7 +65,8 @@ function pulse(desk: DeskPayload) {
 }
 
 function SignalCell({ s, onNavigate }: { s: SignalWithReadings | null; onNavigate?: string }) {
-  if (!s) return <div className="text-[11px] text-muted italic px-3 py-2">not tracked</div>;
+  const { t, locale } = useT();
+  if (!s) return <div className="text-[11px] text-muted italic px-3 py-2">{t("compare.notTracked")}</div>;
   const r = s.latest;
   const level = r ? LEVEL_STYLE[r.level] : null;
   const delta = r ? DELTA_ARROW[r.delta] : null;
@@ -74,24 +76,24 @@ function SignalCell({ s, onNavigate }: { s: SignalWithReadings | null; onNavigat
       <p className="mt-1 flex items-center gap-2 flex-wrap">
         {level && delta ? (
           <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${level.cls}`}>
-            {level.label} <span className={delta.cls}>{delta.ch}</span>
+            {levelLabel(r!.level, t)} <span className={delta.cls}>{delta.ch}</span>
           </span>
         ) : (
-          <span className="text-[10px] text-muted italic">awaiting first reading</span>
+          <span className="text-[10px] text-muted italic">{t("compare.awaitingFirstReading")}</span>
         )}
         {r?.value != null && (
-          <span className="text-[11px] tabular-nums text-[#c7c7cc]">
-            {r.value.toLocaleString()} {r.valueUnit ?? ""}
+          <span className="text-[11px] tabular-nums text-emph">
+            {r.value.toLocaleString(locale)} {r.valueUnit ?? ""}
           </span>
         )}
         {r?.newEvidence === false && (
-          <span className="text-[9px] uppercase tracking-wider text-muted/60">carry-fwd</span>
+          <span className="text-[9px] uppercase tracking-wider text-muted/60">{t("compare.carryFwd")}</span>
         )}
       </p>
     </>
   );
   return onNavigate ? (
-    <Link href={onNavigate} className="block px-3 py-2 hover:bg-white/4 transition-colors">
+    <Link href={onNavigate} className="block px-3 py-2 hover:bg-ink/4 transition-colors">
       {inner}
     </Link>
   ) : (
@@ -100,6 +102,7 @@ function SignalCell({ s, onNavigate }: { s: SignalWithReadings | null; onNavigat
 }
 
 export default function ComparePage() {
+  const { t } = useT();
   const [rows, setRows] = useState<WatchlistRow[]>([]);
   const [symA, setSymA] = useState<string | null>(null);
   const [symB, setSymB] = useState<string | null>(null);
@@ -151,7 +154,9 @@ export default function ComparePage() {
       setVerdict(verdict);
       setVerdictFor(`${symA}|${symB}`);
     } catch (e) {
-      setVerdictError(e instanceof Error ? e.message : "The comparison failed — try again.");
+      setVerdictError(
+        e instanceof Error ? localizeError(e.message, t) : t("common.errComparisonFailed")
+      );
     } finally {
       setVerdictBusy(false);
     }
@@ -164,7 +169,7 @@ export default function ComparePage() {
       className="rounded-lg bg-card2 border border-hairline px-2.5 py-1.5 text-sm font-semibold outline-none focus:border-accent/50 transition-colors"
     >
       <option value="" disabled>
-        Pick a desk…
+        {t("compare.pickDesk")}
       </option>
       {rows
         .filter((r) => r.ticker.symbol !== exclude)
@@ -185,26 +190,22 @@ export default function ComparePage() {
     <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
-          ‹ Watchlist
+          {t("common.backToWatchlist")}
         </Link>
         <div>
-          <h1 className="text-xl font-bold leading-tight">Compare desks</h1>
-          <p className="text-muted text-xs">
-            Weigh two businesses side by side — theses, matched signals, red flags.
-          </p>
+          <h1 className="text-xl font-bold leading-tight">{t("compare.title")}</h1>
+          <p className="text-muted text-xs">{t("compare.subtitle")}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {picker(symA, setSymA, symB)}
-          <span className="text-muted text-sm">vs</span>
+          <span className="text-muted text-sm">{t("compare.vs")}</span>
           {picker(symB, setSymB, symA)}
         </div>
       </header>
 
       {!deskA || !deskB ? (
         <p className="text-muted text-sm py-16 text-center">
-          {rows.length < 2
-            ? "Add and onboard at least two tickers to compare their desks."
-            : "Loading both desks…"}
+          {rows.length < 2 ? t("compare.needTwo") : t("compare.loadingBoth")}
         </p>
       ) : (
         <div className="mt-5 space-y-5">
@@ -228,7 +229,7 @@ export default function ComparePage() {
                           {fmtPrice(q.price, q.currency)}
                         </span>
                         <span
-                          className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums text-black ${up ? "bg-gain" : "bg-loss"}`}
+                          className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
                         >
                           {fmtPct(q.changePercent)}
                         </span>
@@ -236,21 +237,24 @@ export default function ComparePage() {
                     )}
                   </div>
                   <p className="mt-2 text-[11px] text-muted tabular-nums">
-                    mkt cap <span className="text-[#c7c7cc]">{fmtCap(q?.marketCap)}</span>
+                    {t("compare.mktCap")} <span className="text-emph">{fmtCap(q?.marketCap)}</span>
                     {q?.trailingPE != null && (
                       <>
                         {" "}
-                        · P/E <span className="text-[#c7c7cc]">{q.trailingPE.toFixed(1)}</span>
+                        · {t("compare.peRatio")} <span className="text-emph">{q.trailingPE.toFixed(1)}</span>
                       </>
                     )}
                     {" · "}
-                    <span className="text-gain">{p.good} strong/improving</span>
+                    <span className="text-gain">{t("compare.goodCount", { n: p.good })}</span>
                     {" · "}
-                    <span className={p.bad > 0 ? "text-loss" : "text-muted"}>{p.bad} weak/deteriorating</span>
+                    <span className={p.bad > 0 ? "text-loss" : "text-muted"}>
+                      {t("compare.badCount", { n: p.bad })}
+                    </span>
                     {p.conf != null && (
                       <>
                         {" "}
-                        · conf (fresh) <span className="text-[#c7c7cc]">{(p.conf * 100).toFixed(0)}%</span>
+                        · {t("compare.confFresh")}{" "}
+                        <span className="text-emph">{(p.conf * 100).toFixed(0)}%</span>
                       </>
                     )}
                   </p>
@@ -269,7 +273,7 @@ export default function ComparePage() {
             {sides.map(({ sym, desk }) => (
               <div key={sym} className="rounded-2xl bg-card border border-accent/20 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
-                  {sym} — the business, as the desk reads it
+                  {t("compare.thesisTitle", { sym: sym ?? "" })}
                 </p>
                 {desk?.latestRun?.dossier ? (
                   <div className="mt-2 text-sm">
@@ -282,9 +286,7 @@ export default function ComparePage() {
                     </Markdown>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted italic mt-2">
-                    No dossier yet — run research on this desk first.
-                  </p>
+                  <p className="text-xs text-muted italic mt-2">{t("compare.noDossier")}</p>
                 )}
               </div>
             ))}
@@ -295,42 +297,35 @@ export default function ComparePage() {
             <div className="flex items-center gap-3 flex-wrap">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
-                  Analyst verdict — opportunity cost
+                  {t("compare.verdictTitle")}
                 </p>
-                <p className="text-[11px] text-muted mt-0.5">
-                  Four filters in veto order, price last; kill lists compared; weighed on the desks’
-                  existing evidence only — run each desk’s research first for freshness.
-                </p>
+                <p className="text-[11px] text-muted mt-0.5">{t("compare.verdictDesc")}</p>
               </div>
               <button
                 onClick={runVerdict}
                 disabled={!canWeigh || verdictBusy}
                 title={
                   canWeigh
-                    ? `Weigh ${symA} against ${symB} as businesses`
-                    : "Both desks need a dossier or at least one read signal — run research first"
+                    ? t("compare.weighTitle", { a: symA ?? "", b: symB ?? "" })
+                    : t("compare.weighDisabledTitle")
                 }
-                className="ml-auto rounded-lg bg-accent hover:bg-accent/90 disabled:bg-white/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                className="ml-auto rounded-lg bg-accent hover:bg-accent/90 disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
               >
                 {verdictBusy
-                  ? "Weighing…"
+                  ? t("compare.weighing")
                   : verdict && verdictFor === pairKey
-                    ? "Weigh again"
-                    : `Weigh ${symA} vs ${symB}`}
+                    ? t("compare.weighAgain")
+                    : t("compare.weighPair", { a: symA ?? "", b: symB ?? "" })}
               </button>
             </div>
             {verdictError && <p className="mt-2 text-xs text-loss">{verdictError}</p>}
             {verdictBusy && (
-              <p className="mt-3 text-xs text-muted pulse-soft">
-                The analyst is weighing both boards — filters, moat mechanisms, kill lists…
-              </p>
+              <p className="mt-3 text-xs text-muted pulse-soft">{t("compare.weighingNote")}</p>
             )}
             {verdict && verdictFor === pairKey && !verdictBusy && (
               <div className="mt-3 text-sm border-t border-hairline pt-3">
                 <Markdown>{verdict}</Markdown>
-                <p className="mt-2 text-[10px] text-muted/60">
-                  Weighs the businesses, not the stocks — no trade advice; the decision stays yours.
-                </p>
+                <p className="mt-2 text-[10px] text-muted/60">{t("compare.verdictDisclaimer")}</p>
               </div>
             )}
           </section>
@@ -338,7 +333,7 @@ export default function ComparePage() {
           {/* Signals that read the same aspect of each business */}
           <section className="rounded-2xl bg-card border border-hairline overflow-hidden">
             <p className="px-4 pt-3 text-[10px] uppercase tracking-widest text-muted font-semibold">
-              Matched signals — same question, both businesses
+              {t("compare.matchedTitle")}
             </p>
             {matched && matched.pairs.length > 0 ? (
               <div className="mt-2 divide-y divide-hairline">
@@ -350,10 +345,7 @@ export default function ComparePage() {
                 ))}
               </div>
             ) : (
-              <p className="px-4 py-3 text-xs text-muted italic">
-                No overlapping signal themes — these desks ask different questions of their
-                businesses (that itself is worth knowing).
-              </p>
+              <p className="px-4 py-3 text-xs text-muted italic">{t("compare.noOverlap")}</p>
             )}
           </section>
 
@@ -366,10 +358,10 @@ export default function ComparePage() {
               ].map(({ sym, list }) => (
                 <div key={sym} className="rounded-2xl bg-card border border-hairline p-1 pb-2">
                   <p className="px-3 pt-2 text-[10px] uppercase tracking-widest text-muted font-semibold">
-                    Only the {sym} desk watches
+                    {t("compare.onlyDeskWatches", { sym: sym ?? "" })}
                   </p>
                   {list.length === 0 ? (
-                    <p className="px-3 py-2 text-[11px] text-muted italic">nothing unique</p>
+                    <p className="px-3 py-2 text-[11px] text-muted italic">{t("compare.nothingUnique")}</p>
                   ) : (
                     list.map((s) => <SignalCell key={s.id} s={s} onNavigate={`/t/${encodeURIComponent(sym!)}`} />)
                   )}
@@ -378,9 +370,7 @@ export default function ComparePage() {
             </section>
           )}
 
-          <p className="text-[10px] text-muted/60 text-center">
-            Signals are matched by thesis similarity — open a desk to see full evidence and history.
-          </p>
+          <p className="text-[10px] text-muted/60 text-center">{t("compare.matchNote")}</p>
         </div>
       )}
     </main>

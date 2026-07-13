@@ -1,6 +1,8 @@
 "use client";
 
 import { Sparkline } from "./Sparkline";
+import { useT } from "./PrefsProvider";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { RichQuote } from "@/lib/types";
 
 const cur$ = (c: string) => (c === "USD" ? "$" : c + " ");
@@ -14,13 +16,13 @@ const fmtInt = (v: number | null | undefined) =>
 const fmtCap = (v: number | null | undefined, c: string) =>
   v == null ? "—" : `${cur$(c)}${v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : (v / 1e6).toFixed(0) + "M"}`;
 
-const MARKET_STATE: Record<string, string> = {
-  REGULAR: "market open",
-  PRE: "pre-market",
-  POST: "after hours",
-  CLOSED: "market closed",
-  PREPRE: "pre-market",
-  POSTPOST: "after hours",
+const MARKET_STATE_KEY: Record<string, TKey> = {
+  REGULAR: "trade.stateOpen",
+  PRE: "trade.statePre",
+  POST: "trade.statePost",
+  CLOSED: "trade.stateClosed",
+  PREPRE: "trade.statePre",
+  POSTPOST: "trade.statePost",
 };
 
 /** Low–high range with a marker at the current price (Schwab-style). */
@@ -28,9 +30,9 @@ function RangeBar({ low, high, value }: { low: number | null; high: number | nul
   if (low == null || high == null || value == null || high <= low) return null;
   const f = Math.max(0, Math.min(1, (value - low) / (high - low)));
   return (
-    <span className="relative inline-block w-16 h-1 rounded-full bg-white/12 align-middle mx-1.5">
+    <span className="relative inline-block w-16 h-1 rounded-full bg-ink/12 align-middle mx-1.5">
       <span
-        className="absolute -top-[2.5px] h-2 w-2 rounded-full bg-[#c7c7cc] border border-card"
+        className="absolute -top-[2.5px] h-2 w-2 rounded-full bg-emph border border-card"
         style={{ left: `calc(${(f * 100).toFixed(1)}% - 4px)` }}
       />
     </span>
@@ -41,7 +43,7 @@ function Cell({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div className="min-w-0">
       <p className="text-[9px] uppercase tracking-wider text-muted">{label}</p>
-      <p className="text-[11px] tabular-nums text-[#e0e0e4] mt-px truncate">{children}</p>
+      <p className="text-[11px] tabular-nums text-emph mt-px truncate">{children}</p>
     </div>
   );
 }
@@ -57,16 +59,18 @@ export function QuoteCard({
   quote: RichQuote;
   onUsePrice?: (price: number) => void;
 }) {
+  const { t } = useT();
   const up = (q.changePercent ?? 0) >= 0;
   const c = q.currency;
-  const state = q.marketState ? (MARKET_STATE[q.marketState] ?? q.marketState.toLowerCase()) : null;
+  const stateKey = q.marketState ? MARKET_STATE_KEY[q.marketState] : undefined;
+  const state = q.marketState ? (stateKey ? t(stateKey) : q.marketState.toLowerCase()) : null;
 
-  const priceBtn = (label: string, v: number | null) =>
+  const priceBtn = (title: string, v: number | null) =>
     v != null && v > 0 && onUsePrice ? (
       <button
         type="button"
         onClick={() => onUsePrice(v)}
-        title={`Use ${label.toLowerCase()} price in the order`}
+        title={title}
         className="underline decoration-dotted underline-offset-2 hover:text-accent transition-colors"
       >
         {fmt(v)}
@@ -101,7 +105,7 @@ export function QuoteCard({
                 onClick={() => onUsePrice(q.price!)}
                 className="ml-2 rounded border border-accent/40 bg-accent/10 hover:bg-accent/20 px-1.5 py-px text-[10px] text-accent font-semibold transition-colors"
               >
-                use
+                {t("trade.usePrice")}
               </button>
             )}
           </p>
@@ -110,34 +114,34 @@ export function QuoteCard({
       </div>
 
       <div className="mt-2.5 grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2">
-        <Cell label="Bid × size">
-          {priceBtn("Bid", q.bid)}
+        <Cell label={t("trade.bidSize")}>
+          {priceBtn(t("trade.useBid"), q.bid)}
           {q.bidSize != null && <span className="text-muted"> ×{fmtInt(q.bidSize)}</span>}
         </Cell>
-        <Cell label="Ask × size">
-          {priceBtn("Ask", q.ask)}
+        <Cell label={t("trade.askSize")}>
+          {priceBtn(t("trade.useAsk"), q.ask)}
           {q.askSize != null && <span className="text-muted"> ×{fmtInt(q.askSize)}</span>}
         </Cell>
-        <Cell label="Day range">
+        <Cell label={t("trade.dayRange")}>
           {fmt(q.dayLow)}
           <RangeBar low={q.dayLow} high={q.dayHigh} value={q.price} />
           {fmt(q.dayHigh)}
         </Cell>
-        <Cell label="52-wk range">
+        <Cell label={t("trade.wk52Range")}>
           {fmt(q.wk52Low)}
           <RangeBar low={q.wk52Low} high={q.wk52High} value={q.price} />
           {fmt(q.wk52High)}
         </Cell>
-        <Cell label="Volume / avg">
+        <Cell label={t("trade.volumeAvg")}>
           {fmtInt(q.volume)}
           <span className="text-muted"> / {fmtInt(q.avgVolume)}</span>
         </Cell>
-        <Cell label="Mkt cap">{fmtCap(q.marketCap, c)}</Cell>
-        <Cell label="P/E (ttm)">{q.trailingPE != null ? q.trailingPE.toFixed(1) : "—"}</Cell>
-        <Cell label="EPS (ttm)">{fmt(q.epsTTM)}</Cell>
-        <Cell label="Div yield">{q.dividendYieldPct != null ? `${q.dividendYieldPct.toFixed(2)}%` : "—"}</Cell>
-        <Cell label="Prev close">{fmt(q.previousClose)}</Cell>
-        <Cell label="Open">{fmt(q.open)}</Cell>
+        <Cell label={t("trade.mktCap")}>{fmtCap(q.marketCap, c)}</Cell>
+        <Cell label={t("trade.peTtm")}>{q.trailingPE != null ? q.trailingPE.toFixed(1) : "—"}</Cell>
+        <Cell label={t("trade.epsTtm")}>{fmt(q.epsTTM)}</Cell>
+        <Cell label={t("trade.divYield")}>{q.dividendYieldPct != null ? `${q.dividendYieldPct.toFixed(2)}%` : "—"}</Cell>
+        <Cell label={t("trade.prevClose")}>{fmt(q.previousClose)}</Cell>
+        <Cell label={t("trade.open")}>{fmt(q.open)}</Cell>
       </div>
     </div>
   );

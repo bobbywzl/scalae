@@ -1,18 +1,20 @@
 "use client";
 
+import { useT } from "@/components/PrefsProvider";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Signal } from "@/lib/types";
 
-const ORIGIN_LABEL: Record<Signal["origin"], string> = {
-  onboarding: "from onboarding",
-  chat: "from your feedback",
-  research: "discovered in today's research",
+const ORIGIN_KEY: Record<Signal["origin"], TKey> = {
+  onboarding: "signals.originOnboarding",
+  chat: "signals.originChat",
+  research: "signals.originResearch",
 };
 
-const fmtDay = (iso: string) => {
+const fmtDay = (iso: string, locale: string) => {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? iso.slice(0, 10)
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 };
 
 export function SuggestionCard({
@@ -37,6 +39,7 @@ export function SuggestionCard({
   /** Gate memory: when you dismissed this (or a same-named) proposal before. */
   previouslyDismissedAt?: string | null;
 }) {
+  const { t, locale } = useT();
   return (
     <div
       className={`rounded-xl bg-card border px-4 py-3 transition-colors ${
@@ -47,18 +50,18 @@ export function SuggestionCard({
         <div className="min-w-0">
           <div className="text-sm font-semibold leading-tight">{signal.name}</div>
           <div className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
-            {signal.type === "quantitative" ? "# quantitative" : "◆ qualitative"} · {signal.focusArea}{" "}
-            · <span className="text-warn/90">{ORIGIN_LABEL[signal.origin]}</span>
+            {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
+            {signal.focusArea} · <span className="text-warn/90">{t(ORIGIN_KEY[signal.origin])}</span>
           </div>
         </div>
         {onToggleSelect && (
           <button
             onClick={() => onToggleSelect(signal.id)}
-            aria-label={selected ? "Deselect proposal" : "Select proposal"}
+            aria-label={selected ? t("signals.deselectProposal") : t("signals.selectProposal")}
             className={`shrink-0 h-5 w-5 rounded-md border flex items-center justify-center text-[11px] font-bold transition-colors ${
               selected
                 ? "bg-accent border-accent text-white"
-                : "border-white/25 text-transparent hover:border-white/50"
+                : "border-ink/25 text-transparent hover:border-ink/50"
             }`}
           >
             ✓
@@ -67,21 +70,22 @@ export function SuggestionCard({
       </div>
       {replacesName && (
         <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warn/12 border border-warn/25 px-2 py-1 text-[11px] text-warn">
-          ⇄ Replaces “{replacesName}” — approving swaps it in and retires the old signal
+          {t("signals.replacesBanner", { name: replacesName })}
         </p>
       )}
       {previouslyDismissedAt && (
         <p
-          className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-white/6 border border-hairline px-2 py-1 text-[11px] text-muted"
-          title="Institutional memory: the approval gate remembers what you turned down — expect materially new evidence in the thesis"
+          className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-ink/6 border border-hairline px-2 py-1 text-[11px] text-muted"
+          title={t("signals.dismissedMemoryTitle")}
         >
-          ↩ You dismissed this on {fmtDay(previouslyDismissedAt)} — it’s back
+          {t("signals.dismissedBack", { date: fmtDay(previouslyDismissedAt, locale) })}
         </p>
       )}
-      <p className="mt-2 text-xs text-[#c7c7cc] leading-relaxed">{signal.thesis}</p>
+      <p className="mt-2 text-xs text-emph leading-relaxed">{signal.thesis}</p>
       {!compact && (
         <p className="mt-1.5 text-[11px] text-muted leading-relaxed">
-          <span className="uppercase tracking-wider text-[10px]">Plan:</span> {signal.measurementPlan}
+          <span className="uppercase tracking-wider text-[10px]">{t("signals.planLabel")}</span>{" "}
+          {signal.measurementPlan}
           {signal.scale ? ` (${signal.scale})` : ""}
         </p>
       )}
@@ -91,14 +95,14 @@ export function SuggestionCard({
           disabled={busy}
           className="rounded-lg bg-gain/15 text-gain text-xs font-semibold px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
         >
-          {replacesName ? "Approve & swap" : "Approve"}
+          {replacesName ? t("signals.approveSwap") : t("signals.approve")}
         </button>
         <button
           onClick={() => onAct(signal.id, "dismiss")}
           disabled={busy}
-          className="rounded-lg bg-white/6 text-muted text-xs font-medium px-3 py-1.5 hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+          className="rounded-lg bg-ink/6 text-muted text-xs font-medium px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
         >
-          Ignore
+          {t("signals.ignore")}
         </button>
       </div>
     </div>

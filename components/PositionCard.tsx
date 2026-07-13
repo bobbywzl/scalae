@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { optionLabel } from "@/lib/portfolio-math";
+import { useT } from "./PrefsProvider";
 import type { TickerInvolvement } from "@/lib/types";
 
 const fmtNative = (v: number, currency: string, digits = 2) =>
@@ -15,29 +16,32 @@ const signCls = (v: number | null | undefined) =>
 
 /** The investor's involvement in this ticker, shown on its desk. */
 export function PositionCard({ position }: { position: TickerInvolvement }) {
+  const { t } = useT();
   const s = position.stock;
   const cur = position.currency;
   return (
     <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">Your position</p>
+        <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">{t("trade.yourPosition")}</p>
         {position.unrealized != null && (
           <span className={`text-[11px] font-semibold tabular-nums ${signCls(position.unrealized)}`}>
-            {position.unrealized >= 0 ? "+" : ""}
-            {fmtNative(position.unrealized, cur, 0)} unrealized
+            {t("trade.unrealizedAmt", {
+              v: `${position.unrealized >= 0 ? "+" : ""}${fmtNative(position.unrealized, cur, 0)}`,
+            })}
           </span>
         )}
         {position.realized !== 0 && (
           <span className={`text-[11px] tabular-nums ${signCls(position.realized)}`}>
-            · {position.realized >= 0 ? "+" : ""}
-            {fmtNative(position.realized, cur, 0)} realized
+            · {t("trade.realizedAmt", {
+              v: `${position.realized >= 0 ? "+" : ""}${fmtNative(position.realized, cur, 0)}`,
+            })}
           </span>
         )}
         <Link
           href="/portfolio"
           className="ml-auto text-[11px] text-accent hover:opacity-80 transition-opacity"
         >
-          Manage in portfolio →
+          {t("trade.managePortfolio")}
         </Link>
       </div>
 
@@ -45,24 +49,26 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
         {s && (
           <div>
             <p className="text-sm font-semibold tabular-nums">
-              {s.qty < 0 && <span className="text-loss text-[10px] font-bold mr-1">SHORT</span>}
-              {Math.abs(s.qty).toLocaleString()} shares{" "}
-              <span className="text-muted font-normal">@ {fmtNative(s.avgCost, cur)} avg</span>
+              {s.qty < 0 && <span className="text-loss text-[10px] font-bold mr-1">{t("trade.shortChip")}</span>}
+              {t("trade.nShares", { n: Math.abs(s.qty).toLocaleString() })}{" "}
+              <span className="text-muted font-normal">{t("trade.atAvg", { price: fmtNative(s.avgCost, cur) })}</span>
             </p>
             <p className="text-[11px] text-muted tabular-nums mt-0.5">
               {s.mark != null ? (
                 <>
-                  now {fmtNative(s.mark, cur)}
+                  {t("trade.nowPrice", { price: fmtNative(s.mark, cur) })}
                   {s.unrealizedPct != null && (
                     <span className={`ml-1.5 font-semibold ${signCls(s.unrealizedPct)}`}>
                       {s.unrealizedPct >= 0 ? "+" : ""}
                       {s.unrealizedPct.toFixed(1)}%
                     </span>
                   )}
-                  {s.marketValue != null && <span className="ml-1.5">· value {fmtNative(s.marketValue, cur, 0)}</span>}
+                  {s.marketValue != null && (
+                    <span className="ml-1.5">· {t("trade.valueOf", { amount: fmtNative(s.marketValue, cur, 0) })}</span>
+                  )}
                 </>
               ) : (
-                "no live quote"
+                t("trade.noLiveQuote")
               )}
             </p>
           </div>
@@ -70,19 +76,21 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
         {position.options.map((o) => (
           <div key={o.key}>
             <p className="text-sm font-semibold">
-              {o.qty < 0 && <span className="text-warn text-[10px] font-bold mr-1">SHORT</span>}
+              {o.qty < 0 && <span className="text-warn text-[10px] font-bold mr-1">{t("trade.shortChip")}</span>}
               {Math.abs(o.qty)}× {optionLabel(o)}
-              {o.expired && <span className="text-loss text-[10px] font-bold ml-1.5">EXPIRED</span>}
+              {o.expired && <span className="text-loss text-[10px] font-bold ml-1.5">{t("trade.expiredChip")}</span>}
             </p>
             <p className="text-[11px] text-muted tabular-nums mt-0.5">
-              @ {fmtNative(o.avgCost, cur)} premium
+              {t("trade.atPremium", { price: fmtNative(o.avgCost, cur) })}
               {o.unrealized != null && (
                 <span className={`ml-1.5 font-semibold ${signCls(o.unrealized)}`}>
                   {o.unrealized >= 0 ? "+" : ""}
                   {fmtNative(o.unrealized, cur, 0)}
                 </span>
               )}
-              {o.markSource === "intrinsic" && !o.expired && <span className="ml-1.5 text-muted/70">intrinsic</span>}
+              {o.markSource === "intrinsic" && !o.expired && (
+                <span className="ml-1.5 text-muted/70">{t("trade.intrinsicTag")}</span>
+              )}
             </p>
           </div>
         ))}

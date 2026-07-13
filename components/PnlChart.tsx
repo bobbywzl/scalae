@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "./PrefsProvider";
 import { daysAgoISO } from "./util";
 import type { PnlPoint } from "@/lib/types";
 
@@ -45,9 +46,9 @@ function niceTicks(min: number, max: number, n = 4): number[] {
   return out;
 }
 
-const fmtDay = (iso: string, withYear = false) => {
+const fmtDay = (iso: string, locale: string, withYear = false) => {
   const d = new Date(iso + "T00:00:00Z");
-  return d.toLocaleDateString("en-US", {
+  return d.toLocaleDateString(locale, {
     month: "short",
     day: withYear ? undefined : "numeric",
     year: withYear ? "2-digit" : undefined,
@@ -56,6 +57,7 @@ const fmtDay = (iso: string, withYear = false) => {
 };
 
 export function PnlChart({ series }: { series: PnlPoint[] }) {
+  const { t, locale } = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("ALL");
@@ -104,7 +106,7 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
   if (series.length < 2) {
     return (
       <div className="h-[160px] flex items-center justify-center text-muted text-xs">
-        The P&L curve appears after your first recorded trade (daily closes are reconstructed from the first trade date).
+        {t("portfolio.chartEmpty")}
       </div>
     );
   }
@@ -133,17 +135,21 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
             onClick={() => setRange(r.key)}
             className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
               range === r.key
-                ? "bg-white/12 text-foreground"
-                : "text-muted hover:bg-white/6 hover:text-[#c7c7cc]"
+                ? "bg-ink/12 text-foreground"
+                : "text-muted hover:bg-ink/6 hover:text-emph"
             }`}
           >
-            {r.key}
+            {t(`portfolio.range${r.key}`)}
           </button>
         ))}
         {hoverPt && (
           <span className="ml-auto text-[11px] tabular-nums text-muted">
-            {fmtDay(hoverPt.date, true)} · <span className="text-foreground font-semibold">{fmtUsd(hoverPt.pnl, { sign: true })}</span>
-            <span className="hidden sm:inline"> · value {fmtUsd(hoverPt.value)}</span>
+            {fmtDay(hoverPt.date, locale, true)} ·{" "}
+            <span className="text-foreground font-semibold">{fmtUsd(hoverPt.pnl, { sign: true })}</span>
+            <span className="hidden sm:inline">
+              {" "}
+              · {t("portfolio.chartValue", { amt: fmtUsd(hoverPt.value) })}
+            </span>
           </span>
         )}
       </div>
@@ -152,29 +158,38 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
         width={width}
         height={H}
         role="img"
-        aria-label={`Portfolio profit and loss over time, currently ${fmtUsd(data[data.length - 1].pnl, { sign: true })}`}
+        aria-label={t("portfolio.chartAria", { pnl: fmtUsd(data[data.length - 1].pnl, { sign: true }) })}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
         className="touch-none select-none"
       >
         {/* recessive grid + y labels */}
-        {geom.ticks.map((t) => (
-          <g key={t}>
+        {geom.ticks.map((tick) => (
+          <g key={tick}>
             <line
               x1={PAD.l}
               x2={width - PAD.r}
-              y1={geom.y(t)}
-              y2={geom.y(t)}
-              stroke="rgba(255,255,255,0.06)"
+              y1={geom.y(tick)}
+              y2={geom.y(tick)}
+              stroke="var(--border)"
+              strokeOpacity="0.7"
             />
-            <text x={PAD.l - 8} y={geom.y(t) + 3} textAnchor="end" fontSize="10" fill="var(--muted)" className="tabular-nums">
-              {fmtUsd(t)}
+            <text x={PAD.l - 8} y={geom.y(tick) + 3} textAnchor="end" fontSize="10" fill="var(--muted)" className="tabular-nums">
+              {fmtUsd(tick)}
             </text>
           </g>
         ))}
         {/* zero baseline (emphasized when in-domain and not already a tick) */}
         {geom.yMin < 0 && geom.yMax > 0 && (
-          <line x1={PAD.l} x2={width - PAD.r} y1={geom.y0} y2={geom.y0} stroke="rgba(255,255,255,0.18)" strokeDasharray="3 3" />
+          <line
+            x1={PAD.l}
+            x2={width - PAD.r}
+            y1={geom.y0}
+            y2={geom.y0}
+            stroke="var(--muted)"
+            strokeOpacity="0.45"
+            strokeDasharray="3 3"
+          />
         )}
         {/* x labels */}
         {xLabelIdx.map((i, k) => (
@@ -186,7 +201,7 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
             fontSize="10"
             fill="var(--muted)"
           >
-            {fmtDay(data[i].date, withYear)}
+            {fmtDay(data[i].date, locale, withYear)}
           </text>
         ))}
         {/* area + line */}
@@ -195,7 +210,14 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
         {/* crosshair */}
         {hoverPt && hover != null && (
           <g>
-            <line x1={geom.x(hover)} x2={geom.x(hover)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,0.22)" />
+            <line
+              x1={geom.x(hover)}
+              x2={geom.x(hover)}
+              y1={PAD.t}
+              y2={H - PAD.b}
+              stroke="var(--muted)"
+              strokeOpacity="0.55"
+            />
             <circle cx={geom.x(hover)} cy={geom.y(hoverPt.pnl)} r="4.5" fill={color} stroke="var(--card)" strokeWidth="2" />
           </g>
         )}

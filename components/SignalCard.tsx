@@ -3,26 +3,31 @@
 import { useState } from "react";
 import { chipLabel } from "@/lib/citations";
 import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
+import { useT } from "@/components/PrefsProvider";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
-import { DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
+import { DELTA_ARROW, LEVEL_STYLE, levelLabel, timeAgo } from "./util";
 
 function ConfidenceDots({ value }: { value: number }) {
+  const { t } = useT();
   const filled = Math.round(Math.max(0, Math.min(1, value)) * 5);
   return (
-    <span className="inline-flex items-center gap-[3px]" title={`Confidence ${(value * 100).toFixed(0)}%`}>
+    <span
+      className="inline-flex items-center gap-[3px]"
+      title={t("signals.confidenceTitle", { pct: (value * 100).toFixed(0) })}
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          className={`h-[5px] w-[5px] rounded-full ${i < filled ? "bg-[#c7c7cc]" : "bg-white/12"}`}
+          className={`h-[5px] w-[5px] rounded-full ${i < filled ? "bg-emph" : "bg-ink/12"}`}
         />
       ))}
     </span>
   );
 }
 
-const fmtDay = (iso: string) => {
+const fmtDay = (iso: string, locale: string) => {
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 };
 
 /** Clickable source chip — domain plus a title fragment when siblings share it. */
@@ -34,7 +39,7 @@ function SourceChip({ citation, siblings }: { citation: Citation; siblings: Cita
       rel="noreferrer"
       title={citation.title}
       onClick={(e) => e.stopPropagation()}
-      className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 hover:border-white/25 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[220px] truncate"
+      className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 hover:border-ink/25 px-2 py-0.5 text-[10px] text-emph transition-colors max-w-[220px] truncate"
     >
       {chipLabel(citation, siblings)}
     </a>
@@ -54,6 +59,7 @@ function SourcesModal({
   sources: SignalSource[];
   onClose: () => void;
 }) {
+  const { t, locale } = useT();
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -63,21 +69,23 @@ function SourcesModal({
       }}
     >
       <div
-        className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl bg-card border border-white/15 shadow-2xl overflow-hidden"
+        className="w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl bg-card border border-ink/15 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">{name}</p>
             <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
-              Evidence catalog · {sources.length} {sources.length === 1 ? "source" : "sources"} · grows with each run
+              {t("signals.evidenceCatalog")} ·{" "}
+              {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })} ·{" "}
+              {t("signals.catalogGrows")}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="ml-auto shrink-0 rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-2 py-1 text-[11px] text-[#c7c7cc] transition-colors"
+            className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[11px] text-emph transition-colors"
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
         <ul className="overflow-y-auto px-4 py-3 space-y-3">
@@ -88,18 +96,21 @@ function SourcesModal({
                   {s.domain}
                 </a>
                 {s.count > 1 && (
-                  <span className="shrink-0 rounded-full bg-white/8 px-1.5 py-px text-[9px] text-muted" title={`Cited in ${s.count} readings`}>
+                  <span
+                    className="shrink-0 rounded-full bg-ink/8 px-1.5 py-px text-[9px] text-muted"
+                    title={t("signals.citedInReadings", { n: s.count })}
+                  >
                     ×{s.count}
                   </span>
                 )}
               </div>
-              <a href={s.url} target="_blank" rel="noreferrer" className="block text-[#c7c7cc] hover:text-white leading-snug mt-0.5">
+              <a href={s.url} target="_blank" rel="noreferrer" className="block text-emph hover:text-white leading-snug mt-0.5">
                 {s.title.length > 110 ? s.title.slice(0, 110) + "…" : s.title}
               </a>
               <p className="text-[10px] text-muted mt-0.5">
-                added {fmtDay(s.firstSeen)}
-                {s.lastSeen !== s.firstSeen && ` · last cited ${fmtDay(s.lastSeen)}`}
-                {s.foundBy.length > 0 && ` · via ${s.foundBy.join(" · ")}`}
+                {t("signals.addedOn", { date: fmtDay(s.firstSeen, locale) })}
+                {s.lastSeen !== s.firstSeen && ` · ${t("signals.lastCited", { date: fmtDay(s.lastSeen, locale) })}`}
+                {s.foundBy.length > 0 && ` · ${t("signals.viaSources", { src: s.foundBy.join(" · ") })}`}
               </p>
             </li>
           ))}
@@ -123,6 +134,7 @@ export function SignalCard({
   /** Keep-both pair: the other active signal this one overlaps with. */
   overlapsWith?: { name: string; onOpen: () => void } | null;
 }) {
+  const { t, locale } = useT();
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const r = signal.latest;
   const level = r ? LEVEL_STYLE[r.level] : null;
@@ -132,18 +144,18 @@ export function SignalCard({
   const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
 
   return (
-    <div className="rounded-xl bg-card border border-hairline hover:border-white/20 transition-colors">
+    <div className="rounded-xl bg-card border border-hairline hover:border-ink/20 transition-colors">
       <button onClick={() => onOpen(signal)} className="w-full text-left px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="text-sm font-semibold leading-tight">{signal.name}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
-              {signal.type === "quantitative" ? "# quantitative" : "◆ qualitative"}
+              {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
             </div>
           </div>
-          {level && delta && (
+          {r && level && delta && (
             <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}>
-              {level.label} <span className={delta.cls}>{delta.ch}</span>
+              {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
             </span>
           )}
         </div>
@@ -153,11 +165,17 @@ export function SignalCard({
             {r.value != null && (
               <div className="mt-2 flex items-end justify-between gap-3">
                 <div className="text-lg font-semibold tabular-nums">
-                  {r.value.toLocaleString()}{" "}
+                  {r.value.toLocaleString(locale)}{" "}
                   <span className="text-xs text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
                 </div>
                 {spark.length >= 2 && (
-                  <span title={`${spark.length} readings · ${Math.min(...spark).toLocaleString()} → ${Math.max(...spark).toLocaleString()} range`}>
+                  <span
+                    title={t("signals.sparkTitle", {
+                      n: spark.length,
+                      min: Math.min(...spark).toLocaleString(locale),
+                      max: Math.max(...spark).toLocaleString(locale),
+                    })}
+                  >
                     <ReadingSparkline values={spark} />
                   </span>
                 )}
@@ -165,14 +183,14 @@ export function SignalCard({
             )}
             {carriedForward ? (
               <p className="mt-1.5 text-xs text-muted italic leading-relaxed">
-                No change — no new information this run.
+                {t("signals.noChangeThisRun")}
               </p>
             ) : (
-              <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed line-clamp-2">{r.rationale}</p>
+              <p className="mt-1.5 text-xs text-emph leading-relaxed line-clamp-2">{r.rationale}</p>
             )}
             <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
               <ConfidenceDots value={r.confidence} />
-              <span>{timeAgo(r.date)}</span>
+              <span>{timeAgo(r.date, t)}</span>
               {sources.length > 0 && (
                 <span
                   role="button"
@@ -188,16 +206,16 @@ export function SignalCard({
                     }
                   }}
                   className="text-accent/90 hover:text-accent hover:underline transition-colors cursor-pointer"
-                  title="View all sources this signal has accumulated"
+                  title={t("signals.viewAllSources")}
                 >
-                  🔗 {sources.length} {sources.length === 1 ? "source" : "sources"}
+                  🔗 {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })}
                 </span>
               )}
-              <span className="ml-auto text-muted/60">open ⤢</span>
+              <span className="ml-auto text-muted/60">{t("signals.openHint")}</span>
             </div>
           </>
         ) : (
-          <p className="mt-2 text-xs text-muted italic">Awaiting first research run.</p>
+          <p className="mt-2 text-xs text-muted italic">{t("signals.awaitingFirstRun")}</p>
         )}
       </button>
 
@@ -209,10 +227,10 @@ export function SignalCard({
               e.stopPropagation();
               overlapsWith.onOpen();
             }}
-            title="You chose to keep both — open the overlapping signal"
+            title={t("signals.overlapKeptTitle")}
             className="rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[10px] text-warn transition-colors max-w-full truncate"
           >
-            ⇄ overlaps: {overlapsWith.name}
+            {t("signals.overlapsChip", { name: overlapsWith.name })}
           </button>
         </div>
       )}
@@ -226,9 +244,9 @@ export function SignalCard({
           {sources.length > 3 && (
             <button
               onClick={() => setSourcesOpen(true)}
-              className="text-[10px] text-muted hover:text-[#c7c7cc] transition-colors"
+              className="text-[10px] text-muted hover:text-emph transition-colors"
             >
-              +{sources.length - 3} more
+              {t("signals.moreSources", { n: sources.length - 3 })}
             </button>
           )}
         </div>

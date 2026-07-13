@@ -1,18 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { chipLabel, linkCitations, sourceClass, sourceClassLabel } from "@/lib/citations";
+import { chipLabel, linkCitations, sourceClass, type SourceClass } from "@/lib/citations";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Attachment, ChatMessage, Citation, Signal, SignalWithReadings } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
 import { Markdown } from "./Markdown";
+import { useT } from "@/components/PrefsProvider";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
-import { api, DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
+import { api, DELTA_ARROW, LEVEL_STYLE, levelLabel, localizeError, timeAgo } from "./util";
 
-const fmtDay = (iso: string) => {
+const fmtDay = (iso: string, locale: string) => {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? iso.slice(0, 10)
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
+};
+
+/** Source-class chip label / tooltip keys (translated sourceClassLabel). */
+const SRC_CLASS_KEY: Record<SourceClass, TKey> = {
+  company: "signals.srcCompany",
+  regulator: "signals.srcRegulator",
+  independent: "signals.srcIndependent",
+};
+const SRC_CLASS_TITLE_KEY: Record<SourceClass, TKey> = {
+  company: "signals.srcCompanyTitle",
+  regulator: "signals.srcRegulatorTitle",
+  independent: "signals.srcIndependentTitle",
 };
 
 /**
@@ -52,6 +66,7 @@ export function SignalDetail({
   /** The ticker's learned company-controlled domains (exact source classing). */
   companyDomains?: string[];
 }) {
+  const { t, locale } = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -85,7 +100,7 @@ export function SignalDetail({
       );
       setHistLocal(result);
     } catch (e) {
-      setHistError(e instanceof Error ? e.message : "History research failed");
+      setHistError(e instanceof Error ? e.message : "History research failed — try again.");
     } finally {
       setHistBusy(false);
     }
@@ -107,8 +122,8 @@ export function SignalDetail({
     // Same initial-fetch-then-poll idiom as the watchlist/desk pages.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadChat();
-    const t = setInterval(loadChat, 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(loadChat, 30_000);
+    return () => clearInterval(timer);
   }, [loadChat, readOnly]);
 
   // Esc closes; page scroll locks underneath.
@@ -196,54 +211,54 @@ export function SignalDetail({
         <div className="min-w-0">
           <p className="text-base font-bold leading-tight truncate">{signal.name}</p>
           <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
-            {signal.type === "quantitative" ? "# quantitative" : "◆ qualitative"} · {signal.focusArea} ·{" "}
-            {signal.symbol}
+            {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
+            {signal.focusArea} · {signal.symbol}
           </p>
         </div>
-        {level && delta && (
+        {r && level && delta && (
           <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}>
-            {level.label} <span className={delta.cls}>{delta.ch}</span>
+            {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
           {readOnly ? (
-            <span className="rounded-lg border border-hairline bg-white/4 px-2.5 py-1.5 text-[11px] text-muted">
-              Retired — history preserved
+            <span className="rounded-lg border border-hairline bg-ink/4 px-2.5 py-1.5 text-[11px] text-muted">
+              {t("signals.retiredBadge")}
               {supersededBy && (
-                <span className="text-warn/80"> · superseded by “{supersededBy}”</span>
+                <span className="text-warn/80"> · {t("signals.supersededBy", { name: supersededBy })}</span>
               )}
             </span>
           ) : confirmRetire ? (
             <span className="flex items-center gap-1.5 rounded-lg border border-loss/30 bg-loss/8 px-2 py-1">
-              <span className="text-[11px] text-[#c7c7cc] hidden sm:inline">
-                Stop tracking? It moves to the archive (reversible).
+              <span className="text-[11px] text-emph hidden sm:inline">
+                {t("signals.retireConfirmText")}
               </span>
               <button
                 onClick={() => onRetire(signal.id)}
                 className="rounded-md bg-loss/20 hover:bg-loss/30 text-loss text-[11px] font-semibold px-2 py-1 transition-colors"
               >
-                Confirm retire
+                {t("signals.confirmRetire")}
               </button>
               <button
                 onClick={() => setConfirmRetire(false)}
-                className="rounded-md bg-white/6 hover:bg-white/10 text-muted text-[11px] font-medium px-2 py-1 transition-colors"
+                className="rounded-md bg-ink/6 hover:bg-ink/10 text-muted text-[11px] font-medium px-2 py-1 transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </span>
           ) : (
             <button
               onClick={() => setConfirmRetire(true)}
-              className="rounded-lg bg-white/6 hover:bg-white/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1.5 transition-colors"
+              className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1.5 transition-colors"
             >
-              Retire signal
+              {t("signals.retireSignal")}
             </button>
           )}
           <button
             onClick={onClose}
-            className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
           >
-            Back to board <span className="text-muted">(Esc)</span>
+            {t("signals.backToBoard")} <span className="text-muted">(Esc)</span>
           </button>
         </div>
       </div>
@@ -258,13 +273,13 @@ export function SignalDetail({
         <div className="overflow-y-auto rounded-2xl bg-card border border-hairline p-5 space-y-5">
           {/* Latest reading hero */}
           <section>
-            <p className={sectionTitle}>Latest reading</p>
+            <p className={sectionTitle}>{t("signals.latestReading")}</p>
             {r ? (
               <div className="mt-2">
                 <div className="flex items-end gap-3 flex-wrap">
                   {r.value != null && (
                     <span className="text-2xl font-bold tabular-nums">
-                      {r.value.toLocaleString()}{" "}
+                      {r.value.toLocaleString(locale)}{" "}
                       <span className="text-sm text-muted font-normal">{r.valueUnit ?? signal.scale}</span>
                     </span>
                   )}
@@ -272,31 +287,36 @@ export function SignalDetail({
                     <span className="flex items-end gap-2 pb-0.5">
                       <ReadingSparkline values={spark} width={120} height={30} />
                       <span className="text-[10px] text-muted tabular-nums">
-                        {Math.min(...spark).toLocaleString()}–{Math.max(...spark).toLocaleString()} over{" "}
-                        {spark.length} readings
+                        {t("signals.rangeOverReadings", {
+                          min: Math.min(...spark).toLocaleString(locale),
+                          max: Math.max(...spark).toLocaleString(locale),
+                          n: spark.length,
+                        })}
                       </span>
                     </span>
                   )}
                   <span className="text-[11px] text-muted pb-0.5">
-                    {timeAgo(r.date)} · confidence {(r.confidence * 100).toFixed(0)}%
-                    {neverFresh && " (prior — no evidence yet)"}
+                    {timeAgo(r.date, t)} · {t("signals.confidencePct", { pct: (r.confidence * 100).toFixed(0) })}
+                    {neverFresh && ` ${t("signals.priorNoEvidence")}`}
                   </span>
                 </div>
                 {neverFresh && (
                   <p className="mt-1.5 text-[11px] text-warn/90">
-                    No evidence-backed reading yet — carried forward since approval ·{" "}
-                    {signal.history.length} run{signal.history.length === 1 ? "" : "s"}.
+                    {t(signal.history.length === 1 ? "signals.neverFreshOne" : "signals.neverFreshMany", {
+                      n: signal.history.length,
+                    })}
                   </p>
                 )}
                 {freshSince && (
                   <p className="mt-1.5 text-[11px] text-muted">
-                    Carried forward — no new evidence since{" "}
-                    <span className="text-[#c7c7cc]">{fmtDay(freshSince)}</span>.
+                    {t("signals.carriedSincePre")}
+                    <span className="text-emph">{fmtDay(freshSince, locale)}</span>
+                    {t("signals.carriedSincePost")}
                   </p>
                 )}
                 <p
                   className={`mt-2 text-sm leading-relaxed ${
-                    r.newEvidence === false ? "text-muted italic" : "text-[#e0e0e4]"
+                    r.newEvidence === false ? "text-muted italic" : "text-emph"
                   }`}
                 >
                   {r.rationale}
@@ -310,7 +330,7 @@ export function SignalDetail({
                         target="_blank"
                         rel="noreferrer"
                         title={c.title}
-                        className="rounded-full border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[10px] text-[#c7c7cc] transition-colors max-w-[280px] truncate"
+                        className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[10px] text-emph transition-colors max-w-[280px] truncate"
                       >
                         {chipLabel(c, r.citations)}
                       </a>
@@ -319,40 +339,44 @@ export function SignalDetail({
                 )}
               </div>
             ) : (
-              <p className="text-xs text-muted italic mt-2">Awaiting first research run.</p>
+              <p className="text-xs text-muted italic mt-2">{t("signals.awaitingFirstRun")}</p>
             )}
           </section>
 
           {lineage && (
             <button
               onClick={lineage.onOpen}
-              className="w-full text-left rounded-lg border border-hairline bg-white/4 hover:bg-white/8 px-3 py-2 text-[11px] text-[#c7c7cc] transition-colors"
+              className="w-full text-left rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-3 py-2 text-[11px] text-emph transition-colors"
             >
-              ⇄ Replaced <span className="font-semibold">“{lineage.name}”</span>
-              <span className="text-accent"> — view its history</span>
+              {t("signals.replacedPrefix")}
+              <span className="font-semibold">“{lineage.name}”</span>
+              <span className="text-accent">{t("signals.viewItsHistory")}</span>
             </button>
           )}
 
           {overlapsWith && (
             <button
               onClick={overlapsWith.onOpen}
-              title="You chose to keep both — the desk will propose one merged signal if they keep reading the same evidence"
+              title={t("signals.overlapKeptDetailTitle")}
               className="w-full text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[11px] text-warn transition-colors"
             >
-              ⇄ Knowingly kept alongside <span className="font-semibold">“{overlapsWith.name}”</span>
-              <span className="opacity-80"> — watch for overlap · open it</span>
+              {t("signals.keptAlongsidePre")}
+              <span className="font-semibold">“{overlapsWith.name}”</span>
+              <span className="opacity-80">{t("signals.keptAlongsidePost")}</span>
             </button>
           )}
 
           <section>
-            <p className={sectionTitle}>Why we track this</p>
-            <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed">{signal.thesis}</p>
+            <p className={sectionTitle}>{t("signals.whyWeTrack")}</p>
+            <p className="mt-1.5 text-xs text-emph leading-relaxed">{signal.thesis}</p>
           </section>
 
           <section>
-            <p className={sectionTitle}>Measurement plan</p>
-            <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed">{signal.measurementPlan}</p>
-            {signal.scale && <p className="text-[11px] text-muted mt-1">Scale: {signal.scale}</p>}
+            <p className={sectionTitle}>{t("signals.measurementPlan")}</p>
+            <p className="mt-1.5 text-xs text-emph leading-relaxed">{signal.measurementPlan}</p>
+            {signal.scale && (
+              <p className="text-[11px] text-muted mt-1">{t("signals.scaleLabel", { scale: signal.scale })}</p>
+            )}
           </section>
 
           {/* Deep history: the base rate — decades of record + stress episodes */}
@@ -364,28 +388,30 @@ export function SignalDetail({
               <section>
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className={sectionTitle}>
-                    Deep history
+                    {t("signals.deepHistory")}
                     <span className="normal-case tracking-normal font-normal text-muted/70">
-                      {" "}
-                      — how this aspect has fared through the decades
+                      {t("signals.deepHistorySub")}
                     </span>
                   </p>
                   {!readOnly && (
                     <button
                       onClick={researchHistory}
                       disabled={histBusy}
-                      title="Company- and industry-specific research: eras, stress episodes, base rates"
-                      className="ml-auto rounded-md bg-white/6 hover:bg-white/10 text-[10px] font-medium text-muted hover:text-[#c7c7cc] px-2 py-1 disabled:opacity-50 transition-colors"
+                      title={t("signals.historyBtnTitle")}
+                      className="ml-auto rounded-md bg-ink/6 hover:bg-ink/10 text-[10px] font-medium text-muted hover:text-emph px-2 py-1 disabled:opacity-50 transition-colors"
                     >
-                      {histBusy ? "Researching…" : backstory ? "Refresh history" : "Research history"}
+                      {histBusy
+                        ? t("signals.researchingBusy")
+                        : backstory
+                          ? t("signals.refreshHistory")
+                          : t("signals.researchHistory")}
                     </button>
                   )}
                 </div>
-                {histError && <p className="mt-1.5 text-[11px] text-loss">{histError}</p>}
+                {histError && <p className="mt-1.5 text-[11px] text-loss">{localizeError(histError, t)}</p>}
                 {histBusy && !backstory && (
                   <p className="mt-1.5 text-[11px] text-muted pulse-soft">
-                    Tracing this aspect through the company’s and industry’s record — eras, crises,
-                    base rates… (takes a minute or two)
+                    {t("signals.historyTracing")}
                   </p>
                 )}
                 {backstory ? (
@@ -393,17 +419,18 @@ export function SignalDetail({
                     <Markdown>{linkCitations(backstory, bSources)}</Markdown>
                     {bAt && (
                       <p className="mt-1.5 text-[10px] text-muted/60">
-                        Researched {timeAgo(bAt)} · {bSources.length}{" "}
-                        {bSources.length === 1 ? "source" : "sources"} · informs daily readings as
-                        this signal’s base rate
+                        {t("signals.researchedAgo", { when: timeAgo(bAt, t) })} ·{" "}
+                        {t(bSources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", {
+                          n: bSources.length,
+                        })}{" "}
+                        · {t("signals.informsBaseRate")}
                       </p>
                     )}
                   </div>
                 ) : (
                   !histBusy && (
                     <p className="mt-1.5 text-[11px] text-muted italic">
-                      Not researched yet — the daily run fills this in over time
-                      {readOnly ? "." : ", or research it now."}
+                      {readOnly ? t("signals.notResearchedRO") : t("signals.notResearched")}
                     </p>
                   )
                 )}
@@ -414,8 +441,11 @@ export function SignalDetail({
           {sources.length > 0 && (
             <section>
               <p className={sectionTitle}>
-                Evidence catalog · {sources.length} {sources.length === 1 ? "source" : "sources"}
-                <span className="normal-case tracking-normal font-normal text-muted/70"> — click ⧉ to trace a source through the readings</span>
+                {t("signals.evidenceCatalog")} ·{" "}
+                {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })}
+                <span className="normal-case tracking-normal font-normal text-muted/70">
+                  {t("signals.traceHint")}
+                </span>
               </p>
               <ul className="mt-2 space-y-2">
                 {sources.map((src, i) => (
@@ -433,32 +463,32 @@ export function SignalDetail({
                         className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
                           sourceClass(src, companyDomains) === "company"
                             ? "bg-warn/12 text-warn/90"
-                            : "bg-white/6 text-muted"
+                            : "bg-ink/6 text-muted"
                         }`}
-                        title={
-                          sourceClass(src, companyDomains) === "company"
-                            ? "Company-controlled source — management's own account; corroborate independently"
-                            : sourceClass(src, companyDomains) === "regulator"
-                              ? "Regulator filing or notice"
-                              : "Independent source"
-                        }
+                        title={t(SRC_CLASS_TITLE_KEY[sourceClass(src, companyDomains)])}
                       >
-                        {sourceClassLabel(sourceClass(src, companyDomains))}
+                        {t(SRC_CLASS_KEY[sourceClass(src, companyDomains)])}
                       </span>
                       <button
                         onClick={() => setFilterUrl((u) => (u === src.url ? null : src.url))}
-                        title={filterUrl === src.url ? "Stop tracing this source" : `Show the ${src.count} reading${src.count === 1 ? "" : "s"} citing this source`}
+                        title={
+                          filterUrl === src.url
+                            ? t("signals.stopTracing")
+                            : t(src.count === 1 ? "signals.showCitingOne" : "signals.showCitingMany", {
+                                n: src.count,
+                              })
+                        }
                         className={`rounded-full px-1.5 py-px text-[9px] transition-colors ${
                           filterUrl === src.url
                             ? "bg-accent/25 text-accent"
-                            : "bg-white/8 text-muted hover:bg-white/15 hover:text-[#c7c7cc]"
+                            : "bg-ink/8 text-muted hover:bg-ink/15 hover:text-emph"
                         }`}
                       >
-                        ⧉ {src.count} {src.count === 1 ? "reading" : "readings"}
+                        ⧉ {t(src.count === 1 ? "signals.readingsOne" : "signals.readingsMany", { n: src.count })}
                       </button>
                       <span className="text-[10px] text-muted/70 ml-auto shrink-0">
-                        {fmtDay(src.firstSeen)}
-                        {src.lastSeen !== src.firstSeen && ` → ${fmtDay(src.lastSeen)}`}
+                        {fmtDay(src.firstSeen, locale)}
+                        {src.lastSeen !== src.firstSeen && ` → ${fmtDay(src.lastSeen, locale)}`}
                       </span>
                     </div>
                     <a href={src.url} target="_blank" rel="noreferrer" className="block text-[#b5b5ba] hover:text-white mt-0.5">
@@ -473,19 +503,26 @@ export function SignalDetail({
           {signal.history.length > 0 && (
             <section>
               <p className={sectionTitle}>
-                Reading history
+                {t("signals.readingHistory")}
                 {filterUrl && (
                   <span className="normal-case tracking-normal font-normal">
                     {" "}
                     <span className="text-accent">
-                      · {filteredHistory.length} of {signal.history.length} citing{" "}
-                      {tracedSource ? chipLabel(tracedSource, sources) : "this source"}
+                      {t("signals.citingCount", {
+                        shown: filteredHistory.length,
+                        total: signal.history.length,
+                        src: tracedSource ? chipLabel(tracedSource, sources) : t("signals.thisSource"),
+                      })}
                       {tracedSource && (
-                        <span className="text-muted"> ({sourceClassLabel(sourceClass(tracedSource, companyDomains))})</span>
+                        <span className="text-muted">
+                          {t("signals.srcClassParen", {
+                            label: t(SRC_CLASS_KEY[sourceClass(tracedSource, companyDomains)]),
+                          })}
+                        </span>
                       )}
                     </span>{" "}
-                    <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-[#c7c7cc] underline underline-offset-2">
-                      clear
+                    <button onClick={() => setFilterUrl(null)} className="text-muted hover:text-emph underline underline-offset-2">
+                      {t("signals.clearFilter")}
                     </button>
                   </span>
                 )}
@@ -493,8 +530,15 @@ export function SignalDetail({
               {tracedSource && filteredHistory.length < tracedSource.count && (
                 <p className="mt-1 text-[11px] text-muted">
                   {filteredHistory.length === 0
-                    ? `None of the last ${signal.history.length} readings cite this source — its ${tracedSource.count} citing reading${tracedSource.count === 1 ? " is" : "s are"} older than what's shown here.`
-                    : `${filteredHistory.length} of ${tracedSource.count} citing readings shown — the rest are older than the last ${signal.history.length} readings.`}
+                    ? t(tracedSource.count === 1 ? "signals.tracedNoneOne" : "signals.tracedNoneMany", {
+                        total: signal.history.length,
+                        count: tracedSource.count,
+                      })
+                    : t("signals.tracedSome", {
+                        shown: filteredHistory.length,
+                        count: tracedSource.count,
+                        total: signal.history.length,
+                      })}
                 </p>
               )}
               <ul className="mt-2 space-y-2.5">
@@ -503,17 +547,19 @@ export function SignalDetail({
                     <div className="flex items-center gap-2">
                       <span className="text-muted tabular-nums">{h.date.slice(0, 10)}</span>
                       <span className={`rounded px-1.5 py-px text-[10px] font-medium ${LEVEL_STYLE[h.level].cls}`}>
-                        {LEVEL_STYLE[h.level].label}
+                        {levelLabel(h.level, t)}
                       </span>
                       {h.value != null && (
                         <span className="tabular-nums">
-                          {h.value.toLocaleString()} {h.valueUnit ?? ""}
+                          {h.value.toLocaleString(locale)} {h.valueUnit ?? ""}
                         </span>
                       )}
-                      <span className="text-[10px] text-muted/70">conf {(h.confidence * 100).toFixed(0)}%</span>
+                      <span className="text-[10px] text-muted/70">
+                        {t("signals.confShort", { pct: (h.confidence * 100).toFixed(0) })}
+                      </span>
                       {h.newEvidence === false && (
                         <span className="text-[9px] uppercase tracking-wider text-muted/60 border border-hairline rounded px-1 py-px">
-                          carry-forward
+                          {t("signals.carryForward")}
                         </span>
                       )}
                     </div>
@@ -549,7 +595,7 @@ export function SignalDetail({
         {!readOnly && (
         <div className="min-h-[320px] lg:min-h-0">
           <ChatPanel
-            title="Signal desk"
+            title={t("signals.signalDesk")}
             messages={messages}
             signalsById={signalsById}
             sending={sending}
@@ -557,9 +603,9 @@ export function SignalDetail({
             onSend={send}
             onAct={onAct}
             actingId={actingId}
-            error={chatError}
+            error={chatError ? localizeError(chatError, t) : null}
             onRetry={retryChat}
-            emptyHint={`This thread is scoped to “${signal.name}” — the analyst has its thesis, full reading history and evidence catalog in front of it. Ask why the reading moved, challenge the measurement plan, or ask for a sharper replacement signal. (The ticker-level desk keeps the global picture.)`}
+            emptyHint={t("signals.signalDeskHint", { name: signal.name })}
           />
         </div>
         )}

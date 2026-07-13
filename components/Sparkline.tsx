@@ -8,7 +8,7 @@ export function ReadingSparkline({
   values,
   width = 88,
   height = 24,
-  className = "text-[#8e8e93]",
+  className = "text-muted",
 }: {
   /** Chronological (oldest → newest). Needs ≥2 points to render. */
   values: number[];

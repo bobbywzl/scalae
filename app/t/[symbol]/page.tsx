@@ -144,7 +144,7 @@ export default function DeskPage() {
         body: JSON.stringify({ message: text, attachments }),
       });
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Chat failed");
+      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
     } finally {
       setSending(false);
       load();
@@ -161,7 +161,7 @@ export default function DeskPage() {
         body: JSON.stringify({ retry: true }),
       });
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Chat failed");
+      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
     } finally {
       setSending(false);
       load();
@@ -198,14 +198,13 @@ export default function DeskPage() {
       // One-click second chance on the consequential actions.
       if (signal) {
         if (action === "retire") {
-          showUndo(`Retired “${signal.name}”`, () => act(id, "reactivate"));
+          showUndo(t("desk.toastRetired", { name: signal.name }), () => act(id, "reactivate"));
         } else if (action === "dismiss") {
-          showUndo(`Dismissed “${signal.name}” — it moved to the archive`, () =>
-            act(id, "reactivate")
-          );
+          showUndo(t("desk.toastDismissed", { name: signal.name }), () => act(id, "reactivate"));
         } else if (action === "approve" && signal.replaces) {
-          const oldName = signalsById.get(signal.replaces)?.name ?? "the replaced signal";
-          showUndo(`Swapped in “${signal.name}” — retired “${oldName}”`, () =>
+          const oldName =
+            signalsById.get(signal.replaces)?.name ?? t("desk.replacedSignalFallback");
+          showUndo(t("desk.toastSwapped", { name: signal.name, old: oldName }), () =>
             act(signal.replaces!, "swap_back")
           );
         }
@@ -246,7 +245,7 @@ export default function DeskPage() {
       await load();
       if (ignored.length > 0) {
         showUndo(
-          `Approved ${ids.length} · ignored the other ${ignored.length} (archived)`,
+          t("desk.toastBulkApproved", { n: ids.length, m: ignored.length }),
           async () => {
             // Undo restores the ignored proposals to the queue; approvals stand.
             for (const id of ignored) {
@@ -264,7 +263,7 @@ export default function DeskPage() {
         startRun();
       }
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Bulk action failed");
+      setChatError(e instanceof Error ? localizeError(e.message, t) : t("desk.errBulkFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -408,7 +407,7 @@ export default function DeskPage() {
     const order = desk.focusAreas.map((f) => f.title);
     const groups = new Map<string, typeof desk.active>();
     for (const s of desk.active) {
-      const key = s.focusArea || "Other";
+      const key = s.focusArea || t("desk.otherFocusArea");
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(s);
     }
@@ -417,14 +416,14 @@ export default function DeskPage() {
         (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
         (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0]))
     );
-  }, [desk]);
+  }, [desk, t]);
 
   if (notFound) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-20 text-center">
-        <p className="text-lg font-medium">Desk not found</p>
+        <p className="text-lg font-medium">{t("desk.notFound")}</p>
         <Link href="/" className="text-accent text-sm mt-2 inline-block">
-          ← Back to watchlist
+          {t("desk.notFoundBack")}
         </Link>
       </main>
     );
@@ -432,7 +431,7 @@ export default function DeskPage() {
   if (!desk) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-20 text-center text-muted text-sm">
-        Opening the {symbol} desk…
+        {t("desk.opening", { symbol })}
       </main>
     );
   }
@@ -449,7 +448,7 @@ export default function DeskPage() {
   const detailLineage =
     activeDetail?.replaces && desk.retired.some((r) => r.id === activeDetail.replaces)
       ? {
-          name: signalsById.get(activeDetail.replaces)?.name ?? "its predecessor",
+          name: signalsById.get(activeDetail.replaces)?.name ?? t("desk.predecessorFallback"),
           onOpen: () => setDetailId(activeDetail.replaces),
         }
       : null;
@@ -460,7 +459,7 @@ export default function DeskPage() {
         href="/"
         className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity"
       >
-        ‹ Watchlist
+        {t("common.backToWatchlist")}
       </Link>
       <div className="min-w-0">
         <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
@@ -471,7 +470,7 @@ export default function DeskPage() {
           <>
             <span className="font-semibold tabular-nums">{fmtPrice(quote.price, quote.currency)}</span>
             <span
-              className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums text-black ${up ? "bg-gain" : "bg-loss"}`}
+              className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
             >
               {fmtPct(quote.changePercent)}
             </span>
@@ -481,9 +480,9 @@ export default function DeskPage() {
           <button
             onClick={startRun}
             disabled={running}
-            className="rounded-lg bg-white/8 hover:bg-white/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
+            className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
           >
-            {running ? "Researching…" : "Run research now"}
+            {running ? t("desk.researching") : t("desk.runNow")}
           </button>
         )}
       </div>
@@ -495,18 +494,15 @@ export default function DeskPage() {
       <main className="mx-auto w-full max-w-3xl px-5 py-8 flex-1 flex flex-col gap-5">
         {header}
         <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 text-sm">
-          <span className="font-semibold">Desk setup.</span>{" "}
-          <span className="text-[#c7c7cc]">
-            Tell the analyst what you want to understand about {ticker.name}. It will propose focus
-            areas and trackable signals — approve the ones you want, and the first research run
-            starts automatically.
-          </span>
+          <span className="font-semibold">{t("desk.setupTitle")}</span>{" "}
+          <span className="text-emph">{t("desk.setupBody", { name: ticker.name })}</span>
         </div>
 
         {suggested.length > 0 && (
           <section>
             <SectionTitle>
-              Proposed signal board <Badge>{suggested.length} awaiting approval</Badge>
+              {t("desk.proposedBoard")}{" "}
+              <Badge>{t("desk.awaitingApproval", { n: suggested.length })}</Badge>
             </SectionTitle>
             <BulkBar
               suggested={suggested}
@@ -593,12 +589,12 @@ export default function DeskPage() {
           {latestRun?.dossier && (
             <section className="rounded-2xl bg-card border border-accent/20 p-5">
               <div className="flex items-center gap-2">
-                <SectionTitle>The business, as the desk reads it</SectionTitle>
+                <SectionTitle>{t("desk.dossierTitle")}</SectionTitle>
                 <button
                   onClick={() => setDossierOpen((v) => !v)}
-                  className="ml-auto rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-2 py-0.5 text-[10px] text-muted hover:text-[#c7c7cc] transition-colors"
+                  className="ml-auto rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[10px] text-muted hover:text-emph transition-colors"
                 >
-                  {dossierOpen ? "Collapse" : "Expand"}
+                  {dossierOpen ? t("common.collapse") : t("common.expand")}
                 </button>
               </div>
               {dossierOpen && (
@@ -609,18 +605,25 @@ export default function DeskPage() {
                       (id) => {
                         const s = signalsById.get(id);
                         if (!s) return null;
-                        return s.status === "retired" ? `${s.name} (retired)` : s.name;
+                        return s.status === "retired"
+                          ? t("desk.retiredSuffix", { name: s.name })
+                          : s.name;
                       }
                     )}
                   </Markdown>
                   <p className="mt-3 text-[10px] text-muted/70">
-                    Standing view synthesized from the signal board — evolves only when evidence
-                    moves it, unlike the daily brief below.
+                    {t("desk.dossierProvenance")}
                     {desk.dossierRevisedAt && (
                       <span className="text-muted">
                         {" "}
-                        Last revised {timeAgo(desk.dossierRevisedAt)}
-                        {desk.dossierHeldRuns > 1 && ` · held for ${desk.dossierHeldRuns} runs`}.
+                        {desk.dossierHeldRuns > 1
+                          ? t("desk.dossierRevisedHeld", {
+                              when: timeAgo(desk.dossierRevisedAt, t),
+                              n: desk.dossierHeldRuns,
+                            })
+                          : t("desk.dossierRevised", {
+                              when: timeAgo(desk.dossierRevisedAt, t),
+                            })}
                       </span>
                     )}
                   </p>
@@ -631,10 +634,10 @@ export default function DeskPage() {
 
           <section className="rounded-2xl bg-card border border-hairline p-5">
             <SectionTitle>
-              Today’s brief
+              {t("desk.todaysBrief")}
               {latestRun?.finishedAt && (
                 <span className="text-[10px] text-muted font-normal normal-case tracking-normal ml-auto">
-                  updated {timeAgo(latestRun.finishedAt)}
+                  {t("common.updatedAgo", { when: timeAgo(latestRun.finishedAt, t) })}
                 </span>
               )}
             </SectionTitle>
@@ -644,15 +647,13 @@ export default function DeskPage() {
               </div>
             ) : (
               <p className="text-muted text-xs italic mt-2">
-                {running
-                  ? "The desk is preparing its first brief…"
-                  : "No brief yet — run today’s research."}
+                {running ? t("desk.briefPreparing") : t("desk.briefNone")}
               </p>
             )}
             {desk.digest.length > 0 && (
               <>
                 <div className="border-t border-hairline my-4" />
-                <SectionTitle>Evidence feed</SectionTitle>
+                <SectionTitle>{t("desk.evidenceFeed")}</SectionTitle>
                 <div className="mt-3">
                   <DigestFeed
                     items={desk.digest.slice(0, 10)}
@@ -660,7 +661,11 @@ export default function DeskPage() {
                     onOpenSignal={(id) => setDetailId(id)}
                     onTrackStory={(d: DigestItem) =>
                       sendChat(
-                        `No signal on the board watches this thread — draft a trackable signal from it (I'll approve or ignore): "${d.headline}" — ${d.summary}${d.url ? ` (${d.url})` : ""}. Anchor it to the business model or culture, give it a measurement plan, and set "replaces" if it subsumes an active signal.`
+                        t("desk.trackStoryMsg", {
+                          headline: d.headline,
+                          summary: d.summary,
+                          url: d.url ? t("desk.trackStoryUrl", { url: d.url }) : "",
+                        })
                       )
                     }
                   />
@@ -672,13 +677,10 @@ export default function DeskPage() {
           {suggested.length > 0 && (
             <section>
               <SectionTitle>
-                Analyst proposals <Badge>{suggested.length} awaiting your approval</Badge>
+                {t("desk.analystProposals")}{" "}
+                <Badge>{t("desk.awaitingYourApproval", { n: suggested.length })}</Badge>
               </SectionTitle>
-              <p className="text-[11px] text-muted mt-1">
-                The desk rediscovers candidate signals as the story evolves — nothing is tracked
-                without your sign-off. Proposals marked ⇄ replace an active signal on approval.
-                Approving a selection ignores the rest — one decision resolves the whole queue.
-              </p>
+              <p className="text-[11px] text-muted mt-1">{t("desk.proposalsExplainer")}</p>
               <BulkBar
                 suggested={suggested}
                 selected={selected}
@@ -715,16 +717,16 @@ export default function DeskPage() {
 
           <section>
             <div className="flex items-center gap-2 flex-wrap">
-              <SectionTitle>Signal board</SectionTitle>
+              <SectionTitle>{t("desk.signalBoard")}</SectionTitle>
               {desk.active.length >= 4 && (
                 <div className="ml-auto flex items-center gap-1 text-[10px]">
-                  <span className="text-muted mr-0.5">view:</span>
+                  <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
                   {(
                     [
-                      { v: "focus", label: "Focus areas" },
-                      { v: "stale", label: "Stalest first" },
-                      { v: "confidence", label: "Thinnest confidence" },
-                      { v: "health", label: "Weakest first" },
+                      { v: "focus", label: t("desk.sortFocus") },
+                      { v: "stale", label: t("desk.sortStale") },
+                      { v: "confidence", label: t("desk.sortConfidence") },
+                      { v: "health", label: t("desk.sortHealth") },
                     ] as const
                   ).map((o) => (
                     <button
@@ -732,8 +734,8 @@ export default function DeskPage() {
                       onClick={() => setBoardSort(o.v)}
                       className={`rounded-md px-2 py-0.5 transition-colors ${
                         boardSort === o.v
-                          ? "bg-white/12 text-foreground font-semibold"
-                          : "text-muted hover:text-[#c7c7cc] bg-white/4"
+                          ? "bg-ink/12 text-foreground font-semibold"
+                          : "text-muted hover:text-emph bg-ink/4"
                       }`}
                     >
                       {o.label}
@@ -744,19 +746,21 @@ export default function DeskPage() {
             </div>
             {boardStats && boardStats.total > 0 && (
               <p className="mt-1.5 text-[11px] text-muted tabular-nums">
-                {boardStats.total} active signal{boardStats.total === 1 ? "" : "s"}
+                {t(boardStats.total === 1 ? "desk.statActiveOne" : "desk.statActiveMany", {
+                  n: boardStats.total,
+                })}
                 {boardStats.read > 0 && (
                   <>
                     {" · "}
-                    <span className="text-[#c7c7cc]">{boardStats.fresh}</span> moved on new evidence
+                    <span className="text-emph">{boardStats.fresh}</span> {t("desk.statMoved")}
                     {" · "}
-                    <span className="text-[#c7c7cc]">{boardStats.carried}</span> carried forward
+                    <span className="text-emph">{boardStats.carried}</span> {t("desk.statCarried")}
                   </>
                 )}
                 {boardStats.unread > 0 && (
                   <>
                     {" · "}
-                    <span className="text-warn/90">{boardStats.unread}</span> awaiting first reading
+                    <span className="text-warn/90">{boardStats.unread}</span> {t("desk.statUnread")}
                   </>
                 )}
                 {boardStats.distinctSources > 0 && (
@@ -764,30 +768,39 @@ export default function DeskPage() {
                     {" · "}
                     <button
                       onClick={() => setRosterOpen((v) => !v)}
-                      className="text-[#c7c7cc] hover:text-accent underline decoration-dotted underline-offset-2 transition-colors"
-                      title="Show the board's full source roster"
+                      className="text-emph hover:text-accent underline decoration-dotted underline-offset-2 transition-colors"
+                      title={t("desk.rosterTitle")}
                     >
-                      {boardStats.distinctSources} distinct sources {rosterOpen ? "▾" : "▸"}
+                      {t("desk.statDistinctSources", { n: boardStats.distinctSources })}{" "}
+                      {rosterOpen ? "▾" : "▸"}
                     </button>
                     {boardStats.links !== boardStats.distinctSources && (
-                      <span className="text-muted/70"> ({boardStats.links} signal links)</span>
+                      <span className="text-muted/70">
+                        {" "}
+                        {t("desk.statSignalLinks", { n: boardStats.links })}
+                      </span>
                     )}
                     {boardStats.classLinks.company > 0 && (
                       <span className="text-muted/80">
                         {" "}
-                        — <span className="text-warn/90">{boardStats.classLinks.company} company</span> ·{" "}
+                        —{" "}
+                        <span className="text-warn/90">
+                          {t("desk.statCompanyN", { n: boardStats.classLinks.company })}
+                        </span>{" "}
+                        ·{" "}
                         {boardStats.classLinks.regulator > 0 && (
-                          <>{boardStats.classLinks.regulator} regulator · </>
+                          <>{t("desk.statRegulatorN", { n: boardStats.classLinks.regulator })} · </>
                         )}
-                        {boardStats.classLinks.independent} independent
+                        {t("desk.statIndependentN", { n: boardStats.classLinks.independent })}
                       </span>
                     )}
                   </>
                 )}
                 {boardStats.avgConf != null && (
                   <>
-                    {" · "}avg confidence (fresh){" "}
-                    <span className="text-[#c7c7cc]">{(boardStats.avgConf * 100).toFixed(0)}%</span>
+                    {" · "}
+                    {t("desk.statAvgConf")}{" "}
+                    <span className="text-emph">{(boardStats.avgConf * 100).toFixed(0)}%</span>
                   </>
                 )}
               </p>
@@ -799,7 +812,7 @@ export default function DeskPage() {
                     <li key={r.url} className="flex items-baseline gap-2 text-[11px]">
                       <span
                         className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
-                          r.cls === "company" ? "bg-warn/12 text-warn/90" : "bg-white/6 text-muted"
+                          r.cls === "company" ? "bg-warn/12 text-warn/90" : "bg-ink/6 text-muted"
                         }`}
                       >
                         {sourceClassLabel(r.cls)}
@@ -809,27 +822,34 @@ export default function DeskPage() {
                         target="_blank"
                         rel="noreferrer"
                         title={r.title}
-                        className="text-[#c7c7cc] hover:text-accent hover:underline truncate transition-colors"
+                        className="text-emph hover:text-accent hover:underline truncate transition-colors"
                       >
                         {chipLabel(r, boardStats.roster)}
                       </a>
                       <span className="ml-auto shrink-0 text-muted tabular-nums">
-                        {r.signals.size} signal{r.signals.size === 1 ? "" : "s"} · {r.links} link
-                        {r.links === 1 ? "" : "s"}
+                        {t(r.signals.size === 1 ? "desk.rosterSignalOne" : "desk.rosterSignalMany", {
+                          n: r.signals.size,
+                        })}
+                        {" · "}
+                        {t(r.links === 1 ? "desk.rosterLinkOne" : "desk.rosterLinkMany", {
+                          n: r.links,
+                        })}
                       </span>
                     </li>
                   ))}
                 </ul>
                 {boardStats.classLinks.company * 2 >= boardStats.links && (
                   <p className="mt-2 text-[11px] text-warn/80">
-                    {boardStats.classLinks.company} of {boardStats.links} evidence links come from
-                    company-controlled sources — corroborate independently.
+                    {t("desk.companyConcentration", {
+                      c: boardStats.classLinks.company,
+                      total: boardStats.links,
+                    })}
                   </p>
                 )}
               </div>
             )}
             {grouped.length === 0 && (
-              <p className="text-muted text-xs italic mt-2">No active signals.</p>
+              <p className="text-muted text-xs italic mt-2">{t("desk.noActiveSignals")}</p>
             )}
             {boardSort !== "focus" && sortedActive.length > 0 && (
               <div className="grid sm:grid-cols-2 gap-3 mt-2">
@@ -889,13 +909,16 @@ export default function DeskPage() {
                 className="flex items-center gap-2 text-left w-full group"
               >
                 <SectionTitle>
-                  Archive{" "}
-                  <span className="rounded-full bg-white/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
-                    {desk.retired.length} retired · {(desk.dismissed ?? []).length} dismissed
+                  {t("desk.archive")}{" "}
+                  <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                    {t("desk.archiveCounts", {
+                      r: desk.retired.length,
+                      d: (desk.dismissed ?? []).length,
+                    })}
                   </span>
                 </SectionTitle>
-                <span className="text-muted text-[10px] group-hover:text-[#c7c7cc] transition-colors">
-                  {archiveOpen ? "▾ hide" : "▸ show"}
+                <span className="text-muted text-[10px] group-hover:text-emph transition-colors">
+                  {archiveOpen ? `▾ ${t("common.hide")}` : `▸ ${t("common.show")}`}
                 </span>
               </button>
               {archiveOpen && (
@@ -1001,8 +1024,8 @@ export default function DeskPage() {
 
       {/* Undo window for retire / dismiss / swap */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-white/15 shadow-2xl shadow-black/60 px-4 py-2.5">
-          <span className="text-xs text-[#e0e0e4]">{toast.msg}</span>
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-ink/15 shadow-2xl shadow-black/60 px-4 py-2.5">
+          <span className="text-xs text-emph">{toast.msg}</span>
           <button
             onClick={() => {
               setToast(null);
@@ -1010,12 +1033,12 @@ export default function DeskPage() {
             }}
             className="rounded-lg bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-3 py-1 transition-colors"
           >
-            Undo
+            {t("common.undo")}
           </button>
           <button
             onClick={() => setToast(null)}
-            aria-label="Dismiss"
-            className="text-muted hover:text-[#c7c7cc] text-xs transition-colors"
+            aria-label={t("common.dismiss")}
+            className="text-muted hover:text-emph text-xs transition-colors"
           >
             ✕
           </button>
@@ -1039,6 +1062,7 @@ function FullDeskBar({
   running: boolean;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const up = (quote?.changePercent ?? 0) >= 0;
   return (
     <div className="w-full max-w-4xl mx-auto pb-3 flex items-center gap-3 flex-wrap">
@@ -1053,18 +1077,20 @@ function FullDeskBar({
             {fmtPrice(quote.price, quote.currency)}
           </span>
           <span
-            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums text-black ${up ? "bg-gain" : "bg-loss"}`}
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
           >
             {fmtPct(quote.changePercent)}
           </span>
         </>
       )}
-      {running && <span className="text-[11px] text-accent pulse-soft">Researching…</span>}
+      {running && (
+        <span className="text-[11px] text-accent pulse-soft">{t("desk.researching")}</span>
+      )}
       <button
         onClick={onClose}
-        className="ml-auto rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+        className="ml-auto rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
       >
-        Back to board <span className="text-muted">(Esc)</span>
+        {t("desk.backToBoard")} <span className="text-muted">(Esc)</span>
       </button>
     </div>
   );
@@ -1088,56 +1114,61 @@ function BulkBar({
   onClear: () => void;
   onBulk: (action: "approve" | "dismiss", ids: string[]) => void;
 }) {
+  const { t } = useT();
   const ids = suggested.filter((s) => selected.has(s.id)).map((s) => s.id);
   const allSelected = ids.length === suggested.length && suggested.length > 0;
   const rest = suggested.length - ids.length;
   // Consequence disclosure: name the signals a bulk approval would retire.
   const casualties = suggested
     .filter((s) => selected.has(s.id) && s.replaces)
-    .map((s) => signalsById.get(s.replaces!)?.name ?? "an active signal");
+    .map((s) => signalsById.get(s.replaces!)?.name ?? t("desk.anActiveSignal"));
   return (
     <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
       <button
         onClick={allSelected ? onClear : onSelectAll}
-        className="rounded-lg border border-hairline bg-white/4 hover:bg-white/8 px-2.5 py-1 font-medium text-[#c7c7cc] transition-colors"
+        className="rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1 font-medium text-emph transition-colors"
       >
-        {allSelected ? "Clear selection" : "Select all"}
+        {allSelected ? t("desk.clearSelection") : t("desk.selectAll")}
       </button>
       {ids.length > 0 && (
         <>
-          <span className="text-muted">{ids.length} selected</span>
+          <span className="text-muted">{t("desk.nSelected", { n: ids.length })}</span>
           <button
             onClick={() => onBulk("approve", ids)}
             disabled={busy}
             title={
               rest > 0
-                ? `Activates your ${ids.length} selected signal${ids.length === 1 ? "" : "s"} and ignores the other ${rest} — one decision resolves the queue (ignored proposals stay recoverable in the archive)`
-                : "Activates the selected signals"
+                ? t(ids.length === 1 ? "desk.bulkApproveTitleOne" : "desk.bulkApproveTitleMany", {
+                    n: ids.length,
+                    rest,
+                  })
+                : t("desk.bulkApproveTitleAll")
             }
             className="rounded-lg bg-gain/15 text-gain font-semibold px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
           >
             {busy
-              ? "Working…"
+              ? t("common.working")
               : rest > 0
-                ? `Approve ${ids.length} · ignore rest (${rest})`
-                : `Approve ${ids.length}`}
+                ? t("desk.approveNIgnoreRest", { n: ids.length, rest })
+                : t("desk.approveN", { n: ids.length })}
           </button>
           {casualties.length > 0 && (
             <span className="text-warn">
-              ⇄ approving retires{" "}
-              {casualties
-                .slice(0, 2)
-                .map((n) => `“${n}”`)
-                .join(", ")}
-              {casualties.length > 2 && ` +${casualties.length - 2} more`}
+              {t("desk.bulkRetires", {
+                names: casualties
+                  .slice(0, 2)
+                  .map((n) => `“${n}”`)
+                  .join(t("desk.listJoiner")),
+              })}
+              {casualties.length > 2 && t("desk.bulkRetiresMore", { n: casualties.length - 2 })}
             </span>
           )}
           <button
             onClick={() => onBulk("dismiss", ids)}
             disabled={busy}
-            className="rounded-lg bg-white/6 text-muted font-medium px-2.5 py-1 hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+            className="rounded-lg bg-ink/6 text-muted font-medium px-2.5 py-1 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
           >
-            Ignore {ids.length}
+            {t("desk.ignoreN", { n: ids.length })}
           </button>
         </>
       )}
@@ -1172,6 +1203,7 @@ function ArchiveRow({
   activeReplacement: string | null;
   onSwapBack: (() => void) | null;
 }) {
+  const { t } = useT();
   const [confirming, setConfirming] = useState(false);
   const needsGuard = kind === "retired" && activeReplacement != null && onSwapBack != null;
   return (
@@ -1180,35 +1212,40 @@ function ArchiveRow({
         className={`min-w-0 flex-1 ${onOpen ? "cursor-pointer" : ""}`}
         onClick={onOpen ?? undefined}
         role={onOpen ? "button" : undefined}
-        title={onOpen ? "View this signal's full evidence trail (read-only)" : undefined}
+        title={onOpen ? t("desk.archiveOpenTitle") : undefined}
       >
         <div className="flex items-center gap-2">
           <span
-            className={`text-sm font-medium truncate ${onOpen ? "text-[#c7c7cc] hover:text-accent transition-colors" : "text-[#c7c7cc]"}`}
+            className={`text-sm font-medium truncate ${onOpen ? "text-emph hover:text-accent transition-colors" : "text-emph"}`}
           >
             {signal.name}
           </span>
           <span
             className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
-              kind === "retired" ? "bg-white/8 text-muted" : "bg-warn/10 text-warn/80"
+              kind === "retired" ? "bg-ink/8 text-muted" : "bg-warn/10 text-warn/80"
             }`}
           >
-            {kind}
+            {t(`common.status_${kind}`)}
           </span>
-          {onOpen && <span className="text-[10px] text-muted/60 shrink-0">history ⤢</span>}
+          {onOpen && (
+            <span className="text-[10px] text-muted/60 shrink-0">{t("desk.historyLink")}</span>
+          )}
         </div>
         <p className="text-[11px] text-muted truncate mt-0.5">
           {signal.focusArea}
           {replacedByName && (
-            <span className="text-warn/80"> · superseded by “{replacedByName}”</span>
+            <span className="text-warn/80">
+              {" · "}
+              {t("desk.supersededBy", { name: replacedByName })}
+            </span>
           )}
           {!replacedByName && ` · ${signal.thesis}`}
         </p>
       </div>
       {confirming && needsGuard ? (
         <span className="flex items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/8 px-2 py-1 flex-wrap">
-          <span className="text-[11px] text-[#c7c7cc]">
-            “{activeReplacement}” replaced this signal and is still active:
+          <span className="text-[11px] text-emph">
+            {t("desk.guardReplacedActive", { name: activeReplacement })}
           </span>
           <button
             onClick={() => {
@@ -1218,7 +1255,7 @@ function ArchiveRow({
             disabled={busy}
             className="rounded-md bg-warn/20 hover:bg-warn/30 text-warn text-[11px] font-semibold px-2 py-1 disabled:opacity-50 transition-colors"
           >
-            Swap back — retires “{activeReplacement}”
+            {t("desk.swapBack", { name: activeReplacement })}
           </button>
           <button
             onClick={() => {
@@ -1226,30 +1263,26 @@ function ArchiveRow({
               onReactivate();
             }}
             disabled={busy}
-            className="rounded-md bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2 py-1 disabled:opacity-50 transition-colors"
-            title="Both signals will be active — watch for overlap"
+            className="rounded-md bg-ink/6 hover:bg-ink/10 text-[11px] font-medium text-emph px-2 py-1 disabled:opacity-50 transition-colors"
+            title={t("desk.keepBothTitle")}
           >
-            Keep both anyway
+            {t("desk.keepBoth")}
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="rounded-md text-muted hover:text-[#c7c7cc] text-[11px] px-1.5 py-1 transition-colors"
+            className="rounded-md text-muted hover:text-emph text-[11px] px-1.5 py-1 transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </span>
       ) : (
         <button
           onClick={() => (needsGuard ? setConfirming(true) : onReactivate())}
           disabled={busy}
-          title={
-            kind === "retired"
-              ? "Return this signal to the active board"
-              : "Return this proposal to the approval queue"
-          }
-          className="shrink-0 rounded-lg bg-white/6 hover:bg-white/10 text-[11px] font-medium text-[#c7c7cc] px-2.5 py-1.5 disabled:opacity-50 transition-colors"
+          title={kind === "retired" ? t("desk.reactivateTitle") : t("desk.restoreTitle")}
+          className="shrink-0 rounded-lg bg-ink/6 hover:bg-ink/10 text-[11px] font-medium text-emph px-2.5 py-1.5 disabled:opacity-50 transition-colors"
         >
-          {busy ? "…" : kind === "retired" ? "Reactivate" : "Restore proposal"}
+          {busy ? "…" : kind === "retired" ? t("desk.reactivate") : t("desk.restoreProposal")}
         </button>
       )}
     </div>
