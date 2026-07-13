@@ -67,12 +67,15 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   },
   // Gemini — newest full Flash (breadth) and newest Pro (deep dives), both with
   // native Google-Search grounding. Exclude media/embedding/lite variants.
+  // Breadth floor raised to 3.5 Flash: auto-selection already adopts the newest
+  // available Flash, so the fallback only bites when the live list is
+  // unreachable — it should never regress the mass scout to an older line.
   scoutBreadth: {
     provider: "gemini",
     env: "GEMINI_MODEL",
     include: /^gemini-[\d.]+-flash/,
     exclude: /(lite|embedding|aqa|tts|image|audio|live|vision|learnlm|robotics|thinking)/,
-    fallback: "gemini-2.5-flash",
+    fallback: "gemini-3.5-flash",
   },
   scoutDeep: {
     provider: "gemini",
