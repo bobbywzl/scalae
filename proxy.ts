@@ -21,6 +21,12 @@ export function proxy(request: NextRequest) {
   if (!authOn) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
+  // The /admin console has its OWN password gate (lib/admin-auth) and is
+  // deliberately decoupled from the consumer Google session — an admin need
+  // not be a signed-in app user. Let it through here; its layout + API guard
+  // enforce admin auth.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return NextResponse.next();
+  if (pathname.startsWith("/api/admin/")) return NextResponse.next();
   if (PUBLIC_PAGES.has(pathname)) return NextResponse.next();
   if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 

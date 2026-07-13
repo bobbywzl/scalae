@@ -36,9 +36,11 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 Scalae runs in one of two modes:
 
 - **Single-user (default)** — no configuration needed. Everything belongs to the implicit `local` account, exactly as before.
-- **Multi-user (B2C)** — set three env vars and the app grows a **Google sign-in** front door (`/signin`), per-account data isolation (desks, signals, chats, portfolio, settings — all scoped), and an **admin console** (`/admin`) listing every account with activity aggregates (desks, active signals, research runs, messages, trades, last seen).
+- **Multi-user (B2C)** — set three env vars and the app grows a **Google sign-in** front door (`/signin`), per-account data isolation (desks, signals, chats, portfolio, settings — all scoped).
 
-To enable:
+The **admin console** (`/admin`) is a separate concern from consumer sign-in — see below. It works in *either* mode.
+
+### Consumer sign-in (Google, optional)
 
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → *Credentials* → *Create credentials* → **OAuth client ID** (type *Web application*). Configure the consent screen (External) if prompted. Add the authorized redirect URI: `https://<your-domain>/api/auth/callback` (e.g. `https://scalae.vercel.app/api/auth/callback`).
 2. Set env vars (Vercel → Settings → Environment Variables):
@@ -48,7 +50,17 @@ To enable:
    - `APP_URL` *(optional)* — canonical origin if you serve behind a proxy that mangles Host headers
 3. Redeploy. Signed-out visitors are routed to `/signin` (pages redirect, APIs 401 — enforced by `proxy.ts` and per-route session checks).
 
-**Your existing data is safe**: the first admin to sign in automatically adopts everything created in single-user mode. Sessions are database-backed (30 days, httpOnly cookies); the OAuth flow is a hand-rolled authorization-code exchange with HMAC-signed state — no auth dependencies. The daily cron sweeps every account's desks, honoring each user's own auto-research switch, so one user pausing spend never affects another (watch the Runs column in `/admin` — research runs cost tokens per user).
+**Your existing data is safe**: the first admin to sign in automatically adopts everything created in single-user mode. Sessions are database-backed (30 days, httpOnly cookies); the OAuth flow is a hand-rolled authorization-code exchange with HMAC-signed state — no auth dependencies.
+
+### Admin console (`/admin`) — its own email + password gate
+
+The admin console lists every account with activity aggregates (desks, active signals, research runs, messages, trades, last seen) and the models in use. It sits behind a **dedicated sign-in at `/admin/login`** that is independent of the consumer Google flow — an app admin need not be a signed-in app user, and the gate works even in single-user mode. It's unadvertised in the consumer UI; reach it by URL.
+
+Getting in requires **both**:
+- `ADMIN_PASSWORD` — the shared admin password. **Unset seals `/admin` entirely** — no default password is ever accepted.
+- an **authorized email** — one in `ADMIN_EMAILS`, or the address of a user whose role is `admin` (a live DB check, so promoting a user takes effect immediately).
+
+Set `ADMIN_PASSWORD` (+ `ADMIN_EMAILS`) in Vercel, redeploy, then visit `/admin/login` and enter an authorized email and the password. A successful login sets a 24-hour httpOnly cookie carrying your email, signed (HMAC) with `ADMIN_PASSWORD` — so it can't be forged, and **rotating the password signs every admin out**. "Admin sign out" clears only that cookie (any consumer Google session is untouched). The daily cron sweeps every account's desks, honoring each user's own auto-research switch, so one user pausing spend never affects another (watch the Runs column in `/admin` — research runs cost tokens per user).
 
 ## The analytical core
 

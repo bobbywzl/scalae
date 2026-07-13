@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { api, timeAgo } from "@/components/util";
 import type { AdminUserRow } from "@/lib/types";
 
@@ -52,11 +51,8 @@ export default function AdminPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-5 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap mb-5">
-        <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
-          ‹ Watchlist
-        </Link>
         <div>
-          <h1 className="text-xl font-bold leading-tight">Admin</h1>
+          <h1 className="text-xl font-bold leading-tight">Accounts</h1>
           <p className="text-muted text-xs">
             Every account across the app — desks, research activity, ledgers.
           </p>
