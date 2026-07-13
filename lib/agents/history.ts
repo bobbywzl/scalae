@@ -70,7 +70,7 @@ export async function researchSignalBackstory(
       { label: "Industry history", prompt: industryHistoryPrompt(ticker, signal) },
       { label: "Stress episodes", prompt: stressEpisodesPrompt(ticker, signal) },
     ].map((j) =>
-      geminiGroundedSearch(j.prompt, { model: deepModel }).then((r) => ({
+      geminiGroundedSearch(j.prompt, { model: deepModel, meta: { userId, feature: "backstory" } }).then((r) => ({
         label: j.label,
         text: r.text,
         sources: r.sources,
@@ -129,6 +129,7 @@ TASK: Write the signal's deep-history backstory per the backstory doctrine — e
     schema: BACKSTORY_SCHEMA as unknown as Record<string, unknown>,
     maxTokens: 8000,
     effort: "high",
+    meta: { userId, feature: "backstory" },
   });
   const backstory = out.backstory?.trim();
   if (!backstory) throw new Error("History synthesis came back empty — try again.");

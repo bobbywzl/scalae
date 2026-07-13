@@ -54,7 +54,7 @@ The **admin console** (`/admin`) is a separate concern from consumer sign-in —
 
 ### Admin console (`/admin`) — its own email + password gate
 
-The admin console lists every account with activity aggregates (desks, active signals, research runs, messages, trades, last seen) and the models in use. It sits behind a **dedicated sign-in at `/admin/login`** that is independent of the consumer Google flow — an app admin need not be a signed-in app user, and the gate works even in single-user mode. It's unadvertised in the consumer UI; reach it by URL.
+The admin console is a full ops dashboard: every account with activity aggregates (desks, signals, runs, messages, trades, onboarding profile, sign-ins over 7 days, feedback filed, last seen), **AI cost & usage telemetry** (every Claude/Gemini call records tokens + estimated cost from list prices at call time — total/30-day cost tiles, daily cost chart, cost by model / by feature / by user with share bars, and a "clear cost data" reset), a **sign-ins-per-day** chart, a **feedback inbox** (`/admin/feedback`), and the models in use. It sits behind a **dedicated sign-in at `/admin/login`** that is independent of the consumer Google flow — an app admin need not be a signed-in app user, and the gate works even in single-user mode. It's unadvertised in the consumer UI; reach it by URL.
 
 Getting in requires **both**:
 - `ADMIN_PASSWORD` — the shared admin password. **Unset seals `/admin` entirely** — no default password is ever accepted.

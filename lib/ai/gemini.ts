@@ -1,3 +1,5 @@
+import { recordGeminiUsage, type UsageMeta } from "./usage";
+
 // Which Gemini model runs each scout tier is decided by lib/ai/models.ts
 // (automatic best-available selection, env-overridable) and passed in via
 // opts.model. This is only the stable floor used if a caller omits the model.
@@ -16,6 +18,12 @@ interface GeminiResponse {
       groundingChunks?: { web?: { uri?: string; title?: string } }[];
     };
   }[];
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    cachedContentTokenCount?: number;
+  };
   error?: { message?: string; status?: string };
 }
 
@@ -25,7 +33,7 @@ interface GeminiResponse {
  */
 export async function geminiGroundedSearch(
   prompt: string,
-  opts: { model?: string } = {}
+  opts: { model?: string; meta?: UsageMeta } = {}
 ): Promise<GroundedResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set.");
@@ -59,6 +67,7 @@ export async function geminiGroundedSearch(
       if (!res.ok || data.error) {
         throw new Error(`Gemini error: ${data.error?.message || res.statusText}`);
       }
+      recordGeminiUsage(data.usageMetadata, model, opts.meta);
       const cand = data.candidates?.[0];
       const text = (cand?.content?.parts ?? [])
         .map((p) => p.text ?? "")

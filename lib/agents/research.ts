@@ -208,7 +208,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
-        geminiGroundedSearch(j.prompt, { model: breadthModel }).then(
+        geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" } }).then(
           (r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources })
         )
       )
@@ -295,6 +295,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         schema: GAP_SCHEMA as unknown as Record<string, unknown>,
         maxTokens: 4000,
         effort: "medium",
+        meta: { userId, feature: "triage" },
       });
       followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_FOLLOW_UPS);
     } catch (e) {
@@ -312,6 +313,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         followUps.map((f) =>
           geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
             model: deepModel,
+            meta: { userId, feature: "scoutDeep" },
           }).then(
             (r): Sweep => ({
               label: `Deep dive: ${f.query}`,
@@ -413,6 +415,7 @@ TASK — produce today's desk output:
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
       maxTokens: 20000,
       effort: "high",
+      meta: { userId, feature: "synthesis" },
     });
 
     await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");
