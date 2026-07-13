@@ -290,7 +290,10 @@ export default function WatchlistPage() {
 
       <footer className="mt-10 text-center text-[11px] text-muted/60">
         Research by Claude (analyst) + Gemini (web scout). Quotes via Yahoo Finance. Educational
-        research tool — not investment advice.
+        research tool — not investment advice.{" "}
+        <Link href="/support" className="text-muted hover:text-foreground underline underline-offset-2 transition-colors">
+          Send feedback
+        </Link>
       </footer>
     </main>
   );

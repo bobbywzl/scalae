@@ -155,6 +155,24 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Help & feedback */}
+        <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">Support</p>
+          <Link
+            href="/support"
+            className="inline-flex items-center gap-2 rounded-xl border border-hairline bg-white/4 hover:bg-white/8 px-3.5 py-2 text-xs font-semibold transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-accent" aria-hidden>
+              <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.4-.7L3 21l1.8-4.3a8.4 8.4 0 1 1 16.2-5.2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+            Help &amp; feedback
+          </Link>
+          <p className="text-[11px] text-muted mt-2 leading-snug">
+            Report a bug, request a feature or ask a question — with screenshots attached. You get a
+            request ID, and responses land in your email.
+          </p>
+        </section>
+
         {/* Account */}
         {me?.authEnabled && user && (
           <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
