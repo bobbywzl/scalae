@@ -255,6 +255,47 @@ export default function PortfolioPage() {
       )}
 
       {error && <p className="text-loss text-sm mb-4">{error}</p>}
+
+      {/* Initial-capital editor — top of the page, available even on an empty book */}
+      {capEditing && data && (
+        <section className="mb-5 rounded-2xl bg-card border border-accent/25 px-4 py-3 flex items-end gap-3 flex-wrap">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted">Initial capital · USD</p>
+            <input
+              autoFocus
+              inputMode="decimal"
+              value={capInput}
+              onChange={(e) => setCapInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveCapital(capInput);
+                if (e.key === "Escape") setCapEditing(false);
+              }}
+              placeholder="100000"
+              className="mt-1 rounded-lg bg-card2 border border-hairline focus:border-accent/50 px-2.5 py-2 text-sm outline-none tabular-nums w-44 transition-colors placeholder:text-muted/60"
+            />
+          </div>
+          <p className="text-[11px] text-muted max-w-sm pb-1">
+            The cash you started this book with. Cash on hand = this + every buy/sell/fee/dividend
+            since. Leave empty to stop tracking cash.
+          </p>
+          <div className="flex gap-2 pb-0.5 ml-auto">
+            <button
+              onClick={() => saveCapital(capInput)}
+              disabled={capBusy}
+              className="rounded-lg bg-accent text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+            >
+              {capBusy ? "Saving…" : "Save"}
+            </button>
+            <button
+              onClick={() => setCapEditing(false)}
+              className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
+      )}
+
       {adding && (
         <div className="mb-5">
           <TradeForm
@@ -298,36 +339,39 @@ export default function PortfolioPage() {
           >
             Place your first trade
           </button>
+          <p className="mt-5 text-xs text-muted">
+            {data.initialCapital != null ? (
+              <>
+                Starting capital{" "}
+                <span className="tabular-nums font-semibold text-[#c7c7cc]">{fmtUsd(data.initialCapital)}</span>
+                <button
+                  onClick={() => {
+                    setCapInput(String(data.initialCapital ?? ""));
+                    setCapEditing(true);
+                  }}
+                  className="ml-2 text-accent hover:opacity-80 font-medium transition-opacity"
+                >
+                  Edit
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setCapInput("");
+                  setCapEditing(true);
+                }}
+                className="text-accent hover:opacity-80 font-medium transition-opacity"
+              >
+                Set starting capital
+              </button>
+            )}
+          </p>
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Summary tiles */}
+          {/* Summary tiles — capital first: the book starts from what you put in */}
           {s && (
             <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatTile label="Market value" value={fmtUsd(s.marketValue)} sub={`cost ${fmtUsd(s.costBasis)}`} />
-              <StatTile
-                label="Total P&L"
-                value={fmtUsd(s.totalPnl, { sign: true })}
-                tone={signCls(s.totalPnl)}
-                sub={[
-                  s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : null,
-                  data.initialCapital != null && data.initialCapital > 0
-                    ? `${s.totalPnl >= 0 ? "+" : ""}${((s.totalPnl / data.initialCapital) * 100).toFixed(1)}% on capital`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ") || undefined}
-              />
-              <StatTile label="Unrealized" value={fmtUsd(s.unrealized, { sign: true })} tone={signCls(s.unrealized)} />
-              <StatTile label="Realized" value={fmtUsd(s.realized, { sign: true })} tone={signCls(s.realized)} />
-              {s.dividends !== 0 && (
-                <StatTile
-                  label="Dividends"
-                  value={fmtUsd(s.dividends, { sign: true })}
-                  tone={signCls(s.dividends)}
-                  sub="cash + reinvested"
-                />
-              )}
               {data.initialCapital != null && data.cash != null ? (
                 <div className="rounded-xl bg-card border border-hairline px-4 py-3">
                   <p className="text-[10px] uppercase tracking-wider text-muted flex items-center">
@@ -365,46 +409,30 @@ export default function PortfolioPage() {
                   <p className="text-[11px] text-muted/70 mt-0.5">unlocks cash & return tracking</p>
                 </button>
               )}
-            </section>
-          )}
-
-          {/* Initial-capital editor */}
-          {capEditing && (
-            <section className="rounded-2xl bg-card border border-accent/25 px-4 py-3 flex items-end gap-3 flex-wrap">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted">Initial capital · USD</p>
-                <input
-                  autoFocus
-                  inputMode="decimal"
-                  value={capInput}
-                  onChange={(e) => setCapInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveCapital(capInput);
-                    if (e.key === "Escape") setCapEditing(false);
-                  }}
-                  placeholder="100000"
-                  className="mt-1 rounded-lg bg-card2 border border-hairline focus:border-accent/50 px-2.5 py-2 text-sm outline-none tabular-nums w-44 transition-colors placeholder:text-muted/60"
+              <StatTile label="Market value" value={fmtUsd(s.marketValue)} sub={`cost ${fmtUsd(s.costBasis)}`} />
+              <StatTile
+                label="Total P&L"
+                value={fmtUsd(s.totalPnl, { sign: true })}
+                tone={signCls(s.totalPnl)}
+                sub={[
+                  s.dayChange != null ? `${fmtUsd(s.dayChange, { sign: true })} today` : null,
+                  data.initialCapital != null && data.initialCapital > 0
+                    ? `${s.totalPnl >= 0 ? "+" : ""}${((s.totalPnl / data.initialCapital) * 100).toFixed(1)}% on capital`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || undefined}
+              />
+              <StatTile label="Unrealized" value={fmtUsd(s.unrealized, { sign: true })} tone={signCls(s.unrealized)} />
+              <StatTile label="Realized" value={fmtUsd(s.realized, { sign: true })} tone={signCls(s.realized)} />
+              {s.dividends !== 0 && (
+                <StatTile
+                  label="Dividends"
+                  value={fmtUsd(s.dividends, { sign: true })}
+                  tone={signCls(s.dividends)}
+                  sub="cash + reinvested"
                 />
-              </div>
-              <p className="text-[11px] text-muted max-w-sm pb-1">
-                The cash you started this book with. Cash on hand = this + every buy/sell/fee/dividend
-                since. Leave empty to stop tracking cash.
-              </p>
-              <div className="flex gap-2 pb-0.5 ml-auto">
-                <button
-                  onClick={() => saveCapital(capInput)}
-                  disabled={capBusy}
-                  className="rounded-lg bg-accent text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
-                >
-                  {capBusy ? "Saving…" : "Save"}
-                </button>
-                <button
-                  onClick={() => setCapEditing(false)}
-                  className="rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+              )}
             </section>
           )}
 
