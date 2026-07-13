@@ -53,7 +53,7 @@ My job is to run the kind of information network Buffett relied on: every day I'
 
 **To set up the desk, tell me what you want to understand about ${symbol}.** For example: is the moat holding? Is management allocating capital sensibly? Is the culture deteriorating?
 
-If you're not sure where to start, just say so — I'll size up what kind of business ${name} is and suggest the value-investing questions with the most open debate, following the Buffett/Munger framework (moat durability, franchise vs. commodity, owner earnings, capital allocation, management candor, red flags…).
+If you're not sure where to start, just say so — I'll size up what kind of business ${name} is and suggest the value-investing questions with the most open debate, following the Buffett/Munger framework: name the moat's actual mechanism, read the incentives before the press releases, build the kill list (invert!), and check the psychology — management's and ours — against Munger's misjudgment checklist. Moat durability, franchise vs. commodity, owner earnings, capital allocation, management candor, red flags…
 
 Nothing goes live without your sign-off: I'll propose focus areas and specific trackable signals, and you approve or reject each one. Once the desk is live you can also just tell me here to approve or retire signals, or to run the research now.`;
 }
