@@ -26,15 +26,15 @@ const VERDICT_SCHEMA = {
 } as const;
 
 /** One desk's evidence snapshot, compact enough to weigh two side by side. */
-async function deskSnapshot(symbol: string): Promise<string> {
-  const ticker = await getTicker(symbol);
+async function deskSnapshot(userId: string, symbol: string): Promise<string> {
+  const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
   const [active, run, quote, focusAreas, involvement] = await Promise.all([
-    listSignals(symbol, "active"),
-    latestRun(symbol),
+    listSignals(userId, symbol, "active"),
+    latestRun(userId, symbol),
     getQuote(symbol).catch(() => null),
-    listFocusAreas(symbol),
-    computeInvolvement(symbol).catch(() => null),
+    listFocusAreas(userId, symbol),
+    computeInvolvement(userId, symbol).catch(() => null),
   ]);
 
   const signalLines = (
@@ -66,8 +66,8 @@ ${signalLines || "(no active signals)"}`;
 }
 
 /** Run the pairwise opportunity-cost comparison; returns the verdict markdown. */
-export async function runComparison(a: string, b: string): Promise<string> {
-  const [snapA, snapB] = await Promise.all([deskSnapshot(a), deskSnapshot(b)]);
+export async function runComparison(userId: string, a: string, b: string): Promise<string> {
+  const [snapA, snapB] = await Promise.all([deskSnapshot(userId, a), deskSnapshot(userId, b)]);
   const model = await resolveModel("chat");
   const out = await claudeJSON<{ verdict: string }>({
     model,

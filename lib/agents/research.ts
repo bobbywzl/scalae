@@ -1,6 +1,7 @@
 import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
+import { researchSignalBackstory } from "./history";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
@@ -262,7 +263,10 @@ export async function executeRun(userId: string, runId: string, symbol: string):
               ? ` NOTE: kept alongside "${overlapWith.get(s.id)}" — their recent readings HAVE cited the same evidence (${Math.round(measured * 100)}% source overlap). They are one signal wearing two names: propose the merged replacement NOW with "replaces" set, unless today's evidence clearly separates them.`
               : ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
             : "";
-          return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${overlapNote}`;
+          // The signal's deep-history base rate (when researched) keeps daily
+          // readings judged against decades, not just yesterday.
+          const historyLine = s.backstoryBrief ? ` History base rate: ${s.backstoryBrief}` : "";
+          return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${historyLine}${overlapNote}`;
         })
       )
     ).join("\n");
@@ -395,7 +399,7 @@ ${sourceList || "(none)"}
 TASK — produce today's desk output:
 1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. First decide "newEvidence": did today's research add ANYTHING for this signal that the previous reading didn't already say?
    - newEvidence=false (pure carry-forward): rationale must be ONE short sentence — "No new information this run." optionally plus a brief note of what was checked (max ~140 chars total). Do NOT re-narrate the prior story, figures, or history — the board already shows them. Keep the previous level and value, delta "flat", and confidence at or slightly below the previous reading's.
-   - newEvidence=true: the rationale must LEAD with what is new versus the previous reading (the delta), then its implication — never restate the whole running story.
+   - newEvidence=true: the rationale must LEAD with what is new versus the previous reading (the delta), then its implication — never restate the whole running story. Where the board shows a "History base rate" for the signal, judge today's evidence against it: is this move normal variation for this aspect, a rhyme with a named past episode, or a genuine break from decades of record? Say which when it changes the reading.
    For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added. Never write bracketed [n] references inside rationale text — cite only via citationIndexes (the app renders them as linked chips).
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
@@ -467,6 +471,31 @@ TASK — produce today's desk output:
         return sig ? `[[sig:${sig.id}]]` : "";
       }
     );
+    // ---- Backfill deep-history backstories (bounded: 2 per run) ----
+    // Every signal should carry its decades-scale base rate; new boards fill
+    // in over a few runs without letting any single run's cost balloon.
+    // Failures are logged, never fatal — the run itself already succeeded.
+    const missingBackstory = signals.filter((s) => !s.backstory).slice(0, 2);
+    if (missingBackstory.length > 0) {
+      await setRunStage(
+        runId,
+        "synthesizing",
+        `Researching deep history for ${missingBackstory
+          .map((s) => `“${s.name}”`)
+          .join(" · ")} — decades of record, industry-specific…`
+      );
+      for (const s of missingBackstory) {
+        try {
+          await researchSignalBackstory(userId, s.id);
+        } catch (e) {
+          console.error(
+            `[scalae] backstory for "${s.name}" (${symbol}) failed:`,
+            e instanceof Error ? e.message : e
+          );
+        }
+      }
+    }
+
     await finishRun(runId, out.brief ?? "", allSources, dossier ?? null);
     await touchLastRun(userId, symbol);
   } catch (e) {

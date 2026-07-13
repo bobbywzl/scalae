@@ -171,6 +171,10 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL
   )`,
   `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "dismissedAt" TEXT`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS backstory TEXT`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "backstoryBrief" TEXT`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "backstorySources" TEXT NOT NULL DEFAULT '[]'`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "backstoryAt" TEXT`,
   `CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol, "tradeDate")`,
   `CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
@@ -364,6 +368,22 @@ export async function insertProposal(
                   ${p.type === "quantitative" ? "quantitative" : "qualitative"},
                   ${p.thesis}, ${p.measurementPlan}, ${p.scale}, 'suggested', ${origin}, ${replacesId}, ${now()})`;
   return id;
+}
+
+/**
+ * Store a signal's researched deep-history backstory: the markdown (with [n]
+ * citations), its numbered source list, and the 1-2 sentence base-rate brief
+ * the daily synthesis reads. One per signal; refreshing overwrites.
+ */
+export async function setSignalBackstory(
+  id: string,
+  backstory: string,
+  brief: string,
+  sources: Citation[]
+): Promise<void> {
+  await q`UPDATE signals SET backstory = ${backstory}, "backstoryBrief" = ${brief},
+          "backstorySources" = ${JSON.stringify(sources)}, "backstoryAt" = ${now()}
+          WHERE id = ${id}`;
 }
 
 export async function setSignalStatus(id: string, status: SignalStatus): Promise<void> {

@@ -75,6 +75,16 @@ export interface Signal {
   approvedAt: string | null;
   /** When the investor dismissed it (kept after restore — gate memory). */
   dismissedAt?: string | null;
+  /**
+   * Deep-history backstory (markdown with [n] citations): how the aspect this
+   * signal measures evolved over years/decades and fared through major events.
+   * Researched once per signal (refreshable); null until researched.
+   */
+  backstory?: string | null;
+  /** 1-2 sentence base-rate summary of the backstory, fed to daily synthesis. */
+  backstoryBrief?: string | null;
+  /** When the backstory was last researched (ISO). */
+  backstoryAt?: string | null;
   /** Owner (server-side; present on rows read from the db). */
   userId?: string;
 }
@@ -227,6 +237,8 @@ export interface SignalWithReadings extends Signal {
   history: Reading[];
   /** Accumulated, deduped source catalog across all readings (freshest first). */
   sources: SignalSource[];
+  /** Numbered sources for the backstory's [n] citations (parsed server-side). */
+  backstorySources: Citation[];
 }
 
 /** Full payload for the ticker detail page. */

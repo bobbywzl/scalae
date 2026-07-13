@@ -93,7 +93,18 @@ are what it reasons *about*.
    signals are designed for years of dormancy and fire on events, never on a
    calendar. A desk that manufactures daily movement is mis-specified — activity is
    a cost, not a KPI.
-9. **What the desk refuses to produce.** Macro forecasts; price targets and chart
+9. **History is the base rate.** Munger's prescription inverted: learn everything
+   you can vicariously, from the record of others living and dead. Every signal
+   carries a deep-history backstory — how the aspect it measures actually behaved
+   over years and decades of company and industry record, and how it fared through
+   the events that tested it (recessions, price wars, regulatory strikes, the
+   company's own crises) — researched with company- and industry-specific
+   searches, anchored era by era to the lenses above, honest about what the
+   record doesn't show, and naming what *didn't* survive each era (survivorship
+   is a bias, not a base rate). Daily readings are then judged against that base
+   rate: normal variation, a rhyme with a named past episode, or a genuine break
+   from the record.
+10. **What the desk refuses to produce.** Macro forecasts; price targets and chart
    patterns; EBITDA-family adjusted metrics treated as earnings ("bullshit
    earnings" — depreciation is real); management projections treated as evidence
    (they are trackable only as a candor/culture datum: promises made vs. kept);

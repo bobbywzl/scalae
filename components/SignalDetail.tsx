@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { chipLabel, sourceClass, sourceClassLabel } from "@/lib/citations";
-import type { Attachment, ChatMessage, Signal, SignalWithReadings } from "@/lib/types";
+import { chipLabel, linkCitations, sourceClass, sourceClassLabel } from "@/lib/citations";
+import type { Attachment, ChatMessage, Citation, Signal, SignalWithReadings } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
+import { Markdown } from "./Markdown";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { api, DELTA_ARROW, LEVEL_STYLE, timeAgo } from "./util";
 
@@ -57,6 +58,38 @@ export function SignalDetail({
   const [confirmRetire, setConfirmRetire] = useState(false);
   // Evidence traceability: pick a catalog source to see exactly which readings cited it.
   const [filterUrl, setFilterUrl] = useState<string | null>(null);
+  // Deep-history backstory: freshly researched result overrides the (polled) prop.
+  const [histLocal, setHistLocal] = useState<{
+    backstory: string;
+    sources: Citation[];
+    backstoryAt: string;
+  } | null>(null);
+  const [histBusy, setHistBusy] = useState(false);
+  const [histError, setHistError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Switching signals drops the previous signal's freshly-researched override.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistLocal(null);
+    setHistError(null);
+  }, [signal.id]);
+
+  async function researchHistory() {
+    if (histBusy) return;
+    setHistBusy(true);
+    setHistError(null);
+    try {
+      const result = await api<{ backstory: string; sources: Citation[]; backstoryAt: string }>(
+        `/api/signals/${signal.id}/history`,
+        { method: "POST" }
+      );
+      setHistLocal(result);
+    } catch (e) {
+      setHistError(e instanceof Error ? e.message : "History research failed");
+    } finally {
+      setHistBusy(false);
+    }
+  }
 
   const loadChat = useCallback(async () => {
     try {
@@ -321,6 +354,62 @@ export function SignalDetail({
             <p className="mt-1.5 text-xs text-[#c7c7cc] leading-relaxed">{signal.measurementPlan}</p>
             {signal.scale && <p className="text-[11px] text-muted mt-1">Scale: {signal.scale}</p>}
           </section>
+
+          {/* Deep history: the base rate — decades of record + stress episodes */}
+          {(() => {
+            const backstory = histLocal?.backstory ?? signal.backstory ?? null;
+            const bSources = histLocal?.sources ?? signal.backstorySources ?? [];
+            const bAt = histLocal?.backstoryAt ?? signal.backstoryAt ?? null;
+            return (
+              <section>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className={sectionTitle}>
+                    Deep history
+                    <span className="normal-case tracking-normal font-normal text-muted/70">
+                      {" "}
+                      — how this aspect has fared through the decades
+                    </span>
+                  </p>
+                  {!readOnly && (
+                    <button
+                      onClick={researchHistory}
+                      disabled={histBusy}
+                      title="Company- and industry-specific research: eras, stress episodes, base rates"
+                      className="ml-auto rounded-md bg-white/6 hover:bg-white/10 text-[10px] font-medium text-muted hover:text-[#c7c7cc] px-2 py-1 disabled:opacity-50 transition-colors"
+                    >
+                      {histBusy ? "Researching…" : backstory ? "Refresh history" : "Research history"}
+                    </button>
+                  )}
+                </div>
+                {histError && <p className="mt-1.5 text-[11px] text-loss">{histError}</p>}
+                {histBusy && !backstory && (
+                  <p className="mt-1.5 text-[11px] text-muted pulse-soft">
+                    Tracing this aspect through the company’s and industry’s record — eras, crises,
+                    base rates… (takes a minute or two)
+                  </p>
+                )}
+                {backstory ? (
+                  <div className="mt-2 text-xs">
+                    <Markdown>{linkCitations(backstory, bSources)}</Markdown>
+                    {bAt && (
+                      <p className="mt-1.5 text-[10px] text-muted/60">
+                        Researched {timeAgo(bAt)} · {bSources.length}{" "}
+                        {bSources.length === 1 ? "source" : "sources"} · informs daily readings as
+                        this signal’s base rate
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  !histBusy && (
+                    <p className="mt-1.5 text-[11px] text-muted italic">
+                      Not researched yet — the daily run fills this in over time
+                      {readOnly ? "." : ", or research it now."}
+                    </p>
+                  )
+                )}
+              </section>
+            );
+          })()}
 
           {sources.length > 0 && (
             <section>
