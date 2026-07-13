@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/components/util";
+import { useT } from "@/components/PrefsProvider";
+import { api, localizeError } from "@/components/util";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { SearchHit } from "@/lib/market";
 
 /**
@@ -21,35 +23,40 @@ interface Bubble {
   text: string;
 }
 
-const PHASES: { key: string; label: string; steps: Step[] }[] = [
-  { key: "you", label: "About you", steps: ["name", "age", "country"] },
-  { key: "interests", label: "Interests", steps: ["industries", "companies"] },
-  { key: "desks", label: "Your desks", steps: ["confirm", "creating"] },
+const PHASES: { key: string; labelKey: TKey; steps: Step[] }[] = [
+  { key: "you", labelKey: "onboarding.phaseYou", steps: ["name", "age", "country"] },
+  { key: "interests", labelKey: "onboarding.phaseInterests", steps: ["industries", "companies"] },
+  { key: "desks", labelKey: "onboarding.phaseDesks", steps: ["confirm", "creating"] },
 ];
 
-const INDUSTRIES: { label: string; symbols: [string, string][] }[] = [
-  { label: "Semiconductors", symbols: [["TSM", "TSMC"], ["ASML", "ASML"], ["NVDA", "NVIDIA"]] },
-  { label: "Software & internet", symbols: [["MSFT", "Microsoft"], ["GOOGL", "Alphabet"], ["META", "Meta"]] },
-  { label: "Consumer & retail", symbols: [["COST", "Costco"], ["WMT", "Walmart"], ["PG", "Procter & Gamble"]] },
-  { label: "Banks & payments", symbols: [["V", "Visa"], ["MA", "Mastercard"], ["JPM", "JPMorgan"]] },
-  { label: "Energy", symbols: [["XOM", "ExxonMobil"], ["CVX", "Chevron"], ["SHEL", "Shell"]] },
-  { label: "Healthcare", symbols: [["JNJ", "Johnson & Johnson"], ["NVO", "Novo Nordisk"], ["UNH", "UnitedHealth"]] },
-  { label: "Industrials", symbols: [["CAT", "Caterpillar"], ["UNP", "Union Pacific"], ["HON", "Honeywell"]] },
-  { label: "Autos & mobility", symbols: [["TM", "Toyota"], ["TSLA", "Tesla"], ["RACE", "Ferrari"]] },
-  { label: "Luxury & brands", symbols: [["MC.PA", "LVMH"], ["RMS.PA", "Hermès"], ["NKE", "Nike"]] },
-  { label: "Real estate", symbols: [["PLD", "Prologis"], ["O", "Realty Income"], ["AMT", "American Tower"]] },
+// `label` is the canonical (stored/POSTed) value; `labelKey` is what the UI shows.
+const INDUSTRIES: { label: string; labelKey: TKey; symbols: [string, string][] }[] = [
+  { label: "Semiconductors", labelKey: "onboarding.indSemis", symbols: [["TSM", "TSMC"], ["ASML", "ASML"], ["NVDA", "NVIDIA"]] },
+  { label: "Software & internet", labelKey: "onboarding.indSoftware", symbols: [["MSFT", "Microsoft"], ["GOOGL", "Alphabet"], ["META", "Meta"]] },
+  { label: "Consumer & retail", labelKey: "onboarding.indConsumer", symbols: [["COST", "Costco"], ["WMT", "Walmart"], ["PG", "Procter & Gamble"]] },
+  { label: "Banks & payments", labelKey: "onboarding.indBanks", symbols: [["V", "Visa"], ["MA", "Mastercard"], ["JPM", "JPMorgan"]] },
+  { label: "Energy", labelKey: "onboarding.indEnergy", symbols: [["XOM", "ExxonMobil"], ["CVX", "Chevron"], ["SHEL", "Shell"]] },
+  { label: "Healthcare", labelKey: "onboarding.indHealthcare", symbols: [["JNJ", "Johnson & Johnson"], ["NVO", "Novo Nordisk"], ["UNH", "UnitedHealth"]] },
+  { label: "Industrials", labelKey: "onboarding.indIndustrials", symbols: [["CAT", "Caterpillar"], ["UNP", "Union Pacific"], ["HON", "Honeywell"]] },
+  { label: "Autos & mobility", labelKey: "onboarding.indAutos", symbols: [["TM", "Toyota"], ["TSLA", "Tesla"], ["RACE", "Ferrari"]] },
+  { label: "Luxury & brands", labelKey: "onboarding.indLuxury", symbols: [["MC.PA", "LVMH"], ["RMS.PA", "Hermès"], ["NKE", "Nike"]] },
+  { label: "Real estate", labelKey: "onboarding.indRealEstate", symbols: [["PLD", "Prologis"], ["O", "Realty Income"], ["AMT", "American Tower"]] },
 ];
 
-const COUNTRIES = [
-  "United States", "Canada", "United Kingdom", "Germany", "France", "Netherlands", "Switzerland",
-  "Sweden", "Spain", "Italy", "Japan", "China", "Hong Kong", "Taiwan", "South Korea", "Singapore",
-  "India", "Australia", "New Zealand", "Brazil", "Mexico", "United Arab Emirates", "South Africa",
+const COUNTRY_KEYS: TKey[] = [
+  "onboarding.countryUS", "onboarding.countryCanada", "onboarding.countryUK", "onboarding.countryGermany",
+  "onboarding.countryFrance", "onboarding.countryNetherlands", "onboarding.countrySwitzerland",
+  "onboarding.countrySweden", "onboarding.countrySpain", "onboarding.countryItaly", "onboarding.countryJapan",
+  "onboarding.countryChina", "onboarding.countryHongKong", "onboarding.countryTaiwan", "onboarding.countrySouthKorea",
+  "onboarding.countrySingapore", "onboarding.countryIndia", "onboarding.countryAustralia", "onboarding.countryNZ",
+  "onboarding.countryBrazil", "onboarding.countryMexico", "onboarding.countryUAE", "onboarding.countrySouthAfrica",
 ];
 
 const MAX_DESKS = 6;
 
 export default function WelcomePage() {
   const router = useRouter();
+  const { t, lang } = useT();
   const [step, setStep] = useState<Step>("name");
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [typing, setTyping] = useState(false);
@@ -70,6 +77,13 @@ export default function WelcomePage() {
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [note, setNote] = useState("");
 
+  // Chat-log lists joined per language convention.
+  const listJoin = lang === "zh" ? "、" : ", ";
+  const industryLabel = (label: string) => {
+    const ind = INDUSTRIES.find((i) => i.label === label);
+    return ind ? t(ind.labelKey) : label;
+  };
+
   const say = useCallback((text: string, role: "assistant" | "user" = "assistant") => {
     setBubbles((b) => [...b, { id: nextId.current++, role, text }]);
   }, []);
@@ -87,8 +101,11 @@ export default function WelcomePage() {
     [say]
   );
 
-  // Guard + opening lines.
+  // Guard + opening lines. `started` keeps a language switch mid-chat (t in
+  // deps) from re-running the guard and re-saying the intro.
+  const started = useRef(false);
   useEffect(() => {
+    if (started.current) return;
     let cancelled = false;
     (async () => {
       try {
@@ -101,22 +118,24 @@ export default function WelcomePage() {
           router.replace("/");
           return;
         }
+        started.current = true;
         setGuardChecked(true);
         if (me.user?.name) setName(me.user.name);
-        say("Welcome to Scalae — your daily intelligence desk for the businesses you own or watch. Let's set up your desk in under a minute.");
-        setTimeout(() => assistant("First things first: what should I call you?"), 350);
+        say(t("onboarding.introFull"));
+        setTimeout(() => assistant(t("onboarding.askName")), 350);
       } catch {
         if (!cancelled) {
+          started.current = true;
           setGuardChecked(true);
-          say("Welcome to Scalae. Let's set up your desk in under a minute.");
-          setTimeout(() => assistant("First things first: what should I call you?"), 350);
+          say(t("onboarding.introShort"));
+          setTimeout(() => assistant(t("onboarding.askName")), 350);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [router, say, assistant]);
+  }, [router, say, assistant, t]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -130,28 +149,33 @@ export default function WelcomePage() {
     if (!v) return;
     say(v, "user");
     setStep("age");
-    assistant(`Good to meet you, ${v.split(/\s+/)[0]}. How old are you? (This stays private — it helps calibrate horizon, nothing else.)`);
+    assistant(t("onboarding.askAge", { name: v.split(/\s+/)[0] }));
   }
 
   function submitAge(skip = false) {
     if (!skip && age && (Number(age) <= 0 || Number(age) >= 120)) return;
-    say(skip || !age ? "I'd rather not say" : age, "user");
+    say(skip || !age ? t("onboarding.sayPreferNot") : age, "user");
     if (skip) setAge("");
     setStep("country");
-    assistant("Where do you invest from? Markets and tax treatment differ by home base.");
+    assistant(t("onboarding.askCountry"));
   }
 
   function submitCountry(skip = false) {
-    say(skip || !country.trim() ? "Skip" : country.trim(), "user");
+    say(skip || !country.trim() ? t("onboarding.saySkip") : country.trim(), "user");
     if (skip) setCountry("");
     setStep("industries");
-    assistant("Which industries do you want on your radar? Pick a few — they seed my suggestions.");
+    assistant(t("onboarding.askIndustries"));
   }
 
   function submitIndustries() {
-    say(industries.length ? industries.join(", ") : "No strong preference", "user");
+    say(
+      industries.length
+        ? industries.map(industryLabel).join(listJoin)
+        : t("onboarding.sayNoPreference"),
+      "user"
+    );
     setStep("companies");
-    assistant("Any specific companies you already follow? Search and add them — or continue and I'll suggest from your industries.");
+    assistant(t("onboarding.askCompanies"));
   }
 
   function toggleIndustry(label: string) {
@@ -189,7 +213,10 @@ export default function WelcomePage() {
   }
 
   function submitCompanies() {
-    say(picked.length ? picked.map((p) => p.symbol).join(", ") : "Suggest for me", "user");
+    say(
+      picked.length ? picked.map((p) => p.symbol).join(listJoin) : t("onboarding.saySuggest"),
+      "user"
+    );
     // Seed the desk list: explicit picks first, then industry suggestions.
     const suggestions = INDUSTRIES.filter((i) => industries.includes(i.label))
       .flatMap((i) => i.symbols)
@@ -214,8 +241,8 @@ export default function WelcomePage() {
     setStep("confirm");
     assistant(
       seeded.length
-        ? `Here's what I'd open first. Each desk researches the business daily — start with up to ${MAX_DESKS} and add more anytime.`
-        : "No desks picked yet — search above or go straight to the dashboard and add tickers there anytime."
+        ? t("onboarding.confirmSome", { n: MAX_DESKS })
+        : t("onboarding.confirmNone")
     );
   }
 
@@ -226,7 +253,7 @@ export default function WelcomePage() {
       return ds.map((d) => {
         if (d.symbol !== symbol) return d;
         if (!d.on && on >= MAX_DESKS) {
-          setNote(`Up to ${MAX_DESKS} to start — token spend scales per desk. You can add more later.`);
+          setNote(t("onboarding.capNote", { n: MAX_DESKS }));
           return d;
         }
         return { ...d, on: !d.on };
@@ -236,9 +263,16 @@ export default function WelcomePage() {
 
   async function createDesks() {
     const chosen = desks.filter((d) => d.on).map((d) => d.symbol);
-    say(chosen.length ? `Open ${chosen.length} desk${chosen.length > 1 ? "s" : ""}: ${chosen.join(", ")}` : "Take me to the dashboard", "user");
+    say(
+      chosen.length
+        ? chosen.length > 1
+          ? t("onboarding.sayOpenDesksMany", { n: chosen.length, syms: chosen.join(listJoin) })
+          : t("onboarding.sayOpenDesks", { n: chosen.length, syms: chosen.join(listJoin) })
+        : t("onboarding.sayGoDashboard"),
+      "user"
+    );
     setStep("creating");
-    assistant(chosen.length ? "Opening your desks — each will greet you with an onboarding chat to sharpen what we watch…" : "Setting up your dashboard…");
+    assistant(chosen.length ? t("onboarding.creatingDesks") : t("onboarding.creatingDashboard"));
     try {
       const res = await api<{ created: string[]; failed: string[] }>("/api/onboarding", {
         method: "POST",
@@ -251,7 +285,7 @@ export default function WelcomePage() {
         }),
       });
       if (res.failed.length) {
-        say(`Couldn't resolve: ${res.failed.join(", ")} — add them from the dashboard later.`);
+        say(t("onboarding.couldntResolve", { syms: res.failed.join(listJoin) }));
       }
       try {
         sessionStorage.removeItem("scalae_splash"); // let the greeting welcome them in
@@ -261,7 +295,7 @@ export default function WelcomePage() {
       router.replace("/");
     } catch (e) {
       setStep("confirm");
-      say(e instanceof Error ? e.message : "Something went wrong — try again.");
+      say(e instanceof Error ? localizeError(e.message, t) : t("onboarding.genericErr"));
     }
   }
 
@@ -292,20 +326,22 @@ export default function WelcomePage() {
         <span className="flex items-center gap-2 text-sm font-semibold">
           <span aria-hidden>⚖️</span> Scalae
         </span>
-        <nav className="flex items-center gap-3" aria-label="Setup progress">
+        <nav className="flex items-center gap-3" aria-label={t("onboarding.setupProgress")}>
           {PHASES.map((p, i) => (
             <span key={p.key} className="flex items-center gap-1.5 text-[11px]">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  i < phaseIndex ? "bg-gain" : i === phaseIndex ? "bg-accent pulse-soft" : "bg-white/20"
+                  i < phaseIndex ? "bg-gain" : i === phaseIndex ? "bg-accent pulse-soft" : "bg-ink/20"
                 }`}
               />
-              <span className={i === phaseIndex ? "text-foreground font-medium" : "text-muted"}>{p.label}</span>
+              <span className={i === phaseIndex ? "text-foreground font-medium" : "text-muted"}>
+                {t(p.labelKey)}
+              </span>
             </span>
           ))}
         </nav>
         <button onClick={skipAll} className="text-[11px] text-muted hover:text-foreground transition-colors">
-          Skip setup →
+          {t("onboarding.skipSetup")}
         </button>
       </header>
 
@@ -329,9 +365,9 @@ export default function WelcomePage() {
             <div className="bubble-in flex justify-start">
               <div className="rounded-2xl rounded-bl-md bg-card border border-hairline px-4 py-3">
                 <span className="flex gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/40 pulse-soft" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/40 pulse-soft" style={{ animationDelay: "0.2s" }} />
-                  <span className="h-1.5 w-1.5 rounded-full bg-white/40 pulse-soft" style={{ animationDelay: "0.4s" }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ink/40 pulse-soft" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ink/40 pulse-soft" style={{ animationDelay: "0.2s" }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ink/40 pulse-soft" style={{ animationDelay: "0.4s" }} />
                 </span>
               </div>
             </div>
@@ -341,7 +377,7 @@ export default function WelcomePage() {
           {step === "confirm" && !typing && desks.length > 0 && (
             <div className="bubble-in rounded-2xl bg-card border border-hairline px-4 py-3.5 space-y-2.5">
               <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                Your first desks · {deskCount}/{MAX_DESKS}
+                {t("onboarding.firstDesksTitle")} · {deskCount}/{MAX_DESKS}
               </p>
               <div className="flex flex-wrap gap-2">
                 {desks.map((d) => (
@@ -351,7 +387,7 @@ export default function WelcomePage() {
                     className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
                       d.on
                         ? "border-accent/60 bg-accent/12 text-foreground"
-                        : "border-hairline bg-white/4 text-muted hover:text-foreground"
+                        : "border-hairline bg-ink/4 text-muted hover:text-foreground"
                     }`}
                     title={d.name}
                   >
@@ -376,7 +412,7 @@ export default function WelcomePage() {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t("onboarding.namePh")}
                 autoFocus
                 maxLength={60}
                 className="flex-1 bg-background border border-hairline rounded-xl px-4 py-2.5 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
@@ -386,7 +422,7 @@ export default function WelcomePage() {
                 disabled={!name.trim()}
                 className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
-                Continue
+                {t("onboarding.continueBtn")}
               </button>
             </form>
           )}
@@ -402,7 +438,7 @@ export default function WelcomePage() {
               <input
                 value={age}
                 onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))}
-                placeholder="Age"
+                placeholder={t("onboarding.agePh")}
                 inputMode="numeric"
                 autoFocus
                 className="w-28 bg-background border border-hairline rounded-xl px-4 py-2.5 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
@@ -412,14 +448,14 @@ export default function WelcomePage() {
                 disabled={!age || Number(age) <= 0 || Number(age) >= 120}
                 className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
-                Continue
+                {t("onboarding.continueBtn")}
               </button>
               <button
                 type="button"
                 onClick={() => submitAge(true)}
                 className="rounded-xl border border-hairline px-4 py-2.5 text-sm text-muted hover:text-foreground transition-colors"
               >
-                Prefer not to say
+                {t("onboarding.preferNotBtn")}
               </button>
             </form>
           )}
@@ -435,15 +471,15 @@ export default function WelcomePage() {
               <input
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                placeholder="Country"
+                placeholder={t("onboarding.countryPh")}
                 list="countries"
                 autoFocus
                 maxLength={60}
                 className="flex-1 bg-background border border-hairline rounded-xl px-4 py-2.5 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
               <datalist id="countries">
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c} />
+                {COUNTRY_KEYS.map((k) => (
+                  <option key={k} value={t(k)} />
                 ))}
               </datalist>
               <button
@@ -451,14 +487,14 @@ export default function WelcomePage() {
                 disabled={!country.trim()}
                 className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
-                Continue
+                {t("onboarding.continueBtn")}
               </button>
               <button
                 type="button"
                 onClick={() => submitCountry(true)}
                 className="rounded-xl border border-hairline px-4 py-2.5 text-sm text-muted hover:text-foreground transition-colors"
               >
-                Skip
+                {t("onboarding.skipBtn")}
               </button>
             </form>
           )}
@@ -473,11 +509,11 @@ export default function WelcomePage() {
                     className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
                       industries.includes(i.label)
                         ? "border-accent/60 bg-accent/12 text-foreground"
-                        : "border-hairline bg-white/4 text-muted hover:text-foreground"
+                        : "border-hairline bg-ink/4 text-muted hover:text-foreground"
                     }`}
                   >
                     {industries.includes(i.label) ? "✓ " : ""}
-                    {i.label}
+                    {t(i.labelKey)}
                   </button>
                 ))}
               </div>
@@ -485,7 +521,9 @@ export default function WelcomePage() {
                 onClick={submitIndustries}
                 className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
               >
-                {industries.length ? `Continue with ${industries.length} selected` : "No preference — continue"}
+                {industries.length
+                  ? t("onboarding.continueWithSelected", { n: industries.length })
+                  : t("onboarding.noPreferenceContinue")}
               </button>
             </div>
           )}
@@ -508,7 +546,7 @@ export default function WelcomePage() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search a company or ticker — Costco, TSMC, 7203.T…"
+                  placeholder={t("onboarding.searchPh")}
                   autoFocus
                   className="w-full bg-background border border-hairline rounded-xl px-4 py-2.5 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
@@ -518,7 +556,7 @@ export default function WelcomePage() {
                       <li key={h.symbol}>
                         <button
                           onClick={() => addCompany(h)}
-                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 transition-colors flex items-center justify-between gap-3"
+                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-ink/5 transition-colors flex items-center justify-between gap-3"
                         >
                           <span className="font-semibold">{h.symbol}</span>
                           <span className="text-muted truncate flex-1">{h.name}</span>
@@ -533,7 +571,11 @@ export default function WelcomePage() {
                 onClick={submitCompanies}
                 className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
               >
-                {picked.length ? `Continue with ${picked.length} compan${picked.length > 1 ? "ies" : "y"}` : "Suggest from my industries"}
+                {picked.length
+                  ? picked.length > 1
+                    ? t("onboarding.continueWithCompaniesMany", { n: picked.length })
+                    : t("onboarding.continueWithCompanies", { n: picked.length })
+                  : t("onboarding.suggestFromIndustries")}
               </button>
             </div>
           )}
@@ -543,16 +585,20 @@ export default function WelcomePage() {
               onClick={createDesks}
               className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
             >
-              {deskCount > 0 ? `Open ${deskCount} desk${deskCount > 1 ? "s" : ""} →` : "Go to my dashboard →"}
+              {deskCount > 0
+                ? deskCount > 1
+                  ? t("onboarding.openNDesksMany", { n: deskCount })
+                  : t("onboarding.openNDesks", { n: deskCount })
+                : t("onboarding.goDashboard")}
             </button>
           )}
 
           {step === "creating" && (
-            <p className="text-center text-sm text-muted pulse-soft py-1.5">Setting up your desks…</p>
+            <p className="text-center text-sm text-muted pulse-soft py-1.5">{t("onboarding.settingUpDesks")}</p>
           )}
 
           <p className="mt-3 text-center text-[10px] text-muted/60">
-            Educational research tool — not investment advice. Your profile stays in your account.
+            {t("common.notAdvice")} {t("onboarding.profilePrivate")}
           </p>
         </div>
       </div>

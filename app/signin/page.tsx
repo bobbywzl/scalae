@@ -1,10 +1,23 @@
 import Link from "next/link";
+import { cookies, headers } from "next/headers";
 import { authEnabled } from "@/lib/auth";
+import { isLang, LANG_COOKIE, langFromAcceptLanguage } from "@/lib/i18n/config";
+import { translatorFor, type TKey } from "@/lib/i18n/dictionaries";
 
 /**
  * The front door for the B2C app. Server component: reads the error from the
  * query and whether auth is even configured (local mode links straight in).
+ * No session yet, so the language comes from the device cookie (or the
+ * browser's Accept-Language on a first visit) — same sources as the layout.
  */
+
+/** Known /api/auth/callback failure phrases → localized copy (unknown → raw). */
+const AUTH_ERRORS: Record<string, TKey> = {
+  "Google returned no code": "onboarding.signinErrNoCode",
+  "Sign-in state mismatch — try again": "onboarding.signinErrState",
+  "Could not verify your Google identity": "onboarding.signinErrVerify",
+};
+
 export default async function SignInPage({
   searchParams,
 }: {
@@ -12,19 +25,23 @@ export default async function SignInPage({
 }) {
   const { error } = await searchParams;
   const enabled = authEnabled();
+  const jar = await cookies();
+  const cookieLang = jar.get(LANG_COOKIE)?.value;
+  const lang = isLang(cookieLang)
+    ? cookieLang
+    : langFromAcceptLanguage((await headers()).get("accept-language"));
+  const t = translatorFor(lang);
+  const errorKey = error ? AUTH_ERRORS[error] : undefined;
   return (
     <main className="min-h-screen flex items-center justify-center px-5">
       <div className="w-full max-w-sm text-center">
         <p className="text-4xl mb-3">⚖️</p>
         <h1 className="text-3xl font-bold tracking-tight">Scalae</h1>
-        <p className="text-muted text-sm mt-2 leading-relaxed">
-          A daily AI intelligence desk for value investors — signal boards, deep research runs, and
-          a paper brokerage, weighed against the business every day.
-        </p>
+        <p className="text-muted text-sm mt-2 leading-relaxed">{t("onboarding.signinTagline")}</p>
 
         {error && (
           <p className="mt-5 rounded-xl border border-loss/30 bg-loss/8 px-4 py-2.5 text-xs text-loss">
-            {error}
+            {errorKey ? t(errorKey) : error}
           </p>
         )}
 
@@ -39,25 +56,20 @@ export default async function SignInPage({
               <path fill="#FBBC05" d="M10.5 28.6a14.5 14.5 0 0 1 0-9.2l-7.9-6.2a24 24 0 0 0 0 21.6l7.9-6.2z" />
               <path fill="#34A853" d="M24 48c6.3 0 11.6-2.1 15.5-5.7l-7.7-6c-2.1 1.4-4.8 2.3-7.8 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.2C6.5 42.6 14.6 48 24 48z" />
             </svg>
-            Continue with Google
+            {t("onboarding.signinGoogle")}
           </a>
         ) : (
           <div className="mt-7 rounded-xl border border-hairline bg-card px-4 py-3 text-xs text-muted text-left leading-relaxed">
-            <p className="font-semibold text-[#c7c7cc]">Running in single-user mode.</p>
-            <p className="mt-1">
-              Google sign-in isn’t configured — set <code>GOOGLE_CLIENT_ID</code>,{" "}
-              <code>GOOGLE_CLIENT_SECRET</code> and <code>SESSION_SECRET</code> to turn this into a
-              multi-user app.
-            </p>
+            <p className="font-semibold text-emph">{t("onboarding.signinSingleUserTitle")}</p>
+            <p className="mt-1">{t("onboarding.signinSingleUserDesc")}</p>
             <Link href="/" className="mt-2 inline-block text-accent font-medium">
-              Continue to your desk →
+              {t("onboarding.signinLocalContinue")}
             </Link>
           </div>
         )}
 
         <p className="mt-6 text-[10px] text-muted/60">
-          Educational research tool — not investment advice. Your desks, notes and paper trades are
-          private to your account.
+          {t("common.notAdvice")} {t("onboarding.signinPrivacy")}
         </p>
       </div>
     </main>

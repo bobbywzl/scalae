@@ -85,7 +85,7 @@ const zh: Record<keyof typeof en, string> = {
   lensMoat: "护城河持久性",
   lensCandor: "管理层坦诚度",
   lensCapital: "资本配置",
-  lensOwnerEarnings: "股东盈余",
+  lensOwnerEarnings: "所有者盈余",
   lensCulture: "企业文化与信任",
   lensRedFlags: "风险警示",
   lensSuggest: "不确定——请建议一些问题",

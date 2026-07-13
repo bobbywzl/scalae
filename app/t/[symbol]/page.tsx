@@ -19,10 +19,17 @@ import {
   companyDomainsFor,
   linkCitations,
   sourceClass,
-  sourceClassLabel,
   type SourceClass,
 } from "@/lib/citations";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Attachment, DeskPayload, DigestItem, Run, Signal } from "@/lib/types";
+
+/** Localized sourceClassLabel (same keys SignalDetail uses). */
+const SRC_CLASS_KEY: Record<SourceClass, TKey> = {
+  company: "signals.srcCompany",
+  regulator: "signals.srcRegulator",
+  independent: "signals.srcIndependent",
+};
 
 const STALE_MS = 20 * 3600_000;
 
@@ -815,7 +822,7 @@ export default function DeskPage() {
                           r.cls === "company" ? "bg-warn/12 text-warn/90" : "bg-ink/6 text-muted"
                         }`}
                       >
-                        {sourceClassLabel(r.cls)}
+                        {t(SRC_CLASS_KEY[r.cls])}
                       </span>
                       <a
                         href={r.url}
