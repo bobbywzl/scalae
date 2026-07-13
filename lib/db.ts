@@ -943,6 +943,12 @@ export async function getUser(id: string): Promise<User | null> {
   return rows[0] ?? null;
 }
 
+/** Look a user up by email (lowercased) — used by the admin email gate. */
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const rows = await q<User>`SELECT * FROM users WHERE email = ${email.toLowerCase()}`;
+  return rows[0] ?? null;
+}
+
 export async function createSession(userId: string): Promise<{ token: string; expiresAt: string }> {
   const token = uid() + uid().replace(/-/g, "");
   const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
