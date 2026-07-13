@@ -156,7 +156,7 @@ export default function AdminPage() {
               <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
                 Models in use right now{" "}
                 <span className="normal-case tracking-normal font-normal">
-                  — auto-selected from each provider's live list; pin per role with
+                  — auto-selected from each provider&rsquo;s live list; pin per role with
                   CLAUDE_SYNTHESIS_MODEL / GEMINI_BREADTH_MODEL / GEMINI_DEEP_MODEL etc. (legacy
                   GEMINI_MODEL / CLAUDE_MODEL globals are ignored)
                 </span>
