@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runComparison } from "@/lib/agents/comparison";
 import { requireUser } from "@/lib/auth";
 import { getTicker } from "@/lib/db";
+import { requestLang } from "@/lib/i18n/server";
 
 export const maxDuration = 120;
 
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     );
   }
   try {
-    const verdict = await runComparison(user.id, a, b);
+    const verdict = await runComparison(user.id, a, b, await requestLang(user.id));
     return NextResponse.json({ verdict });
   } catch (e) {
     console.error(`[scalae] comparison ${a} vs ${b} failed:`, e instanceof Error ? e.message : e);

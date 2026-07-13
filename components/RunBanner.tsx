@@ -1,28 +1,31 @@
 "use client";
 
+import { useT } from "@/components/PrefsProvider";
+import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Run } from "@/lib/types";
-import { timeAgo } from "./util";
+import { localizeError, timeAgo } from "./util";
 
-const STAGES: { key: string; label: string }[] = [
-  { key: "sweeping", label: "Scouts sweep the web" },
-  { key: "probing", label: "Analyst commissions deep dives" },
-  { key: "synthesizing", label: "Deep synthesis" },
-  { key: "recording", label: "Board updated" },
+const STAGES: { key: string; labelKey: TKey }[] = [
+  { key: "sweeping", labelKey: "desk.stageSweeping" },
+  { key: "probing", labelKey: "desk.stageProbing" },
+  { key: "synthesizing", labelKey: "desk.stageSynthesizing" },
+  { key: "recording", labelKey: "desk.stageRecording" },
 ];
 
 export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
+  const { t } = useT();
   if (run.status === "error") {
     return (
       <div className="rounded-xl border border-loss/30 bg-loss/8 px-4 py-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-loss">Research run failed</p>
-          <p className="text-xs text-muted mt-0.5">{run.error}</p>
+          <p className="text-sm font-medium text-loss">{t("desk.runFailed")}</p>
+          <p className="text-xs text-muted mt-0.5">{localizeError(run.error, t)}</p>
         </div>
         <button
           onClick={onRetry}
-          className="shrink-0 rounded-lg bg-white/8 hover:bg-white/12 text-xs font-medium px-3 py-1.5 transition-colors"
+          className="shrink-0 rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
         >
-          Retry
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -37,8 +40,10 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
     <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-accent pulse-soft" />
-        <p className="text-sm font-medium">Daily research in progress</p>
-        <span className="text-[10px] text-muted ml-auto">started {timeAgo(run.startedAt)}</span>
+        <p className="text-sm font-medium">{t("desk.runInProgress")}</p>
+        <span className="text-[10px] text-muted ml-auto">
+          {t("desk.startedAgo", { when: timeAgo(run.startedAt, t) })}
+        </span>
       </div>
       <div className="mt-2 flex items-center gap-2 text-[11px]">
         {STAGES.map((s, i) => (
@@ -54,11 +59,12 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
               }
             >
               {i < activeIdx ? "✓ " : ""}
-              {s.label}
+              {t(s.labelKey)}
             </span>
           </span>
         ))}
       </div>
+      {/* stageDetail is produced server-side in the user's language — render as-is. */}
       <p className="text-[11px] text-muted mt-1.5">{run.stageDetail}</p>
     </div>
   );

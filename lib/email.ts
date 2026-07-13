@@ -48,13 +48,32 @@ export function isRealEmail(email: string | null | undefined): boolean {
   return !!email && email.includes("@") && !email.endsWith("@scalae");
 }
 
-/** The notification sent when an admin responds to a support request. */
+/**
+ * The notification sent when an admin responds to a support request, in the
+ * requester's app language (the admin's response body is quoted as written).
+ */
 export function feedbackResponseEmail(p: {
   requestId: string;
   subject: string;
   response: string;
   origin: string;
+  lang?: "en" | "zh";
 }): { subject: string; text: string } {
+  if (p.lang === "zh") {
+    return {
+      subject: `[Scalae] 您的请求 ${p.requestId} 有了新回复 — ${p.subject}`,
+      text: [
+        `您的 Scalae 支持请求 ${p.requestId}（"${p.subject}"）有了新回复：`,
+        ``,
+        p.response,
+        ``,
+        `回复或查看完整会话：${p.origin}/support`,
+        ``,
+        `— Scalae 团队`,
+        `请求编号：${p.requestId}（请妥善保存以便查询）`,
+      ].join("\n"),
+    };
+  }
   return {
     subject: `[Scalae] Response to your request ${p.requestId} — ${p.subject}`,
     text: [

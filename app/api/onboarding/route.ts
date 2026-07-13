@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { addTicker, getSetting, getTicker, insertMessage, setSetting } from "@/lib/db";
 import { resolveSymbol } from "@/lib/market";
 import { welcomeMessage } from "@/lib/agents/chat";
+import { requestLang } from "@/lib/i18n/server";
 
 /**
  * First-run onboarding: saves the investor profile (name, age, country,
@@ -55,6 +56,7 @@ export async function POST(req: Request) {
   const created: string[] = [];
   const failed: string[] = [];
   if (!body.skip && Array.isArray(body.symbols)) {
+    const lang = await requestLang(user.id);
     const symbols = [...new Set((body.symbols as unknown[]).map((s) => String(s).trim().toUpperCase()).filter(Boolean))].slice(0, MAX_SYMBOLS);
     for (const symbol of symbols) {
       try {
@@ -68,7 +70,7 @@ export async function POST(req: Request) {
           continue;
         }
         await addTicker(user.id, symbol, name);
-        await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name));
+        await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang));
         created.push(symbol);
       } catch {
         failed.push(symbol);

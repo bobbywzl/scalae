@@ -16,6 +16,8 @@ import {
 import { getQuote } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
 import { computeInvolvement } from "@/lib/portfolio";
+import { requestLang } from "@/lib/i18n/server";
+import { localizeDeskPayload } from "@/lib/i18n/translate";
 import type { DeskPayload, Signal, SignalWithReadings } from "@/lib/types";
 
 type Params = { params: Promise<{ symbol: string }> };
@@ -112,7 +114,10 @@ export async function GET(_req: Request, { params }: Params) {
     position,
     autoResearch,
   };
-  return NextResponse.json(payload);
+  // Serve research content in the investor's display language (cached,
+  // canonical English stays in the db; chat messages are never translated).
+  const lang = await requestLang(user.id);
+  return NextResponse.json(await localizeDeskPayload(payload, lang, { userId: user.id }));
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

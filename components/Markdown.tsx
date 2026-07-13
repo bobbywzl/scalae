@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useT } from "./PrefsProvider";
 
 const CITE_RX = /^\[\d{1,3}\]$/;
 const SIGNAL_HREF = "#sig:";
@@ -20,8 +21,9 @@ export function Markdown({
   /** Enables inline signal chips: links with href "#sig:<id>" become buttons. */
   onOpenSignal?: (id: string) => void;
 }) {
+  const { t } = useT();
   return (
-    <div className="md text-[#e8e8ed]">
+    <div className="md text-emph">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -35,8 +37,8 @@ export function Markdown({
                     e.preventDefault();
                     onOpenSignal?.(id);
                   }}
-                  title="Open this signal"
-                  className="align-baseline text-[0.82em] font-medium text-[#c7c7cc] hover:text-accent rounded-md border border-hairline bg-white/5 hover:bg-white/10 px-1.5 py-px mx-px transition-colors"
+                  title={t("chat.openSignal")}
+                  className="align-baseline text-[0.82em] font-medium text-emph hover:text-accent rounded-md border border-hairline bg-ink/5 hover:bg-ink/10 px-1.5 py-px mx-px transition-colors"
                 >
                   ⧉ {kids}
                 </button>

@@ -12,6 +12,7 @@ import { getQuote, resolveSymbol } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
 import { welcomeMessage } from "@/lib/agents/chat";
 import { computeInvolvement } from "@/lib/portfolio";
+import { requestLang } from "@/lib/i18n/server";
 import type { WatchlistRow } from "@/lib/types";
 
 const STALE_MS = 20 * 3600_000;
@@ -67,6 +68,10 @@ export async function POST(req: Request) {
     );
   }
   const ticker = await addTicker(user.id, symbol, name);
-  await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name));
+  // The desk's greeting is conversation, not board content — write it in the
+  // investor's language directly (chat history keeps whatever language it
+  // was written in, like any conversation).
+  const lang = await requestLang(user.id);
+  await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang));
   return NextResponse.json({ ticker }, { status: 201 });
 }

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/*
+ * Theming: the palette lives in CSS variables switched by <html data-theme>
+ * (set server-side from the scalae_theme cookie, toggled live in Settings).
+ *   dark   — the desk's native look (default)
+ *   light  — full light palette
+ *   system — follows prefers-color-scheme
+ * Components never hardcode surface colors: overlays use the `ink` token
+ * (white on dark, black on light) so translucent layers survive both themes,
+ * and `emph` is the slightly-brighter-than-muted text tone.
+ */
+
 :root {
   --background: #000000;
   --card: #1c1c1e;
@@ -7,10 +18,55 @@
   --border: rgba(255, 255, 255, 0.09);
   --foreground: #f5f5f7;
   --muted: #98989d;
+  --emph: #c7c7cc;
+  --ink: #ffffff;
   --green: #30d158;
   --red: #ff453a;
   --blue: #0a84ff;
   --amber: #ffd60a;
+  --scrollbar: #3a3a3c;
+  /* Text on solid gain/loss chips: black on the vivid dark-theme colors,
+     white on the deeper light-theme ones. */
+  --chip-fg: #000000;
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --background: #f2f2f7;
+  --card: #ffffff;
+  --card-2: #e9e9ee;
+  --border: rgba(0, 0, 0, 0.1);
+  --foreground: #1d1d1f;
+  --muted: #6e6e73;
+  --emph: #48484a;
+  --ink: #000000;
+  --green: #218a42;
+  --red: #d70015;
+  --blue: #0071e3;
+  --amber: #b25e00;
+  --scrollbar: #c7c7cc;
+  --chip-fg: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="system"] {
+    --background: #f2f2f7;
+    --card: #ffffff;
+    --card-2: #e9e9ee;
+    --border: rgba(0, 0, 0, 0.1);
+    --foreground: #1d1d1f;
+    --muted: #6e6e73;
+    --emph: #48484a;
+    --ink: #000000;
+    --green: #218a42;
+    --red: #d70015;
+    --blue: #0071e3;
+    --amber: #b25e00;
+    --scrollbar: #c7c7cc;
+    --chip-fg: #ffffff;
+    color-scheme: light;
+  }
 }
 
 @theme inline {
@@ -20,16 +76,15 @@
   --color-hairline: var(--border);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-emph: var(--emph);
+  --color-ink: var(--ink);
   --color-gain: var(--green);
   --color-loss: var(--red);
   --color-accent: var(--blue);
   --color-warn: var(--amber);
+  --color-chipfg: var(--chip-fg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-html {
-  color-scheme: dark;
 }
 
 body {
@@ -48,7 +103,7 @@ body {
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #3a3a3c;
+  background: var(--scrollbar);
   border-radius: 4px;
 }
 *::-webkit-scrollbar-track {

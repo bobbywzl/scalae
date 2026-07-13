@@ -28,7 +28,7 @@ import { listGeminiModels } from "./gemini";
 
 export const MODELS_REVIEWED_AT = "2026-07";
 
-export type ModelRole = "synthesis" | "chat" | "triage" | "scoutBreadth" | "scoutDeep";
+export type ModelRole = "synthesis" | "chat" | "triage" | "scoutBreadth" | "scoutDeep" | "translate";
 type Provider = "claude" | "gemini";
 
 interface RoleConfig {
@@ -65,6 +65,16 @@ const ROLES: Record<ModelRole, RoleConfig> = {
     include: /^claude-opus-\d/,
     exclude: /-(fast|latest)\b/,
     fallback: "claude-opus-4-8",
+  },
+  // Display-language translation of stored research content (cached per text
+  // in the translations table). High-volume, mechanical — the value tier is
+  // plenty, and results are cached so each text is translated exactly once.
+  translate: {
+    provider: "claude",
+    env: "CLAUDE_TRANSLATE_MODEL",
+    include: /^claude-haiku-\d/,
+    exclude: /-(fast|latest)\b/,
+    fallback: "claude-haiku-4-5-20251001",
   },
   // Gemini — newest full Flash (breadth) and newest Pro (deep dives), both with
   // native Google-Search grounding. Exclude media/embedding/lite variants.

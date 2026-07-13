@@ -26,6 +26,7 @@ import {
 } from "../db";
 import { getQuote, quoteLine } from "../market";
 import { computeInvolvement, involvementLine } from "../portfolio";
+import type { Lang } from "../i18n/config";
 import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
 
 interface ChatOutput {
@@ -46,7 +47,18 @@ export interface ChatTurnResult {
 }
 
 /** The templated first message shown when a desk opens (stored at ticker creation). */
-export function welcomeMessage(symbol: string, name: string): string {
+export function welcomeMessage(symbol: string, name: string, lang: Lang = "en"): string {
+  if (lang === "zh") {
+    return `欢迎——这里是您的 **${name}** Scalae 研究台，我是您的首席分析师。
+
+我的工作是运行巴菲特所依赖的那种信息网络：每天从开放网络搜集与*您*关心的问题相关的证据，维护一块实时信号板，并标记任何一位长期企业所有者应当知道的动向。短期来看市场是一台投票机——这个研究台的使命是称量企业本身。
+
+**要设置研究台，请告诉我您想了解 ${symbol} 的哪些方面。**例如：护城河是否稳固？管理层的资本配置是否明智？企业文化是否在恶化？
+
+如果您不确定从哪里开始，直接说一声——我会先判断 ${name} 是哪一类生意，并按照巴菲特/芒格框架提出当下争议最大的价值投资问题：指出护城河的真实机制、先读激励再读新闻稿、建立"证伪清单"（反过来想！），并对照芒格的误判清单检查心理偏差——管理层的，也包括我们自己的。护城河持久度、特许经营 vs 大宗商品、所有者盈余、资本配置、管理层坦诚度、风险警示……
+
+未经您批准，任何内容都不会生效：我会提出关注领域和具体可跟踪的信号，由您逐一批准或拒绝。研究台启用后，您也可以直接在这里让我批准或停用信号，或立即运行研究。`;
+  }
   return `Welcome — this is your **${name}** Scalae desk. I'm your lead analyst.
 
 My job is to run the kind of information network Buffett relied on: every day I'll sweep the open web for evidence on the questions *you* care about, keep a live signal board, and flag anything a long-term owner of this business should know. In the short run the market is a voting machine — this desk exists to weigh the business.
@@ -146,7 +158,7 @@ export async function handleChatTurn(
   userId: string,
   symbol: string,
   userText: string,
-  opts: { retry?: boolean; attachments?: Attachment[]; signalId?: string } = {}
+  opts: { retry?: boolean; attachments?: Attachment[]; signalId?: string; lang?: Lang } = {}
 ): Promise<ChatTurnResult> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
@@ -276,6 +288,17 @@ Use the desk state above to answer questions with evidence (cite readings/brief 
 - Investor asks to run/refresh research → startResearch=true.
 Only emit focusAreas when the investor genuinely introduces a new area of concern. Never approve/retire/dismiss anything the investor did not explicitly request. Keep replies short and useful — this is a working desk, not a report. Set onboardingComplete=false.`;
 
+  // Conversation language: the analyst speaks the investor's language, but
+  // everything destined for the board stays canonical English — the display
+  // layer (lib/i18n/translate.ts) localizes stored content uniformly, so the
+  // desk never forks into mixed-language data.
+  const languageDirective =
+    opts.lang === "zh"
+      ? `
+
+LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; use standard finance terminology — 护城河, 所有者盈余, 资本配置, 安全边际). EVERYTHING ELSE stays in ENGLISH: proposals (name, thesis, measurementPlan, scale, focusArea), focusAreas entries, and the exact signal names you place in approveProposals / dismissProposals / retireSignals — match the English names in the desk state verbatim (the app translates board content for display automatically). When you mention a signal in your Chinese reply, give its English name in quotes, optionally with a short Chinese gloss.`
+      : "";
+
   const system = `${analystPersona(symbol, ticker.name)}
 
 ${QUESTION_METHOD}
@@ -286,7 +309,7 @@ ATTACHMENTS: The investor can attach images (charts, product photos, screenshots
 
 ${deskContext}
 
-${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
+${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirective}`;
 
   const history = (await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId })).slice(-16);
   const messages = historyToMessages(history);
@@ -360,7 +383,9 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
   const meaningful = /[\p{L}\p{N}]/u.test(out.reply ?? "");
   const replyText = meaningful
     ? out.reply
-    : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
+    : opts.lang === "zh"
+      ? "我已处理您的请求，但书面回复生成异常——请再问一次，我会完整作答。"
+      : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
   const message = await insertMessage(userId, symbol, "assistant", replyText, proposalIds, [], scopeId);
   const hasActive = (await listSignals(userId, symbol, "active")).length > 0;

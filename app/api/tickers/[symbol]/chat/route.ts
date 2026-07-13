@@ -5,6 +5,7 @@ import { executeRun, startRun } from "@/lib/agents/research";
 import { getTicker } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { sanitizeAttachments } from "@/lib/attachments";
+import { requestLang } from "@/lib/i18n/server";
 import type { Attachment } from "@/lib/types";
 
 // A chat turn may kick off a full research run via after(). 300s is the Vercel
@@ -42,7 +43,11 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const result = await handleChatTurn(user.id, symbol, message, { retry, attachments: files });
+    const result = await handleChatTurn(user.id, symbol, message, {
+      retry,
+      attachments: files,
+      lang: await requestLang(user.id),
+    });
     if (result.startResearch) {
       const { run, started } = await startRun(user.id, symbol);
       if (started) after(() => executeRun(user.id, run.id, symbol));

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "./PrefsProvider";
+import type { TFunc } from "@/lib/i18n/dictionaries";
 
 /**
  * The opening moment: a professional, time-aware greeting with the Scalae
@@ -13,26 +15,30 @@ import { useEffect, useState } from "react";
 const HOLD_MS = 2400;
 const FADE_MS = 650;
 
-export function greetingFor(hour: number, name?: string | null): { title: string; sub: string } {
+export function greetingFor(hour: number, name: string | null | undefined, t: TFunc): { title: string; sub: string } {
   const first = name?.trim().split(/\s+/)[0];
-  const to = (t: string) => (first ? `${t}, ${first}.` : `${t}.`);
+  const to = (greeting: string) =>
+    first
+      ? t("watchlist.splashWithName", { greeting, name: first })
+      : t("watchlist.splashPlain", { greeting });
   if (hour >= 5 && hour < 12) {
-    return { title: to("Good morning"), sub: "The desks have the overnight tape covered." };
+    return { title: to(t("watchlist.splashMorning")), sub: t("watchlist.splashMorningSub") };
   }
   if (hour >= 12 && hour < 17) {
-    return { title: to("Good afternoon"), sub: "Everything is weighed and ready for you." };
+    return { title: to(t("watchlist.splashAfternoon")), sub: t("watchlist.splashAfternoonSub") };
   }
   if (hour >= 17 && hour < 22) {
-    return { title: to("Good evening"), sub: "Your desks are ready for review." };
+    return { title: to(t("watchlist.splashEvening")), sub: t("watchlist.splashEveningSub") };
   }
-  return { title: to("Welcome back"), sub: "The market sleeps — the weighing machine doesn't." };
+  return { title: to(t("watchlist.splashNight")), sub: t("watchlist.splashNightSub") };
 }
 
 export function WelcomeSplash({ name, onDone }: { name?: string | null; onDone: () => void }) {
+  const { t } = useT();
   const [fading, setFading] = useState(false);
   // Derived every render — the greeting upgrades in place the moment the
   // signed-in name arrives (client-only component, so no hydration risk).
-  const { title, sub } = greetingFor(new Date().getHours(), name);
+  const { title, sub } = greetingFor(new Date().getHours(), name, t);
 
   useEffect(() => {
     const hold = setTimeout(() => setFading(true), HOLD_MS);

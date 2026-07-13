@@ -4,6 +4,7 @@ import { friendlyAIError } from "@/lib/ai/claude";
 import { executeRun, startRun } from "@/lib/agents/research";
 import { getSignal, listMessages } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { requestLang } from "@/lib/i18n/server";
 import type { Attachment } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -51,6 +52,7 @@ export async function POST(req: Request, { params }: Params) {
       retry,
       attachments,
       signalId: id,
+      lang: await requestLang(user.id),
     });
     if (result.startResearch) {
       const { run, started } = await startRun(user.id, signal.symbol);

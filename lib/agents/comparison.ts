@@ -2,6 +2,7 @@ import { claudeJSON } from "../ai/claude";
 import { resolveModel } from "../ai/models";
 import { comparisonPersona } from "./framework";
 import { getTicker, latestRun, listFocusAreas, listSignals, readingsForSignal } from "../db";
+import type { Lang } from "../i18n/config";
 import { getQuote, quoteLine } from "../market";
 import { computeInvolvement, involvementLine } from "../portfolio";
 
@@ -66,9 +67,20 @@ ${signalLines || "(no active signals)"}`;
 }
 
 /** Run the pairwise opportunity-cost comparison; returns the verdict markdown. */
-export async function runComparison(userId: string, a: string, b: string): Promise<string> {
+export async function runComparison(
+  userId: string,
+  a: string,
+  b: string,
+  lang: Lang = "en"
+): Promise<string> {
   const [snapA, snapB] = await Promise.all([deskSnapshot(userId, a), deskSnapshot(userId, b)]);
   const model = await resolveModel("chat");
+  // The verdict is stateless (never persisted) — write it directly in the
+  // investor's language instead of round-tripping through the display layer.
+  const languageNote =
+    lang === "zh"
+      ? "\nLANGUAGE: Write the verdict in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; quote signal names in their original English)."
+      : "";
   const out = await claudeJSON<{ verdict: string }>({
     model,
     system: comparisonPersona(),
@@ -83,7 +95,7 @@ ${snapA}
 === DESK B ===
 ${snapB}
 
-TASK: Produce the pairwise opportunity-cost verdict per your output structure. Remember: desks' evidence only; four filters in veto order with price last; invert (compare kill lists); "too close to call" / "too thin to call" are honest verdicts; no buy/sell/size instructions.`,
+TASK: Produce the pairwise opportunity-cost verdict per your output structure. Remember: desks' evidence only; four filters in veto order with price last; invert (compare kill lists); "too close to call" / "too thin to call" are honest verdicts; no buy/sell/size instructions.${languageNote}`,
       },
     ],
     schema: VERDICT_SCHEMA as unknown as Record<string, unknown>,

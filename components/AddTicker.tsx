@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "./util";
+import { useT } from "./PrefsProvider";
+import { api, localizeError } from "./util";
 import type { SearchHit } from "@/lib/market";
 
 export function AddTicker() {
+  const { t } = useT();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [open, setOpen] = useState(false);
@@ -51,7 +53,7 @@ export function AddTicker() {
       setOpen(false);
       router.push(`/t/${encodeURIComponent(symbol)}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add ticker");
+      setError(e instanceof Error ? localizeError(e.message, t) : t("watchlist.addFailed"));
     } finally {
       setBusy(null);
     }
@@ -71,7 +73,7 @@ export function AddTicker() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && q.trim()) add(q.trim().toUpperCase());
           }}
-          placeholder="Add a ticker — AAPL, COST, 7203.T…"
+          placeholder={t("watchlist.addPlaceholder")}
           className="bg-transparent outline-none text-sm w-full placeholder:text-muted/70"
         />
       </div>
@@ -83,14 +85,14 @@ export function AddTicker() {
               key={h.symbol}
               onClick={() => add(h.symbol)}
               disabled={busy !== null}
-              className="w-full flex items-center justify-between px-3.5 py-2.5 hover:bg-white/6 text-left disabled:opacity-50"
+              className="w-full flex items-center justify-between px-3.5 py-2.5 hover:bg-ink/6 text-left disabled:opacity-50"
             >
               <span>
                 <span className="font-semibold text-sm">{h.symbol}</span>
                 <span className="text-muted text-xs ml-2">{h.name}</span>
               </span>
               <span className="text-muted/70 text-[10px] uppercase tracking-wide">
-                {busy === h.symbol ? "adding…" : h.exchange}
+                {busy === h.symbol ? t("watchlist.adding") : h.exchange}
               </span>
             </button>
           ))}

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { researchSignalBackstory } from "@/lib/agents/history";
 import { requireUser } from "@/lib/auth";
 import { getSignal } from "@/lib/db";
+import { requestLang } from "@/lib/i18n/server";
+import { localizeBackstory } from "@/lib/i18n/translate";
 
 export const maxDuration = 300;
 
@@ -21,7 +23,8 @@ export async function POST(_req: Request, { params }: Params) {
   }
   try {
     const result = await researchSignalBackstory(user.id, id);
-    return NextResponse.json(result);
+    const lang = await requestLang(user.id);
+    return NextResponse.json(await localizeBackstory(result, lang, { userId: user.id }));
   } catch (e) {
     console.error(
       `[scalae] backstory research for "${signal.name}" failed:`,

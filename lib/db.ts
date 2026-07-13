@@ -282,6 +282,16 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback("userId", "updatedAt")`,
   `CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, "updatedAt")`,
   `CREATE INDEX IF NOT EXISTS idx_fbmsg_ticket ON feedback_messages("feedbackId", seq)`,
+  // ---- display-language translation cache. Content-addressed (sha-256 of the
+  // source text), shared across users: a hit requires knowing the exact source
+  // text, so nothing can leak through it. ----
+  `CREATE TABLE IF NOT EXISTS translations (
+    hash TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    text TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    PRIMARY KEY (hash, lang)
+  )`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -790,6 +800,27 @@ export async function setSetting(userId: string, key: string, value: string): Pr
  */
 export async function autoResearchEnabled(userId: string): Promise<boolean> {
   return (await getSetting(userId, "autoResearch")) !== "off";
+}
+
+// ---------- translation cache (display-language layer) ----------
+
+/** Cached translations for a batch of source-text hashes: hash → translated text. */
+export async function getTranslations(lang: string, hashes: string[]): Promise<Map<string, string>> {
+  if (hashes.length === 0) return new Map();
+  const rows = await q<{ hash: string; text: string }>`
+    SELECT hash, text FROM translations WHERE lang = ${lang} AND hash = ANY(${hashes}::text[])`;
+  return new Map(rows.map((r) => [r.hash, r.text]));
+}
+
+export async function saveTranslations(
+  lang: string,
+  entries: { hash: string; text: string }[]
+): Promise<void> {
+  for (const e of entries) {
+    await q`INSERT INTO translations (hash, lang, text, "createdAt")
+            VALUES (${e.hash}, ${lang}, ${e.text}, ${now()})
+            ON CONFLICT (hash, lang) DO UPDATE SET text = EXCLUDED.text`;
+  }
 }
 
 // ---------- trades (portfolio ledger) ----------

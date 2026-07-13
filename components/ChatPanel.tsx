@@ -2,20 +2,39 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Attachment, ChatMessage, Signal } from "@/lib/types";
+import type { TFunc } from "@/lib/i18n/dictionaries";
+import { useT } from "./PrefsProvider";
+import { localizeError } from "./util";
 import { Markdown } from "./Markdown";
 import { SuggestionCard } from "./SuggestionCard";
 // Attachment processing lives in components/attach.ts (shared with /support).
 import { MAX_FILES, fmtBytes, processFile } from "./attach";
 
-const LENS_CHIPS = [
-  "Moat durability",
-  "Management candor",
-  "Capital allocation",
-  "Owner earnings",
-  "Culture & trust",
-  "Red flags",
-  "Not sure — suggest questions",
-];
+const LENS_CHIP_KEYS = [
+  "chat.lensMoat",
+  "chat.lensCandor",
+  "chat.lensCapital",
+  "chat.lensOwnerEarnings",
+  "chat.lensCulture",
+  "chat.lensRedFlags",
+  "chat.lensSuggest",
+] as const;
+
+/**
+ * attach.ts throws canonical English messages (it is a plain module shared
+ * with /support, no hook access) — map the known shapes to the UI language,
+ * then fall through to the shared server-error localizer.
+ */
+function localizeAttachError(msg: string, t: TFunc): string {
+  let m = msg.match(/^(.+) is (.+) — PDFs up to (.+) only\.$/);
+  if (m) return t("chat.pdfTooLarge", { name: m[1], size: m[2], max: m[3] });
+  m = msg.match(/^(.+) is (.+) — text files up to (.+) only\.$/);
+  if (m) return t("chat.textTooLarge", { name: m[1], size: m[2], max: m[3] });
+  m = msg.match(/^Could not read (.+)$/);
+  if (m) return t("chat.fileUnreadable", { name: m[1] });
+  if (msg === "Not a readable image") return t("chat.notReadableImage");
+  return localizeError(msg, t);
+}
 
 // ---------------------------------------------------------------------------
 // Voice dictation (Web Speech API) — minimal structural types, since the DOM
@@ -68,9 +87,10 @@ function AttachmentChip({
   a: Attachment;
   onRemove?: () => void;
 }) {
+  const { t } = useT();
   const icon = a.kind === "image" ? "🖼" : a.kind === "pdf" ? "📄" : "📝";
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white/5 px-2 py-1 text-[11px] text-[#c7c7cc] max-w-[220px]">
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/5 px-2 py-1 text-[11px] text-emph max-w-[220px]">
       {a.kind === "image" && a.data ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -87,7 +107,7 @@ function AttachmentChip({
         <button
           onClick={onRemove}
           className="text-muted hover:text-loss transition-colors shrink-0"
-          aria-label={`Remove ${a.name}`}
+          aria-label={t("chat.removeAttachment", { name: a.name })}
         >
           ✕
         </button>
@@ -109,7 +129,7 @@ export function ChatPanel({
   tall = false,
   expanded = false,
   onToggleExpand,
-  title = "Analyst desk",
+  title,
   emptyHint,
   onOpenSignal,
 }: {
@@ -132,6 +152,7 @@ export function ChatPanel({
   /** Makes resolved (now-active) proposal chips open that signal's detail. */
   onOpenSignal?: (id: string) => void;
 }) {
+  const { t, lang } = useT();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachBusy, setAttachBusy] = useState(false);
@@ -159,20 +180,20 @@ export function ChatPanel({
   );
 
   function submit() {
-    const t = text.trim();
-    if ((!t && attachments.length === 0) || sending || attachBusy) return;
+    const msg = text.trim();
+    if ((!msg && attachments.length === 0) || sending || attachBusy) return;
     stopListening();
     setText("");
     setAttachments([]);
     setLocalError(null);
-    onSend(t, attachments);
+    onSend(msg, attachments);
   }
 
   async function addFiles(list: FileList | File[]) {
     setLocalError(null);
     const files = Array.from(list);
     if (attachments.length + files.length > MAX_FILES) {
-      setLocalError(`At most ${MAX_FILES} files per message.`);
+      setLocalError(t("chat.maxFiles", { n: MAX_FILES }));
       return;
     }
     setAttachBusy(true);
@@ -181,7 +202,7 @@ export function ChatPanel({
       for (const f of files) processed.push(await processFile(f));
       setAttachments((prev) => [...prev, ...processed]);
     } catch (e) {
-      setLocalError(e instanceof Error ? e.message : "Couldn't read that file.");
+      setLocalError(e instanceof Error ? localizeAttachError(e.message, t) : t("chat.fileReadFailed"));
     } finally {
       setAttachBusy(false);
     }
@@ -193,7 +214,7 @@ export function ChatPanel({
     const rec = new Ctor();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = navigator.language || "en-US";
+    rec.lang = lang === "zh" ? "zh-CN" : "en-US";
     dictationBase.current = text ? text.replace(/\s+$/, "") + " " : "";
     rec.onresult = (e) => {
       let transcript = "";
@@ -201,7 +222,7 @@ export function ChatPanel({
       setText(dictationBase.current + transcript);
     };
     rec.onerror = (e) => {
-      if (e.error === "not-allowed") setLocalError("Microphone access was blocked.");
+      if (e.error === "not-allowed") setLocalError(t("chat.micBlocked"));
       setListening(false);
     };
     rec.onend = () => setListening(false);
@@ -225,6 +246,7 @@ export function ChatPanel({
     }
     synth.cancel();
     const u = new SpeechSynthesisUtterance(speakable(m.content));
+    u.lang = lang === "zh" ? "zh-CN" : "en-US";
     u.onend = () => setSpeakingId(null);
     u.onerror = () => setSpeakingId(null);
     synth.speak(u);
@@ -243,18 +265,16 @@ export function ChatPanel({
     >
       <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-gain" />
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-[10px] text-muted ml-auto hidden sm:block">
-          your feedback steers tomorrow’s research
-        </p>
+        <p className="text-sm font-semibold">{title ?? t("chat.title")}</p>
+        <p className="text-[10px] text-muted ml-auto hidden sm:block">{t("chat.headerHint")}</p>
         {onToggleExpand && (
           <button
             onClick={onToggleExpand}
-            title={expanded ? "Exit full screen (Esc)" : "Full-screen desk"}
-            aria-label={expanded ? "Exit full screen" : "Full-screen desk"}
-            className="rounded-md border border-hairline bg-white/4 hover:bg-white/10 px-2 py-1 text-[11px] text-[#c7c7cc] transition-colors"
+            title={expanded ? t("chat.exitFullTitle") : t("chat.enterFull")}
+            aria-label={expanded ? t("chat.exitFull") : t("chat.enterFull")}
+            className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[11px] text-emph transition-colors"
           >
-            {expanded ? "⤡ Exit" : "⤢"}
+            {expanded ? `⤡ ${t("chat.exit")}` : "⤢"}
           </button>
         )}
       </div>
@@ -288,10 +308,10 @@ export function ChatPanel({
                 <div className="mt-1.5 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => toggleSpeak(m)}
-                    title={speakingId === m.id ? "Stop reading" : "Read aloud"}
-                    className="text-[11px] text-muted hover:text-[#c7c7cc] transition-colors"
+                    title={speakingId === m.id ? t("chat.stopReading") : t("chat.readAloud")}
+                    className="text-[11px] text-muted hover:text-emph transition-colors"
                   >
-                    {speakingId === m.id ? "◼ stop" : "🔊 read"}
+                    {speakingId === m.id ? `◼ ${t("chat.stop")}` : `🔊 ${t("chat.read")}`}
                   </button>
                 </div>
               )}
@@ -320,9 +340,9 @@ export function ChatPanel({
                         key={id}
                         role={openable ? "button" : undefined}
                         onClick={openable ? () => onOpenSignal(id) : undefined}
-                        title={openable ? "Open this signal" : undefined}
-                        className={`rounded-lg bg-white/4 border border-hairline px-3 py-2 text-xs flex items-center justify-between ${
-                          openable ? "cursor-pointer hover:bg-white/8 hover:border-white/25 transition-colors" : ""
+                        title={openable ? t("chat.openSignal") : undefined}
+                        className={`rounded-lg bg-ink/4 border border-hairline px-3 py-2 text-xs flex items-center justify-between ${
+                          openable ? "cursor-pointer hover:bg-ink/8 hover:border-ink/25 transition-colors" : ""
                         }`}
                       >
                         <span className="font-medium">{s.name}</span>
@@ -333,7 +353,9 @@ export function ChatPanel({
                               : "text-muted text-[11px]"
                           }
                         >
-                          {s.status === "active" ? "✓ active — open ⤢" : s.status}
+                          {s.status === "active"
+                            ? t("chat.activeOpen")
+                            : t(`common.status_${s.status}`)}
                         </span>
                       </div>
                     );
@@ -346,19 +368,19 @@ export function ChatPanel({
         {sending && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 text-sm text-muted pulse-soft">
-              Analyst is thinking…
+              {t("chat.thinking")}
             </div>
           </div>
         )}
         {error && !sending && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md border border-loss/30 bg-loss/8 px-3.5 py-2.5 text-xs max-w-[92%]">
-              <p className="text-loss font-medium">{error}</p>
+              <p className="text-loss font-medium">{localizeError(error, t)}</p>
               <button
                 onClick={onRetry}
-                className="mt-2 rounded-lg bg-white/8 hover:bg-white/12 px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors"
+                className="mt-2 rounded-lg bg-ink/8 hover:bg-ink/12 px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors"
               >
-                Retry
+                {t("common.retry")}
               </button>
             </div>
           </div>
@@ -366,12 +388,12 @@ export function ChatPanel({
         {stranded && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 text-xs max-w-[92%]">
-              <p className="text-muted">The analyst hasn’t replied to your last message.</p>
+              <p className="text-muted">{t("chat.strandedNote")}</p>
               <button
                 onClick={onRetry}
                 className="mt-2 rounded-lg bg-accent/90 hover:bg-accent px-3 py-1.5 text-[11px] font-semibold text-white transition-colors"
               >
-                Ask the analyst to respond
+                {t("chat.askToRespond")}
               </button>
             </div>
           </div>
@@ -380,15 +402,18 @@ export function ChatPanel({
 
       {showLensChips && (
         <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-          {LENS_CHIPS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setText((t) => (t ? t + " " + c : c))}
-              className="rounded-full border border-hairline bg-white/4 hover:bg-white/8 px-2.5 py-1 text-[11px] text-[#c7c7cc] transition-colors"
-            >
-              {c}
-            </button>
-          ))}
+          {LENS_CHIP_KEYS.map((k) => {
+            const c = t(k);
+            return (
+              <button
+                key={k}
+                onClick={() => setText((prev) => (prev ? prev + " " + c : c))}
+                className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1 text-[11px] text-emph transition-colors"
+              >
+                {c}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -405,7 +430,7 @@ export function ChatPanel({
               ))}
             </div>
           )}
-          {attachBusy && <p className="text-[11px] text-muted pulse-soft">Preparing files…</p>}
+          {attachBusy && <p className="text-[11px] text-muted pulse-soft">{t("chat.preparingFiles")}</p>}
           {localError && <p className="text-[11px] text-loss">{localError}</p>}
         </div>
       )}
@@ -426,9 +451,9 @@ export function ChatPanel({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={sending || attachBusy}
-            title="Attach files or images"
-            aria-label="Attach files or images"
-            className="shrink-0 rounded-lg hover:bg-white/8 disabled:opacity-40 px-1.5 py-1.5 text-base leading-none transition-colors"
+            title={t("chat.attachTitle")}
+            aria-label={t("chat.attachTitle")}
+            className="shrink-0 rounded-lg hover:bg-ink/8 disabled:opacity-40 px-1.5 py-1.5 text-base leading-none transition-colors"
           >
             📎
           </button>
@@ -436,10 +461,10 @@ export function ChatPanel({
             <button
               onClick={() => (listening ? stopListening() : startListening())}
               disabled={sending}
-              title={listening ? "Stop dictation" : "Dictate with your voice"}
-              aria-label={listening ? "Stop dictation" : "Dictate with your voice"}
+              title={listening ? t("chat.dictateStop") : t("chat.dictate")}
+              aria-label={listening ? t("chat.dictateStop") : t("chat.dictate")}
               className={`shrink-0 rounded-lg px-1.5 py-1.5 text-base leading-none transition-colors ${
-                listening ? "bg-loss/20 text-loss pulse-soft" : "hover:bg-white/8"
+                listening ? "bg-loss/20 text-loss pulse-soft" : "hover:bg-ink/8"
               }`}
             >
               🎤
@@ -462,17 +487,15 @@ export function ChatPanel({
               }
             }}
             rows={Math.min(expanded ? 8 : 4, Math.max(1, text.split("\n").length))}
-            placeholder={
-              listening ? "Listening — speak now…" : "Tell your analyst what to focus on…"
-            }
+            placeholder={listening ? t("chat.placeholderListening") : t("chat.placeholder")}
             className="flex-1 bg-transparent outline-none resize-none text-sm placeholder:text-muted/60 leading-relaxed"
           />
           <button
             onClick={submit}
             disabled={sending || attachBusy || (!text.trim() && attachments.length === 0)}
-            className="shrink-0 rounded-lg bg-accent disabled:bg-white/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+            className="shrink-0 rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
           >
-            Send
+            {t("chat.send")}
           </button>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { adminApiGuard } from "@/lib/admin-auth";
 import { appOrigin } from "@/lib/auth";
-import { addFeedbackMessage, getFeedback, getUser, setFeedbackStatus } from "@/lib/db";
+import { addFeedbackMessage, getFeedback, getSetting, getUser, setFeedbackStatus } from "@/lib/db";
 import { feedbackResponseEmail, isRealEmail, sendEmail } from "@/lib/email";
+import { isLang } from "@/lib/i18n/config";
 import type { FeedbackStatus } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -50,11 +51,14 @@ export async function POST(req: Request, { params }: Params) {
     await addFeedbackMessage(ticket.id, "admin", message, []);
     const requester = await getUser(ticket.userId);
     if (requester && isRealEmail(requester.email)) {
+      // Notify in the requester's app language (their account setting).
+      const requesterLang = await getSetting(ticket.userId, "language").catch(() => null);
       const mail = feedbackResponseEmail({
         requestId: ticket.id,
         subject: ticket.subject,
         response: message,
         origin: appOrigin(req),
+        lang: isLang(requesterLang) ? requesterLang : "en",
       });
       emailed = await sendEmail({ to: requester.email, ...mail });
     }

@@ -7,11 +7,12 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
 import { PositionCard } from "@/components/PositionCard";
+import { useT } from "@/components/PrefsProvider";
 import { RunBanner } from "@/components/RunBanner";
 import { SignalCard } from "@/components/SignalCard";
 import { SignalDetail } from "@/components/SignalDetail";
 import { SuggestionCard } from "@/components/SuggestionCard";
-import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
+import { api, fmtPct, fmtPrice, localizeError, timeAgo } from "@/components/util";
 import {
   chipLabel,
   dossierToMarkdown,
@@ -28,6 +29,7 @@ const STALE_MS = 20 * 3600_000;
 export default function DeskPage() {
   const params = useParams<{ symbol: string }>();
   const symbol = decodeURIComponent(params.symbol).toUpperCase();
+  const { t } = useT();
 
   const [desk, setDesk] = useState<DeskPayload | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -84,8 +86,8 @@ export default function DeskPage() {
 
   // Poll fast while the agents are working, slowly otherwise.
   useEffect(() => {
-    const t = setInterval(load, running || sending ? 2500 : 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(load, running || sending ? 2500 : 30_000);
+    return () => clearInterval(timer);
   }, [load, running, sending]);
 
   const startRun = useCallback(async () => {
@@ -95,9 +97,9 @@ export default function DeskPage() {
       });
       load();
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Failed to start run");
+      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
     }
-  }, [symbol, load]);
+  }, [symbol, load, t]);
 
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).

@@ -2,6 +2,8 @@ import { NextResponse, after } from "next/server";
 import { getTicker, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 import { requireUser } from "@/lib/auth";
+import { requestLang } from "@/lib/i18n/server";
+import { localizeRun } from "@/lib/i18n/translate";
 
 // The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps →
 // synthesis) runs inside this budget via after(). 300s is the Vercel Hobby
@@ -30,5 +32,6 @@ export async function POST(_req: Request, { params }: Params) {
   if (started) {
     after(() => executeRun(user.id, run.id, symbol));
   }
-  return NextResponse.json({ run, started });
+  const lang = await requestLang(user.id);
+  return NextResponse.json({ run: await localizeRun(run, lang, { userId: user.id }), started });
 }
