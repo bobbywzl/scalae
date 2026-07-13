@@ -26,6 +26,14 @@ export default async function AdminPanelLayout({ children }: { children: React.R
           </svg>
           <span className="font-semibold text-sm group-hover:text-accent transition-colors">Scalae Admin</span>
         </Link>
+        <nav className="flex items-center gap-1 text-xs">
+          <Link href="/admin" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-white/5 transition-colors">
+            Accounts
+          </Link>
+          <Link href="/admin/feedback" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-white/5 transition-colors">
+            Feedback
+          </Link>
+        </nav>
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 text-xs text-muted" title="Signed-in admin">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gain" aria-hidden>

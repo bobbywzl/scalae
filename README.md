@@ -62,6 +62,15 @@ Getting in requires **both**:
 
 Set `ADMIN_PASSWORD` (+ `ADMIN_EMAILS`) in Vercel, redeploy, then visit `/admin/login` and enter an authorized email and the password. A successful login sets a 24-hour httpOnly cookie carrying your email, signed (HMAC) with `ADMIN_PASSWORD` — so it can't be forged, and **rotating the password signs every admin out**. "Admin sign out" clears only that cookie (any consumer Google session is untouched). The daily cron sweeps every account's desks, honoring each user's own auto-research switch, so one user pausing spend never affects another (watch the Runs column in `/admin` — research runs cost tokens per user).
 
+### Feedback & support (`/support`)
+
+Users file support requests — bug reports, feature ideas, questions — from **`/support`** (linked from Settings and the dashboard footer), with screenshots/PDFs/text files attached as evidence. Every request gets a human-friendly **request ID** (e.g. `SCL-7K2M4Q`) and a thread; replying to a responded or closed request re-opens it.
+
+Admins triage from **`/admin/feedback`**: respond (optionally respond-and-close), close, reopen. When email is configured, an admin response **emails the requester** automatically:
+
+- `RESEND_API_KEY` — a [Resend](https://resend.com) API key; unset = no emails (responses still appear in the in-app thread)
+- `FEEDBACK_FROM_EMAIL` *(optional)* — verified sender, e.g. `Scalae <support@yourdomain.com>` (defaults to Resend's onboarding sender, fine for testing)
+
 ## The analytical core
 
 `lib/agents/framework.ts` encodes the Buffett/Munger doctrine distilled directly from the Berkshire Hathaway shareholder letters (1977–2007 read from source) and from the Munger corpus — *Poor Charlie's Almanack* (the eleven talks, the Psychology of Human Misjudgment, the Investing Principles Checklist) and the Wesco/Daily Journal meeting record:

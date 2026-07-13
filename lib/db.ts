@@ -1,13 +1,18 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { domainOf } from "./citations";
 import type {
+  AdminFeedbackRow,
   AdminUserRow,
   Attachment,
   ChatMessage,
   Citation,
   DigestItem,
   DividendReceipt,
+  FeedbackCategory,
+  FeedbackMessage,
+  FeedbackStatus,
+  FeedbackTicket,
   FocusArea,
   Order,
   OrderStatus,
@@ -239,6 +244,28 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_signals_user ON signals("userId", symbol, status)`,
   `CREATE INDEX IF NOT EXISTS idx_trades_user ON trades("userId", symbol)`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders("userId", status)`,
+  // ---- feedback & support (tickets with a message thread + evidence files) ----
+  `CREATE TABLE IF NOT EXISTS feedback (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    category TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    "createdAt" TEXT NOT NULL,
+    "updatedAt" TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS feedback_messages (
+    id TEXT PRIMARY KEY,
+    "feedbackId" TEXT NOT NULL,
+    role TEXT NOT NULL,
+    body TEXT NOT NULL,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TEXT NOT NULL,
+    seq BIGINT GENERATED ALWAYS AS IDENTITY
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback("userId", "updatedAt")`,
+  `CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, "updatedAt")`,
+  `CREATE INDEX IF NOT EXISTS idx_fbmsg_ticket ON feedback_messages("feedbackId", seq)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -1003,5 +1030,160 @@ export async function listUsersWithStats(): Promise<AdminUserRow[]> {
     lastRunAt: rn.get(user.id)?.last ?? null,
     messages: Number(ms.get(user.id)?.n ?? 0),
     trades: Number(tr.get(user.id)?.n ?? 0),
+  }));
+}
+
+// ---------- feedback & support ----------
+
+/** Unambiguous alphabet (no 0/O/1/I/L) for human-friendly request IDs. */
+const FEEDBACK_ID_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+function mintFeedbackId(): string {
+  const bytes = randomBytes(6);
+  let s = "";
+  for (let i = 0; i < 6; i++) s += FEEDBACK_ID_ALPHABET[bytes[i] % FEEDBACK_ID_ALPHABET.length];
+  return `SCL-${s}`;
+}
+
+type FeedbackRow = Omit<FeedbackTicket, "messages">;
+interface FeedbackMessageRow extends Omit<FeedbackMessage, "attachments"> {
+  attachments: string;
+}
+
+const toFeedbackMessage = (r: FeedbackMessageRow): FeedbackMessage => ({
+  id: r.id,
+  feedbackId: r.feedbackId,
+  role: r.role,
+  body: r.body,
+  attachments: JSON.parse(r.attachments) as Attachment[],
+  createdAt: r.createdAt,
+});
+
+/** Drop attachment payloads for list views (keep name/kind/size for chips). */
+export function stripAttachmentData(m: FeedbackMessage): FeedbackMessage {
+  return {
+    ...m,
+    attachments: m.attachments.map((a) => ({
+      kind: a.kind,
+      name: a.name,
+      mediaType: a.mediaType,
+      size: a.size,
+    })),
+  };
+}
+
+/** Tickets a user filed in the last 24h — the new-request rate-limit input. */
+export async function countRecentFeedback(userId: string): Promise<number> {
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const rows = await q<{ n: string }>`
+    SELECT count(*) AS n FROM feedback WHERE "userId" = ${userId} AND "createdAt" > ${since}`;
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function createFeedback(
+  userId: string,
+  category: FeedbackCategory,
+  subject: string,
+  body: string,
+  attachments: Attachment[]
+): Promise<FeedbackTicket> {
+  const ts = now();
+  // Request IDs are short for humans — retry the rare collision.
+  for (let attempt = 0; ; attempt++) {
+    const id = mintFeedbackId();
+    try {
+      await q`INSERT INTO feedback (id, "userId", category, subject, status, "createdAt", "updatedAt")
+              VALUES (${id}, ${userId}, ${category}, ${subject}, 'open', ${ts}, ${ts})`;
+      const msg: FeedbackMessage = {
+        id: uid(),
+        feedbackId: id,
+        role: "user",
+        body,
+        attachments,
+        createdAt: ts,
+      };
+      await q`INSERT INTO feedback_messages (id, "feedbackId", role, body, attachments, "createdAt")
+              VALUES (${msg.id}, ${id}, 'user', ${body}, ${JSON.stringify(attachments)}, ${ts})`;
+      return { id, userId, category, subject, status: "open", createdAt: ts, updatedAt: ts, messages: [msg] };
+    } catch (e) {
+      if (attempt < 3 && e instanceof Error && /duplicate key|unique/i.test(e.message)) continue;
+      throw e;
+    }
+  }
+}
+
+async function feedbackMessages(feedbackId: string): Promise<FeedbackMessage[]> {
+  const rows = await q<FeedbackMessageRow>`
+    SELECT * FROM feedback_messages WHERE "feedbackId" = ${feedbackId} ORDER BY seq ASC`;
+  return rows.map(toFeedbackMessage);
+}
+
+/** A user's tickets, newest activity first, with attachment payloads stripped. */
+export async function listFeedback(userId: string): Promise<FeedbackTicket[]> {
+  const tickets = await q<FeedbackRow>`
+    SELECT * FROM feedback WHERE "userId" = ${userId} ORDER BY "updatedAt" DESC`;
+  if (tickets.length === 0) return [];
+  const msgs = await q<FeedbackMessageRow>`
+    SELECT m.* FROM feedback_messages m JOIN feedback f ON f.id = m."feedbackId"
+    WHERE f."userId" = ${userId} ORDER BY m.seq ASC`;
+  const byTicket = new Map<string, FeedbackMessage[]>();
+  for (const r of msgs) {
+    const m = stripAttachmentData(toFeedbackMessage(r));
+    (byTicket.get(m.feedbackId) ?? byTicket.set(m.feedbackId, []).get(m.feedbackId)!).push(m);
+  }
+  return tickets.map((t) => ({ ...t, messages: byTicket.get(t.id) ?? [] }));
+}
+
+/** One ticket with the full thread (attachment payloads included). */
+export async function getFeedback(id: string): Promise<FeedbackTicket | null> {
+  const rows = await q<FeedbackRow>`SELECT * FROM feedback WHERE id = ${id}`;
+  const t = rows[0];
+  if (!t) return null;
+  return { ...t, messages: await feedbackMessages(id) };
+}
+
+/**
+ * Append to a ticket's thread. A user message re-opens the ticket (replying to
+ * a response or a closed case reactivates it, Amazon-style); an admin message
+ * marks it responded.
+ */
+export async function addFeedbackMessage(
+  feedbackId: string,
+  role: "user" | "admin",
+  body: string,
+  attachments: Attachment[]
+): Promise<FeedbackMessage> {
+  const m: FeedbackMessage = { id: uid(), feedbackId, role, body, attachments, createdAt: now() };
+  await q`INSERT INTO feedback_messages (id, "feedbackId", role, body, attachments, "createdAt")
+          VALUES (${m.id}, ${feedbackId}, ${role}, ${body}, ${JSON.stringify(attachments)}, ${m.createdAt})`;
+  const status: FeedbackStatus = role === "admin" ? "responded" : "open";
+  await q`UPDATE feedback SET status = ${status}, "updatedAt" = ${m.createdAt} WHERE id = ${feedbackId}`;
+  return m;
+}
+
+export async function setFeedbackStatus(id: string, status: FeedbackStatus): Promise<void> {
+  await q`UPDATE feedback SET status = ${status}, "updatedAt" = ${now()} WHERE id = ${id}`;
+}
+
+/** Admin inbox: every ticket with requester identity, newest activity first. */
+export async function listAllFeedback(): Promise<AdminFeedbackRow[]> {
+  const tickets = await q<FeedbackRow & { email: string; name: string; picture: string }>`
+    SELECT f.*, u.email, u.name, u.picture FROM feedback f
+    LEFT JOIN users u ON u.id = f."userId" ORDER BY f."updatedAt" DESC`;
+  if (tickets.length === 0) return [];
+  const msgs = await q<FeedbackMessageRow>`SELECT * FROM feedback_messages ORDER BY seq ASC`;
+  const byTicket = new Map<string, FeedbackMessage[]>();
+  for (const r of msgs) {
+    const m = stripAttachmentData(toFeedbackMessage(r));
+    (byTicket.get(m.feedbackId) ?? byTicket.set(m.feedbackId, []).get(m.feedbackId)!).push(m);
+  }
+  return tickets.map(({ email, name, picture, ...t }) => ({
+    ticket: { ...t, messages: byTicket.get(t.id) ?? [] },
+    user: {
+      id: t.userId,
+      email: email ?? (t.userId === "local" ? "local@scalae" : t.userId),
+      name: name ?? "Local investor",
+      picture: picture ?? "",
+    },
   }));
 }

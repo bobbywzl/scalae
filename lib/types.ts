@@ -171,6 +171,43 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Feedback & support: users file requests (bug / idea / question …) with
+// attached evidence; admins respond from the console; responders trigger an
+// email notification to the requester. Amazon-case-style request IDs.
+// ---------------------------------------------------------------------------
+
+export type FeedbackCategory = "bug" | "idea" | "question" | "account" | "other";
+export type FeedbackStatus = "open" | "responded" | "closed";
+
+export interface FeedbackMessage {
+  id: string;
+  feedbackId: string;
+  role: "user" | "admin";
+  body: string;
+  attachments: Attachment[];
+  createdAt: string;
+}
+
+export interface FeedbackTicket {
+  /** Human-friendly request ID, e.g. "SCL-7K2M4Q" — shown to the user. */
+  id: string;
+  userId: string;
+  category: FeedbackCategory;
+  subject: string;
+  status: FeedbackStatus;
+  createdAt: string;
+  updatedAt: string;
+  /** Thread, oldest first. List endpoints strip attachment payloads. */
+  messages: FeedbackMessage[];
+}
+
+/** One ticket in the admin inbox, with requester identity. */
+export interface AdminFeedbackRow {
+  ticket: FeedbackTicket;
+  user: { id: string; email: string; name: string; picture: string };
+}
+
 export interface Quote {
   symbol: string;
   name: string;
