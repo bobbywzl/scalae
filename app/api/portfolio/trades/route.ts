@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { insertTrade } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import { resolveSymbol } from "@/lib/market";
 import type { OptionType, TradeInput, TradeKind, TradeSide } from "@/lib/types";
 
@@ -11,6 +12,8 @@ function bad(msg: string) {
 
 /** Record a trade (stock or option, buy or sell). */
 export async function POST(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const b = (await req.json().catch(() => ({}))) as Partial<TradeInput>;
 
   const symbol = String(b.symbol ?? "").trim().toUpperCase();
@@ -47,7 +50,7 @@ export async function POST(req: Request) {
   const name = await resolveSymbol(symbol);
   if (!name) return bad(`Could not find "${symbol}" on the public market.`);
 
-  const trade = await insertTrade({
+  const trade = await insertTrade(user.id, {
     symbol,
     kind,
     side,

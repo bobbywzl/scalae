@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { getTicker, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
+import { requireUser } from "@/lib/auth";
 
 // The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps →
 // synthesis) runs inside this budget via after(). 300s is the Vercel Hobby
@@ -13,19 +14,21 @@ type Params = { params: Promise<{ symbol: string }> };
 
 /** Kick off a research run; the pipeline continues after the response returns. */
 export async function POST(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
-  if (!(await getTicker(symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if ((await listSignals(symbol, "active")).length === 0) {
+  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if ((await listSignals(user.id, symbol, "active")).length === 0) {
     return NextResponse.json(
       { error: "Approve at least one signal before running research." },
       { status: 400 }
     );
   }
 
-  const { run, started } = await startRun(symbol);
+  const { run, started } = await startRun(user.id, symbol);
   if (started) {
-    after(() => executeRun(run.id, symbol));
+    after(() => executeRun(user.id, run.id, symbol));
   }
   return NextResponse.json({ run, started });
 }

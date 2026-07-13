@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { autoResearchEnabled, listSignals, listTickers } from "@/lib/db";
+import { autoResearchEnabled, listAllTickers, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 
 // 300s is the Vercel Hobby ceiling (Fluid Compute); above the plan cap Vercel
@@ -11,8 +11,9 @@ const STALE_MS = 20 * 3600_000;
 /**
  * Daily regeneration entry point, invoked by the Vercel cron (which sends
  * `Authorization: Bearer ${CRON_SECRET}` automatically) or any scheduler.
- * Starts a research run for every onboarded desk whose last run is older than
- * 20 hours. The app also self-triggers per-desk on open.
+ * Sweeps EVERY user's onboarded desks whose last run is older than 20 hours —
+ * honoring each account's own auto-research switch, so one user pausing spend
+ * never affects another.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -20,22 +21,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // The token-budget lever: when auto research is off, the cron is a no-op.
-  // Enforced server-side so no client state can burn tokens overnight.
-  if (!(await autoResearchEnabled())) {
-    return NextResponse.json({ started: [], autoResearch: "off" });
-  }
-
+  const autoByUser = new Map<string, boolean>();
   const started: string[] = [];
-  for (const t of await listTickers()) {
+  for (const t of await listAllTickers()) {
     if (!t.onboarded) continue;
-    if ((await listSignals(t.symbol, "active")).length === 0) continue;
+    const uid = t.userId ?? "local";
+    if (!autoByUser.has(uid)) autoByUser.set(uid, await autoResearchEnabled(uid));
+    if (!autoByUser.get(uid)) continue;
+    if ((await listSignals(uid, t.symbol, "active")).length === 0) continue;
     const fresh = t.lastRunAt && Date.now() - Date.parse(t.lastRunAt) < STALE_MS;
     if (fresh) continue;
-    const { run, started: isNew } = await startRun(t.symbol);
+    const { run, started: isNew } = await startRun(uid, t.symbol);
     if (isNew) {
-      started.push(t.symbol);
-      after(() => executeRun(run.id, t.symbol));
+      started.push(`${uid.slice(0, 6)}:${t.symbol}`);
+      after(() => executeRun(uid, run.id, t.symbol));
     }
   }
   return NextResponse.json({ started });

@@ -3,6 +3,7 @@ import { handleChatTurn } from "@/lib/agents/chat";
 import { friendlyAIError } from "@/lib/ai/claude";
 import { executeRun, startRun } from "@/lib/agents/research";
 import { getTicker } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import type { Attachment, AttachmentKind } from "@/lib/types";
 
 // A chat turn may kick off a full research run via after(). 300s is the Vercel
@@ -57,9 +58,11 @@ function sanitizeAttachments(raw: unknown): Attachment[] | { error: string } {
  * after a failure (the user's message is already persisted).
  */
 export async function POST(req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
-  if (!(await getTicker(symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const body = (await req.json().catch(() => ({}))) as {
     message?: string;
@@ -78,10 +81,10 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const result = await handleChatTurn(symbol, message, { retry, attachments: files });
+    const result = await handleChatTurn(user.id, symbol, message, { retry, attachments: files });
     if (result.startResearch) {
-      const { run, started } = await startRun(symbol);
-      if (started) after(() => executeRun(run.id, symbol));
+      const { run, started } = await startRun(user.id, symbol);
+      if (started) after(() => executeRun(user.id, run.id, symbol));
     }
     return NextResponse.json({ reply: result.message, researchStarted: result.startResearch });
   } catch (e) {

@@ -156,25 +156,25 @@ async function seriesInputs(
 }
 
 /** The full portfolio payload for /api/portfolio. */
-export async function computePortfolio(): Promise<PortfolioPayload> {
+export async function computePortfolio(userId: string): Promise<PortfolioPayload> {
   const [trades, dividends, openOrders, orderHistory, initialCapital] = await Promise.all([
-    listTrades(),
-    listDividends(),
-    listOpenOrders(),
-    listOrderHistory(),
-    getInitialCapital(),
+    listTrades(userId),
+    listDividends(userId),
+    listOpenOrders(userId),
+    listOrderHistory(userId),
+    getInitialCapital(userId),
   ]);
   const { valued, unpriced } = await valueAll(trades);
   const series = computeSeries(await seriesInputs(trades, valued, dividends));
 
   // Detected-but-unapplied dividends and per-symbol DRIP settings for the UI.
   const appliedKeys = new Set(dividends.map((d) => `${d.symbol}|${d.exDate}`));
-  const pending = await pendingDividends(appliedKeys).catch(() => []);
+  const pending = await pendingDividends(userId, appliedKeys).catch(() => []);
   const heldSymbols = [...new Set(valued.filter((v) => v.kind === "stock" && v.qty !== 0).map((v) => v.symbol))];
   const drip: Record<string, boolean> = {};
   await Promise.all(
     heldSymbols.map(async (s) => {
-      drip[s] = await dripEnabled(s);
+      drip[s] = await dripEnabled(userId, s);
     })
   );
 
@@ -249,8 +249,8 @@ export async function computePortfolio(): Promise<PortfolioPayload> {
 }
 
 /** Involvement in one symbol (ticker desk card, watchlist badge, analyst context). */
-export async function computeInvolvement(symbol: string): Promise<TickerInvolvement | null> {
-  const trades = await listTrades(symbol.toUpperCase());
+export async function computeInvolvement(userId: string, symbol: string): Promise<TickerInvolvement | null> {
+  const trades = await listTrades(userId, symbol.toUpperCase());
   if (trades.length === 0) return null;
   const { valued } = await valueAll(trades);
   const stock = valued.find((v) => v.kind === "stock" && v.qty !== 0) ?? null;

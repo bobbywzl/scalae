@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { approveSignal, getSignal, getTicker, markOnboarded, setSignalStatus } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 
 /**
  * Bulk human approval gate: approve or dismiss ("ignore") many pending
@@ -7,6 +8,8 @@ import { approveSignal, getSignal, getTicker, markOnboarded, setSignalStatus } f
  * selection. Only `suggested` signals are affected; anything else is skipped.
  */
 export async function POST(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { ids?: unknown; action?: string };
   const action = body.action;
   if (action !== "approve" && action !== "dismiss") {
@@ -23,6 +26,7 @@ export async function POST(req: Request) {
   for (const id of ids) {
     const signal = await getSignal(id);
     if (!signal || signal.status !== "suggested") continue;
+    if (signal.userId && signal.userId !== user.id) continue;
     if (action === "approve") {
       await approveSignal(id); // retires the replaced signal too, if any
       approvedSymbols.add(signal.symbol);
@@ -33,9 +37,9 @@ export async function POST(req: Request) {
   }
   // First approval activates a desk that was still onboarding.
   for (const symbol of approvedSymbols) {
-    const ticker = await getTicker(symbol);
+    const ticker = await getTicker(user.id, symbol);
     if (ticker && !ticker.onboarded) {
-      await markOnboarded(symbol);
+      await markOnboarded(user.id, symbol);
       onboardedNow = true;
     }
   }

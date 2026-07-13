@@ -2,6 +2,7 @@ import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { randomUUID } from "node:crypto";
 import { domainOf } from "./citations";
 import type {
+  AdminUserRow,
   Attachment,
   ChatMessage,
   Citation,
@@ -18,6 +19,7 @@ import type {
   SignalStatus,
   Ticker,
   Trade,
+  User,
 } from "./types";
 
 /**
@@ -49,6 +51,22 @@ function sqlClient(): NeonQueryFunction<false, false> {
 }
 
 export const SCHEMA_STATEMENTS: string[] = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL DEFAULT '',
+    picture TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT 'user',
+    "createdAt" TEXT NOT NULL,
+    "lastSeenAt" TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    "expiresAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions("userId")`,
   `CREATE TABLE IF NOT EXISTS tickers (
     symbol TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -153,7 +171,6 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL
   )`,
   `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "dismissedAt" TEXT`,
-  `ALTER TABLE dividends ADD COLUMN IF NOT EXISTS "withholdingPct" DOUBLE PRECISION NOT NULL DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol, "tradeDate")`,
   `CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
@@ -185,6 +202,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     "appliedAt" TEXT NOT NULL,
     UNIQUE (symbol, "exDate")
   )`,
+  `ALTER TABLE dividends ADD COLUMN IF NOT EXISTS "withholdingPct" DOUBLE PRECISION NOT NULL DEFAULT 0`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -194,6 +212,29 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_digest_symbol ON digest_items(symbol, date)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_symbol ON messages(symbol, "createdAt")`,
   `CREATE INDEX IF NOT EXISTS idx_runs_symbol ON runs(symbol, "startedAt")`,
+  // ---- multi-tenancy: every row is owned; 'local' = single-user (auth off) ----
+  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE focus_areas ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE trades ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE dividends ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  // per-user uniqueness replaces the old single-tenant keys
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_tickers_user_symbol ON tickers("userId", symbol)`,
+  `ALTER TABLE tickers DROP CONSTRAINT IF EXISTS tickers_pkey`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_fa_user_symbol_title ON focus_areas("userId", symbol, title)`,
+  `ALTER TABLE focus_areas DROP CONSTRAINT IF EXISTS focus_areas_symbol_title_key`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_settings_user_key ON settings("userId", key)`,
+  `ALTER TABLE settings DROP CONSTRAINT IF EXISTS settings_pkey`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_div_user_symbol_ex ON dividends("userId", symbol, "exDate")`,
+  `ALTER TABLE dividends DROP CONSTRAINT IF EXISTS "dividends_symbol_exDate_key"`,
+  `CREATE INDEX IF NOT EXISTS idx_signals_user ON signals("userId", symbol, status)`,
+  `CREATE INDEX IF NOT EXISTS idx_trades_user ON trades("userId", symbol)`,
+  `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders("userId", status)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -220,62 +261,69 @@ export const uid = () => randomUUID();
 
 // ---------- tickers ----------
 
-export async function listTickers(): Promise<Ticker[]> {
+export async function listTickers(userId: string): Promise<Ticker[]> {
+  return q<Ticker>`SELECT * FROM tickers WHERE "userId" = ${userId} ORDER BY "addedAt" ASC`;
+}
+
+/** Every user's tickers — the cron sweeps all desks. */
+export async function listAllTickers(): Promise<Ticker[]> {
   return q<Ticker>`SELECT * FROM tickers ORDER BY "addedAt" ASC`;
 }
 
-export async function getTicker(symbol: string): Promise<Ticker | undefined> {
-  const rows = await q<Ticker>`SELECT * FROM tickers WHERE symbol = ${symbol}`;
+export async function getTicker(userId: string, symbol: string): Promise<Ticker | undefined> {
+  const rows = await q<Ticker>`SELECT * FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   return rows[0];
 }
 
-export async function addTicker(symbol: string, name: string): Promise<Ticker> {
-  await q`INSERT INTO tickers (symbol, name, "addedAt", onboarded) VALUES (${symbol}, ${name}, ${now()}, 0)
-          ON CONFLICT (symbol) DO NOTHING`;
-  return (await getTicker(symbol))!;
+export async function addTicker(userId: string, symbol: string, name: string): Promise<Ticker> {
+  await q`INSERT INTO tickers ("userId", symbol, name, "addedAt", onboarded)
+          VALUES (${userId}, ${symbol}, ${name}, ${now()}, 0)
+          ON CONFLICT ("userId", symbol) DO NOTHING`;
+  return (await getTicker(userId, symbol))!;
 }
 
-export async function removeTicker(symbol: string): Promise<void> {
-  await q`DELETE FROM readings WHERE "signalId" IN (SELECT id FROM signals WHERE symbol = ${symbol})`;
-  await q`DELETE FROM signals WHERE symbol = ${symbol}`;
-  await q`DELETE FROM focus_areas WHERE symbol = ${symbol}`;
-  await q`DELETE FROM digest_items WHERE symbol = ${symbol}`;
-  await q`DELETE FROM runs WHERE symbol = ${symbol}`;
-  await q`DELETE FROM messages WHERE symbol = ${symbol}`;
-  await q`DELETE FROM tickers WHERE symbol = ${symbol}`;
+export async function removeTicker(userId: string, symbol: string): Promise<void> {
+  await q`DELETE FROM readings WHERE "signalId" IN (SELECT id FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol})`;
+  await q`DELETE FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM focus_areas WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM digest_items WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
-export async function markOnboarded(symbol: string): Promise<void> {
-  await q`UPDATE tickers SET onboarded = 1 WHERE symbol = ${symbol}`;
+export async function markOnboarded(userId: string, symbol: string): Promise<void> {
+  await q`UPDATE tickers SET onboarded = 1 WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
-export async function touchLastRun(symbol: string): Promise<void> {
-  await q`UPDATE tickers SET "lastRunAt" = ${now()} WHERE symbol = ${symbol}`;
+export async function touchLastRun(userId: string, symbol: string): Promise<void> {
+  await q`UPDATE tickers SET "lastRunAt" = ${now()} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
 // ---------- focus areas ----------
 
-export async function listFocusAreas(symbol: string): Promise<FocusArea[]> {
-  return q<FocusArea>`SELECT * FROM focus_areas WHERE symbol = ${symbol} ORDER BY "createdAt" ASC`;
+export async function listFocusAreas(userId: string, symbol: string): Promise<FocusArea[]> {
+  return q<FocusArea>`SELECT * FROM focus_areas WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
 }
 
 export async function upsertFocusArea(
+  userId: string,
   symbol: string,
   title: string,
   description: string
 ): Promise<void> {
-  await q`INSERT INTO focus_areas (id, symbol, title, description, "createdAt")
-          VALUES (${uid()}, ${symbol}, ${title}, ${description}, ${now()})
-          ON CONFLICT (symbol, title) DO UPDATE SET description = EXCLUDED.description`;
+  await q`INSERT INTO focus_areas (id, "userId", symbol, title, description, "createdAt")
+          VALUES (${uid()}, ${userId}, ${symbol}, ${title}, ${description}, ${now()})
+          ON CONFLICT ("userId", symbol, title) DO UPDATE SET description = EXCLUDED.description`;
 }
 
 // ---------- signals ----------
 
-export async function listSignals(symbol: string, status?: SignalStatus): Promise<Signal[]> {
+export async function listSignals(userId: string, symbol: string, status?: SignalStatus): Promise<Signal[]> {
   if (status) {
-    return q<Signal>`SELECT * FROM signals WHERE symbol = ${symbol} AND status = ${status} ORDER BY "createdAt" ASC`;
+    return q<Signal>`SELECT * FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ${status} ORDER BY "createdAt" ASC`;
   }
-  return q<Signal>`SELECT * FROM signals WHERE symbol = ${symbol} ORDER BY "createdAt" ASC`;
+  return q<Signal>`SELECT * FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
 }
 
 export async function getSignal(id: string): Promise<Signal | undefined> {
@@ -290,13 +338,14 @@ export async function getSignal(id: string): Promise<Signal | undefined> {
  * Returns id or null.
  */
 export async function insertProposal(
+  userId: string,
   symbol: string,
   p: SignalProposal,
   origin: Signal["origin"]
 ): Promise<string | null> {
   const existing = await q<{ id: string }>`
     SELECT id FROM signals
-    WHERE symbol = ${symbol} AND lower(name) = lower(${p.name}) AND status IN ('suggested','active')`;
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND lower(name) = lower(${p.name}) AND status IN ('suggested','active')`;
   if (existing.length > 0) return null;
 
   let replacesId: string | null = null;
@@ -304,14 +353,14 @@ export async function insertProposal(
   if (replacesName) {
     const hit = await q<{ id: string }>`
       SELECT id FROM signals
-      WHERE symbol = ${symbol} AND status = 'active' AND lower(name) = lower(${replacesName})
+      WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'active' AND lower(name) = lower(${replacesName})
       LIMIT 1`;
     replacesId = hit[0]?.id ?? null;
   }
 
   const id = uid();
-  await q`INSERT INTO signals (id, symbol, "focusArea", name, type, thesis, "measurementPlan", scale, status, origin, replaces, "createdAt")
-          VALUES (${id}, ${symbol}, ${p.focusArea}, ${p.name},
+  await q`INSERT INTO signals (id, "userId", symbol, "focusArea", name, type, thesis, "measurementPlan", scale, status, origin, replaces, "createdAt")
+          VALUES (${id}, ${userId}, ${symbol}, ${p.focusArea}, ${p.name},
                   ${p.type === "quantitative" ? "quantitative" : "qualitative"},
                   ${p.thesis}, ${p.measurementPlan}, ${p.scale}, 'suggested', ${origin}, ${replacesId}, ${now()})`;
   return id;
@@ -385,11 +434,11 @@ export async function readingsForSignal(signalId: string, limit = 30): Promise<R
  * surfaced it. This is the signal's evidence base — it grows as daily runs add
  * or re-corroborate sources. Returned freshest-first (most recently cited).
  */
-export async function sourcesForSignals(symbol: string): Promise<Map<string, SignalSource[]>> {
+export async function sourcesForSignals(userId: string, symbol: string): Promise<Map<string, SignalSource[]>> {
   const rows = await q<{ signalId: string; date: string; citations: string }>`
     SELECT r."signalId", r.date, r.citations
     FROM readings r JOIN signals s ON s.id = r."signalId"
-    WHERE s.symbol = ${symbol}
+    WHERE s."userId" = ${userId} AND s.symbol = ${symbol}
     ORDER BY r.date ASC`;
 
   const bySignal = new Map<string, Map<string, SignalSource>>();
@@ -452,16 +501,16 @@ interface DigestRow extends Omit<DigestItem, "signalNames"> {
   signalNames: string;
 }
 
-export async function insertDigestItem(d: Omit<DigestItem, "id">): Promise<void> {
-  await q`INSERT INTO digest_items (id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames")
-          VALUES (${uid()}, ${d.symbol}, ${d.runId}, ${d.date}, ${d.headline}, ${d.summary},
+export async function insertDigestItem(userId: string, d: Omit<DigestItem, "id">): Promise<void> {
+  await q`INSERT INTO digest_items (id, "userId", symbol, "runId", date, headline, summary, url, source, impact, "signalNames")
+          VALUES (${uid()}, ${userId}, ${d.symbol}, ${d.runId}, ${d.date}, ${d.headline}, ${d.summary},
                   ${d.url}, ${d.source}, ${d.impact}, ${JSON.stringify(d.signalNames)})`;
 }
 
-export async function recentDigest(symbol: string, limit = 24): Promise<DigestItem[]> {
+export async function recentDigest(userId: string, symbol: string, limit = 24): Promise<DigestItem[]> {
   const rows = await q<DigestRow>`
     SELECT id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames"
-    FROM digest_items WHERE symbol = ${symbol} ORDER BY date DESC, seq DESC LIMIT ${limit}`;
+    FROM digest_items WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY date DESC, seq DESC LIMIT ${limit}`;
   return rows.map((r) => ({ ...r, signalNames: JSON.parse(r.signalNames) as string[] }));
 }
 
@@ -482,7 +531,7 @@ function parseRun(r: RunRow | undefined): Run | undefined {
   return { ...r, sources };
 }
 
-export async function createRun(symbol: string): Promise<Run> {
+export async function createRun(userId: string, symbol: string): Promise<Run> {
   const run: Run = {
     id: uid(),
     symbol,
@@ -496,8 +545,8 @@ export async function createRun(symbol: string): Promise<Run> {
     sources: [],
     error: null,
   };
-  await q`INSERT INTO runs (id, symbol, "startedAt", status, stage, "stageDetail")
-          VALUES (${run.id}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail})`;
+  await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail")
+          VALUES (${run.id}, ${userId}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail})`;
   return run;
 }
 
@@ -507,12 +556,13 @@ export async function setRunStage(id: string, stage: string, stageDetail: string
 
 /** Recent finished runs (newest first) — enough to compute dossier provenance. */
 export async function recentRuns(
+  userId: string,
   symbol: string,
   limit = 15
 ): Promise<{ id: string; startedAt: string; dossier: string | null }[]> {
   return q<{ id: string; startedAt: string; dossier: string | null }>`
     SELECT id, "startedAt", dossier FROM runs
-    WHERE symbol = ${symbol} AND status = 'done'
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'done'
     ORDER BY "startedAt" DESC LIMIT ${limit}`;
 }
 
@@ -538,24 +588,24 @@ export async function getRun(id: string): Promise<Run | undefined> {
   return parseRun(rows[0]);
 }
 
-export async function latestRun(symbol: string): Promise<Run | undefined> {
-  const rows = await q<RunRow>`SELECT * FROM runs WHERE symbol = ${symbol} ORDER BY "startedAt" DESC LIMIT 1`;
+export async function latestRun(userId: string, symbol: string): Promise<Run | undefined> {
+  const rows = await q<RunRow>`SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "startedAt" DESC LIMIT 1`;
   return parseRun(rows[0]);
 }
 
-export async function runningRun(symbol: string): Promise<Run | undefined> {
+export async function runningRun(userId: string, symbol: string): Promise<Run | undefined> {
   const rows = await q<RunRow>`
-    SELECT * FROM runs WHERE symbol = ${symbol} AND status = 'running' ORDER BY "startedAt" DESC LIMIT 1`;
+    SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' ORDER BY "startedAt" DESC LIMIT 1`;
   return parseRun(rows[0]);
 }
 
 /** Mark runs stuck in `running` for over 15 minutes as failed (e.g. instance died mid-run). */
-export async function reapStuckRuns(symbol: string): Promise<void> {
+export async function reapStuckRuns(userId: string, symbol: string): Promise<void> {
   const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
   await q`UPDATE runs SET status = 'error',
           error = 'Run interrupted (server restarted mid-run). Start it again.',
           "finishedAt" = ${now()}
-          WHERE symbol = ${symbol} AND status = 'running' AND "startedAt" < ${cutoff}`;
+          WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' AND "startedAt" < ${cutoff}`;
 }
 
 // ---------- messages ----------
@@ -585,6 +635,7 @@ export interface MessageScope {
 }
 
 export async function insertMessage(
+  userId: string,
   symbol: string,
   role: "user" | "assistant",
   content: string,
@@ -602,8 +653,8 @@ export async function insertMessage(
     signalId,
     createdAt: now(),
   };
-  await q`INSERT INTO messages (id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt")
-          VALUES (${m.id}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.proposalIds)},
+  await q`INSERT INTO messages (id, "userId", symbol, role, content, "proposalIds", attachments, "signalId", "createdAt")
+          VALUES (${m.id}, ${userId}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.proposalIds)},
                   ${JSON.stringify(m.attachments)}, ${m.signalId}, ${m.createdAt})`;
   return m;
 }
@@ -613,11 +664,12 @@ export async function insertMessage(
  * polls. Full payloads stay server-side (see listMessagesWithAttachments).
  */
 export async function listMessages(
+  userId: string,
   symbol: string,
   limit = 200,
   scope?: MessageScope
 ): Promise<ChatMessage[]> {
-  const rows = await listMessagesWithAttachments(symbol, limit, scope);
+  const rows = await listMessagesWithAttachments(userId, symbol, limit, scope);
   return rows.map((m) => ({
     ...m,
     attachments: m.attachments.map((a) => ({
@@ -631,6 +683,7 @@ export async function listMessages(
 
 /** Messages including full attachment data — for building model requests only. */
 export async function listMessagesWithAttachments(
+  userId: string,
   symbol: string,
   limit = 200,
   scope?: MessageScope
@@ -639,16 +692,16 @@ export async function listMessagesWithAttachments(
   if (scope?.signalId === undefined) {
     rows = await q<MessageRow>`
       SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
   } else if (scope.signalId === null) {
     rows = await q<MessageRow>`
       SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE symbol = ${symbol} AND "signalId" IS NULL
+      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
       ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
   } else {
     rows = await q<MessageRow>`
       SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE symbol = ${symbol} AND "signalId" = ${scope.signalId}
+      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" = ${scope.signalId}
       ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
   }
   return rows.map(parseMessage);
@@ -656,14 +709,14 @@ export async function listMessagesWithAttachments(
 
 // ---------- settings ----------
 
-export async function getSetting(key: string): Promise<string | null> {
-  const rows = await q<{ value: string }>`SELECT value FROM settings WHERE key = ${key}`;
+export async function getSetting(userId: string, key: string): Promise<string | null> {
+  const rows = await q<{ value: string }>`SELECT value FROM settings WHERE "userId" = ${userId} AND key = ${key}`;
   return rows[0]?.value ?? null;
 }
 
-export async function setSetting(key: string, value: string): Promise<void> {
-  await q`INSERT INTO settings (key, value) VALUES (${key}, ${value})
-          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+export async function setSetting(userId: string, key: string, value: string): Promise<void> {
+  await q`INSERT INTO settings ("userId", key, value) VALUES (${userId}, ${key}, ${value})
+          ON CONFLICT ("userId", key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
 /**
@@ -672,36 +725,37 @@ export async function setSetting(key: string, value: string): Promise<void> {
  * "Run research now" button, telling the analyst to run, or activating a desk).
  * Defaults ON.
  */
-export async function autoResearchEnabled(): Promise<boolean> {
-  return (await getSetting("autoResearch")) !== "off";
+export async function autoResearchEnabled(userId: string): Promise<boolean> {
+  return (await getSetting(userId, "autoResearch")) !== "off";
 }
 
 // ---------- trades (portfolio ledger) ----------
 
-export async function insertTrade(t: Omit<Trade, "id" | "createdAt">): Promise<Trade> {
+export async function insertTrade(userId: string, t: Omit<Trade, "id" | "createdAt">): Promise<Trade> {
   const trade: Trade = { ...t, id: uid(), createdAt: now() };
-  await q`INSERT INTO trades (id, symbol, kind, side, quantity, price, fees, "tradeDate",
+  await q`INSERT INTO trades (id, "userId", symbol, kind, side, quantity, price, fees, "tradeDate",
                               "optionType", strike, expiry, multiplier, note, "createdAt")
-          VALUES (${trade.id}, ${trade.symbol}, ${trade.kind}, ${trade.side}, ${trade.quantity},
+          VALUES (${trade.id}, ${userId}, ${trade.symbol}, ${trade.kind}, ${trade.side}, ${trade.quantity},
                   ${trade.price}, ${trade.fees}, ${trade.tradeDate}, ${trade.optionType},
                   ${trade.strike}, ${trade.expiry}, ${trade.multiplier}, ${trade.note}, ${trade.createdAt})`;
   return trade;
 }
 
-export async function deleteTrade(id: string): Promise<void> {
-  await q`DELETE FROM trades WHERE id = ${id}`;
+export async function deleteTrade(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM trades WHERE "userId" = ${userId} AND id = ${id}`;
 }
 
-export async function listTrades(symbol?: string): Promise<Trade[]> {
+export async function listTrades(userId: string, symbol?: string): Promise<Trade[]> {
   if (symbol) {
-    return q<Trade>`SELECT * FROM trades WHERE symbol = ${symbol} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
+    return q<Trade>`SELECT * FROM trades WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
   }
-  return q<Trade>`SELECT * FROM trades ORDER BY "tradeDate" ASC, "createdAt" ASC`;
+  return q<Trade>`SELECT * FROM trades WHERE "userId" = ${userId} ORDER BY "tradeDate" ASC, "createdAt" ASC`;
 }
 
 // ---------- orders (paper execution against live quotes) ----------
 
 export async function insertOrder(
+  userId: string,
   o: Pick<Order, "symbol" | "side" | "quantity" | "orderType" | "limitPrice" | "stopPrice" | "tif" | "note">
 ): Promise<Order> {
   const order: Order = {
@@ -713,9 +767,9 @@ export async function insertOrder(
     fillPrice: null,
     tradeId: null,
   };
-  await q`INSERT INTO orders (id, symbol, side, quantity, "orderType", "limitPrice", "stopPrice",
+  await q`INSERT INTO orders (id, "userId", symbol, side, quantity, "orderType", "limitPrice", "stopPrice",
                               tif, status, "placedAt", note)
-          VALUES (${order.id}, ${order.symbol}, ${order.side}, ${order.quantity}, ${order.orderType},
+          VALUES (${order.id}, ${userId}, ${order.symbol}, ${order.side}, ${order.quantity}, ${order.orderType},
                   ${order.limitPrice}, ${order.stopPrice}, ${order.tif}, ${order.status},
                   ${order.placedAt}, ${order.note})`;
   return order;
@@ -726,20 +780,20 @@ export async function getOrder(id: string): Promise<Order | null> {
   return rows[0] ?? null;
 }
 
-export async function listOpenOrders(): Promise<Order[]> {
-  return q<Order>`SELECT * FROM orders WHERE status = 'open' ORDER BY "placedAt" ASC`;
+export async function listOpenOrders(userId: string): Promise<Order[]> {
+  return q<Order>`SELECT * FROM orders WHERE "userId" = ${userId} AND status = 'open' ORDER BY "placedAt" ASC`;
 }
 
 /** Completed orders (filled/canceled/expired), newest first. */
-export async function listOrderHistory(limit = 30): Promise<Order[]> {
-  return q<Order>`SELECT * FROM orders WHERE status <> 'open'
+export async function listOrderHistory(userId: string, limit = 30): Promise<Order[]> {
+  return q<Order>`SELECT * FROM orders WHERE "userId" = ${userId} AND status <> 'open'
                   ORDER BY COALESCE("filledAt", "placedAt") DESC LIMIT ${limit}`;
 }
 
 /** Cancel a working order; returns false if it wasn't open (e.g. already filled). */
-export async function cancelOrder(id: string): Promise<boolean> {
+export async function cancelOrder(userId: string, id: string): Promise<boolean> {
   const rows = await q<{ id: string }>`UPDATE orders SET status = 'canceled'
-    WHERE id = ${id} AND status = 'open' RETURNING id`;
+    WHERE "userId" = ${userId} AND id = ${id} AND status = 'open' RETURNING id`;
   return rows.length > 0;
 }
 
@@ -755,45 +809,46 @@ export async function setOrderStatus(id: string, status: OrderStatus): Promise<v
 // ---------- dividends ----------
 
 export async function insertDividend(
+  userId: string,
   d: Omit<DividendReceipt, "id" | "appliedAt">
 ): Promise<DividendReceipt | null> {
   const rec: DividendReceipt = { ...d, id: uid(), appliedAt: now() };
-  // The unique (symbol, exDate) key makes double-applies a no-op.
+  // The unique (userId, symbol, exDate) key makes double-applies a no-op.
   const rows = await q<{ id: string }>`INSERT INTO dividends
-      (id, symbol, "exDate", "perShare", shares, amount, currency, "withholdingPct",
+      (id, "userId", symbol, "exDate", "perShare", shares, amount, currency, "withholdingPct",
        reinvested, "reinvestTradeId", "appliedAt")
-    VALUES (${rec.id}, ${rec.symbol}, ${rec.exDate}, ${rec.perShare}, ${rec.shares}, ${rec.amount},
+    VALUES (${rec.id}, ${userId}, ${rec.symbol}, ${rec.exDate}, ${rec.perShare}, ${rec.shares}, ${rec.amount},
             ${rec.currency}, ${rec.withholdingPct}, ${rec.reinvested}, ${rec.reinvestTradeId}, ${rec.appliedAt})
-    ON CONFLICT (symbol, "exDate") DO NOTHING RETURNING id`;
+    ON CONFLICT ("userId", symbol, "exDate") DO NOTHING RETURNING id`;
   return rows.length > 0 ? rec : null;
 }
 
-export async function listDividends(symbol?: string): Promise<DividendReceipt[]> {
+export async function listDividends(userId: string, symbol?: string): Promise<DividendReceipt[]> {
   if (symbol) {
-    return q<DividendReceipt>`SELECT * FROM dividends WHERE symbol = ${symbol} ORDER BY "exDate" DESC`;
+    return q<DividendReceipt>`SELECT * FROM dividends WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "exDate" DESC`;
   }
-  return q<DividendReceipt>`SELECT * FROM dividends ORDER BY "exDate" DESC`;
+  return q<DividendReceipt>`SELECT * FROM dividends WHERE "userId" = ${userId} ORDER BY "exDate" DESC`;
 }
 
 /** Per-symbol dividend-reinvestment setting (default off = receive cash). */
-export async function dripEnabled(symbol: string): Promise<boolean> {
-  return (await getSetting(`drip:${symbol.toUpperCase()}`)) === "on";
+export async function dripEnabled(userId: string, symbol: string): Promise<boolean> {
+  return (await getSetting(userId, `drip:${symbol.toUpperCase()}`)) === "on";
 }
 
-export async function setDrip(symbol: string, on: boolean): Promise<void> {
-  await setSetting(`drip:${symbol.toUpperCase()}`, on ? "on" : "off");
+export async function setDrip(userId: string, symbol: string, on: boolean): Promise<void> {
+  await setSetting(userId, `drip:${symbol.toUpperCase()}`, on ? "on" : "off");
 }
 
 /** Starting cash (USD) the book is run against; null = not set. */
-export async function getInitialCapital(): Promise<number | null> {
-  const v = await getSetting("initialCapital");
+export async function getInitialCapital(userId: string): Promise<number | null> {
+  const v = await getSetting(userId, "initialCapital");
   if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-export async function setInitialCapital(amount: number | null): Promise<void> {
-  await setSetting("initialCapital", amount == null ? "" : String(amount));
+export async function setInitialCapital(userId: string, amount: number | null): Promise<void> {
+  await setSetting(userId, "initialCapital", amount == null ? "" : String(amount));
 }
 
 /**
@@ -801,11 +856,126 @@ export async function setInitialCapital(amount: number | null): Promise<void> {
  * capital, DRIP flags, auto-research) survive — this resets the ledger, not
  * the configuration. Returns what was deleted so the UI can confirm honestly.
  */
-export async function clearPortfolio(): Promise<{ trades: number; orders: number; dividends: number }> {
+export async function clearPortfolio(userId: string): Promise<{ trades: number; orders: number; dividends: number }> {
   const [t, o, d] = await Promise.all([
-    q<{ id: string }>`DELETE FROM trades RETURNING id`,
-    q<{ id: string }>`DELETE FROM orders RETURNING id`,
-    q<{ id: string }>`DELETE FROM dividends RETURNING id`,
+    q<{ id: string }>`DELETE FROM trades WHERE "userId" = ${userId} RETURNING id`,
+    q<{ id: string }>`DELETE FROM orders WHERE "userId" = ${userId} RETURNING id`,
+    q<{ id: string }>`DELETE FROM dividends WHERE "userId" = ${userId} RETURNING id`,
   ]);
   return { trades: t.length, orders: o.length, dividends: d.length };
+}
+
+// ---------- users & sessions (Google sign-in) ----------
+
+const TENANT_TABLES = [
+  "tickers", "focus_areas", "signals", "digest_items", "runs",
+  "messages", "trades", "orders", "dividends", "settings",
+] as const;
+
+/**
+ * Upsert the signed-in Google account. The FIRST account ever created — or
+ * any email in ADMIN_EMAILS — becomes an admin; admins adopt the pre-auth
+ * single-user ('local') data on first sign-in so the owner keeps their desks.
+ */
+export async function upsertUser(profile: {
+  email: string;
+  name: string;
+  picture: string;
+}): Promise<User> {
+  const email = profile.email.toLowerCase();
+  const existing = await q<User>`SELECT * FROM users WHERE email = ${email}`;
+  if (existing[0]) {
+    await q`UPDATE users SET name = ${profile.name}, picture = ${profile.picture},
+            "lastSeenAt" = ${now()} WHERE id = ${existing[0].id}`;
+    return { ...existing[0], name: profile.name, picture: profile.picture };
+  }
+  const count = await q<{ n: string }>`SELECT count(*) AS n FROM users`;
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const role = Number(count[0]?.n ?? 0) === 0 || adminEmails.includes(email) ? "admin" : "user";
+  const user: User = {
+    id: uid(),
+    email,
+    name: profile.name,
+    picture: profile.picture,
+    role,
+    createdAt: now(),
+    lastSeenAt: now(),
+  };
+  await q`INSERT INTO users (id, email, name, picture, role, "createdAt", "lastSeenAt")
+          VALUES (${user.id}, ${user.email}, ${user.name}, ${user.picture}, ${user.role},
+                  ${user.createdAt}, ${user.lastSeenAt})`;
+  if (role === "admin") await adoptLegacyData(user.id);
+  return user;
+}
+
+/** Move pre-auth ('local') rows to the first admin so their desks survive sign-in. */
+export async function adoptLegacyData(userId: string): Promise<void> {
+  for (const table of TENANT_TABLES) {
+    await sqlClient().query(`UPDATE ${table} SET "userId" = $1 WHERE "userId" = 'local'`, [userId]);
+  }
+}
+
+export async function getUser(id: string): Promise<User | null> {
+  const rows = await q<User>`SELECT * FROM users WHERE id = ${id}`;
+  return rows[0] ?? null;
+}
+
+export async function createSession(userId: string): Promise<{ token: string; expiresAt: string }> {
+  const token = uid() + uid().replace(/-/g, "");
+  const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  await q`INSERT INTO sessions (token, "userId", "createdAt", "expiresAt")
+          VALUES (${token}, ${userId}, ${now()}, ${expiresAt})`;
+  return { token, expiresAt };
+}
+
+export async function getSessionUser(token: string): Promise<User | null> {
+  const rows = await q<User & { expiresAt: string }>`
+    SELECT u.*, s."expiresAt" FROM sessions s JOIN users u ON u.id = s."userId"
+    WHERE s.token = ${token}`;
+  const row = rows[0];
+  if (!row) return null;
+  if (row.expiresAt < now()) {
+    await q`DELETE FROM sessions WHERE token = ${token}`;
+    return null;
+  }
+  return {
+    id: row.id, email: row.email, name: row.name, picture: row.picture,
+    role: row.role, createdAt: row.createdAt, lastSeenAt: row.lastSeenAt,
+  };
+}
+
+export async function deleteSession(token: string): Promise<void> {
+  await q`DELETE FROM sessions WHERE token = ${token}`;
+}
+
+/** Throttled activity stamp (at most ~once per 5 minutes per request path). */
+export async function touchLastSeen(userId: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+  await q`UPDATE users SET "lastSeenAt" = ${now()} WHERE id = ${userId} AND "lastSeenAt" < ${cutoff}`;
+}
+
+/** The admin console's per-user activity aggregates, in a handful of grouped queries. */
+export async function listUsersWithStats(): Promise<AdminUserRow[]> {
+  const users = await q<User>`SELECT * FROM users ORDER BY "createdAt" ASC`;
+  const [tickers, signals, runs, messages, trades] = await Promise.all([
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM tickers GROUP BY "userId"`,
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM signals WHERE status = 'active' GROUP BY "userId"`,
+    q<{ userId: string; n: string; last: string | null }>`SELECT "userId", count(*) AS n, max("startedAt") AS last FROM runs GROUP BY "userId"`,
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM messages WHERE role = 'user' GROUP BY "userId"`,
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM trades GROUP BY "userId"`,
+  ]);
+  const by = <T extends { userId: string }>(rows: T[]) => new Map(rows.map((r) => [r.userId, r]));
+  const t = by(tickers), sg = by(signals), rn = by(runs), ms = by(messages), tr = by(trades);
+  return users.map((user) => ({
+    user,
+    tickers: Number(t.get(user.id)?.n ?? 0),
+    activeSignals: Number(sg.get(user.id)?.n ?? 0),
+    runs: Number(rn.get(user.id)?.n ?? 0),
+    lastRunAt: rn.get(user.id)?.last ?? null,
+    messages: Number(ms.get(user.id)?.n ?? 0),
+    trades: Number(tr.get(user.id)?.n ?? 0),
+  }));
 }

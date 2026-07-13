@@ -32,8 +32,8 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 // Order orchestration (pure decisions live in lib/order-math.ts)
 // ---------------------------------------------------------------------------
 
-async function executeFill(order: Order, price: number): Promise<Order> {
-  const trade = await insertTrade({
+async function executeFill(userId: string, order: Order, price: number): Promise<Order> {
+  const trade = await insertTrade(userId, {
     symbol: order.symbol,
     kind: "stock",
     side: order.side,
@@ -56,8 +56,8 @@ async function executeFill(order: Order, price: number): Promise<Order> {
  * fill anything whose trigger the market has crossed. Runs on every portfolio
  * load and after placing an order. Returns the orders that just filled.
  */
-export async function sweepOpenOrders(): Promise<Order[]> {
-  const open = await listOpenOrders();
+export async function sweepOpenOrders(userId: string): Promise<Order[]> {
+  const open = await listOpenOrders(userId);
   if (open.length === 0) return [];
   const today = todayISO();
   const fills: Order[] = [];
@@ -69,7 +69,7 @@ export async function sweepOpenOrders(): Promise<Order[]> {
     const q = await getPriceQuote(o.symbol);
     if (q?.price == null) continue;
     const d = fillDecision(o, q.price);
-    if (d.fills) fills.push(await executeFill(o, d.price));
+    if (d.fills) fills.push(await executeFill(userId, o, d.price));
   }
   return fills;
 }
@@ -80,6 +80,7 @@ export async function sweepOpenOrders(): Promise<Order[]> {
  * working until a sweep crosses it.
  */
 export async function placeOrder(
+  userId: string,
   input: OrderInput
 ): Promise<{ order: Order; error?: undefined } | { order?: undefined; error: string; status: number }> {
   const err = validateOrder(input);
@@ -92,7 +93,7 @@ export async function placeOrder(
       status: 422,
     };
   }
-  const order = await insertOrder({
+  const order = await insertOrder(userId, {
     symbol,
     side: input.side,
     quantity: input.quantity,
@@ -103,7 +104,7 @@ export async function placeOrder(
     note: input.note?.trim() ?? "",
   });
   const d = fillDecision(order, quote.price);
-  if (d.fills) return { order: await executeFill(order, d.price) };
+  if (d.fills) return { order: await executeFill(userId, order, d.price) };
   return { order };
 }
 
@@ -118,6 +119,7 @@ function closeOnOrAfter(closes: { date: string; close: number }[], dateISO: stri
 }
 
 async function detectForSymbol(
+  userId: string,
   symbol: string,
   stockTrades: Trade[],
   appliedKeys: Set<string>
@@ -128,7 +130,7 @@ async function detectForSymbol(
   const [closes, quote, drip] = await Promise.all([
     getDailyCloses(symbol, first),
     getPriceQuote(symbol),
-    dripEnabled(symbol),
+    dripEnabled(userId, symbol),
   ]);
   const out: PendingDividend[] = [];
   for (const ev of events) {
@@ -159,8 +161,8 @@ async function detectForSymbol(
  * held before each ex-date since the first trade, minus already-applied
  * receipts. Short positions show negative amounts (you owe the dividend).
  */
-export async function pendingDividends(appliedKeys: Set<string>): Promise<PendingDividend[]> {
-  const trades = await listTrades();
+export async function pendingDividends(userId: string, appliedKeys: Set<string>): Promise<PendingDividend[]> {
+  const trades = await listTrades(userId);
   const bySymbol = new Map<string, Trade[]>();
   for (const t of trades) {
     if (t.kind !== "stock") continue;
@@ -169,7 +171,7 @@ export async function pendingDividends(appliedKeys: Set<string>): Promise<Pendin
   }
   const lists = await Promise.all(
     [...bySymbol.entries()].map(([sym, ts]) =>
-      detectForSymbol(sym, ts, appliedKeys).catch(() => [] as PendingDividend[])
+      detectForSymbol(userId, sym, ts, appliedKeys).catch(() => [] as PendingDividend[])
     )
   );
   return lists.flat().sort((a, b) => a.exDate.localeCompare(b.exDate));
@@ -182,6 +184,7 @@ export async function pendingDividends(appliedKeys: Set<string>): Promise<Pendin
  * and the position is long.
  */
 export async function applyDividend(
+  userId: string,
   p: PendingDividend,
   withholdingPct = 0
 ): Promise<DividendReceipt | null> {
@@ -192,7 +195,7 @@ export async function applyDividend(
   if (p.drip && p.shares > 0 && p.reinvestPrice != null && net > 0) {
     const netShares = round(net / p.reinvestPrice);
     if (netShares > 0) {
-      const trade = await insertTrade({
+      const trade = await insertTrade(userId, {
         symbol: p.symbol,
         kind: "stock",
         side: "buy",
@@ -210,7 +213,7 @@ export async function applyDividend(
       reinvested = 1;
     }
   }
-  return insertDividend({
+  return insertDividend(userId, {
     symbol: p.symbol,
     exDate: p.exDate,
     perShare: p.perShare,

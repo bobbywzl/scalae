@@ -143,11 +143,12 @@ function historyToMessages(history: ChatMessage[]): Anthropic.MessageParam[] {
  * files) ride along as first-class evidence.
  */
 export async function handleChatTurn(
+  userId: string,
   symbol: string,
   userText: string,
   opts: { retry?: boolean; attachments?: Attachment[]; signalId?: string } = {}
 ): Promise<ChatTurnResult> {
-  const ticker = await getTicker(symbol);
+  const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
 
   // Signal-scoped desk: same analyst, context narrowed to one signal's world.
@@ -158,20 +159,20 @@ export async function handleChatTurn(
   const scopeId = focusSignal?.id ?? null;
 
   if (!opts.retry) {
-    await insertMessage(symbol, "user", userText, [], opts.attachments ?? [], scopeId);
+    await insertMessage(userId, symbol, "user", userText, [], opts.attachments ?? [], scopeId);
   }
 
   const mode = ticker.onboarded ? "working" : "onboarding";
   const [focusAreas, active, suggested, dismissed, retired, run, quote, involvement] =
     await Promise.all([
-      listFocusAreas(symbol),
-      listSignals(symbol, "active"),
-      listSignals(symbol, "suggested"),
-      listSignals(symbol, "dismissed"),
-      listSignals(symbol, "retired"),
-      latestRun(symbol),
+      listFocusAreas(userId, symbol),
+      listSignals(userId, symbol, "active"),
+      listSignals(userId, symbol, "suggested"),
+      listSignals(userId, symbol, "dismissed"),
+      listSignals(userId, symbol, "retired"),
+      latestRun(userId, symbol),
       getQuote(symbol).catch(() => null),
-      computeInvolvement(symbol).catch(() => null),
+      computeInvolvement(userId, symbol).catch(() => null),
     ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -219,8 +220,8 @@ ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
   if (focusSignal) {
     const [readings, catalog, digest] = await Promise.all([
       readingsForSignal(focusSignal.id, 10),
-      sourcesForSignals(symbol).then((m) => m.get(focusSignal.id) ?? []),
-      recentDigest(symbol, 40),
+      sourcesForSignals(userId, symbol).then((m) => m.get(focusSignal.id) ?? []),
+      recentDigest(userId, symbol, 40),
     ]);
     const readingLines = readings
       .map(
@@ -287,7 +288,7 @@ ${deskContext}
 
 ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
 
-  const history = (await listMessagesWithAttachments(symbol, 40, { signalId: scopeId })).slice(-16);
+  const history = (await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId })).slice(-16);
   const messages = historyToMessages(history);
 
   // Adaptive thinking shares the max_tokens budget with the reply, so a hard
@@ -310,18 +311,18 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
 
   // --- focus areas & new proposals (approval-gated) ---
   for (const fa of out.focusAreas ?? []) {
-    if (fa.title?.trim()) await upsertFocusArea(symbol, fa.title.trim(), fa.description ?? "");
+    if (fa.title?.trim()) await upsertFocusArea(userId, symbol, fa.title.trim(), fa.description ?? "");
   }
   const proposalIds: string[] = [];
   for (const p of out.proposals ?? []) {
     if (!p.name?.trim()) continue;
     if (p.focusArea?.trim()) {
-      const known = (await listFocusAreas(symbol)).some(
+      const known = (await listFocusAreas(userId, symbol)).some(
         (f) => f.title.toLowerCase() === p.focusArea.trim().toLowerCase()
       );
-      if (!known) await upsertFocusArea(symbol, p.focusArea.trim(), "");
+      if (!known) await upsertFocusArea(userId, symbol, p.focusArea.trim(), "");
     }
-    const id = await insertProposal(symbol, p, ticker.onboarded ? "chat" : "onboarding");
+    const id = await insertProposal(userId, symbol, p, ticker.onboarded ? "chat" : "onboarding");
     if (id) proposalIds.push(id);
   }
 
@@ -329,7 +330,7 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
   const norm = (s: string) => s.toLowerCase().trim();
   let approvedAny = false;
 
-  const pendingNow = await listSignals(symbol, "suggested");
+  const pendingNow = await listSignals(userId, symbol, "suggested");
   for (const name of out.approveProposals ?? []) {
     const hit = pendingNow.find((s) => norm(s.name) === norm(name));
     if (hit) {
@@ -338,17 +339,17 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
     }
   }
   for (const name of out.dismissProposals ?? []) {
-    const hit = (await listSignals(symbol, "suggested")).find((s) => norm(s.name) === norm(name));
+    const hit = (await listSignals(userId, symbol, "suggested")).find((s) => norm(s.name) === norm(name));
     if (hit) await setSignalStatus(hit.id, "dismissed");
   }
   for (const name of out.retireSignals ?? []) {
-    const hit = (await listSignals(symbol, "active")).find((s) => norm(s.name) === norm(name));
+    const hit = (await listSignals(userId, symbol, "active")).find((s) => norm(s.name) === norm(name));
     if (hit) await setSignalStatus(hit.id, "retired");
   }
 
   let activatedDesk = false;
   if (approvedAny && !ticker.onboarded) {
-    await markOnboarded(symbol);
+    await markOnboarded(userId, symbol);
     activatedDesk = true;
   }
 
@@ -360,8 +361,8 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
     ? out.reply
     : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
-  const message = await insertMessage(symbol, "assistant", replyText, proposalIds, [], scopeId);
-  const hasActive = (await listSignals(symbol, "active")).length > 0;
+  const message = await insertMessage(userId, symbol, "assistant", replyText, proposalIds, [], scopeId);
+  const hasActive = (await listSignals(userId, symbol, "active")).length > 0;
   return {
     message,
     startResearch: hasActive && (out.startResearch === true || activatedDesk),

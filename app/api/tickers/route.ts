@@ -9,6 +9,7 @@ import {
   runningRun,
 } from "@/lib/db";
 import { getQuote, resolveSymbol } from "@/lib/market";
+import { requireUser } from "@/lib/auth";
 import { welcomeMessage } from "@/lib/agents/chat";
 import { computeInvolvement } from "@/lib/portfolio";
 import type { WatchlistRow } from "@/lib/types";
@@ -16,16 +17,18 @@ import type { WatchlistRow } from "@/lib/types";
 const STALE_MS = 20 * 3600_000;
 
 export async function GET() {
-  const tickers = await listTickers();
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const tickers = await listTickers(user.id);
   const rows: WatchlistRow[] = await Promise.all(
     tickers.map(async (t) => {
-      await reapStuckRuns(t.symbol);
+      await reapStuckRuns(user.id, t.symbol);
       const [quote, active, suggested, running, position] = await Promise.all([
         getQuote(t.symbol),
-        listSignals(t.symbol, "active"),
-        listSignals(t.symbol, "suggested"),
-        runningRun(t.symbol),
-        computeInvolvement(t.symbol).catch(() => null),
+        listSignals(user.id, t.symbol, "active"),
+        listSignals(user.id, t.symbol, "suggested"),
+        runningRun(user.id, t.symbol),
+        computeInvolvement(user.id, t.symbol).catch(() => null),
       ]);
       const stale =
         !!t.onboarded &&
@@ -46,11 +49,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { symbol?: string };
   const symbol = (body.symbol ?? "").trim().toUpperCase();
   if (!symbol) return NextResponse.json({ error: "symbol required" }, { status: 400 });
 
-  const existing = await getTicker(symbol);
+  const existing = await getTicker(user.id, symbol);
   if (existing) {
     return NextResponse.json({ ticker: existing });
   }
@@ -61,7 +66,7 @@ export async function POST(req: Request) {
       { status: 404 }
     );
   }
-  const ticker = await addTicker(symbol, name);
-  await insertMessage(symbol, "assistant", welcomeMessage(symbol, name));
+  const ticker = await addTicker(user.id, symbol, name);
+  await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name));
   return NextResponse.json({ ticker }, { status: 201 });
 }

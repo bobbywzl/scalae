@@ -69,17 +69,17 @@ interface Sweep {
 const MAX_FOLLOW_UPS = 4;
 
 /** Start a run unless one is already going. Returns the run to poll. */
-export async function startRun(symbol: string): Promise<{ run: Run; started: boolean }> {
-  await reapStuckRuns(symbol);
-  const existing = await runningRun(symbol);
+export async function startRun(userId: string, symbol: string): Promise<{ run: Run; started: boolean }> {
+  await reapStuckRuns(userId, symbol);
+  const existing = await runningRun(userId, symbol);
   if (existing) return { run: existing, started: false };
-  const run = await createRun(symbol);
+  const run = await createRun(userId, symbol);
   return { run, started: true };
 }
 
 /** How fresh a window to research: since the last completed run, else 7 days. */
-async function windowDays(symbol: string): Promise<number> {
-  const last = await latestRun(symbol);
+async function windowDays(userId: string, symbol: string): Promise<number> {
+  const last = await latestRun(userId, symbol);
   if (!last?.finishedAt) return 7;
   const days = Math.ceil((Date.now() - Date.parse(last.finishedAt)) / 86_400_000);
   return Math.min(14, Math.max(2, days + 1));
@@ -171,11 +171,11 @@ Research it thoroughly: search from multiple angles, prefer primary sources (fil
  *   4) Deep synthesis: signal readings with per-source citations, digest,
  *      brief, new-signal discovery
  */
-export async function executeRun(runId: string, symbol: string): Promise<void> {
+export async function executeRun(userId: string, runId: string, symbol: string): Promise<void> {
   try {
-    const ticker = await getTicker(symbol);
+    const ticker = await getTicker(userId, symbol);
     if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-    const signals = await listSignals(symbol, "active");
+    const signals = await listSignals(userId, symbol, "active");
     if (signals.length === 0) throw new Error("No active signals — approve some signals first.");
 
     // Resolve the best currently-available model for each role (self-healing;
@@ -187,7 +187,7 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
       resolveModel("synthesis"),
     ]);
 
-    const days = await windowDays(symbol);
+    const days = await windowDays(userId, symbol);
     const bundles = chunk(signals, 5);
     const waveOneCount = bundles.length + 3;
     await setRunStage(
@@ -347,8 +347,8 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
     );
 
     const quote = await getQuote(symbol).catch(() => null);
-    const focusAreas = await listFocusAreas(symbol);
-    const guidance = (await listMessages(symbol))
+    const focusAreas = await listFocusAreas(userId, symbol);
+    const guidance = (await listMessages(userId, symbol))
       .filter((m) => m.role === "user")
       .slice(-6)
       .map((m) => `- ${m.content.slice(0, 300)}`)
@@ -368,9 +368,9 @@ export async function executeRun(runId: string, symbol: string): Promise<void> {
       .join("\n");
     // Full non-duplication context: pending + previously rejected/retired signals.
     const [pendingSignals, dismissedSignals, retiredSignals] = await Promise.all([
-      listSignals(symbol, "suggested"),
-      listSignals(symbol, "dismissed"),
-      listSignals(symbol, "retired"),
+      listSignals(userId, symbol, "suggested"),
+      listSignals(userId, symbol, "dismissed"),
+      listSignals(userId, symbol, "retired"),
     ]);
     const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
     const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
@@ -440,7 +440,7 @@ TASK — produce today's desk output:
         d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
           ? allSources[d.sourceIndex]
           : null;
-      await insertDigestItem({
+      await insertDigestItem(userId, {
         symbol,
         runId,
         date,
@@ -454,7 +454,7 @@ TASK — produce today's desk output:
     }
 
     for (const p of (out.proposals ?? []).slice(0, 3)) {
-      if (p.name?.trim()) await insertProposal(symbol, p, "research");
+      if (p.name?.trim()) await insertProposal(userId, symbol, p, "research");
     }
 
     // Resolve the dossier's {{Sk}} signal markers to durable signal ids
@@ -468,7 +468,7 @@ TASK — produce today's desk output:
       }
     );
     await finishRun(runId, out.brief ?? "", allSources, dossier ?? null);
-    await touchLastRun(symbol);
+    await touchLastRun(userId, symbol);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);

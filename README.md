@@ -31,6 +31,25 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 - **Auto-research switch** (dashboard): one toggle pauses the daily cron and stale-desk auto-runs (server-enforced) so tokens are spent only on demand; manual runs and explicit chat asks always work.
 - **Full-agency analyst desk**: every desk has an analyst chat. It answers from the board's evidence, takes feedback into tomorrow's research, proposes signals — and on your explicit ask it can approve/dismiss pending proposals, retire active signals, or kick off a research run. The desk zooms to **full screen** (state, approvals and live polling carry over), takes **voice dictation** and can **read replies aloud**, and accepts **attachments** — images and charts, PDFs (filings, broker notes) and text files — which the analyst reads natively as evidence.
 
+## Going multi-user (B2C): Google sign-in + admin
+
+Scalae runs in one of two modes:
+
+- **Single-user (default)** — no configuration needed. Everything belongs to the implicit `local` account, exactly as before.
+- **Multi-user (B2C)** — set three env vars and the app grows a **Google sign-in** front door (`/signin`), per-account data isolation (desks, signals, chats, portfolio, settings — all scoped), and an **admin console** (`/admin`) listing every account with activity aggregates (desks, active signals, research runs, messages, trades, last seen).
+
+To enable:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → *Credentials* → *Create credentials* → **OAuth client ID** (type *Web application*). Configure the consent screen (External) if prompted. Add the authorized redirect URI: `https://<your-domain>/api/auth/callback` (e.g. `https://scalae.vercel.app/api/auth/callback`).
+2. Set env vars (Vercel → Settings → Environment Variables):
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — from step 1
+   - `SESSION_SECRET` — any long random string (e.g. `openssl rand -hex 32`)
+   - `ADMIN_EMAILS` *(optional)* — comma-separated emails that get the admin role on sign-in; independently, the **first account ever created is an admin**
+   - `APP_URL` *(optional)* — canonical origin if you serve behind a proxy that mangles Host headers
+3. Redeploy. Signed-out visitors are routed to `/signin` (pages redirect, APIs 401 — enforced by `proxy.ts` and per-route session checks).
+
+**Your existing data is safe**: the first admin to sign in automatically adopts everything created in single-user mode. Sessions are database-backed (30 days, httpOnly cookies); the OAuth flow is a hand-rolled authorization-code exchange with HMAC-signed state — no auth dependencies. The daily cron sweeps every account's desks, honoring each user's own auto-research switch, so one user pausing spend never affects another (watch the Runs column in `/admin` — research runs cost tokens per user).
+
 ## The analytical core
 
 `lib/agents/framework.ts` encodes the Buffett/Munger doctrine distilled directly from the Berkshire Hathaway shareholder letters (1977–2007 read from source) and from the Munger corpus — *Poor Charlie's Almanack* (the eleven talks, the Psychology of Human Misjudgment, the Investing Principles Checklist) and the Wesco/Daily Journal meeting record:
