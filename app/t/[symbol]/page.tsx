@@ -15,7 +15,7 @@ import { api, fmtPct, fmtPrice, timeAgo } from "@/components/util";
 import {
   chipLabel,
   dossierToMarkdown,
-  learnCompanyDomains,
+  companyDomainsFor,
   linkCitations,
   sourceClass,
   sourceClassLabel,
@@ -287,11 +287,15 @@ export default function DeskPage() {
     return m;
   }, [desk]);
 
-  // Exact company-source matching, learned from the board's own evidence:
-  // ir.pddholdings.com teaches pddholdings.com, so sibling hosts classify too.
+  // Exact company-source matching: IR-style hosts teach their base domain AND
+  // the ticker's own name matches bare corporate domains (fastretailing.com
+  // is company-controlled for Fast Retailing, with or without an ir. host).
   const companyDomains = useMemo(() => {
     if (!desk) return [];
-    return learnCompanyDomains([...desk.active, ...desk.retired].flatMap((s) => s.sources ?? []));
+    return companyDomainsFor(
+      desk.ticker.name,
+      [...desk.active, ...desk.retired].flatMap((s) => s.sources ?? [])
+    );
   }, [desk]);
 
   // Flat sorted view of the board (default stays grouped by focus area).

@@ -70,22 +70,63 @@ export function sourceClass(
   return "independent";
 }
 
+/** Legal/structural words that don't identify a company in its web domain. */
+const NAME_NOISE = new Set([
+  "co", "ltd", "inc", "corp", "corporation", "company", "limited", "incorporated",
+  "plc", "sa", "ag", "nv", "se", "kk", "oyj", "ab", "as", "spa", "gmbh", "the", "and",
+]);
+
+/** Candidate domain labels a company's own site would use, from its name. */
+export function nameCandidates(name: string): string[] {
+  const words = name
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !NAME_NOISE.has(w));
+  if (words.length === 0) return [];
+  const out = new Set<string>();
+  out.add(words.join("")); // "fastretailing", "pddholdings"
+  if (words.length > 1) {
+    // Drop a trailing "wholesale"/"holdings"-style word — but a truncated name
+    // must stay distinctive ("costco" yes; "fast" would claim fast.com, no).
+    const dropped = words.slice(0, -1).join("");
+    if (dropped.length >= 6) out.add(dropped);
+  }
+  if (words[0].length >= 5) out.add(words[0]); // "costco" (never short generics like "fast")
+  return [...out].filter((c) => c.length >= 4);
+}
+
 /**
- * Learn a ticker's company-controlled base domains from its own evidence:
- * every source whose host label marks it company (ir.pddholdings.com)
- * teaches the base domain (pddholdings.com), so sibling hosts classify
- * exactly without any stored configuration.
+ * A ticker's company-controlled base domains, derived two ways with no stored
+ * configuration: (1) evidence hosts whose label marks them company
+ * (ir.pddholdings.com teaches pddholdings.com), and (2) the ticker's own NAME
+ * matched against evidence base domains — so fastretailing.com classifies as
+ * company for "Fast Retailing Co., Ltd." even with no IR subdomain in sight.
  */
-export function learnCompanyDomains(
+export function companyDomainsFor(
+  tickerName: string,
   sources: { url: string; title?: string; domain?: string }[]
 ): string[] {
   const out = new Set<string>();
+  const candidates = nameCandidates(tickerName);
   for (const s of sources) {
     const domain = domainOf({ title: s.title ?? "", url: s.url, domain: s.domain }).toLowerCase();
     const labels = domain.split(".");
+    // (1) IR-style host label teaches the base domain
     if (labels.length >= 3 && COMPANY_HOST_LABELS.has(labels[0])) {
       out.add(labels.slice(1).join("."));
     }
+    // (2) the registrable label matches the company's name
+    const base = labels.length >= 2 ? labels.slice(-2).join(".") : domain;
+    const label = labels.length >= 2 ? labels[labels.length - 2] : labels[0];
+    if (!label) continue;
+    const matches = candidates.some(
+      (c) =>
+        label === c ||
+        (c.length >= 6 && label.startsWith(c)) || // fastretailing → fastretailingcojp
+        (label.length >= 6 && c.startsWith(label)) // costcowholesale → costco
+    );
+    if (matches) out.add(base);
   }
   return [...out];
 }
