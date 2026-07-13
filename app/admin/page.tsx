@@ -12,13 +12,17 @@ import type { AdminUserRow } from "@/lib/types";
  */
 export default function AdminPage() {
   const [rows, setRows] = useState<AdminUserRow[] | null>(null);
+  const [models, setModels] = useState<Record<string, string> | null>(null);
   const [authOn, setAuthOn] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const data = await api<{ rows: AdminUserRow[]; authEnabled: boolean }>("/api/admin/users");
+      const data = await api<{ rows: AdminUserRow[]; models: Record<string, string>; authEnabled: boolean }>(
+        "/api/admin/users"
+      );
       setRows(data.rows);
+      setModels(data.models);
       setAuthOn(data.authEnabled);
       setError(null);
     } catch (e) {
@@ -147,6 +151,25 @@ export default function AdminPage() {
             </div>
           </section>
 
+          {models && (
+            <section className="rounded-2xl bg-card border border-hairline px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                Models in use right now{" "}
+                <span className="normal-case tracking-normal font-normal">
+                  — auto-selected from each provider's live list; pin per role with
+                  CLAUDE_SYNTHESIS_MODEL / GEMINI_BREADTH_MODEL / GEMINI_DEEP_MODEL etc. (legacy
+                  GEMINI_MODEL / CLAUDE_MODEL globals are ignored)
+                </span>
+              </p>
+              <p className="mt-1.5 text-xs text-[#c7c7cc] tabular-nums flex flex-wrap gap-x-4 gap-y-1">
+                {Object.entries(models).map(([role, id]) => (
+                  <span key={role}>
+                    <span className="text-muted">{role}:</span> {id}
+                  </span>
+                ))}
+              </p>
+            </section>
+          )}
           <p className="text-[10px] text-muted/60">
             Research runs consume model tokens per user — watch the Runs column when opening the
             app up. The auto-research switch is per account.

@@ -13,7 +13,8 @@ import { listGeminiModels } from "./gemini";
  *   - self-healing: a retired/unavailable model is never selected;
  *   - auto-latest: a newer version in the same line is adopted automatically
  *     (gemini-3.5-flash → gemini-4-flash, claude-opus-4-8 → claude-opus-5, …);
- *   - overridable: a per-role env var always wins, to pin a model by hand.
+ *   - overridable: a per-role env var always wins, to pin a model by hand
+ *     (legacy global GEMINI_MODEL / CLAUDE_MODEL pins are IGNORED with a warning).
  *
  * TIER = "flagship": top-of-line without the pricier Fable/Mythos tier (which
  * needs 30-day data retention and costs ~2×). To move synthesis to that tier,
@@ -72,7 +73,7 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   // unreachable — it should never regress the mass scout to an older line.
   scoutBreadth: {
     provider: "gemini",
-    env: "GEMINI_MODEL",
+    env: "GEMINI_BREADTH_MODEL",
     include: /^gemini-[\d.]+-flash/,
     exclude: /(lite|embedding|aqa|tts|image|audio|live|vision|learnlm|robotics|thinking)/,
     fallback: "gemini-3.5-flash",
@@ -130,17 +131,31 @@ async function available(p: Provider): Promise<Set<string>> {
  */
 export async function resolveModel(role: ModelRole): Promise<string> {
   const cfg = ROLES[role];
-  // Explicit pin wins: the role's own env var, then (Claude only) the legacy
-  // global CLAUDE_MODEL. Unset these to let auto-selection track the frontier.
-  const override =
-    process.env[cfg.env] || (cfg.provider === "claude" ? process.env.CLAUDE_MODEL : undefined);
+  // Only the ROLE-SPECIFIC env var pins a model. The legacy globals
+  // (GEMINI_MODEL, CLAUDE_MODEL) are deliberately IGNORED: they linger from
+  // early deployments and silently froze the desk on old models (the exact
+  // failure this resolver exists to prevent). We warn so they get cleaned up.
+  const override = process.env[cfg.env];
   if (override && override.trim()) return override.trim();
+  const legacy = cfg.provider === "claude" ? process.env.CLAUDE_MODEL : process.env.GEMINI_MODEL;
+  if (legacy && !warnedLegacy.has(cfg.provider)) {
+    warnedLegacy.add(cfg.provider);
+    console.warn(
+      `[scalae] ignoring legacy ${cfg.provider === "claude" ? "CLAUDE_MODEL" : "GEMINI_MODEL"}="${legacy}" — ` +
+        `auto-selection tracks the newest model; pin per role with ${cfg.env} if you really want a fixed one.`
+    );
+  }
   const ids = await available(cfg.provider);
   const pick = [...ids]
     .filter((id) => cfg.include.test(id) && !cfg.exclude.test(id))
     .sort((a, b) => score(b) - score(a))[0];
+  if (!pick) {
+    console.warn(`[scalae] no live ${cfg.provider} model matched role "${role}" — using fallback ${cfg.fallback}`);
+  }
   return pick ?? cfg.fallback;
 }
+
+const warnedLegacy = new Set<Provider>();
 
 /** Resolve every role at once (diagnostics + the monthly review). */
 export async function resolveAllModels(): Promise<Record<ModelRole, string>> {
