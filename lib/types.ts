@@ -38,6 +38,12 @@ export interface AdminUserRow {
   lastRunAt: string | null;
   messages: number;
   trades: number;
+  /** Sign-ins (sessions created) over the trailing 7 days. */
+  logins7d: number;
+  /** Support requests filed by this account. */
+  feedback: number;
+  /** Investor profile captured at onboarding, if completed. */
+  profile: { name?: string; age?: number; country?: string; industries?: string[] } | null;
 }
 
 export interface Ticker {

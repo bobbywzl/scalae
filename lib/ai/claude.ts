@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordClaudeUsage, type UsageMeta } from "./usage";
 
 const g = globalThis as unknown as { __anthropic?: Anthropic };
 // maxRetries covers 429/529/5xx inside the SDK; the loop below adds slower,
@@ -37,6 +38,8 @@ export interface ClaudeJSONOptions {
   model?: string;
   maxTokens?: number;
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** Telemetry context (whose call, which pipeline feature) — best-effort. */
+  meta?: UsageMeta;
 }
 
 // Transport failures that escape the SDK's typed wrappers (undici stream
@@ -141,6 +144,10 @@ async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
       } as unknown as Parameters<typeof client.beta.messages.stream>[0])
     : client.messages.stream(params as Anthropic.MessageStreamParams);
   const response = await stream.finalMessage();
+
+  // Telemetry: response.model is the model that actually served the call
+  // (matters when a Fable request fell back to Opus server-side).
+  recordClaudeUsage(response.usage, response.model ?? model, opts.meta);
 
   if (response.stop_reason === "refusal") {
     throw new Error("Claude declined this request (safety refusal).");

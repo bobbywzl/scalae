@@ -244,6 +244,22 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_signals_user ON signals("userId", symbol, status)`,
   `CREATE INDEX IF NOT EXISTS idx_trades_user ON trades("userId", symbol)`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders("userId", status)`,
+  // ---- AI usage telemetry (one row per model call; powers the admin cost panel) ----
+  `CREATE TABLE IF NOT EXISTS usage_events (
+    id TEXT PRIMARY KEY,
+    ts TEXT NOT NULL,
+    "userId" TEXT,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    feature TEXT NOT NULL,
+    "inputTokens" INTEGER NOT NULL DEFAULT 0,
+    "outputTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheReadTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheWriteTokens" INTEGER NOT NULL DEFAULT 0,
+    "costUsd" DOUBLE PRECISION NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_usage_ts ON usage_events(ts)`,
+  `CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events("userId", ts)`,
   // ---- feedback & support (tickets with a message thread + evidence files) ----
   `CREATE TABLE IF NOT EXISTS feedback (
     id TEXT PRIMARY KEY,
@@ -1013,15 +1029,28 @@ export async function touchLastSeen(userId: string): Promise<void> {
 /** The admin console's per-user activity aggregates, in a handful of grouped queries. */
 export async function listUsersWithStats(): Promise<AdminUserRow[]> {
   const users = await q<User>`SELECT * FROM users ORDER BY "createdAt" ASC`;
-  const [tickers, signals, runs, messages, trades] = await Promise.all([
+  const since7 = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const [tickers, signals, runs, messages, trades, logins, fb, profiles] = await Promise.all([
     q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM tickers GROUP BY "userId"`,
     q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM signals WHERE status = 'active' GROUP BY "userId"`,
     q<{ userId: string; n: string; last: string | null }>`SELECT "userId", count(*) AS n, max("startedAt") AS last FROM runs GROUP BY "userId"`,
     q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM messages WHERE role = 'user' GROUP BY "userId"`,
     q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM trades GROUP BY "userId"`,
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM sessions WHERE "createdAt" > ${since7} GROUP BY "userId"`,
+    q<{ userId: string; n: string }>`SELECT "userId", count(*) AS n FROM feedback GROUP BY "userId"`,
+    q<{ userId: string; value: string }>`SELECT "userId", value FROM settings WHERE key = 'profile'`,
   ]);
   const by = <T extends { userId: string }>(rows: T[]) => new Map(rows.map((r) => [r.userId, r]));
   const t = by(tickers), sg = by(signals), rn = by(runs), ms = by(messages), tr = by(trades);
+  const lg = by(logins), f = by(fb), pf = by(profiles);
+  const parseProfile = (raw: string | undefined): AdminUserRow["profile"] => {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as AdminUserRow["profile"];
+    } catch {
+      return null;
+    }
+  };
   return users.map((user) => ({
     user,
     tickers: Number(t.get(user.id)?.n ?? 0),
@@ -1030,7 +1059,118 @@ export async function listUsersWithStats(): Promise<AdminUserRow[]> {
     lastRunAt: rn.get(user.id)?.last ?? null,
     messages: Number(ms.get(user.id)?.n ?? 0),
     trades: Number(tr.get(user.id)?.n ?? 0),
+    logins7d: Number(lg.get(user.id)?.n ?? 0),
+    feedback: Number(f.get(user.id)?.n ?? 0),
+    profile: parseProfile(pf.get(user.id)?.value),
   }));
+}
+
+// ---------- AI usage telemetry ----------
+
+export interface UsageEventInput {
+  userId?: string | null;
+  provider: string;
+  model: string;
+  feature: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: number;
+}
+
+/** Persist one model-call usage row. Callers treat this as fire-and-forget. */
+export async function insertUsageEvent(e: UsageEventInput): Promise<void> {
+  await q`INSERT INTO usage_events
+          (id, ts, "userId", provider, model, feature,
+           "inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "costUsd")
+          VALUES (${uid()}, ${now()}, ${e.userId ?? null}, ${e.provider}, ${e.model}, ${e.feature},
+                  ${e.inputTokens}, ${e.outputTokens}, ${e.cacheReadTokens}, ${e.cacheWriteTokens}, ${e.costUsd})`;
+}
+
+export interface UsageSummary {
+  totals: {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    costUsd: number;
+    /** Cost over the trailing 30 days (the projected-month basis). */
+    cost30d: number;
+  };
+  byModel: { model: string; calls: number; tokens: number; costUsd: number }[];
+  byFeature: { feature: string; calls: number; tokens: number; costUsd: number }[];
+  byUser: {
+    userId: string;
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+  }[];
+  /** Daily cost, oldest → newest (gaps = no spend that day). */
+  byDay: { day: string; costUsd: number }[];
+}
+
+/** Aggregates over the trailing `days` window, in a handful of grouped queries. */
+export async function usageSummary(days: number): Promise<UsageSummary> {
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [totals, cost30, byModel, byFeature, byUser, byDay] = await Promise.all([
+    q<{ calls: string; inp: string | null; outp: string | null; cr: string | null; cost: number | null }>`
+      SELECT count(*) AS calls, sum("inputTokens") AS inp, sum("outputTokens") AS outp,
+             sum("cacheReadTokens") AS cr, sum("costUsd") AS cost
+      FROM usage_events WHERE ts > ${since}`,
+    q<{ cost: number | null }>`SELECT sum("costUsd") AS cost FROM usage_events WHERE ts > ${since30}`,
+    q<{ model: string; calls: string; tokens: string | null; cost: number | null }>`
+      SELECT model, count(*) AS calls, sum("inputTokens" + "outputTokens") AS tokens, sum("costUsd") AS cost
+      FROM usage_events WHERE ts > ${since} GROUP BY model ORDER BY sum("costUsd") DESC`,
+    q<{ feature: string; calls: string; tokens: string | null; cost: number | null }>`
+      SELECT feature, count(*) AS calls, sum("inputTokens" + "outputTokens") AS tokens, sum("costUsd") AS cost
+      FROM usage_events WHERE ts > ${since} GROUP BY feature ORDER BY sum("costUsd") DESC`,
+    q<{ userId: string | null; calls: string; inp: string | null; outp: string | null; cost: number | null }>`
+      SELECT "userId", count(*) AS calls, sum("inputTokens") AS inp, sum("outputTokens") AS outp, sum("costUsd") AS cost
+      FROM usage_events WHERE ts > ${since} GROUP BY "userId" ORDER BY sum("costUsd") DESC`,
+    q<{ day: string; cost: number | null }>`
+      SELECT substr(ts, 1, 10) AS day, sum("costUsd") AS cost
+      FROM usage_events WHERE ts > ${since30} GROUP BY substr(ts, 1, 10) ORDER BY day ASC`,
+  ]);
+  return {
+    totals: {
+      calls: Number(totals[0]?.calls ?? 0),
+      inputTokens: Number(totals[0]?.inp ?? 0),
+      outputTokens: Number(totals[0]?.outp ?? 0),
+      cacheReadTokens: Number(totals[0]?.cr ?? 0),
+      costUsd: Number(totals[0]?.cost ?? 0),
+      cost30d: Number(cost30[0]?.cost ?? 0),
+    },
+    byModel: byModel.map((r) => ({ model: r.model, calls: Number(r.calls), tokens: Number(r.tokens ?? 0), costUsd: Number(r.cost ?? 0) })),
+    byFeature: byFeature.map((r) => ({ feature: r.feature, calls: Number(r.calls), tokens: Number(r.tokens ?? 0), costUsd: Number(r.cost ?? 0) })),
+    byUser: byUser.map((r) => ({
+      userId: r.userId ?? "system",
+      calls: Number(r.calls),
+      inputTokens: Number(r.inp ?? 0),
+      outputTokens: Number(r.outp ?? 0),
+      costUsd: Number(r.cost ?? 0),
+    })),
+    byDay: byDay.map((r) => ({ day: r.day, costUsd: Number(r.cost ?? 0) })),
+  };
+}
+
+/** Wipe all cost/usage telemetry (admin "clear cost data"). */
+export async function clearUsage(): Promise<number> {
+  const rows = await q<{ n: string }>`
+    WITH deleted AS (DELETE FROM usage_events RETURNING 1) SELECT count(*) AS n FROM deleted`;
+  return Number(rows[0]?.n ?? 0);
+}
+
+/** Sign-ins per day (sessions created), oldest → newest, trailing `days`. */
+export async function loginsPerDay(days: number): Promise<{ day: string; logins: number }[]> {
+  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  const rows = await q<{ day: string; n: string }>`
+    SELECT substr("createdAt", 1, 10) AS day, count(*) AS n
+    FROM sessions WHERE "createdAt" > ${since}
+    GROUP BY substr("createdAt", 1, 10) ORDER BY day ASC`;
+  return rows.map((r) => ({ day: r.day, logins: Number(r.n) }));
 }
 
 // ---------- feedback & support ----------

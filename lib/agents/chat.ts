@@ -307,6 +307,7 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}`;
     schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
     maxTokens: hasAttachmentBlocks ? 24000 : 16000,
     effort: "medium",
+    meta: { userId, feature: "chat" },
   });
 
   // --- focus areas & new proposals (approval-gated) ---

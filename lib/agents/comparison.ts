@@ -89,6 +89,7 @@ TASK: Produce the pairwise opportunity-cost verdict per your output structure. R
     schema: VERDICT_SCHEMA as unknown as Record<string, unknown>,
     maxTokens: 8000,
     effort: "high",
+    meta: { userId, feature: "compare" },
   });
   const verdict = out.verdict?.trim();
   if (!verdict) throw new Error("Comparison came back empty — try again.");
