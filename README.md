@@ -62,6 +62,12 @@ Getting in requires **both**:
 
 Set `ADMIN_PASSWORD` (+ `ADMIN_EMAILS`) in Vercel, redeploy, then visit `/admin/login` and enter an authorized email and the password. A successful login sets a 24-hour httpOnly cookie carrying your email, signed (HMAC) with `ADMIN_PASSWORD` — so it can't be forged, and **rotating the password signs every admin out**. "Admin sign out" clears only that cookie (any consumer Google session is untouched). The daily cron sweeps every account's desks, honoring each user's own auto-research switch, so one user pausing spend never affects another (watch the Runs column in `/admin` — research runs cost tokens per user).
 
+### First-run onboarding (`/welcome`) & the greeting splash
+
+A brand-new account (no profile, no desks) is routed to **`/welcome`** on first landing: a guided intake chat — name, age (optional), country, industries of interest, and specific companies (resolved live against the ticker universe) — that **opens their first desks on completion** (capped at 6 to keep the first day's research spend sane; skippable). The profile is stored per-account (settings key `profile`). Existing accounts, including adopted single-user data, are never re-onboarded.
+
+Returning users get a **time-aware greeting splash** (once per browser session) — "Good morning / afternoon / evening, ⟨name⟩." over the Scalae mark for ~2.4s, fading into the dashboard.
+
 ### Feedback & support (`/support`)
 
 Users file support requests — bug reports, feature ideas, questions — from **`/support`** (linked from Settings and the dashboard footer), with screenshots/PDFs/text files attached as evidence. Every request gets a human-friendly **request ID** (e.g. `SCL-7K2M4Q`) and a thread; replying to a responded or closed request re-opens it.

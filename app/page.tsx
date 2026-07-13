@@ -2,28 +2,53 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AddTicker } from "@/components/AddTicker";
 import { Sparkline } from "@/components/Sparkline";
+import { WelcomeSplash } from "@/components/WelcomeSplash";
 import { api, fmtPct, fmtPrice } from "@/components/util";
 import type { WatchlistRow } from "@/lib/types";
 
 export default function WatchlistPage() {
+  const router = useRouter();
   const [rows, setRows] = useState<WatchlistRow[] | null>(null);
   const [today, setToday] = useState("");
   const [autoResearch, setAutoResearch] = useState<boolean | null>(null);
   const [savingAuto, setSavingAuto] = useState(false);
+  const [splash, setSplash] = useState(false);
   const [me, setMe] = useState<{
     authEnabled: boolean;
+    needsOnboarding?: boolean;
     user: { name: string; email: string; picture: string; role: string } | null;
   } | null>(null);
 
   useEffect(() => {
-    api<{ authEnabled: boolean; user: { name: string; email: string; picture: string; role: string } | null }>(
-      "/api/auth/me"
-    )
-      .then(setMe)
-      .catch(() => {});
+    // The greeting moment — once per browser session, decided before data
+    // lands. Only ever upgrades false→true, so StrictMode's double-run of
+    // effects can't cancel it.
+    try {
+      if (sessionStorage.getItem("scalae_splash") === "1") return;
+      sessionStorage.setItem("scalae_splash", "1");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSplash(true);
+    } catch {
+      /* storage blocked — skip the splash */
+    }
   }, []);
+
+  useEffect(() => {
+    api<{
+      authEnabled: boolean;
+      needsOnboarding?: boolean;
+      user: { name: string; email: string; picture: string; role: string } | null;
+    }>("/api/auth/me")
+      .then((m) => {
+        setMe(m);
+        // Brand-new account → the /welcome intake sets up their first desks.
+        if (m.needsOnboarding) router.replace("/welcome");
+      })
+      .catch(() => {});
+  }, [router]);
 
   useEffect(() => {
     // Formatted client-side only: server/browser locales differ and break hydration.
@@ -83,6 +108,7 @@ export default function WatchlistPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-5 py-10 flex-1">
+      {splash && <WelcomeSplash name={me?.user?.name} onDone={() => setSplash(false)} />}
       <header className="mb-6">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
