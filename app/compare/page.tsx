@@ -103,6 +103,11 @@ export default function ComparePage() {
   const [rows, setRows] = useState<WatchlistRow[]>([]);
   const [symA, setSymA] = useState<string | null>(null);
   const [symB, setSymB] = useState<string | null>(null);
+  // Analyst verdict (opportunity-cost weighing) — keyed to the pair it was run for.
+  const [verdict, setVerdict] = useState<string | null>(null);
+  const [verdictFor, setVerdictFor] = useState<string | null>(null);
+  const [verdictBusy, setVerdictBusy] = useState(false);
+  const [verdictError, setVerdictError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -127,6 +132,30 @@ export default function ComparePage() {
     if (!deskA || !deskB) return null;
     return pairSignals(deskA.active, deskB.active);
   }, [deskA, deskB]);
+
+  const pairKey = symA && symB ? `${symA}|${symB}` : null;
+  // Weighing needs something to weigh: a standing dossier or at least one read signal per side.
+  const deskReady = (d: DeskPayload | null) =>
+    !!d && (!!d.latestRun?.dossier || d.active.some((s) => s.latest));
+  const canWeigh = deskReady(deskA) && deskReady(deskB);
+
+  async function runVerdict() {
+    if (!symA || !symB || verdictBusy) return;
+    setVerdictBusy(true);
+    setVerdictError(null);
+    try {
+      const { verdict } = await api<{ verdict: string }>(`/api/compare`, {
+        method: "POST",
+        body: JSON.stringify({ a: symA, b: symB }),
+      });
+      setVerdict(verdict);
+      setVerdictFor(`${symA}|${symB}`);
+    } catch (e) {
+      setVerdictError(e instanceof Error ? e.message : "The comparison failed — try again.");
+    } finally {
+      setVerdictBusy(false);
+    }
+  }
 
   const picker = (value: string | null, onChange: (v: string) => void, exclude: string | null) => (
     <select
@@ -259,6 +288,51 @@ export default function ComparePage() {
                 )}
               </div>
             ))}
+          </section>
+
+          {/* The analyst weighs the pair — Munger's opportunity-cost filter made concrete */}
+          <section className="rounded-2xl bg-card border border-hairline p-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
+                  Analyst verdict — opportunity cost
+                </p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  Four filters in veto order, price last; kill lists compared; weighed on the desks’
+                  existing evidence only — run each desk’s research first for freshness.
+                </p>
+              </div>
+              <button
+                onClick={runVerdict}
+                disabled={!canWeigh || verdictBusy}
+                title={
+                  canWeigh
+                    ? `Weigh ${symA} against ${symB} as businesses`
+                    : "Both desks need a dossier or at least one read signal — run research first"
+                }
+                className="ml-auto rounded-lg bg-accent hover:bg-accent/90 disabled:bg-white/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+              >
+                {verdictBusy
+                  ? "Weighing…"
+                  : verdict && verdictFor === pairKey
+                    ? "Weigh again"
+                    : `Weigh ${symA} vs ${symB}`}
+              </button>
+            </div>
+            {verdictError && <p className="mt-2 text-xs text-loss">{verdictError}</p>}
+            {verdictBusy && (
+              <p className="mt-3 text-xs text-muted pulse-soft">
+                The analyst is weighing both boards — filters, moat mechanisms, kill lists…
+              </p>
+            )}
+            {verdict && verdictFor === pairKey && !verdictBusy && (
+              <div className="mt-3 text-sm border-t border-hairline pt-3">
+                <Markdown>{verdict}</Markdown>
+                <p className="mt-2 text-[10px] text-muted/60">
+                  Weighs the businesses, not the stocks — no trade advice; the decision stays yours.
+                </p>
+              </div>
+            )}
           </section>
 
           {/* Signals that read the same aspect of each business */}
