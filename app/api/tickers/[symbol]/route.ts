@@ -59,12 +59,23 @@ export async function GET(_req: Request, { params }: Params) {
   const autoResearch = await autoResearchEnabled(user.id);
 
   const withReadings = (s: Signal): Promise<SignalWithReadings> =>
-    readingsForSignal(s.id, 20).then((history) => ({
-      ...s,
-      latest: history[0] ?? null,
-      history,
-      sources: sourcesMap.get(s.id) ?? [],
-    }));
+    readingsForSignal(s.id, 20).then((history) => {
+      // Backstory sources ride the signal row as a JSON TEXT column.
+      let backstorySources: SignalWithReadings["backstorySources"] = [];
+      try {
+        const raw = (s as Signal & { backstorySources?: string }).backstorySources;
+        if (raw) backstorySources = JSON.parse(raw);
+      } catch {
+        /* legacy/malformed — render backstory without linked citations */
+      }
+      return {
+        ...s,
+        latest: history[0] ?? null,
+        history,
+        sources: sourcesMap.get(s.id) ?? [],
+        backstorySources,
+      };
+    });
   // Retired signals keep their evidence trail — a swap never erases history.
   const [active, retired] = await Promise.all([
     Promise.all(activeSignals.map(withReadings)),

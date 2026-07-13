@@ -265,6 +265,43 @@ export const SYNTHESIS_DOCTRINE = `WEIGHING THE EVIDENCE (daily-synthesis doctri
 - Carry-forward honesty: with no new evidence, keep the prior level, mark delta flat, cut confidence, and say so. Never manufacture movement to look busy — sit-on-your-ass research means "nothing material" is the expected, healthy daily outcome, and false precision is worse than honest roughness (better roughly right than precisely wrong).`;
 
 // ---------------------------------------------------------------------------
+// Doctrine for signal deep-history backstories. Munger's vicarious-learning
+// prescription inverted into practice: learn from the record — the business's
+// own past and its industry's — so today's readings are judged against base
+// rates instead of floating free of history.
+// ---------------------------------------------------------------------------
+
+export const BACKSTORY_DOCTRINE = `WRITING A SIGNAL'S DEEP HISTORY (the backstory doctrine):
+The backstory answers: how has the aspect this signal measures actually behaved over the years and decades of public record — through cycles, crises and company-specific episodes — so the desk can judge today's readings against base rates rather than against yesterday's headline. Munger's second prescription for misery, inverted: learn everything you can vicariously, from the record of others living and dead.
+
+Rules:
+- Business history, not price history. Chart the aspect itself — pricing actions, share shifts, capital decisions, management conduct, accounting choices — never the stock's chart. Price may appear only where the framework needs it (a crisis-era capital raise, buyback economics).
+- Anchor every era to the framework: say plainly which lens the era's evidence loads on (moat trajectory, pricing power, capital allocation, candor, institutional imperative, balance-sheet resilience) and which anchor — business model or culture — it illuminates.
+- Stress-test episodes are the spine: how did this aspect fare through the events that actually tested it — recessions and credit crunches, industry price wars and disruptions, regulatory strikes, the company's own crises (scandals, recalls, leadership breaks)? A moat that held through a real war is different evidence from one never shot at.
+- Be era-honest and company-specific: a business listed in 2018 has no 2008 record — say so and use its industry's record for the missing years, clearly labeled as industry (not company) evidence. Never backfill company claims the record can't support.
+- Mind survivorship and Stein's law: name the competitors and practices that DIDN'T survive each era (the loom owners, not just the winners), and mark any era whose trend was unsustainable in hindsight — those are the base rates that discipline today's optimism.
+- Cite [n] source indexes on every load-bearing claim; unresolved eras get an honest "the public record is thin here" instead of confident narrative.
+- Close with the base rate: 2-4 sentences on what this history implies for reading the signal today — what "normal" looks like for this aspect, how fast it has historically decayed or recovered, and which past episode today most resembles when one plainly does.`;
+
+export const BACKSTORY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["backstory", "brief"],
+  properties: {
+    backstory: {
+      type: "string",
+      description:
+        "The deep history in markdown: era-by-era (### headed) evolution of the measured aspect, stress-test episodes, framework anchoring, [n] citations, closing base-rate paragraph. 300-600 words.",
+    },
+    brief: {
+      type: "string",
+      description:
+        "1-2 sentence base-rate summary of the history for the daily synthesis context (max ~220 chars).",
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // Doctrine for the pairwise desk comparison (the compare view's analyst
 // verdict). Munger's opportunity-cost frame made operational: two businesses,
 // weighed as businesses, on the desks' existing evidence only.
