@@ -218,7 +218,10 @@ export default function DeskPage() {
     }
   }
 
-  // Bulk proposal management: approve or ignore the whole selection at once.
+  // Bulk proposal management. Approving a selection is one decisive gesture:
+  // the selected proposals activate and every unselected proposal is ignored —
+  // the queue resolves in a single click (ignored ones land in the archive,
+  // recoverable there or via the Undo toast).
   async function bulkAct(action: "approve" | "dismiss", ids: string[]) {
     if (ids.length === 0) return;
     setBulkBusy(true);
@@ -227,8 +230,33 @@ export default function DeskPage() {
         method: "POST",
         body: JSON.stringify({ ids, action }),
       });
+      let ignored: string[] = [];
+      if (action === "approve") {
+        ignored = (desk?.suggested ?? []).map((s) => s.id).filter((id) => !ids.includes(id));
+        if (ignored.length > 0) {
+          await api(`/api/signals/bulk`, {
+            method: "POST",
+            body: JSON.stringify({ ids: ignored, action: "dismiss" }),
+          });
+        }
+      }
       setSelected(new Set());
       await load();
+      if (ignored.length > 0) {
+        showUndo(
+          `Approved ${ids.length} · ignored the other ${ignored.length} (archived)`,
+          async () => {
+            // Undo restores the ignored proposals to the queue; approvals stand.
+            for (const id of ignored) {
+              await api(`/api/signals/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ action: "reactivate" }),
+              }).catch(() => {});
+            }
+            load();
+          }
+        );
+      }
       if (res.onboardedNow) {
         autoRan.current = true;
         startRun();
@@ -647,6 +675,7 @@ export default function DeskPage() {
               <p className="text-[11px] text-muted mt-1">
                 The desk rediscovers candidate signals as the story evolves — nothing is tracked
                 without your sign-off. Proposals marked ⇄ replace an active signal on approval.
+                Approving a selection ignores the rest — one decision resolves the whole queue.
               </p>
               <BulkBar
                 suggested={suggested}
@@ -1059,6 +1088,7 @@ function BulkBar({
 }) {
   const ids = suggested.filter((s) => selected.has(s.id)).map((s) => s.id);
   const allSelected = ids.length === suggested.length && suggested.length > 0;
+  const rest = suggested.length - ids.length;
   // Consequence disclosure: name the signals a bulk approval would retire.
   const casualties = suggested
     .filter((s) => selected.has(s.id) && s.replaces)
@@ -1077,9 +1107,18 @@ function BulkBar({
           <button
             onClick={() => onBulk("approve", ids)}
             disabled={busy}
+            title={
+              rest > 0
+                ? `Activates your ${ids.length} selected signal${ids.length === 1 ? "" : "s"} and ignores the other ${rest} — one decision resolves the queue (ignored proposals stay recoverable in the archive)`
+                : "Activates the selected signals"
+            }
             className="rounded-lg bg-gain/15 text-gain font-semibold px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
           >
-            {busy ? "Working…" : `Approve ${ids.length}`}
+            {busy
+              ? "Working…"
+              : rest > 0
+                ? `Approve ${ids.length} · ignore rest (${rest})`
+                : `Approve ${ids.length}`}
           </button>
           {casualties.length > 0 && (
             <span className="text-warn">
