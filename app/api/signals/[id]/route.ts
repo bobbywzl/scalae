@@ -7,6 +7,7 @@ import {
   markOnboarded,
   setSignalStatus,
 } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,19 +19,22 @@ type Params = { params: Promise<{ id: string }> };
  * gate, since a dismissed proposal was never approved).
  */
 export async function PATCH(req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const signal = await getSignal(id);
-  if (!signal) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!signal || (signal.userId && signal.userId !== user.id))
+    return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const body = (await req.json().catch(() => ({}))) as { action?: string };
   const action = body.action;
 
   if (action === "approve") {
     const { retiredId } = await approveSignal(id);
-    const ticker = await getTicker(signal.symbol);
+    const ticker = await getTicker(user.id, signal.symbol);
     let onboardedNow = false;
     if (ticker && !ticker.onboarded) {
-      await markOnboarded(signal.symbol);
+      await markOnboarded(user.id, signal.symbol);
       onboardedNow = true;
     }
     return NextResponse.json({ signal: await getSignal(id), onboardedNow, retiredId });
@@ -58,7 +62,7 @@ export async function PATCH(req: Request, { params }: Params) {
     if (signal.status !== "retired") {
       return NextResponse.json({ error: "swap_back applies to retired signals" }, { status: 400 });
     }
-    const active = await listSignals(signal.symbol, "active");
+    const active = await listSignals(user.id, signal.symbol, "active");
     const replacement = active.find((s) => s.replaces === id) ?? null;
     await setSignalStatus(id, "active");
     if (replacement) await setSignalStatus(replacement.id, "retired");

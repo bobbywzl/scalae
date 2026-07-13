@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { getInitialCapital, setInitialCapital } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 
 /**
  * Set, change or clear the book's starting cash (USD). Cash on hand is then
  * derived from it: initial capital + every ledger cashflow to date.
  */
 export async function POST(req: Request) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json().catch(() => ({}))) as { amount?: number | null };
   if (body.amount == null) {
-    await setInitialCapital(null);
+    await setInitialCapital(user.id, null);
     return NextResponse.json({ initialCapital: null });
   }
   const amount = Number(body.amount);
@@ -18,6 +21,6 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  await setInitialCapital(Math.round(amount * 100) / 100);
-  return NextResponse.json({ initialCapital: await getInitialCapital() });
+  await setInitialCapital(user.id, Math.round(amount * 100) / 100);
+  return NextResponse.json({ initialCapital: await getInitialCapital(user.id) });
 }

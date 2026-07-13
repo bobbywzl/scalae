@@ -14,18 +14,21 @@ import {
   sourcesForSignals,
 } from "@/lib/db";
 import { getQuote } from "@/lib/market";
+import { requireUser } from "@/lib/auth";
 import { computeInvolvement } from "@/lib/portfolio";
 import type { DeskPayload, Signal, SignalWithReadings } from "@/lib/types";
 
 type Params = { params: Promise<{ symbol: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
-  const ticker = await getTicker(symbol);
+  const ticker = await getTicker(user.id, symbol);
   if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  await reapStuckRuns(symbol);
+  await reapStuckRuns(user.id, symbol);
   const [
     quote,
     activeSignals,
@@ -41,19 +44,19 @@ export async function GET(_req: Request, { params }: Params) {
     position,
   ] = await Promise.all([
     getQuote(symbol),
-    listSignals(symbol, "active"),
-    listFocusAreas(symbol),
-    listSignals(symbol, "suggested"),
-    listSignals(symbol, "retired"),
-    listSignals(symbol, "dismissed"),
-    latestRun(symbol),
-    recentRuns(symbol, 15),
-    recentDigest(symbol),
-    listMessages(symbol, 200, { signalId: null }), // desk-level thread only
-    sourcesForSignals(symbol),
-    computeInvolvement(symbol).catch(() => null),
+    listSignals(user.id, symbol, "active"),
+    listFocusAreas(user.id, symbol),
+    listSignals(user.id, symbol, "suggested"),
+    listSignals(user.id, symbol, "retired"),
+    listSignals(user.id, symbol, "dismissed"),
+    latestRun(user.id, symbol),
+    recentRuns(user.id, symbol, 15),
+    recentDigest(user.id, symbol),
+    listMessages(user.id, symbol, 200, { signalId: null }), // desk-level thread only
+    sourcesForSignals(user.id, symbol),
+    computeInvolvement(user.id, symbol).catch(() => null),
   ]);
-  const autoResearch = await autoResearchEnabled();
+  const autoResearch = await autoResearchEnabled(user.id);
 
   const withReadings = (s: Signal): Promise<SignalWithReadings> =>
     readingsForSignal(s.id, 20).then((history) => ({
@@ -102,7 +105,9 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol } = await params;
-  await removeTicker(symbol.toUpperCase());
+  await removeTicker(user.id, symbol.toUpperCase());
   return NextResponse.json({ ok: true });
 }

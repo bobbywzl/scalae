@@ -3,6 +3,7 @@ import { handleChatTurn } from "@/lib/agents/chat";
 import { friendlyAIError } from "@/lib/ai/claude";
 import { executeRun, startRun } from "@/lib/agents/research";
 import { getSignal, listMessages } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import type { Attachment } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -11,10 +12,13 @@ type Params = { params: Promise<{ id: string }> };
 
 /** The signal's focused chat history (separate thread from the ticker desk). */
 export async function GET(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const signal = await getSignal(id);
-  if (!signal) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const messages = await listMessages(signal.symbol, 200, { signalId: id });
+  if (!signal || (signal.userId && signal.userId !== user.id))
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  const messages = await listMessages(user.id, signal.symbol, 200, { signalId: id });
   return NextResponse.json({ messages });
 }
 
@@ -23,9 +27,12 @@ export async function GET(_req: Request, { params }: Params) {
  * desk powers, context narrowed to the signal's thesis, readings and evidence.
  */
 export async function POST(req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   const signal = await getSignal(id);
-  if (!signal) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!signal || (signal.userId && signal.userId !== user.id))
+    return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const body = (await req.json().catch(() => ({}))) as {
     message?: string;
@@ -40,14 +47,14 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   try {
-    const result = await handleChatTurn(signal.symbol, message, {
+    const result = await handleChatTurn(user.id, signal.symbol, message, {
       retry,
       attachments,
       signalId: id,
     });
     if (result.startResearch) {
-      const { run, started } = await startRun(signal.symbol);
-      if (started) after(() => executeRun(run.id, signal.symbol));
+      const { run, started } = await startRun(user.id, signal.symbol);
+      if (started) after(() => executeRun(user.id, run.id, signal.symbol));
     }
     return NextResponse.json({ reply: result.message, researchStarted: result.startResearch });
   } catch (e) {

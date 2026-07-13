@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clearPortfolio } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
 import { sweepOpenOrders } from "@/lib/orders";
 import { computePortfolio } from "@/lib/portfolio";
 
@@ -11,11 +12,13 @@ export const maxDuration = 60;
  * first, so fills land in the ledger before it's valued.
  */
 export async function GET() {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   try {
-    await sweepOpenOrders().catch((e) => {
+    await sweepOpenOrders(user.id).catch((e) => {
       console.error("[scalae] order sweep failed:", e instanceof Error ? e.message : e);
     });
-    return NextResponse.json(await computePortfolio());
+    return NextResponse.json(await computePortfolio(user.id));
   } catch (e) {
     console.error("[scalae] portfolio failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Failed to compute portfolio." }, { status: 500 });
@@ -28,6 +31,8 @@ export async function GET() {
  * gates this behind an explicit typed-out confirmation.
  */
 export async function DELETE() {
-  const deleted = await clearPortfolio();
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const deleted = await clearPortfolio(user.id);
   return NextResponse.json({ deleted });
 }

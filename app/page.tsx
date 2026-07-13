@@ -12,6 +12,18 @@ export default function WatchlistPage() {
   const [today, setToday] = useState("");
   const [autoResearch, setAutoResearch] = useState<boolean | null>(null);
   const [savingAuto, setSavingAuto] = useState(false);
+  const [me, setMe] = useState<{
+    authEnabled: boolean;
+    user: { name: string; email: string; picture: string; role: string } | null;
+  } | null>(null);
+
+  useEffect(() => {
+    api<{ authEnabled: boolean; user: { name: string; email: string; picture: string; role: string } | null }>(
+      "/api/auth/me"
+    )
+      .then(setMe)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Formatted client-side only: server/browser locales differ and break hydration.
@@ -82,6 +94,16 @@ export default function WatchlistPage() {
             </p>
           </div>
           <div className="shrink-0 mt-5 flex items-center gap-2">
+            {me?.user && me.user.role === "admin" && (
+              <Link
+                href="/admin"
+                title="Admin — all accounts across the app"
+                className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-white/25 hover:bg-white/4 px-3 py-2 transition-colors"
+              >
+                <span className="text-accent text-sm leading-none">⌘</span>
+                <span className="text-xs font-semibold">Admin</span>
+              </Link>
+            )}
             {(rows?.length ?? 0) >= 2 && (
               <Link
                 href="/compare"
@@ -104,6 +126,25 @@ export default function WatchlistPage() {
               </svg>
               <span className="text-xs font-semibold">Portfolio</span>
             </Link>
+            {me?.authEnabled && me.user && (
+              <a
+                href="/api/auth/logout"
+                title={`${me.user.name} (${me.user.email}) — sign out`}
+                className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-loss/40 px-2.5 py-2 transition-colors group"
+              >
+                {me.user.picture ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={me.user.picture} alt="" className="h-5 w-5 rounded-full" />
+                ) : (
+                  <span className="h-5 w-5 rounded-full bg-white/10 flex items-center justify-center text-[10px]">
+                    {me.user.name[0]?.toUpperCase()}
+                  </span>
+                )}
+                <span className="text-xs text-muted group-hover:text-loss transition-colors">
+                  Sign out
+                </span>
+              </a>
+            )}
           </div>
         </div>
 

@@ -12,12 +12,42 @@ export type Delta = "up" | "down" | "flat";
 export type Impact = "positive" | "negative" | "mixed" | "neutral";
 export type RunStatus = "running" | "done" | "error";
 
+// ---------------------------------------------------------------------------
+// Accounts: Google sign-in makes this a multi-user app. Every data row is
+// scoped by userId; 'local' is the implicit single-user id when auth is off.
+// ---------------------------------------------------------------------------
+
+export type UserRole = "admin" | "user";
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  role: UserRole;
+  createdAt: string;
+  lastSeenAt: string;
+}
+
+/** One user's row in the admin console, with activity aggregates. */
+export interface AdminUserRow {
+  user: User;
+  tickers: number;
+  activeSignals: number;
+  runs: number;
+  lastRunAt: string | null;
+  messages: number;
+  trades: number;
+}
+
 export interface Ticker {
   symbol: string;
   name: string;
   addedAt: string;
   onboarded: number; // 0 | 1
   lastRunAt: string | null;
+  /** Owner (server-side; present on rows read from the db). */
+  userId?: string;
 }
 
 export interface FocusArea {
@@ -45,6 +75,8 @@ export interface Signal {
   approvedAt: string | null;
   /** When the investor dismissed it (kept after restore — gate memory). */
   dismissedAt?: string | null;
+  /** Owner (server-side; present on rows read from the db). */
+  userId?: string;
 }
 
 export interface Citation {
