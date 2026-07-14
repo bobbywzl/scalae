@@ -3,7 +3,8 @@ import { claudeJSON } from "../ai/claude";
 import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import {
-  analystPersona,
+  DESK_DOCTRINE,
+  deskIdentity,
   CHAT_SCHEMA,
   QUESTION_METHOD,
   SIGNAL_GUIDANCE,
@@ -300,7 +301,9 @@ Only emit focusAreas when the investor genuinely introduces a new area of concer
 LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; use standard finance terminology — 护城河, 所有者盈余, 资本配置, 安全边际). EVERYTHING ELSE stays in ENGLISH: proposals (name, thesis, measurementPlan, scale, focusArea), focusAreas entries, and the exact signal names you place in approveProposals / dismissProposals / retireSignals — match the English names in the desk state verbatim (the app translates board content for display automatically). When you mention a signal in your Chinese reply, give its English name in quotes, optionally with a short Chinese gloss.`
       : "";
 
-  const system = `${analystPersona(symbol, ticker.name)}
+  // Cache the static desk doctrine (shared prefix across every Claude call);
+  // the ticker identity, method, board state and mode instructions follow it.
+  const systemTail = `${deskIdentity(symbol, ticker.name)}
 
 ${QUESTION_METHOD}
 
@@ -311,6 +314,10 @@ ATTACHMENTS: The investor can attach images (charts, product photos, screenshots
 ${deskContext}
 
 ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirective}`;
+  const system = [
+    { text: DESK_DOCTRINE, cache: true },
+    { text: systemTail },
+  ];
 
   const history = (await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId })).slice(-16);
   const messages = historyToMessages(history);

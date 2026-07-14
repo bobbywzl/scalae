@@ -52,6 +52,11 @@ export interface Ticker {
   addedAt: string;
   onboarded: number; // 0 | 1
   lastRunAt: string | null;
+  /**
+   * Consecutive daily runs that found no new evidence. Resets to 0 on any run
+   * with new evidence. Drives the cron's adaptive cadence (see lib/cadence.ts).
+   */
+  quietRuns?: number;
   /** Owner (server-side; present on rows read from the db). */
   userId?: string;
 }

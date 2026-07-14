@@ -221,6 +221,8 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_digest_symbol ON digest_items(symbol, date)`,
   `CREATE INDEX IF NOT EXISTS idx_messages_symbol ON messages(symbol, "createdAt")`,
   `CREATE INDEX IF NOT EXISTS idx_runs_symbol ON runs(symbol, "startedAt")`,
+  // ---- adaptive research cadence: consecutive no-new-evidence runs (lib/cadence) ----
+  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "quietRuns" INTEGER NOT NULL DEFAULT 0`,
   // ---- multi-tenancy: every row is owned; 'local' = single-user (auth off) ----
   `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE focus_areas ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -357,6 +359,29 @@ export async function touchLastRun(userId: string, symbol: string): Promise<void
   await q`UPDATE tickers SET "lastRunAt" = ${now()} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
+/** Snap a desk back to daily cadence (new evidence, or a board change). */
+export async function resetQuietRuns(userId: string, symbol: string): Promise<void> {
+  await q`UPDATE tickers SET "quietRuns" = 0 WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+}
+
+/**
+ * Update a desk's dormancy counter after a run: reset to 0 when the run found
+ * new evidence, otherwise increment. Drives the cron's adaptive cadence
+ * (lib/cadence.ts) — a desk that keeps reading "nothing new" is swept less
+ * often. Best-effort; never throw into the run's success path.
+ */
+export async function bumpQuietRuns(
+  userId: string,
+  symbol: string,
+  hadNewEvidence: boolean
+): Promise<void> {
+  if (hadNewEvidence) {
+    await resetQuietRuns(userId, symbol);
+  } else {
+    await q`UPDATE tickers SET "quietRuns" = "quietRuns" + 1 WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  }
+}
+
 // ---------- focus areas ----------
 
 export async function listFocusAreas(userId: string, symbol: string): Promise<FocusArea[]> {
@@ -467,6 +492,9 @@ export async function approveSignal(id: string): Promise<{ retiredId: string | n
       retiredId = target.id;
     }
   }
+  // A new active signal is a board change — wake the desk from any dormancy
+  // backoff so the cron researches it on the normal daily cadence again.
+  if (signal) await resetQuietRuns(signal.userId ?? "local", signal.symbol).catch(() => {});
   return { retiredId };
 }
 

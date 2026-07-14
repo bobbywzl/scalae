@@ -16,10 +16,15 @@ import { listGeminiModels } from "./gemini";
  *   - overridable: a per-role env var always wins, to pin a model by hand
  *     (legacy global GEMINI_MODEL / CLAUDE_MODEL pins are IGNORED with a warning).
  *
- * TIER = "flagship": top-of-line without the pricier Fable/Mythos tier (which
- * needs 30-day data retention and costs ~2×). To move synthesis to that tier,
+ * TIER by role (cost discipline — spend the flagship only where it is earned):
+ *   - Opus (flagship): synthesis (the daily crown-jewel reading) and chat/compare
+ *     (the investor's live analyst). These carry the desk's quality.
+ *   - Sonnet (value): triage and backstory — bounded, high-frequency support
+ *     work that runs on every desk every day; the flagship is not earned here.
+ *   - Haiku (economy): display-language translation (mechanical, cached).
+ * To move synthesis to the pricier Fable/Mythos tier (30-day retention, ~2×),
  * add `fable|mythos` to the `synthesis` include below, or set
- * CLAUDE_SYNTHESIS_MODEL. To drop to the value tier, set it to a Sonnet model.
+ * CLAUDE_SYNTHESIS_MODEL. Any role can be re-pinned with its own env var.
  *
  * Reviewed monthly by .github/workflows/model-review.yml, which opens an issue
  * summarising each provider's current lineup so a human can approve adopting a
@@ -28,7 +33,14 @@ import { listGeminiModels } from "./gemini";
 
 export const MODELS_REVIEWED_AT = "2026-07";
 
-export type ModelRole = "synthesis" | "chat" | "triage" | "scoutBreadth" | "scoutDeep" | "translate";
+export type ModelRole =
+  | "synthesis"
+  | "chat"
+  | "triage"
+  | "backstory"
+  | "scoutBreadth"
+  | "scoutDeep"
+  | "translate";
 type Provider = "claude" | "gemini";
 
 interface RoleConfig {
@@ -59,12 +71,27 @@ const ROLES: Record<ModelRole, RoleConfig> = {
     exclude: /-(fast|latest)\b/,
     fallback: "claude-opus-4-8",
   },
+  // Mid-run gap triage: read the breadth sweeps against the board and decide
+  // which threads deserve a deep dive. A bounded routing/judgment task that
+  // runs on EVERY desk EVERY day — the value tier (Sonnet) handles it well and
+  // the flagship's cost here is not earned. The crown-jewel synthesis that
+  // follows stays on Opus. (Pin with CLAUDE_TRIAGE_MODEL to override.)
   triage: {
     provider: "claude",
     env: "CLAUDE_TRIAGE_MODEL",
-    include: /^claude-opus-\d/,
+    include: /^claude-sonnet-\d/,
     exclude: /-(fast|latest)\b/,
-    fallback: "claude-opus-4-8",
+    fallback: "claude-sonnet-5",
+  },
+  // Signal deep-history backstory: background enrichment written once per
+  // signal and cached forever, not the daily reading. Sonnet is plenty; keeping
+  // it off Opus removes up to two flagship calls from every research run.
+  backstory: {
+    provider: "claude",
+    env: "CLAUDE_BACKSTORY_MODEL",
+    include: /^claude-sonnet-\d/,
+    exclude: /-(fast|latest)\b/,
+    fallback: "claude-sonnet-5",
   },
   // Display-language translation of stored research content (cached per text
   // in the translations table). High-volume, mechanical — the value tier is
