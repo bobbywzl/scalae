@@ -223,6 +223,8 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_runs_symbol ON runs(symbol, "startedAt")`,
   // ---- adaptive research cadence: consecutive no-new-evidence runs (lib/cadence) ----
   `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "quietRuns" INTEGER NOT NULL DEFAULT 0`,
+  // ---- per-desk manual research freeze (0|1): startRun refuses when set ----
+  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "researchPaused" INTEGER NOT NULL DEFAULT 0`,
   // ---- multi-tenancy: every row is owned; 'local' = single-user (auth off) ----
   `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE focus_areas ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -357,6 +359,22 @@ export async function markOnboarded(userId: string, symbol: string): Promise<voi
 
 export async function touchLastRun(userId: string, symbol: string): Promise<void> {
   await q`UPDATE tickers SET "lastRunAt" = ${now()} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+}
+
+/** Freeze or unfreeze all research for one desk (the per-ticker pause switch). */
+export async function setResearchPaused(
+  userId: string,
+  symbol: string,
+  paused: boolean
+): Promise<void> {
+  await q`UPDATE tickers SET "researchPaused" = ${paused ? 1 : 0} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+}
+
+/** Is this desk's research frozen? The single source of truth for startRun's guard. */
+export async function isResearchPaused(userId: string, symbol: string): Promise<boolean> {
+  const rows = await q<{ researchPaused: number }>`
+    SELECT "researchPaused" FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  return rows[0]?.researchPaused === 1;
 }
 
 /** Snap a desk back to daily cadence (new evidence, or a board change). */
@@ -1165,16 +1183,25 @@ export interface UsageSummary {
     inputTokens: number;
     outputTokens: number;
     costUsd: number;
+    /** Cost of research-run features only (scouts/triage/synthesis/backstory), this window. */
+    researchCostUsd: number;
+    /** Research runs started in this window — the denominator for avgCostPerRun. */
+    runs: number;
+    /** Average cost per research run = researchCostUsd / runs (0 when no runs). */
+    avgCostPerRun: number;
   }[];
   /** Daily cost, oldest → newest (gaps = no spend that day). */
   byDay: { day: string; costUsd: number }[];
 }
 
+/** usage_event.feature values that belong to a daily research run (vs chat/compare/translate). */
+const RESEARCH_FEATURES = ["scoutBreadth", "triage", "scoutDeep", "synthesis", "backstory"];
+
 /** Aggregates over the trailing `days` window, in a handful of grouped queries. */
 export async function usageSummary(days: number): Promise<UsageSummary> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  const [totals, cost30, byModel, byFeature, byUser, byDay] = await Promise.all([
+  const [totals, cost30, byModel, byFeature, byUser, runsByUser, byDay] = await Promise.all([
     q<{ calls: string; inp: string | null; outp: string | null; cr: string | null; cost: number | null }>`
       SELECT count(*) AS calls, sum("inputTokens") AS inp, sum("outputTokens") AS outp,
              sum("cacheReadTokens") AS cr, sum("costUsd") AS cost
@@ -1186,13 +1213,18 @@ export async function usageSummary(days: number): Promise<UsageSummary> {
     q<{ feature: string; calls: string; tokens: string | null; cost: number | null }>`
       SELECT feature, count(*) AS calls, sum("inputTokens" + "outputTokens") AS tokens, sum("costUsd") AS cost
       FROM usage_events WHERE ts > ${since} GROUP BY feature ORDER BY sum("costUsd") DESC`,
-    q<{ userId: string | null; calls: string; inp: string | null; outp: string | null; cost: number | null }>`
-      SELECT "userId", count(*) AS calls, sum("inputTokens") AS inp, sum("outputTokens") AS outp, sum("costUsd") AS cost
+    q<{ userId: string | null; calls: string; inp: string | null; outp: string | null; cost: number | null; rcost: number | null }>`
+      SELECT "userId", count(*) AS calls, sum("inputTokens") AS inp, sum("outputTokens") AS outp,
+             sum("costUsd") AS cost,
+             sum("costUsd") FILTER (WHERE feature = ANY(${RESEARCH_FEATURES})) AS rcost
       FROM usage_events WHERE ts > ${since} GROUP BY "userId" ORDER BY sum("costUsd") DESC`,
+    q<{ userId: string | null; n: string }>`
+      SELECT "userId", count(*) AS n FROM runs WHERE "startedAt" > ${since} GROUP BY "userId"`,
     q<{ day: string; cost: number | null }>`
       SELECT substr(ts, 1, 10) AS day, sum("costUsd") AS cost
       FROM usage_events WHERE ts > ${since30} GROUP BY substr(ts, 1, 10) ORDER BY day ASC`,
   ]);
+  const runsMap = new Map(runsByUser.map((r) => [r.userId ?? "", Number(r.n)]));
   return {
     totals: {
       calls: Number(totals[0]?.calls ?? 0),
@@ -1204,13 +1236,21 @@ export async function usageSummary(days: number): Promise<UsageSummary> {
     },
     byModel: byModel.map((r) => ({ model: r.model, calls: Number(r.calls), tokens: Number(r.tokens ?? 0), costUsd: Number(r.cost ?? 0) })),
     byFeature: byFeature.map((r) => ({ feature: r.feature, calls: Number(r.calls), tokens: Number(r.tokens ?? 0), costUsd: Number(r.cost ?? 0) })),
-    byUser: byUser.map((r) => ({
-      userId: r.userId ?? "system",
-      calls: Number(r.calls),
-      inputTokens: Number(r.inp ?? 0),
-      outputTokens: Number(r.outp ?? 0),
-      costUsd: Number(r.cost ?? 0),
-    })),
+    byUser: byUser.map((r) => {
+      const userId = r.userId ?? "system";
+      const researchCostUsd = Number(r.rcost ?? 0);
+      const runs = Number(runsMap.get(r.userId ?? "") ?? 0);
+      return {
+        userId,
+        calls: Number(r.calls),
+        inputTokens: Number(r.inp ?? 0),
+        outputTokens: Number(r.outp ?? 0),
+        costUsd: Number(r.cost ?? 0),
+        researchCostUsd,
+        runs,
+        avgCostPerRun: runs > 0 ? researchCostUsd / runs : 0,
+      };
+    }),
     byDay: byDay.map((r) => ({ day: r.day, costUsd: Number(r.cost ?? 0) })),
   };
 }

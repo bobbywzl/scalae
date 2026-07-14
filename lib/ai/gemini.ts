@@ -33,7 +33,7 @@ interface GeminiResponse {
  */
 export async function geminiGroundedSearch(
   prompt: string,
-  opts: { model?: string; meta?: UsageMeta } = {}
+  opts: { model?: string; meta?: UsageMeta; signal?: AbortSignal } = {}
 ): Promise<GroundedResult> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not set.");
@@ -50,11 +50,13 @@ export async function geminiGroundedSearch(
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 120_000);
+      // Abort on either the internal timeout or an external stage deadline.
+      const signal = opts.signal ? AbortSignal.any([ctrl.signal, opts.signal]) : ctrl.signal;
       const res = await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body,
-        signal: ctrl.signal,
+        signal,
       });
       clearTimeout(timer);
 
@@ -85,6 +87,8 @@ export async function geminiGroundedSearch(
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       if (lastErr.name === "AbortError") lastErr = new Error("Gemini request timed out.");
+      // An external stage-deadline abort is final — don't spend more retries.
+      if (opts.signal?.aborted) throw lastErr;
       await sleep(1500 * (attempt + 1));
     }
   }

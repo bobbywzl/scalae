@@ -2,7 +2,7 @@ import { NextResponse, after } from "next/server";
 import { handleChatTurn } from "@/lib/agents/chat";
 import { friendlyAIError } from "@/lib/ai/claude";
 import { executeRun, startRun } from "@/lib/agents/research";
-import { getSignal, listMessages } from "@/lib/db";
+import { getSignal, isResearchPaused, listMessages } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
 import type { Attachment } from "@/lib/types";
@@ -54,11 +54,14 @@ export async function POST(req: Request, { params }: Params) {
       signalId: id,
       lang: await requestLang(user.id),
     });
-    if (result.startResearch) {
+    // A paused desk refuses runs even when the analyst asks (see the desk route).
+    let researchStarted = false;
+    if (result.startResearch && !(await isResearchPaused(user.id, signal.symbol))) {
       const { run, started } = await startRun(user.id, signal.symbol);
       if (started) after(() => executeRun(user.id, run.id, signal.symbol));
+      researchStarted = true;
     }
-    return NextResponse.json({ reply: result.message, researchStarted: result.startResearch });
+    return NextResponse.json({ reply: result.message, researchStarted });
   } catch (e) {
     console.error(`[scalae] signal chat (${id}) failed:`, e instanceof Error ? e.message : e);
     return NextResponse.json({ error: friendlyAIError(e), retryable: true }, { status: 502 });

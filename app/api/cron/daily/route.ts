@@ -29,6 +29,7 @@ export async function GET(req: Request) {
     const uid = t.userId ?? "local";
     if (!autoByUser.has(uid)) autoByUser.set(uid, await autoResearchEnabled(uid));
     if (!autoByUser.get(uid)) continue;
+    if (t.researchPaused) continue; // per-desk manual freeze — skip entirely
     if ((await listSignals(uid, t.symbol, "active")).length === 0) continue;
     const fresh =
       t.lastRunAt && Date.now() - Date.parse(t.lastRunAt) < staleThresholdMs(t.quietRuns);

@@ -90,6 +90,7 @@ export default function DeskPage() {
   }, [load]);
 
   const running = desk?.latestRun?.status === "running";
+  const paused = !!desk?.ticker.researchPaused;
 
   // Poll fast while the agents are working, slowly otherwise.
   useEffect(() => {
@@ -108,11 +109,25 @@ export default function DeskPage() {
     }
   }, [symbol, load, t]);
 
+  // Per-desk pause: freeze/unfreeze all research for this ticker (optimistic).
+  const togglePause = useCallback(async () => {
+    const next = !desk?.ticker.researchPaused;
+    setDesk((d) => (d ? { ...d, ticker: { ...d.ticker, researchPaused: next ? 1 : 0 } } : d));
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ researchPaused: next }),
+      });
+    } catch {
+      setDesk((d) => (d ? { ...d, ticker: { ...d.ticker, researchPaused: next ? 0 : 1 } } : d));
+    }
+  }, [desk?.ticker.researchPaused, symbol]);
+
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
     if (!desk || autoRan.current) return;
-    if (!desk.autoResearch) return;
+    if (!desk.autoResearch || desk.ticker.researchPaused) return;
     const { ticker, active, latestRun } = desk;
     const stale = !ticker.lastRunAt || Date.now() - Date.parse(ticker.lastRunAt) > STALE_MS;
     if (ticker.onboarded && active.length > 0 && latestRun?.status !== "running" && stale) {
@@ -484,13 +499,27 @@ export default function DeskPage() {
           </>
         )}
         {!onboarding && (
-          <button
-            onClick={startRun}
-            disabled={running}
-            className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
-          >
-            {running ? t("desk.researching") : t("desk.runNow")}
-          </button>
+          <>
+            {paused && (
+              <span className="rounded-md bg-loss/15 text-loss px-2 py-0.5 text-xs font-semibold">
+                {t("desk.researchPausedBadge")}
+              </span>
+            )}
+            <button
+              onClick={togglePause}
+              title={paused ? t("desk.resumeHint") : t("desk.pauseHint")}
+              className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              {paused ? t("desk.resumeResearch") : t("desk.pauseResearch")}
+            </button>
+            <button
+              onClick={startRun}
+              disabled={running || paused}
+              className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              {running ? t("desk.researching") : t("desk.runNow")}
+            </button>
+          </>
         )}
       </div>
     </header>

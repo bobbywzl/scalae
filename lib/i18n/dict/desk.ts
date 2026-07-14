@@ -11,6 +11,12 @@ const en = {
   opening: "Opening the {symbol} desk…",
   researching: "Researching…",
   runNow: "Run research now",
+  pauseResearch: "Pause research",
+  resumeResearch: "Resume research",
+  researchPausedBadge: "Research paused",
+  pauseHint: "Freeze all research for this desk — the daily cron, the on-open refresh and manual runs. Your other desks are unaffected.",
+  resumeHint: "Resume research for this desk.",
+  pausedRunBlocked: "Research is paused for this desk — resume it to run.",
 
   // Onboarding
   setupTitle: "Desk setup.",
@@ -130,6 +136,12 @@ const zh: Record<keyof typeof en, string> = {
   opening: "正在打开 {symbol} 研究台…",
   researching: "研究中…",
   runNow: "立即运行研究",
+  pauseResearch: "暂停研究",
+  resumeResearch: "恢复研究",
+  researchPausedBadge: "研究已暂停",
+  pauseHint: "冻结此研究台的所有研究——每日定时任务、打开时的刷新以及手动运行。不影响您的其他研究台。",
+  resumeHint: "恢复此研究台的研究。",
+  pausedRunBlocked: "此研究台的研究已暂停——请先恢复再运行。",
 
   setupTitle: "研究台设置。",
   setupBody:
