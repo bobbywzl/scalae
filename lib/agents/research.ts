@@ -21,6 +21,7 @@ import {
   insertDigestItem,
   insertProposal,
   insertReading,
+  isResearchPaused,
   latestRun,
   listFocusAreas,
   listMessages,
@@ -71,8 +72,57 @@ interface Sweep {
 
 const MAX_FOLLOW_UPS = 4;
 
-/** Start a run unless one is already going. Returns the run to poll. */
+/**
+ * Strict per-stage wall-clock limit. Every pipeline stage must finish under two
+ * minutes; 110s leaves headroom under that ceiling. The whole run still lives
+ * inside the route's maxDuration (300s) — these caps stop any single stage
+ * (chiefly the deep-synthesis Claude call) from hanging and eating the budget.
+ */
+const STAGE_LIMIT_MS = 110_000;
+
+/**
+ * Run `fn` under a hard deadline: it receives an AbortSignal that fires at `ms`
+ * (so the underlying Claude/Gemini stream is actually cancelled, freeing time
+ * and tokens), and the call is also raced against the timer so the stage can
+ * NEVER exceed the limit even if a provider ignores the signal. On timeout it
+ * rejects with a labeled error; each caller decides whether that's fatal
+ * (synthesis) or a graceful degrade (scouts, triage, backstory).
+ */
+async function withDeadline<T>(
+  label: string,
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms = STAGE_LIMIT_MS
+): Promise<T> {
+  const ac = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ac.abort();
+      reject(new Error(`${label} exceeded its ${Math.round(ms / 1000)}s time limit`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([fn(ac.signal), deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Error thrown by startRun when a desk's research is paused. Its message is a
+ * stable sentinel so callers/UI can recognise the refusal and show the paused
+ * copy instead of a generic failure.
+ */
+export const RESEARCH_PAUSED = "RESEARCH_PAUSED";
+
+/**
+ * Start a run unless one is already going. Returns the run to poll.
+ * CENTRAL PAUSE GUARD: if the desk is paused, no run may start — this is the
+ * one choke point every trigger funnels through (cron, manual Run, on-open
+ * refresh, chat "run research"), so pausing here freezes ALL of them.
+ */
 export async function startRun(userId: string, symbol: string): Promise<{ run: Run; started: boolean }> {
+  if (await isResearchPaused(userId, symbol)) throw new Error(RESEARCH_PAUSED);
   await reapStuckRuns(userId, symbol);
   const existing = await runningRun(userId, symbol);
   if (existing) return { run: existing, started: false };
@@ -210,9 +260,9 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
-        geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" } }).then(
-          (r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources })
-        )
+        withDeadline(`sweep:${j.label}`, (signal) =>
+          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal })
+        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
       )
     );
     const sweeps: Sweep[] = waveOneSettled
@@ -285,8 +335,9 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       const waveOneBlock = sweeps
         .map((s) => `=== ${s.label} ===\n${s.text}`)
         .join("\n\n");
-      const gap = await claudeJSON<GapOutput>({
+      const gap = await withDeadline("triage", (signal) => claudeJSON<GapOutput>({
         model: triageModel,
+        signal,
         // Cached doctrine prefix (shared with synthesis and every other desk);
         // only the ticker identity + triage doctrine vary.
         system: [
@@ -303,10 +354,10 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         maxTokens: 4000,
         effort: "medium",
         meta: { userId, feature: "triage" },
-      });
+      }));
       followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_FOLLOW_UPS);
     } catch (e) {
-      console.error(`[scalae] gap analysis failed (continuing without wave 2):`, e);
+      console.error(`[scalae] gap analysis timed out or failed (continuing without wave 2):`, e);
     }
 
     // ---- Stage 3: wave-2 deep dives on the stronger scout model ----
@@ -318,10 +369,13 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       );
       const waveTwoSettled = await Promise.allSettled(
         followUps.map((f) =>
-          geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
-            model: deepModel,
-            meta: { userId, feature: "scoutDeep" },
-          }).then(
+          withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal) =>
+            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+              model: deepModel,
+              meta: { userId, feature: "scoutDeep" },
+              signal,
+            })
+          ).then(
             (r): Sweep => ({
               label: `Deep dive: ${f.query}`,
               wave: 2,
@@ -417,8 +471,13 @@ TASK — produce today's desk output:
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
-    const out = await claudeJSON<SynthesisOutput>({
+    // Synthesis is the pipeline's heaviest call and the one that used to hang.
+    // "medium" effort keeps its thinking bounded so it reliably lands inside the
+    // per-stage limit; the hard deadline below is the strict backstop (on
+    // timeout the run fails cleanly and the cron retries it later).
+    const out = await withDeadline("synthesis", (signal) => claudeJSON<SynthesisOutput>({
       model: synthModel,
+      signal,
       // Same cached doctrine prefix as triage → the daily cron re-reads it at
       // ~0.1× input cost for every desk it sweeps, not once per call.
       system: [
@@ -428,9 +487,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
       maxTokens: 20000,
-      effort: "high",
+      effort: "medium",
       meta: { userId, feature: "synthesis" },
-    });
+    }));
 
     await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");
 
@@ -488,31 +547,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
         return sig ? `[[sig:${sig.id}]]` : "";
       }
     );
-    // ---- Backfill deep-history backstories (bounded: 2 per run) ----
-    // Every signal should carry its decades-scale base rate; new boards fill
-    // in over a few runs without letting any single run's cost balloon.
-    // Failures are logged, never fatal — the run itself already succeeded.
-    const missingBackstory = signals.filter((s) => !s.backstory).slice(0, 2);
-    if (missingBackstory.length > 0) {
-      await setRunStage(
-        runId,
-        "synthesizing",
-        `Researching deep history for ${missingBackstory
-          .map((s) => `“${s.name}”`)
-          .join(" · ")} — decades of record, industry-specific…`
-      );
-      for (const s of missingBackstory) {
-        try {
-          await researchSignalBackstory(userId, s.id);
-        } catch (e) {
-          console.error(
-            `[scalae] backstory for "${s.name}" (${symbol}) failed:`,
-            e instanceof Error ? e.message : e
-          );
-        }
-      }
-    }
-
+    // Mark the run complete NOW — its core output (readings, digest, brief,
+    // dossier) is done. Deep-history backfill below is trailing enrichment; it
+    // must never delay the run's completion or, if it hangs, block finishRun.
     await finishRun(runId, out.brief ?? "", allSources, dossier ?? null);
     await touchLastRun(userId, symbol);
     // Adaptive cadence: a run that surfaced no new evidence for any signal means
@@ -520,6 +557,25 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     // Any new evidence resets the counter and snaps cadence back to daily.
     const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
     await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
+
+    // ---- Backfill deep-history backstories (bounded: 2 per run, best-effort) ----
+    // Every signal should carry its decades-scale base rate; new boards fill in
+    // over a few runs. This runs AFTER the run is finished, and each backstory
+    // is under the strict per-stage deadline, so it can neither hang the run nor
+    // eat the time budget. Failures/timeouts are logged, never fatal.
+    const missingBackstory = signals.filter((s) => !s.backstory).slice(0, 2);
+    for (const s of missingBackstory) {
+      try {
+        await withDeadline(`backstory:${s.name}`, (signal) =>
+          researchSignalBackstory(userId, s.id, signal)
+        );
+      } catch (e) {
+        console.error(
+          `[scalae] backstory for "${s.name}" (${symbol}) timed out or failed:`,
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);

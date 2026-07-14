@@ -77,6 +77,7 @@ export const DELTA_ARROW: Record<string, { ch: string; cls: string }> = {
 const ERROR_PATTERNS: { rx: RegExp; key: Parameters<TFunc>[0]; params?: (m: RegExpMatchArray) => Record<string, string> }[] = [
   { rx: /^Could not find "(.+)" on the public market\.$/, key: "common.errSymbolNotFound", params: (m) => ({ sym: m[1] }) },
   { rx: /^Approve at least one signal before running research\.$/, key: "common.errApproveFirst" },
+  { rx: /^RESEARCH_PAUSED$/, key: "desk.pausedRunBlocked" },
   { rx: /overloaded/i, key: "common.errOverloaded" },
   { rx: /rate limit/i, key: "common.errRateLimited" },
   { rx: /dropped mid-response/i, key: "common.errConnectionDropped" },

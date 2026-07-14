@@ -58,6 +58,12 @@ export interface ClaudeJSONOptions {
    * the daily research pipeline leaves it unset to stay Opus-strict.
    */
   fallbackModel?: string;
+  /**
+   * Abort the underlying stream when this fires (a pipeline stage deadline).
+   * On abort the call throws immediately and is NOT retried — the stage's
+   * hard time limit takes precedence over the transient-retry loop.
+   */
+  signal?: AbortSignal;
 }
 
 // Transport failures that escape the SDK's typed wrappers (undici stream
@@ -132,6 +138,9 @@ async function claudeJSONRetrying<T>(opts: ClaudeJSONOptions): Promise<T> {
       return await claudeJSONOnce<T>(opts);
     } catch (e) {
       lastErr = e;
+      // A stage-deadline abort is final — never spend the retry budget on it
+      // (and "aborted" would otherwise read as a retryable transport error).
+      if (opts.signal?.aborted) throw e;
       if (isRetryable(e) && attempt < 2) {
         await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
         continue;
@@ -174,13 +183,19 @@ async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
   // handling it): opt into the server-side fallback so a declined call is
   // transparently re-run on Opus 4.8 in the same request.
   const fable = model.startsWith("claude-fable") || model.startsWith("claude-mythos");
+  // Thread the stage-deadline signal into the request so a timeout truly
+  // cancels the in-flight stream (freeing time and tokens), not just abandons it.
+  const reqOpts = opts.signal ? { signal: opts.signal } : undefined;
   const stream = fable
-    ? client.beta.messages.stream({
-        ...params,
-        betas: ["server-side-fallback-2026-06-01"],
-        fallbacks: [{ model: FALLBACK_MODEL }],
-      } as unknown as Parameters<typeof client.beta.messages.stream>[0])
-    : client.messages.stream(params as Anthropic.MessageStreamParams);
+    ? client.beta.messages.stream(
+        {
+          ...params,
+          betas: ["server-side-fallback-2026-06-01"],
+          fallbacks: [{ model: FALLBACK_MODEL }],
+        } as unknown as Parameters<typeof client.beta.messages.stream>[0],
+        reqOpts
+      )
+    : client.messages.stream(params as Anthropic.MessageStreamParams, reqOpts);
   const response = await stream.finalMessage();
 
   // Telemetry: response.model is the model that actually served the call

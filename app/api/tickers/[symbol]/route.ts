@@ -11,6 +11,7 @@ import {
   recentDigest,
   recentRuns,
   removeTicker,
+  setResearchPaused,
   sourcesForSignals,
 } from "@/lib/db";
 import { getQuote } from "@/lib/market";
@@ -118,6 +119,21 @@ export async function GET(_req: Request, { params }: Params) {
   // canonical English stays in the db; chat messages are never translated).
   const lang = await requestLang(user.id);
   return NextResponse.json(await localizeDeskPayload(payload, lang, { userId: user.id }));
+}
+
+/** Toggle the per-desk research freeze. Body: { researchPaused: boolean }. */
+export async function PATCH(req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { symbol: raw } = await params;
+  const symbol = raw.toUpperCase();
+  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const body = (await req.json().catch(() => ({}))) as { researchPaused?: unknown };
+  if (typeof body.researchPaused !== "boolean") {
+    return NextResponse.json({ error: "researchPaused must be a boolean" }, { status: 400 });
+  }
+  await setResearchPaused(user.id, symbol, body.researchPaused);
+  return NextResponse.json({ researchPaused: body.researchPaused });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

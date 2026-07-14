@@ -50,7 +50,8 @@ Find how the aspect this signal measures FARED UNDER STRESS — the specific epi
  */
 export async function researchSignalBackstory(
   userId: string,
-  signalId: string
+  signalId: string,
+  abortSignal?: AbortSignal
 ): Promise<{ backstory: string; brief: string; sources: Citation[]; backstoryAt: string }> {
   const signal = await getSignal(signalId);
   if (!signal || (signal.userId && signal.userId !== userId)) {
@@ -72,7 +73,7 @@ export async function researchSignalBackstory(
       { label: "Industry history", prompt: industryHistoryPrompt(ticker, signal) },
       { label: "Stress episodes", prompt: stressEpisodesPrompt(ticker, signal) },
     ].map((j) =>
-      geminiGroundedSearch(j.prompt, { model: deepModel, meta: { userId, feature: "backstory" } }).then((r) => ({
+      geminiGroundedSearch(j.prompt, { model: deepModel, meta: { userId, feature: "backstory" }, signal: abortSignal }).then((r) => ({
         label: j.label,
         text: r.text,
         sources: r.sources,
@@ -126,6 +127,7 @@ TASK: Write the signal's deep-history backstory per the backstory doctrine — e
 
   const out = await claudeJSON<BackstoryOutput>({
     model: backstoryModel,
+    signal: abortSignal,
     system: [
       { text: DESK_DOCTRINE, cache: true },
       { text: `${deskIdentity(signal.symbol, ticker.name)}\n\n${BACKSTORY_DOCTRINE}` },
@@ -133,7 +135,7 @@ TASK: Write the signal's deep-history backstory per the backstory doctrine — e
     messages: [{ role: "user", content: task }],
     schema: BACKSTORY_SCHEMA as unknown as Record<string, unknown>,
     maxTokens: 8000,
-    effort: "high",
+    effort: "medium",
     meta: { userId, feature: "backstory" },
   });
   const backstory = out.backstory?.trim();

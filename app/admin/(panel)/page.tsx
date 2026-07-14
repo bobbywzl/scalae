@@ -20,7 +20,16 @@ interface Usage {
   };
   byModel: { model: string; calls: number; tokens: number; costUsd: number }[];
   byFeature: { feature: string; calls: number; tokens: number; costUsd: number }[];
-  byUser: { userId: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[];
+  byUser: {
+    userId: string;
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    researchCostUsd: number;
+    runs: number;
+    avgCostPerRun: number;
+  }[];
   byDay: { day: string; costUsd: number }[];
 }
 
@@ -404,12 +413,20 @@ export default function AdminPage() {
                     <th className="text-right px-3 py-2.5 font-semibold" title="AI cost, trailing 90 days (est.)">
                       Cost 90d
                     </th>
+                    <th
+                      className="text-right px-3 py-2.5 font-semibold"
+                      title="Average AI cost per research run (research-feature spend ÷ runs, trailing 90 days)"
+                    >
+                      Avg $/run
+                    </th>
                     <th className="text-left px-3 py-2.5 font-semibold">Last seen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-hairline">
                   {rows.map((r) => {
-                    const cost = usage?.byUser.find((u) => u.userId === r.user.id)?.costUsd ?? 0;
+                    const u = usage?.byUser.find((u) => u.userId === r.user.id);
+                    const cost = u?.costUsd ?? 0;
+                    const avgRun = u?.avgCostPerRun ?? 0;
                     return (
                       <tr key={r.user.id} className="hover:bg-white/3 transition-colors">
                         <td className="px-4 py-2.5">
@@ -455,6 +472,7 @@ export default function AdminPage() {
                         <td className="text-right px-3 py-2.5 tabular-nums">{r.logins7d}</td>
                         <td className="text-right px-3 py-2.5 tabular-nums">{r.feedback}</td>
                         <td className="text-right px-3 py-2.5 tabular-nums">{cost > 0 ? fmtUsd(cost) : "—"}</td>
+                        <td className="text-right px-3 py-2.5 tabular-nums">{avgRun > 0 ? fmtUsd(avgRun) : "—"}</td>
                         <td className="px-3 py-2.5 text-muted">{timeAgo(r.user.lastSeenAt)}</td>
                       </tr>
                     );

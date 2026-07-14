@@ -20,7 +20,11 @@ export async function POST(_req: Request, { params }: Params) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
-  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const ticker = await getTicker(user.id, symbol);
+  if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (ticker.researchPaused) {
+    return NextResponse.json({ error: "RESEARCH_PAUSED" }, { status: 409 });
+  }
   if ((await listSignals(user.id, symbol, "active")).length === 0) {
     return NextResponse.json(
       { error: "Approve at least one signal before running research." },
