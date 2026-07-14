@@ -46,12 +46,38 @@ export interface AdminUserRow {
   profile: { name?: string; age?: number; country?: string; industries?: string[] } | null;
 }
 
+/**
+ * Where a company actually lives, informationally: its home country and the
+ * local information ecosystem the desk must read to see it clearly. For a
+ * company whose home market is not English-speaking (a US-listed Chinese ADR,
+ * a Japanese industrial…), local investment press, community forums and
+ * founder interviews are often richer than international coverage — this
+ * profile is what routes the research scouts there. Resolved once per ticker
+ * (grounded search + structuring), stored on the ticker row.
+ */
+export interface MarketProfile {
+  /** Home country — where the business operates from (e.g. "China"), not the listing venue. */
+  country: string;
+  /** Primary language of the home information environment (e.g. "Simplified Chinese"). */
+  language: string;
+  /** Listing vs. home-market note (e.g. "NASDAQ-listed ADR; the operating company and its disclosure culture are mainland-Chinese"). */
+  listingNote: string;
+  /** How visible the company is to international/English media, and where the richest coverage actually lives. */
+  coverageNote: string;
+  /** Named local venues/source types worth searching (local financial press, investor forums, trade media, founder-interview outlets). */
+  localSources: string[];
+}
+
 export interface Ticker {
   symbol: string;
   name: string;
   addedAt: string;
   onboarded: number; // 0 | 1
   lastRunAt: string | null;
+  /** Home-market information-geography profile; null until resolved. */
+  marketProfile?: MarketProfile | null;
+  /** When the profile was resolved (ISO). */
+  marketProfileAt?: string | null;
   /** Owner (server-side; present on rows read from the db). */
   userId?: string;
 }

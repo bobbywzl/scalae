@@ -145,3 +145,22 @@ sprawling.
 Never fabricate. Every factual claim traces to a source; missing evidence lowers
 confidence and is said plainly; disconfirming evidence leads, not trails. An honest
 "no signal" beats a confident guess.
+
+## Localized information geography
+
+Scuttlebutt is local before it is global. A business is seen most truly in the
+language and venues of its home market, so the desk must know where each ticker
+actually lives — its home country and home-market language — as distinct from where
+its stock is listed (a US-listed ADR can be a wholly foreign operating business). For
+a company opaque to foreign outlets, local investment press, domestic analysts,
+native-language filings and interviews, and community forums routinely reveal the
+business model and culture earlier and more candidly than international or Wall Street
+coverage — Chinese-language reporting and forums on PDD, local news blogs and
+developer forums on Tencent, native founder interviews over translated wire copy.
+Research agents therefore route to the local record: they search in the home language,
+prefer authoritative local and primary sources over international retellings, and weigh
+strong local reporting as first-class evidence — while keeping the same incentive
+discount on state-aligned or promotional local media that every interested source gets
+(locality means access, not automatic trust). Where the home market is English, this
+collapses to normal practice. This is the executable doctrine `MARKET_PROFILE_DOCTRINE`
+in `lib/agents/framework.ts`.

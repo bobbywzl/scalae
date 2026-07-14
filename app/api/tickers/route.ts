@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import {
   addTicker,
   getTicker,
@@ -11,6 +11,7 @@ import {
 import { getQuote, resolveSymbol } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
 import { welcomeMessage } from "@/lib/agents/chat";
+import { ensureMarketProfile } from "@/lib/agents/market-profile";
 import { computeInvolvement } from "@/lib/portfolio";
 import { requestLang } from "@/lib/i18n/server";
 import type { WatchlistRow } from "@/lib/types";
@@ -73,5 +74,9 @@ export async function POST(req: Request) {
   // was written in, like any conversation).
   const lang = await requestLang(user.id);
   await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang));
+  // Warm the home-market information-geography profile in the background so the
+  // first onboarding turn and research run are already locale-aware (cached on
+  // the ticker; best-effort — never blocks or fails ticker creation).
+  after(() => ensureMarketProfile(user.id, symbol, ticker).catch(() => {}));
   return NextResponse.json({ ticker }, { status: 201 });
 }

@@ -15,6 +15,8 @@
  * two in sync when either changes.
  */
 
+import type { MarketProfile } from "../types";
+
 // ---------------------------------------------------------------------------
 // The ten lenses — each carries Buffett's own screening test and the kinds of
 // open-web evidence that move it, so signals attach to real analytical work.
@@ -300,6 +302,89 @@ export const BACKSTORY_SCHEMA = {
     },
   },
 } as const;
+
+// ---------------------------------------------------------------------------
+// Localized information geography. Fisher's scuttlebutt is local before it is
+// global: the truest read of a business lives in the language and venues of its
+// home market. For a company that is opaque to foreign outlets — a US-listed
+// Chinese ADR, a Japanese industrial, a family-run European compounder — local
+// investment press, community forums and founder interviews in the native
+// language routinely reveal the business model and culture earlier and more
+// candidly than Wall Street or international wire coverage. This is the doctrine
+// that routes the desk's scouts to that local record and weighs it correctly.
+// ---------------------------------------------------------------------------
+
+export const MARKET_PROFILE_DOCTRINE = `LOCALIZED INFORMATION GEOGRAPHY (a core research discipline, not an afterthought):
+A business is seen most truly in the language and forums of its home market. International and Wall Street coverage of a non-Western company is often thin, late, translated through an outsider's frame, or simply absent — the company is not transparent to foreign outlets. The richest evidence then lives locally and in the native language: local financial press and investment media, domestic brokerage and independent analyst notes, company filings on the home exchange, native-language earnings calls, founder and executive interviews given to local outlets, and community venues where customers, employees and retail investors talk (local investor forums, review sites, social platforms, trade blogs).
+
+Worked example: for PDD/Pinduoduo, Chinese-language reporting, Chinese investor-forum threads (雪球/Xueqiu, 东方财富股吧), local trade coverage of merchant conduct, and a Chinese founder interview will typically reveal more about the real business model and culture than an English-language Wall Street review — the company is deliberately opaque to foreign press. The same holds for Tencent (local news blogs, developer/community forums), a Japanese firm (Nikkei, Kaisha Shikiho, native IR), a Korean chaebol (local business dailies), a German Mittelstand name (German trade press), and so on.
+
+How the desk applies this:
+- Know where the company actually lives (home country and home-market language), distinct from its listing venue. A NASDAQ ticker can be a wholly Chinese business whose disclosure culture and information environment are mainland-Chinese.
+- When the home market is non-English, PRIORITIZE local-language and local-authority sources: search in the native language, name and prefer domestic outlets, forums and primary filings over international retellings of them. Treat a well-sourced local report as first-class primary evidence, not hearsay.
+- Weigh by locality AND incentive together: a local source closer to the ground can be more insightful, but the source-incentive discipline still applies (state-aligned media, promotional local press, and astroturfed forum posts get the same structural discount as any interested party). Locality raises access, not automatic trust.
+- Bridge the language gap in the desk's canonical English: translate the substance faithfully, keep native terms/names where they matter, and never let a finding's value decay just because its best source is not in English.
+- Where the home market IS English (a US or UK business), this collapses to normal practice — local and international coverage largely coincide, so no special routing is needed.`;
+
+export const MARKET_PROFILE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["country", "language", "listingNote", "coverageNote", "localSources"],
+  properties: {
+    country: {
+      type: "string",
+      description:
+        "The company's HOME country — where the business actually operates from, not its listing venue (e.g. 'China' for a NASDAQ-listed Chinese ADR).",
+    },
+    language: {
+      type: "string",
+      description:
+        "Primary language of the home information environment (e.g. 'Simplified Chinese', 'Japanese', 'English'). Use 'English' for US/UK/AU/etc. businesses.",
+    },
+    listingNote: {
+      type: "string",
+      description:
+        "One line on listing vs. home market and what it implies for disclosure culture (e.g. 'NYSE-listed ADR; operating company and its reporting culture are mainland-Chinese').",
+    },
+    coverageNote: {
+      type: "string",
+      description:
+        "How visible the company is to international/English-language media, and where the richest, most candid coverage actually lives. Say plainly if it is opaque to foreign outlets.",
+    },
+    localSources: {
+      type: "array",
+      description:
+        "3-8 named local venues or source types worth searching in the home language — local financial press, domestic analyst/brokerage research, home-exchange filings, investor forums, trade media, founder-interview outlets. Empty only for English home markets where no special routing is needed.",
+      items: { type: "string" },
+    },
+  },
+} as const;
+
+/**
+ * Render a resolved market profile into a scout-facing prompt block. Returns a
+ * strong local-routing directive for non-English home markets, and a light
+ * touch for English ones (so US/UK desks see no behavior change). Empty string
+ * when no profile is available yet.
+ */
+export function marketProfileContext(profile: MarketProfile | null | undefined): string {
+  if (!profile || !profile.country) return "";
+  const isEnglish = /english/i.test(profile.language || "");
+  const sources =
+    profile.localSources && profile.localSources.length
+      ? profile.localSources.join(", ")
+      : "(none specified)";
+  if (isEnglish) {
+    return `HOME MARKET: ${profile.country} (${profile.language}). ${profile.coverageNote} Local and international coverage largely coincide here — search normally, but still prefer primary filings and on-the-ground sources over aggregator retellings.`;
+  }
+  return `LOCAL INFORMATION CONTEXT — READ THIS BEFORE SEARCHING:
+Home market: ${profile.country}. Home-market language: ${profile.language}. ${profile.listingNote}
+Coverage reality: ${profile.coverageNote}
+This company's truest evidence lives in its LOCAL market and LANGUAGE — for a company opaque to foreign outlets, local investment press, domestic analysts, native-language filings/interviews, and community forums are more insightful than international or Wall Street coverage. Therefore:
+- Run searches in ${profile.language} (and English), and PRIORITIZE authoritative local sources: ${sources}.
+- Prefer domestic primary sources and well-sourced local reporting over international retellings; treat strong local coverage as first-class evidence.
+- Keep the source-incentive discipline: discount state-aligned/promotional local media and unverified forum chatter just as you would any interested party — locality means access, not automatic trust.
+- Report findings in English, preserving key native terms/names, so the desk's record stays canonical.`;
+}
 
 // ---------------------------------------------------------------------------
 // Doctrine for the pairwise desk comparison (the compare view's analyst

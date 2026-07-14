@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { addTicker, getSetting, getTicker, insertMessage, setSetting } from "@/lib/db";
 import { resolveSymbol } from "@/lib/market";
 import { welcomeMessage } from "@/lib/agents/chat";
+import { ensureMarketProfile } from "@/lib/agents/market-profile";
 import { requestLang } from "@/lib/i18n/server";
 
 /**
@@ -69,8 +70,10 @@ export async function POST(req: Request) {
           failed.push(symbol);
           continue;
         }
-        await addTicker(user.id, symbol, name);
+        const ticker = await addTicker(user.id, symbol, name);
         await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang));
+        // Warm the home-market profile in the background (best-effort).
+        after(() => ensureMarketProfile(user.id, symbol, ticker).catch(() => {}));
         created.push(symbol);
       } catch {
         failed.push(symbol);

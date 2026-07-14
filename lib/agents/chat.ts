@@ -5,6 +5,7 @@ import { resolveModel } from "../ai/models";
 import {
   analystPersona,
   CHAT_SCHEMA,
+  MARKET_PROFILE_DOCTRINE,
   QUESTION_METHOD,
   SIGNAL_GUIDANCE,
 } from "./framework";
@@ -216,9 +217,21 @@ export async function handleChatTurn(
     )
   ).join("\n");
 
+  // Home-market information geography (read from the ticker row if the research
+  // pipeline has already resolved it — chat never blocks to resolve it). For a
+  // company opaque to foreign outlets it tells the analyst to lean on local
+  // sources and propose culture/business signals a local reader would see.
+  const mp = ticker.marketProfile;
+  const nonEnglishHome = !!mp?.country && !/english/i.test(mp.language || "");
+  const homeMarketLine = mp?.country
+    ? `\nHome market: ${mp.country} (${mp.language}). ${mp.listingNote} ${mp.coverageNote}${
+        nonEnglishHome && mp.localSources?.length ? ` Local sources that matter: ${mp.localSources.join(", ")}.` : ""
+      }`
+    : "";
+
   const positionLine = involvementLine(involvement);
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
-Market: ${quoteLine(quote)}
+Market: ${quoteLine(quote)}${homeMarketLine}
 Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position." : ""}
 Focus areas: ${focusAreas.length ? focusAreas.map((f) => `${f.title} — ${f.description}`).join("; ") : "none yet"}
 Active signal board:
@@ -305,7 +318,7 @@ LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, profes
 ${QUESTION_METHOD}
 
 ${SIGNAL_GUIDANCE}
-
+${nonEnglishHome ? `\n${MARKET_PROFILE_DOCTRINE}\n` : ""}
 ATTACHMENTS: The investor can attach images (charts, product photos, screenshots), PDFs (filings, reports, broker notes) and text files. Treat them as first-class evidence: read them through the desk's lenses, tie what you find to the active board by signal name, and propose new trackable signals when a document reveals a thread the board misses (approval-gated as always). Refer to an attachment by its filename when you rely on it.
 
 ${deskContext}

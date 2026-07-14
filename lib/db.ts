@@ -14,6 +14,7 @@ import type {
   FeedbackStatus,
   FeedbackTicket,
   FocusArea,
+  MarketProfile,
   Order,
   OrderStatus,
   Reading,
@@ -212,6 +213,9 @@ export const SCHEMA_STATEMENTS: string[] = [
     UNIQUE (symbol, "exDate")
   )`,
   `ALTER TABLE dividends ADD COLUMN IF NOT EXISTS "withholdingPct" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+  // ---- home-market information-geography profile (JSON MarketProfile) ----
+  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "marketProfile" TEXT`,
+  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "marketProfileAt" TEXT`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -318,18 +322,39 @@ export const uid = () => randomUUID();
 
 // ---------- tickers ----------
 
+/** DB row shape: marketProfile arrives as a JSON string (or null). */
+interface TickerRow extends Omit<Ticker, "marketProfile"> {
+  marketProfile: string | null;
+}
+
+/** Rehydrate the stored JSON marketProfile into a typed object. */
+function parseTicker(r: TickerRow | undefined): Ticker | undefined {
+  if (!r) return undefined;
+  let marketProfile: MarketProfile | null = null;
+  if (r.marketProfile) {
+    try {
+      marketProfile = JSON.parse(r.marketProfile) as MarketProfile;
+    } catch {
+      /* legacy/corrupt row — treat as unresolved */
+    }
+  }
+  return { ...r, marketProfile };
+}
+
 export async function listTickers(userId: string): Promise<Ticker[]> {
-  return q<Ticker>`SELECT * FROM tickers WHERE "userId" = ${userId} ORDER BY "addedAt" ASC`;
+  const rows = await q<TickerRow>`SELECT * FROM tickers WHERE "userId" = ${userId} ORDER BY "addedAt" ASC`;
+  return rows.map((r) => parseTicker(r)!);
 }
 
 /** Every user's tickers — the cron sweeps all desks. */
 export async function listAllTickers(): Promise<Ticker[]> {
-  return q<Ticker>`SELECT * FROM tickers ORDER BY "addedAt" ASC`;
+  const rows = await q<TickerRow>`SELECT * FROM tickers ORDER BY "addedAt" ASC`;
+  return rows.map((r) => parseTicker(r)!);
 }
 
 export async function getTicker(userId: string, symbol: string): Promise<Ticker | undefined> {
-  const rows = await q<Ticker>`SELECT * FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
-  return rows[0];
+  const rows = await q<TickerRow>`SELECT * FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  return parseTicker(rows[0]);
 }
 
 export async function addTicker(userId: string, symbol: string, name: string): Promise<Ticker> {
@@ -337,6 +362,21 @@ export async function addTicker(userId: string, symbol: string, name: string): P
           VALUES (${userId}, ${symbol}, ${name}, ${now()}, 0)
           ON CONFLICT ("userId", symbol) DO NOTHING`;
   return (await getTicker(userId, symbol))!;
+}
+
+/**
+ * Store a ticker's resolved home-market information-geography profile (the
+ * country/language/local-sources context that routes research scouts to local
+ * coverage). Written once per ticker, refreshable.
+ */
+export async function setMarketProfile(
+  userId: string,
+  symbol: string,
+  profile: MarketProfile
+): Promise<void> {
+  await q`UPDATE tickers
+          SET "marketProfile" = ${JSON.stringify(profile)}, "marketProfileAt" = ${now()}
+          WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
 export async function removeTicker(userId: string, symbol: string): Promise<void> {

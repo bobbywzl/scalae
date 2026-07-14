@@ -7,10 +7,13 @@ import { citationOverlap } from "../compare";
 import {
   analystPersona,
   GAP_SCHEMA,
+  marketProfileContext,
+  MARKET_PROFILE_DOCTRINE,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
 } from "./framework";
+import { ensureMarketProfile } from "./market-profile";
 import {
   createRun,
   failRun,
@@ -30,7 +33,7 @@ import {
   touchLastRun,
 } from "../db";
 import { getQuote, quoteLine } from "../market";
-import type { Citation, Delta, ReadingLevel, Run, Signal, SignalProposal } from "../types";
+import type { Citation, Delta, MarketProfile, ReadingLevel, Run, Signal, SignalProposal } from "../types";
 
 interface SynthesisOutput {
   brief: string;
@@ -102,60 +105,99 @@ const SCOUT_RULES = `Ground every finding in search results. For each finding ou
 - 2-3 sentence factual summary with concrete numbers where available
 Skip stock-price commentary, analyst price-target chatter, and peer-momentum/FOMO framing. Prefer revealed behavior and primary mechanism evidence (filings, transcripts, regulator documents, observed pricing/hiring/insider actions) over narrative retellings, and note when a finding's only source is an interested party (the company itself, its bankers, or paid promotion). Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly — an honest "nothing" beats manufactured news.`;
 
-function signalSweepPrompt(symbol: string, name: string, days: number, signals: Signal[]): string {
+/** Prepend the resolved local-information-context block (empty string = no-op). */
+function withLocal(local: string, body: string): string {
+  return local ? `${local}\n\n${body}` : body;
+}
+
+/**
+ * Analyst-facing (triage/synthesis) home-market note: reminds the desk to weigh
+ * local-language reporting as first-class evidence for a company opaque to
+ * foreign outlets. Returns "" for English home markets (no special handling)
+ * and always ends with a blank-line separator so it slots into a task template.
+ */
+function analystProfileNote(profile: MarketProfile | null | undefined): string {
+  if (!profile || !profile.country || /english/i.test(profile.language || "")) return "";
+  const sources = profile.localSources?.length ? ` Local venues that matter: ${profile.localSources.join(", ")}.` : "";
+  return `HOME MARKET & LOCAL EVIDENCE: this company operates from ${profile.country}; its home-market language is ${profile.language}. ${profile.listingNote} ${profile.coverageNote} For a company opaque to foreign outlets, local investment press, domestic analysts, native-language filings/interviews and community forums are often more insightful than international or Wall Street coverage — weigh well-sourced local reporting in the field research as first-class evidence (while keeping the usual incentive discount on state-aligned or promotional local media).${sources}\n\n`;
+}
+
+function signalSweepPrompt(
+  symbol: string,
+  name: string,
+  days: number,
+  signals: Signal[],
+  local: string
+): string {
   const signalBlock = signals
     .map((s, i) => `${i + 1}. "${s.name}" — ${s.measurementPlan} (scale: ${s.scale})`)
     .join("\n");
-  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+  return withLocal(
+    local,
+    `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Search the web for developments from roughly the last ${days} days relevant to these tracked signals:
 
 ${signalBlock}
 
 ${SCOUT_RULES}
-Additionally, end each finding with: 'Informs signal(s): #n' for the signal numbers it bears on. If you find nothing for a signal, write 'No news found: "<signal name>"'.`;
+Additionally, end each finding with: 'Informs signal(s): #n' for the signal numbers it bears on. If you find nothing for a signal, write 'No news found: "<signal name>"'.`
+  );
 }
 
-function broadSweepPrompt(symbol: string, name: string, days: number): string {
-  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+function broadSweepPrompt(symbol: string, name: string, days: number, local: string): string {
+  return withLocal(
+    local,
+    `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Search the web for company developments from roughly the last ${days} days that a long-term business owner must know: earnings and guidance substance, management changes and statements, capital allocation moves (buybacks, dividends, M&A, big capex), regulatory/legal developments, competitive shifts, customer/product traction, accounting or governance red flags.
 
 ${SCOUT_RULES}
-Do not pad with old background information unless you label it "(context)".`;
+Do not pad with old background information unless you label it "(context)".`
+  );
 }
 
-function primarySourcePrompt(symbol: string, name: string, days: number): string {
-  return `You are a primary-source research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+function primarySourcePrompt(symbol: string, name: string, days: number, local: string): string {
+  return withLocal(
+    local,
+    `You are a primary-source research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Hunt specifically for PRIMARY SOURCES from roughly the last ${days} days — the company's own words and regulators' documents, not press retellings: securities filings and exchange disclosures, earnings releases and call transcripts, investor-relations materials and presentations, regulator filings/orders, court documents. If the freshest primary source predates the window slightly but the desk likely hasn't seen it, include it labeled "(recent primary source)".
 
-For each document found: HEADLINE (date, source), what the company/regulator actually said or reported (2-4 sentences with the concrete numbers), and any gap between the primary source and how the press has characterized it. ${SCOUT_RULES}`;
+For each document found: HEADLINE (date, source), what the company/regulator actually said or reported (2-4 sentences with the concrete numbers), and any gap between the primary source and how the press has characterized it. ${SCOUT_RULES}`
+  );
 }
 
-function scuttlebuttPrompt(symbol: string, name: string, days: number): string {
-  return `You are a scuttlebutt scout (Phil Fisher's method, run at machine scale) for a value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+function scuttlebuttPrompt(symbol: string, name: string, days: number, local: string): string {
+  return withLocal(
+    local,
+    `You are a scuttlebutt scout (Phil Fisher's method, run at machine scale) for a value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Search the web for corporate-culture and conduct evidence from roughly the last ${days} days — how the organization actually behaves: employee sentiment and senior-talent moves (reviews, hiring/layoffs, notable departures), customer experience shifts (product/service quality complaints or praise with substance), treatment of suppliers and partners, management interviews and candor in their own words, trade-press and industry chatter, litigation or regulatory conduct.
 
 Hunt the incentive layer specifically (Munger: behavior follows the comp plan, not the mission statement): executive compensation changes and their metrics/horizons (proxy filings), insider buying and selling, buyback timing vs. option vesting, guidance promises made vs. kept, treatment of bad-news messengers and whistleblowers, and any gap between management's adjusted metrics and GAAP.
 
-Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
+Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`
+  );
 }
 
 function followUpPrompt(
   symbol: string,
   name: string,
-  q: { query: string; reason: string }
+  q: { query: string; reason: string },
+  local: string
 ): string {
-  return `You are a deep-dive research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+  return withLocal(
+    local,
+    `You are a deep-dive research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 The desk's analyst reviewed today's field research and commissioned this targeted probe:
 
 QUESTION: ${q.query}
 WHY THE DESK ASKS: ${q.reason}
 
-Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}`;
+Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -188,23 +230,33 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       resolveModel("synthesis"),
     ]);
 
+    // Localized information geography: resolve where this company truly lives
+    // (home country, language, local sources) so every scout is routed to the
+    // local record for a company opaque to foreign outlets. Cached on the
+    // ticker; never fatal — a null profile just means "search normally".
+    const marketProfile = await ensureMarketProfile(userId, symbol, ticker);
+    const localContext = marketProfileContext(marketProfile);
+
     const days = await windowDays(userId, symbol);
     const bundles = chunk(signals, 5);
     const waveOneCount = bundles.length + 3;
+    const localNote = marketProfile && !/english/i.test(marketProfile.language)
+      ? ` — routing to ${marketProfile.country} local-language sources`
+      : "";
     await setRunStage(
       runId,
       "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
+      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)${localNote}…`
     );
 
     const waveOneJobs: { label: string; prompt: string }[] = [
       ...bundles.map((b, i) => ({
         label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, b),
+        prompt: signalSweepPrompt(symbol, ticker.name, days, b, localContext),
       })),
-      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) },
-      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) },
-      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) },
+      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days, localContext) },
+      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days, localContext) },
+      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days, localContext) },
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
@@ -285,11 +337,11 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         .join("\n\n");
       const gap = await claudeJSON<GapOutput>({
         model: triageModel,
-        system: `${analystPersona(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}`,
+        system: `${analystPersona(symbol, ticker.name)}\n\n${MARKET_PROFILE_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}`,
         messages: [
           {
             role: "user",
-            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
+            content: `${analystProfileNote(marketProfile)}ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Where the home market is non-English, a scout can dig into local-language sources the breadth sweeps skimmed — a probe naming the local venue/language is often the highest-yield one. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
           },
         ],
         schema: GAP_SCHEMA as unknown as Record<string, unknown>,
@@ -311,7 +363,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       );
       const waveTwoSettled = await Promise.allSettled(
         followUps.map((f) =>
-          geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+          geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f, localContext), {
             model: deepModel,
             meta: { userId, feature: "scoutDeep" },
           }).then(
@@ -383,7 +435,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
 
     const task = `Today is ${new Date().toDateString()}. ${quoteLine(quote)}
 
-INVESTOR FOCUS AREAS:
+${analystProfileNote(marketProfile)}INVESTOR FOCUS AREAS:
 ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
 
 ACTIVE SIGNAL BOARD:
@@ -412,7 +464,7 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
 
     const out = await claudeJSON<SynthesisOutput>({
       model: synthModel,
-      system: `${analystPersona(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
+      system: `${analystPersona(symbol, ticker.name)}\n\n${MARKET_PROFILE_DOCTRINE}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
       maxTokens: 20000,

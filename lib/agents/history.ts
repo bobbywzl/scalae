@@ -4,7 +4,13 @@ import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
 import { getSignal, getTicker, setSignalBackstory } from "../db";
 import type { Citation, Signal, Ticker } from "../types";
-import { analystPersona, BACKSTORY_DOCTRINE, BACKSTORY_SCHEMA } from "./framework";
+import {
+  analystPersona,
+  BACKSTORY_DOCTRINE,
+  BACKSTORY_SCHEMA,
+  marketProfileContext,
+} from "./framework";
+import { ensureMarketProfile } from "./market-profile";
 
 /**
  * Signal deep-history research: how the aspect a signal measures has evolved
@@ -20,28 +26,41 @@ interface BackstoryOutput {
 
 const HISTORY_SCOUT_RULES = `Be exhaustively company- and industry-specific: name the company, its predecessors, its actual competitors, its regulators and its industry's real events — never generic "the market" narrative. Go as far back as the public record supports (founding/IPO era onward where possible) and date everything. Prefer primary and archival sources: old annual reports and filings, earnings-call archives, regulator documents, trade-press retrospectives, serious business histories. Skip stock-price commentary and analyst target chatter. Label anything unverifiable "(unverified)"; if a period's record is genuinely thin, say so plainly rather than filling the gap.`;
 
-function companyHistoryPrompt(t: Ticker, s: Signal): string {
-  return `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
-
-The desk tracks this signal: "${s.name}" — ${s.thesis} Measurement: ${s.measurementPlan}
-
-Trace the COMPANY-SPECIFIC history of the aspect this signal measures, over years and decades: how it looked in each era of ${t.name}'s life, the key inflection points (management decisions, pricing actions, product/segment shifts, capital moves) that changed it, and rough levels or trajectories per era where numbers exist. ${HISTORY_SCOUT_RULES}`;
+function withLocal(local: string, body: string): string {
+  return local ? `${local}\n\n${body}` : body;
 }
 
-function industryHistoryPrompt(t: Ticker, s: Signal): string {
-  return `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
+function companyHistoryPrompt(t: Ticker, s: Signal, local: string): string {
+  return withLocal(
+    local,
+    `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
 
 The desk tracks this signal: "${s.name}" — ${s.thesis} Measurement: ${s.measurementPlan}
 
-Trace the INDUSTRY-STRUCTURAL history of the aspect this signal measures — how it has evolved across ${t.name}'s actual industry over the decades: structural shifts (consolidation, price wars, capacity cycles, technology substitution, regulation, channel changes) that moved this aspect industry-wide; which competitors' versions of it strengthened, weakened, or died (name them — the failures are the base rates); and where ${t.name} sat relative to its peers in each era. ${HISTORY_SCOUT_RULES}`;
+Trace the COMPANY-SPECIFIC history of the aspect this signal measures, over years and decades: how it looked in each era of ${t.name}'s life, the key inflection points (management decisions, pricing actions, product/segment shifts, capital moves) that changed it, and rough levels or trajectories per era where numbers exist. ${HISTORY_SCOUT_RULES}`
+  );
 }
 
-function stressEpisodesPrompt(t: Ticker, s: Signal): string {
-  return `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
+function industryHistoryPrompt(t: Ticker, s: Signal, local: string): string {
+  return withLocal(
+    local,
+    `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
 
 The desk tracks this signal: "${s.name}" — ${s.thesis} Measurement: ${s.measurementPlan}
 
-Find how the aspect this signal measures FARED UNDER STRESS — the specific episodes that actually tested it for ${t.name} and its industry: recessions and credit crunches (2000-02, 2008-09, 2020, 2022 inflation/rates — whichever the company existed for), industry-specific shocks (price wars, disruptive entrants, supply crises), regulatory strikes, and ${t.name}'s own company-specific crises (scandals, recalls, leadership breaks, delisting scares). For each episode: what happened to this aspect, how management responded, and how long recovery took (or whether it never recovered). If the company is too young for an episode, report how its INDUSTRY fared then, clearly labeled as industry evidence. ${HISTORY_SCOUT_RULES}`;
+Trace the INDUSTRY-STRUCTURAL history of the aspect this signal measures — how it has evolved across ${t.name}'s actual industry over the decades: structural shifts (consolidation, price wars, capacity cycles, technology substitution, regulation, channel changes) that moved this aspect industry-wide; which competitors' versions of it strengthened, weakened, or died (name them — the failures are the base rates); and where ${t.name} sat relative to its peers in each era. ${HISTORY_SCOUT_RULES}`
+  );
+}
+
+function stressEpisodesPrompt(t: Ticker, s: Signal, local: string): string {
+  return withLocal(
+    local,
+    `You are a business-history researcher for a value-investing desk covering ${t.name} (${t.symbol}).
+
+The desk tracks this signal: "${s.name}" — ${s.thesis} Measurement: ${s.measurementPlan}
+
+Find how the aspect this signal measures FARED UNDER STRESS — the specific episodes that actually tested it for ${t.name} and its industry: recessions and credit crunches (2000-02, 2008-09, 2020, 2022 inflation/rates — whichever the company existed for), industry-specific shocks (price wars, disruptive entrants, supply crises), regulatory strikes, and ${t.name}'s own company-specific crises (scandals, recalls, leadership breaks, delisting scares). For each episode: what happened to this aspect, how management responded, and how long recovery took (or whether it never recovered). If the company is too young for an episode, report how its INDUSTRY fared then, clearly labeled as industry evidence. ${HISTORY_SCOUT_RULES}`
+  );
 }
 
 /**
@@ -64,11 +83,18 @@ export async function researchSignalBackstory(
     resolveModel("synthesis"),
   ]);
 
+  // Route history scouts to the home market too: a company opaque to foreign
+  // outlets today was usually just as opaque historically — its archival record
+  // (old annual reports, local trade-press retrospectives, native filings)
+  // lives in the home language. Cached on the ticker; null = search normally.
+  const marketProfile = await ensureMarketProfile(userId, signal.symbol, ticker);
+  const localContext = marketProfileContext(marketProfile);
+
   const sweeps = await Promise.allSettled(
     [
-      { label: "Company history", prompt: companyHistoryPrompt(ticker, signal) },
-      { label: "Industry history", prompt: industryHistoryPrompt(ticker, signal) },
-      { label: "Stress episodes", prompt: stressEpisodesPrompt(ticker, signal) },
+      { label: "Company history", prompt: companyHistoryPrompt(ticker, signal, localContext) },
+      { label: "Industry history", prompt: industryHistoryPrompt(ticker, signal, localContext) },
+      { label: "Stress episodes", prompt: stressEpisodesPrompt(ticker, signal, localContext) },
     ].map((j) =>
       geminiGroundedSearch(j.prompt, { model: deepModel, meta: { userId, feature: "backstory" } }).then((r) => ({
         label: j.label,
