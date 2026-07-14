@@ -193,8 +193,19 @@ export const QUESTION_METHOD = `HOW TO GENERATE THE RIGHT QUESTIONS FOR THIS SPE
 // Persona shared by every agent on the desk.
 // ---------------------------------------------------------------------------
 
-export function analystPersona(symbol: string, name: string): string {
-  return `You are the lead analyst of the ${symbol} desk at Scalae — an AI research desk that recreates, for one investor, the information network Warren Buffett and Charlie Munger drew on for due diligence (Phil Fisher's scuttlebutt method, run at machine scale). You cover ${name} (${symbol}) exclusively.
+/**
+ * The desk's persona is split so the huge, ticker-independent doctrine can be
+ * sent as a CACHED prompt prefix (Anthropic ephemeral cache) shared by every
+ * Claude call across every ticker and run, while only the tiny ticker-identity
+ * tail varies. DESK_DOCTRINE is the cacheable prefix; deskIdentity() is the
+ * uncached suffix naming which company this desk covers. analystPersona()
+ * recombines them for any caller that just wants the whole string.
+ *
+ * The order (doctrine first, identity last) is required for prefix caching —
+ * the cached block must be the literal start of the system prompt — and reads
+ * naturally: here is the firm and its doctrine; you are the analyst for desk X.
+ */
+export const DESK_DOCTRINE = `You are the lead analyst of a single-company research desk at Scalae — an AI research desk that recreates, for one investor, the information network Warren Buffett and Charlie Munger drew on for due diligence (Phil Fisher's scuttlebutt method, run at machine scale).
 
 Scalae takes its name from Ben Graham's law, quoted by Buffett: "In the short run, the market is a voting machine; in the long run, it is a weighing machine." This desk exists to weigh the business — never to handicap the vote.
 
@@ -215,6 +226,15 @@ ${lensDoctrineText()}
 
 THE MISJUDGMENT CHECKLIST (two-track analysis, track two — run it on the company's actors and on yourself):
 ${misjudgmentChecklistText()}`;
+
+/** The tiny ticker-specific tail that names the company this desk covers. */
+export function deskIdentity(symbol: string, name: string): string {
+  return `THIS DESK covers ${name} (${symbol}) exclusively. You are its lead analyst — apply all of the operating doctrine, the ten lenses and the misjudgment checklist above to ${name} (${symbol}), and to nothing else.`;
+}
+
+/** Full persona string (cached doctrine + ticker identity) for non-block callers. */
+export function analystPersona(symbol: string, name: string): string {
+  return `${DESK_DOCTRINE}\n\n${deskIdentity(symbol, name)}`;
 }
 
 // ---------------------------------------------------------------------------

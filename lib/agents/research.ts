@@ -5,13 +5,15 @@ import { researchSignalBackstory } from "./history";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
-  analystPersona,
+  DESK_DOCTRINE,
+  deskIdentity,
   GAP_SCHEMA,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
 } from "./framework";
 import {
+  bumpQuietRuns,
   createRun,
   failRun,
   finishRun,
@@ -285,7 +287,12 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         .join("\n\n");
       const gap = await claudeJSON<GapOutput>({
         model: triageModel,
-        system: `${analystPersona(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}`,
+        // Cached doctrine prefix (shared with synthesis and every other desk);
+        // only the ticker identity + triage doctrine vary.
+        system: [
+          { text: DESK_DOCTRINE, cache: true },
+          { text: `${deskIdentity(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}` },
+        ],
         messages: [
           {
             role: "user",
@@ -412,7 +419,12 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
 
     const out = await claudeJSON<SynthesisOutput>({
       model: synthModel,
-      system: `${analystPersona(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
+      // Same cached doctrine prefix as triage → the daily cron re-reads it at
+      // ~0.1× input cost for every desk it sweeps, not once per call.
+      system: [
+        { text: DESK_DOCTRINE, cache: true },
+        { text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}` },
+      ],
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
       maxTokens: 20000,
@@ -503,6 +515,11 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
 
     await finishRun(runId, out.brief ?? "", allSources, dossier ?? null);
     await touchLastRun(userId, symbol);
+    // Adaptive cadence: a run that surfaced no new evidence for any signal means
+    // this desk is dormant — let the cron sweep it less often (lib/cadence.ts).
+    // Any new evidence resets the counter and snaps cadence back to daily.
+    const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
+    await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);

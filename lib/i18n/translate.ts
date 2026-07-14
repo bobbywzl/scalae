@@ -121,7 +121,8 @@ async function translateBatch(
   const payload = texts.map((t, i) => `<item index="${i}">\n${t}\n</item>`).join("\n");
   const out = await claudeJSON<{ translations: string[] }>({
     model,
-    system: translationSystem(lang),
+    // Static per-language instructions, reused across every batch in a pass.
+    system: [{ text: translationSystem(lang), cache: true }],
     messages: [
       {
         role: "user",

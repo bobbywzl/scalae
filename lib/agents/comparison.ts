@@ -84,7 +84,9 @@ export async function runComparison(
       : "";
   const out = await claudeJSON<{ verdict: string }>({
     model,
-    system: comparisonPersona(),
+    // The comparison persona is fully static (the two desks go in the user
+    // message) — cache it so back-to-back comparisons re-read it cheaply.
+    system: [{ text: comparisonPersona(), cache: true }],
     messages: [
       {
         role: "user",

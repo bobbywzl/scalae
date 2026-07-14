@@ -30,8 +30,19 @@ export async function listClaudeModels(): Promise<string[]> {
   return out;
 }
 
+/**
+ * A system prompt is either a plain string or an ordered list of text blocks.
+ * A block with `cache: true` becomes an Anthropic ephemeral cache breakpoint:
+ * everything up to and including it is cached (~5-min TTL) and re-read at ~0.1×
+ * input cost on the next call with the identical prefix. Put the large static
+ * doctrine first with cache:true and the small dynamic tail after it, so the
+ * cached prefix is shared across every ticker and run. See lib/agents/framework.
+ */
+export type SystemBlock = { text: string; cache?: boolean };
+export type SystemPrompt = string | SystemBlock[];
+
 export interface ClaudeJSONOptions {
-  system: string;
+  system: SystemPrompt;
   messages: Anthropic.MessageParam[];
   /** JSON Schema (additionalProperties:false everywhere) the response must satisfy. */
   schema: Record<string, unknown>;
@@ -131,12 +142,22 @@ async function claudeJSONRetrying<T>(opts: ClaudeJSONOptions): Promise<T> {
   throw lastErr;
 }
 
+/** String → itself; blocks → Anthropic text blocks, marking cache breakpoints. */
+function buildSystem(system: SystemPrompt): string | Anthropic.TextBlockParam[] {
+  if (typeof system === "string") return system;
+  return system.map((b) => ({
+    type: "text" as const,
+    text: b.text,
+    ...(b.cache ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+}
+
 async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
   const model = opts.model ?? DEFAULT_MODEL;
   const params = {
     model,
     max_tokens: opts.maxTokens ?? 8000,
-    system: opts.system,
+    system: buildSystem(opts.system),
     messages: opts.messages,
     thinking: { type: "adaptive" },
     output_config: {

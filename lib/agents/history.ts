@@ -4,7 +4,7 @@ import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
 import { getSignal, getTicker, setSignalBackstory } from "../db";
 import type { Citation, Signal, Ticker } from "../types";
-import { analystPersona, BACKSTORY_DOCTRINE, BACKSTORY_SCHEMA } from "./framework";
+import { DESK_DOCTRINE, deskIdentity, BACKSTORY_DOCTRINE, BACKSTORY_SCHEMA } from "./framework";
 
 /**
  * Signal deep-history research: how the aspect a signal measures has evolved
@@ -59,9 +59,11 @@ export async function researchSignalBackstory(
   const ticker = await getTicker(userId, signal.symbol);
   if (!ticker) throw new Error(`Unknown ticker ${signal.symbol}`);
 
-  const [deepModel, synthModel] = await Promise.all([
+  // Backstory is background enrichment (once per signal, cached forever), not
+  // the daily crown-jewel reading — the value tier is plenty. See lib/ai/models.
+  const [deepModel, backstoryModel] = await Promise.all([
     resolveModel("scoutDeep"),
-    resolveModel("synthesis"),
+    resolveModel("backstory"),
   ]);
 
   const sweeps = await Promise.allSettled(
@@ -123,8 +125,11 @@ ${sourceList || "(none)"}
 TASK: Write the signal's deep-history backstory per the backstory doctrine — era-by-era evolution of the measured aspect, the stress-test episodes and how the aspect fared through each, framework anchoring (which lens and anchor each era's evidence loads on), [n] citations on load-bearing claims, era-honesty about what the record does and doesn't show, and the closing base-rate paragraph. Also produce the 1-2 sentence "brief" the daily synthesis will read as this signal's base rate.`;
 
   const out = await claudeJSON<BackstoryOutput>({
-    model: synthModel,
-    system: `${analystPersona(signal.symbol, ticker.name)}\n\n${BACKSTORY_DOCTRINE}`,
+    model: backstoryModel,
+    system: [
+      { text: DESK_DOCTRINE, cache: true },
+      { text: `${deskIdentity(signal.symbol, ticker.name)}\n\n${BACKSTORY_DOCTRINE}` },
+    ],
     messages: [{ role: "user", content: task }],
     schema: BACKSTORY_SCHEMA as unknown as Record<string, unknown>,
     maxTokens: 8000,
