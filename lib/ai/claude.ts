@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { recordClaudeUsage, type UsageMeta } from "./usage";
+import { withOverloadFallback } from "./fallback";
 
 const g = globalThis as unknown as { __anthropic?: Anthropic };
 // maxRetries covers 429/529/5xx inside the SDK; the loop below adds slower,
@@ -40,6 +41,12 @@ export interface ClaudeJSONOptions {
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** Telemetry context (whose call, which pipeline feature) — best-effort. */
   meta?: UsageMeta;
+  /**
+   * When the primary model is overloaded (529), retry once on this model
+   * instead of failing. Set only for interactive calls (chat / compare);
+   * the daily research pipeline leaves it unset to stay Opus-strict.
+   */
+  fallbackModel?: string;
 }
 
 // Transport failures that escape the SDK's typed wrappers (undici stream
@@ -98,6 +105,16 @@ export function friendlyAIError(e: unknown): string {
  * drops.
  */
 export async function claudeJSON<T>(opts: ClaudeJSONOptions): Promise<T> {
+  const primary = opts.model ?? DEFAULT_MODEL;
+  // Try the primary (with its own transient-error retries); on a sustained
+  // overload, withOverloadFallback runs the whole thing once more on the
+  // fallback model. Clear fallbackModel on the inner call so it never recurses.
+  return withOverloadFallback(primary, opts.fallbackModel, (model) =>
+    claudeJSONRetrying<T>({ ...opts, model, fallbackModel: undefined })
+  );
+}
+
+async function claudeJSONRetrying<T>(opts: ClaudeJSONOptions): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
