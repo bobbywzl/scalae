@@ -1,4 +1,5 @@
 import { claudeJSON } from "../ai/claude";
+import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import { comparisonPersona } from "./framework";
 import { getTicker, latestRun, listFocusAreas, listSignals, readingsForSignal } from "../db";
@@ -102,6 +103,8 @@ TASK: Produce the pairwise opportunity-cost verdict per your output structure. R
     maxTokens: 8000,
     effort: "high",
     meta: { userId, feature: "compare" },
+    // Interactive: fall back rather than fail the verdict on an Opus overload.
+    fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
   });
   const verdict = out.verdict?.trim();
   if (!verdict) throw new Error("Comparison came back empty — try again.");

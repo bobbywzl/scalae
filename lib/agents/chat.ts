@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { claudeJSON } from "../ai/claude";
+import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import {
   analystPersona,
@@ -331,6 +332,8 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
     maxTokens: hasAttachmentBlocks ? 24000 : 16000,
     effort: "medium",
     meta: { userId, feature: "chat" },
+    // Interactive: don't hard-fail the investor on a transient Opus overload.
+    fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
   });
 
   // --- focus areas & new proposals (approval-gated) ---
