@@ -73,12 +73,39 @@ interface Sweep {
 const MAX_FOLLOW_UPS = 4;
 
 /**
- * Strict per-stage wall-clock limit. Every pipeline stage must finish under two
- * minutes; 110s leaves headroom under that ceiling. The whole run still lives
- * inside the route's maxDuration (300s) — these caps stop any single stage
- * (chiefly the deep-synthesis Claude call) from hanging and eating the budget.
+ * Strict per-stage wall-clock limit for the SCOUT/TRIAGE/backstory stages.
+ * Every such stage must finish under two minutes; 110s leaves headroom under
+ * that ceiling and stops any single stage from hanging and eating the budget.
+ * Synthesis is the deliberate exception — see SYNTHESIS below.
  */
 const STAGE_LIMIT_MS = 110_000;
+
+/**
+ * Synthesis is the pipeline's heaviest stage and runs LAST, so a flat 110s
+ * starves it — a 10-signal board emits 10 readings + digest + brief + dossier
+ * in one call and legitimately needs longer than a scout sweep. Instead we hand
+ * it the time actually left in the route's 300s budget: its deadline lands a
+ * fixed distance into the run no matter how long the scouts took (ROUTE_BUDGET −
+ * elapsed − a reserve for the DB writes), so it gets ~150-200s in the common
+ * case yet can never overrun maxDuration and be reaped. See the synthesis call.
+ */
+const ROUTE_BUDGET_MS = 285_000; // 300s maxDuration minus platform margin
+const RECORDING_RESERVE_MS = 15_000; // reserved after synthesis for the writes
+
+/**
+ * Synthesis reasoning effort. Default "low" to minimize synthesis wall-clock so
+ * the run reliably COMPLETES — this stage is structured judgment over evidence
+ * that's already been gathered, not open-ended reasoning, so low effort emits
+ * the readings/brief/dossier fast. Raise via CLAUDE_SYNTHESIS_EFFORT
+ * (low|medium|high|xhigh|max) once runs have budget headroom to spare.
+ */
+function synthesisEffort(): "low" | "medium" | "high" | "xhigh" | "max" {
+  const env = process.env.CLAUDE_SYNTHESIS_EFFORT?.trim().toLowerCase();
+  if (env === "low" || env === "medium" || env === "high" || env === "xhigh" || env === "max") {
+    return env;
+  }
+  return "low";
+}
 
 /**
  * Run `fn` under a hard deadline: it receives an AbortSignal that fires at `ms`
@@ -224,6 +251,9 @@ Research it thoroughly: search from multiple angles, prefer primary sources (fil
  *      brief, new-signal discovery
  */
 export async function executeRun(userId: string, runId: string, symbol: string): Promise<void> {
+  // Reference for the synthesis budget below: how much of the route's 300s is
+  // left when we reach synthesis (the run runs inside a single invocation).
+  const runStart = Date.now();
   try {
     const ticker = await getTicker(userId, symbol);
     if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
@@ -474,9 +504,12 @@ TASK — produce today's desk output:
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
     // Synthesis is the pipeline's heaviest call and the one that used to hang.
-    // "medium" effort keeps its thinking bounded so it reliably lands inside the
-    // per-stage limit; the hard deadline below is the strict backstop (on
-    // timeout the run fails cleanly and the cron retries it later).
+    // Low effort (see synthesisEffort) keeps it fast, and instead of the flat
+    // per-stage limit it gets the time actually left in the route budget — so
+    // it lands comfortably inside the run rather than being cut off at 110s.
+    // The deadline is still a strict backstop: on timeout the run fails cleanly
+    // (and the cron retries it) rather than the platform killing the function.
+    const synthMs = Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
     const out = await withDeadline("synthesis", (signal) => claudeJSON<SynthesisOutput>({
       model: synthModel,
       signal,
@@ -489,9 +522,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
       maxTokens: 20000,
-      effort: "medium",
+      effort: synthesisEffort(),
       meta: { userId, feature: "synthesis" },
-    }));
+    }), synthMs);
 
     // Last checkpoint before we write: a run stopped during synthesis must not
     // record stale readings over whatever fresh run the investor started.
