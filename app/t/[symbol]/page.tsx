@@ -90,7 +90,6 @@ export default function DeskPage() {
   }, [load]);
 
   const running = desk?.latestRun?.status === "running";
-  const paused = !!desk?.ticker.researchPaused;
 
   // Poll fast while the agents are working, slowly otherwise.
   useEffect(() => {
@@ -109,25 +108,21 @@ export default function DeskPage() {
     }
   }, [symbol, load, t]);
 
-  // Per-desk pause: freeze/unfreeze all research for this ticker (optimistic).
-  const togglePause = useCallback(async () => {
-    const next = !desk?.ticker.researchPaused;
-    setDesk((d) => (d ? { ...d, ticker: { ...d.ticker, researchPaused: next ? 1 : 0 } } : d));
+  // Stop research: cancel the in-flight run so a fresh one can be started.
+  const stopRun = useCallback(async () => {
     try {
-      await api(`/api/tickers/${encodeURIComponent(symbol)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ researchPaused: next }),
-      });
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/run`, { method: "DELETE" });
     } catch {
-      setDesk((d) => (d ? { ...d, ticker: { ...d.ticker, researchPaused: next ? 0 : 1 } } : d));
+      /* best-effort — the next poll reconciles the run state either way */
     }
-  }, [desk?.ticker.researchPaused, symbol]);
+    load();
+  }, [symbol, load]);
 
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
     if (!desk || autoRan.current) return;
-    if (!desk.autoResearch || desk.ticker.researchPaused) return;
+    if (!desk.autoResearch) return;
     const { ticker, active, latestRun } = desk;
     const stale = !ticker.lastRunAt || Date.now() - Date.parse(ticker.lastRunAt) > STALE_MS;
     if (ticker.onboarded && active.length > 0 && latestRun?.status !== "running" && stale) {
@@ -500,21 +495,18 @@ export default function DeskPage() {
         )}
         {!onboarding && (
           <>
-            {paused && (
-              <span className="rounded-md bg-loss/15 text-loss px-2 py-0.5 text-xs font-semibold">
-                {t("desk.researchPausedBadge")}
-              </span>
+            {running && (
+              <button
+                onClick={stopRun}
+                title={t("desk.stopHint")}
+                className="rounded-lg bg-loss/15 hover:bg-loss/25 text-loss text-xs font-medium px-3 py-1.5 transition-colors"
+              >
+                {t("desk.stopResearch")}
+              </button>
             )}
             <button
-              onClick={togglePause}
-              title={paused ? t("desk.resumeHint") : t("desk.pauseHint")}
-              className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
-            >
-              {paused ? t("desk.resumeResearch") : t("desk.pauseResearch")}
-            </button>
-            <button
               onClick={startRun}
-              disabled={running || paused}
+              disabled={running}
               className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
             >
               {running ? t("desk.researching") : t("desk.runNow")}

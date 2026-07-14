@@ -1,5 +1,5 @@
 import { NextResponse, after } from "next/server";
-import { getTicker, listSignals } from "@/lib/db";
+import { cancelRunningRun, getTicker, listSignals } from "@/lib/db";
 import { executeRun, startRun } from "@/lib/agents/research";
 import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
@@ -20,11 +20,7 @@ export async function POST(_req: Request, { params }: Params) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
   const symbol = raw.toUpperCase();
-  const ticker = await getTicker(user.id, symbol);
-  if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if (ticker.researchPaused) {
-    return NextResponse.json({ error: "RESEARCH_PAUSED" }, { status: 409 });
-  }
+  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
   if ((await listSignals(user.id, symbol, "active")).length === 0) {
     return NextResponse.json(
       { error: "Approve at least one signal before running research." },
@@ -38,4 +34,15 @@ export async function POST(_req: Request, { params }: Params) {
   }
   const lang = await requestLang(user.id);
   return NextResponse.json({ run: await localizeRun(run, lang, { userId: user.id }), started });
+}
+
+/** Stop research: cancel the desk's in-flight run so a fresh one can be started. */
+export async function DELETE(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { symbol: raw } = await params;
+  const symbol = raw.toUpperCase();
+  if (!(await getTicker(user.id, symbol))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const stopped = await cancelRunningRun(user.id, symbol);
+  return NextResponse.json({ stopped });
 }

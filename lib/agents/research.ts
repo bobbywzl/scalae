@@ -21,13 +21,13 @@ import {
   insertDigestItem,
   insertProposal,
   insertReading,
-  isResearchPaused,
   latestRun,
   listFocusAreas,
   listMessages,
   listSignals,
   readingsForSignal,
   reapStuckRuns,
+  runStatus,
   runningRun,
   setRunStage,
   touchLastRun,
@@ -109,20 +109,19 @@ async function withDeadline<T>(
 }
 
 /**
- * Error thrown by startRun when a desk's research is paused. Its message is a
- * stable sentinel so callers/UI can recognise the refusal and show the paused
- * copy instead of a generic failure.
+ * Sentinel thrown by the pipeline's cooperative-cancellation checkpoints when
+ * the investor has stopped the run mid-flight. Caught quietly — a stopped run
+ * is already terminal in the db, so there is nothing to fail or record.
  */
-export const RESEARCH_PAUSED = "RESEARCH_PAUSED";
+const RUN_STOPPED = "RUN_STOPPED";
 
-/**
- * Start a run unless one is already going. Returns the run to poll.
- * CENTRAL PAUSE GUARD: if the desk is paused, no run may start — this is the
- * one choke point every trigger funnels through (cron, manual Run, on-open
- * refresh, chat "run research"), so pausing here freezes ALL of them.
- */
+/** Bail out of the pipeline if the investor stopped this run (see cancelRunningRun). */
+async function throwIfStopped(runId: string): Promise<void> {
+  if ((await runStatus(runId)) !== "running") throw new Error(RUN_STOPPED);
+}
+
+/** Start a run unless one is already going. Returns the run to poll. */
 export async function startRun(userId: string, symbol: string): Promise<{ run: Run; started: boolean }> {
-  if (await isResearchPaused(userId, symbol)) throw new Error(RESEARCH_PAUSED);
   await reapStuckRuns(userId, symbol);
   const existing = await runningRun(userId, symbol);
   if (existing) return { run: existing, started: false };
@@ -243,6 +242,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     const days = await windowDays(userId, symbol);
     const bundles = chunk(signals, 5);
     const waveOneCount = bundles.length + 3;
+    await throwIfStopped(runId);
     await setRunStage(
       runId,
       "sweeping",
@@ -324,6 +324,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     ).join("\n");
 
     // ---- Stage 2: the analyst triages wave 1 and commissions deep dives ----
+    await throwIfStopped(runId);
     await setRunStage(
       runId,
       "probing",
@@ -407,6 +408,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       }
     }
 
+    await throwIfStopped(runId);
     await setRunStage(
       runId,
       "synthesizing",
@@ -491,6 +493,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       meta: { userId, feature: "synthesis" },
     }));
 
+    // Last checkpoint before we write: a run stopped during synthesis must not
+    // record stale readings over whatever fresh run the investor started.
+    await throwIfStopped(runId);
     await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");
 
     const date = new Date().toISOString();
@@ -578,6 +583,12 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    // Investor-initiated stop: the run is already terminal ('stopped') — nothing
+    // to fail, and failRun is guarded to a running row anyway. Exit quietly.
+    if (msg === RUN_STOPPED) {
+      console.log(`[scalae] run ${runId} (${symbol}) stopped by the investor.`);
+      return;
+    }
     console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);
     await failRun(runId, msg).catch(() => {});
   }

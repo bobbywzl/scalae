@@ -10,7 +10,7 @@ export type ReadingLevel =
   | "unclear";
 export type Delta = "up" | "down" | "flat";
 export type Impact = "positive" | "negative" | "mixed" | "neutral";
-export type RunStatus = "running" | "done" | "error";
+export type RunStatus = "running" | "done" | "error" | "stopped";
 
 // ---------------------------------------------------------------------------
 // Accounts: Google sign-in makes this a multi-user app. Every data row is
@@ -57,13 +57,6 @@ export interface Ticker {
    * with new evidence. Drives the cron's adaptive cadence (see lib/cadence.ts).
    */
   quietRuns?: number;
-  /**
-   * Per-desk research freeze (0|1). When set, NO run may start for this desk —
-   * cron, manual "Run research now", on-open refresh, and chat-triggered runs
-   * are all refused (enforced centrally in startRun). The investor's manual
-   * pause switch, independent of the account-wide auto-research toggle.
-   */
-  researchPaused?: number;
   /** Owner (server-side; present on rows read from the db). */
   userId?: string;
 }

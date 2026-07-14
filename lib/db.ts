@@ -223,8 +223,6 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_runs_symbol ON runs(symbol, "startedAt")`,
   // ---- adaptive research cadence: consecutive no-new-evidence runs (lib/cadence) ----
   `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "quietRuns" INTEGER NOT NULL DEFAULT 0`,
-  // ---- per-desk manual research freeze (0|1): startRun refuses when set ----
-  `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "researchPaused" INTEGER NOT NULL DEFAULT 0`,
   // ---- multi-tenancy: every row is owned; 'local' = single-user (auth off) ----
   `ALTER TABLE tickers ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE focus_areas ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -361,21 +359,6 @@ export async function touchLastRun(userId: string, symbol: string): Promise<void
   await q`UPDATE tickers SET "lastRunAt" = ${now()} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
-/** Freeze or unfreeze all research for one desk (the per-ticker pause switch). */
-export async function setResearchPaused(
-  userId: string,
-  symbol: string,
-  paused: boolean
-): Promise<void> {
-  await q`UPDATE tickers SET "researchPaused" = ${paused ? 1 : 0} WHERE "userId" = ${userId} AND symbol = ${symbol}`;
-}
-
-/** Is this desk's research frozen? The single source of truth for startRun's guard. */
-export async function isResearchPaused(userId: string, symbol: string): Promise<boolean> {
-  const rows = await q<{ researchPaused: number }>`
-    SELECT "researchPaused" FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
-  return rows[0]?.researchPaused === 1;
-}
 
 /** Snap a desk back to daily cadence (new evidence, or a board change). */
 export async function resetQuietRuns(userId: string, symbol: string): Promise<void> {
@@ -692,14 +675,37 @@ export async function finishRun(
   sources: Citation[] = [],
   dossier: string | null = null
 ): Promise<void> {
+  // Only a still-running run may complete — if it was stopped by the user
+  // mid-flight, the zombie must not resurrect it as 'done'.
   await q`UPDATE runs SET status = 'done', stage = 'done', "stageDetail" = 'Desk updated',
           brief = ${brief}, dossier = ${dossier}, sources = ${JSON.stringify(sources)},
-          "finishedAt" = ${now()} WHERE id = ${id}`;
+          "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
 }
 
 export async function failRun(id: string, error: string): Promise<void> {
   await q`UPDATE runs SET status = 'error', stage = 'error', "stageDetail" = 'Run failed',
-          error = ${error}, "finishedAt" = ${now()} WHERE id = ${id}`;
+          error = ${error}, "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
+}
+
+/**
+ * Stop the desk's in-flight run on the investor's command: mark any running run
+ * 'stopped', which frees the desk immediately so a fresh run can start. The
+ * background pipeline notices the status change at its next stage checkpoint and
+ * bails (see executeRun). Returns true if a run was actually stopped.
+ */
+export async function cancelRunningRun(userId: string, symbol: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    UPDATE runs SET status = 'stopped', stage = 'stopped', "stageDetail" = 'Stopped by you',
+           error = 'Stopped — start a fresh run when ready.', "finishedAt" = ${now()}
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running'
+    RETURNING id`;
+  return rows.length > 0;
+}
+
+/** A run's current status (for the pipeline's cooperative cancellation checks). */
+export async function runStatus(id: string): Promise<string | undefined> {
+  const rows = await q<{ status: string }>`SELECT status FROM runs WHERE id = ${id}`;
+  return rows[0]?.status;
 }
 
 export async function getRun(id: string): Promise<Run | undefined> {
