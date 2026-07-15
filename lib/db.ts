@@ -4,6 +4,7 @@ import { domainOf } from "./citations";
 import type {
   AdminFeedbackRow,
   AdminUserRow,
+  Annotation,
   Attachment,
   ChatMessage,
   Citation,
@@ -327,6 +328,21 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_note_sections_user ON note_sections("userId", symbol, position)`,
   `CREATE INDEX IF NOT EXISTS idx_notes_section ON notes("sectionId", "createdAt")`,
   `CREATE INDEX IF NOT EXISTS idx_notes_user ON notes("userId", symbol)`,
+  // ---- text annotations: highlight-by-selection over any rendered surface on
+  // a ticker's pages, anchored by character offsets within a surfaceId. ----
+  `CREATE TABLE IF NOT EXISTS annotations (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "surfaceId" TEXT NOT NULL,
+    "selectedText" TEXT NOT NULL,
+    "startOffset" INTEGER NOT NULL,
+    "endOffset" INTEGER NOT NULL,
+    color TEXT NOT NULL,
+    comment TEXT,
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_annotations_user ON annotations("userId", symbol)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -1024,6 +1040,40 @@ export async function updateNote(
 
 export async function deleteNote(userId: string, id: string): Promise<void> {
   await q`DELETE FROM notes WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+// ---------- text annotations (highlight-by-selection) ----------
+
+export async function listAnnotations(userId: string, symbol: string): Promise<Annotation[]> {
+  return q<Annotation>`
+    SELECT id, symbol, "surfaceId", "selectedText", "startOffset", "endOffset", color, comment, "createdAt"
+    FROM annotations WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
+}
+
+export async function createAnnotation(
+  userId: string,
+  symbol: string,
+  a: Pick<Annotation, "surfaceId" | "selectedText" | "startOffset" | "endOffset" | "color" | "comment">
+): Promise<Annotation> {
+  const row: Annotation = {
+    id: uid(),
+    symbol,
+    surfaceId: a.surfaceId.slice(0, 120),
+    selectedText: a.selectedText.slice(0, 2000),
+    startOffset: a.startOffset,
+    endOffset: a.endOffset,
+    color: a.color,
+    comment: a.comment?.trim().slice(0, 1000) || null,
+    createdAt: now(),
+  };
+  await q`INSERT INTO annotations (id, "userId", symbol, "surfaceId", "selectedText", "startOffset", "endOffset", color, comment, "createdAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.surfaceId}, ${row.selectedText}, ${row.startOffset},
+                  ${row.endOffset}, ${row.color}, ${row.comment}, ${row.createdAt})`;
+  return row;
+}
+
+export async function deleteAnnotation(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM annotations WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
 // ---------- trades (portfolio ledger) ----------

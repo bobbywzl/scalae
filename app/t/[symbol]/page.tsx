@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { ClipDialog } from "@/components/ClipDialog";
 import { FinancialsSection } from "@/components/FinancialsCard";
 import { PositionCard } from "@/components/PositionCard";
@@ -528,6 +529,7 @@ export default function DeskPage() {
 
   if (onboarding) {
     return (
+      <AnnotationsProvider symbol={symbol}>
       <main className="mx-auto w-full max-w-3xl px-5 py-8 flex-1 flex flex-col gap-5">
         {header}
         <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 text-sm">
@@ -602,10 +604,12 @@ export default function DeskPage() {
           </div>
         </div>
       </main>
+      </AnnotationsProvider>
     );
   }
 
   return (
+    <AnnotationsProvider symbol={symbol}>
     <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
       {header}
 
@@ -636,18 +640,20 @@ export default function DeskPage() {
               </div>
               {dossierOpen && (
                 <div className="mt-2">
-                  <Markdown onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}>
-                    {dossierToMarkdown(
-                      linkCitations(latestRun.dossier, latestRun.sources),
-                      (id) => {
-                        const s = signalsById.get(id);
-                        if (!s) return null;
-                        return s.status === "retired"
-                          ? t("desk.retiredSuffix", { name: s.name })
-                          : s.name;
-                      }
-                    )}
-                  </Markdown>
+                  <Annotatable surfaceId="dossier">
+                    <Markdown onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}>
+                      {dossierToMarkdown(
+                        linkCitations(latestRun.dossier, latestRun.sources),
+                        (id) => {
+                          const s = signalsById.get(id);
+                          if (!s) return null;
+                          return s.status === "retired"
+                            ? t("desk.retiredSuffix", { name: s.name })
+                            : s.name;
+                        }
+                      )}
+                    </Markdown>
+                  </Annotatable>
                   <p className="mt-3 text-[10px] text-muted/70">
                     {t("desk.dossierProvenance")}
                     {desk.dossierRevisedAt && (
@@ -680,7 +686,9 @@ export default function DeskPage() {
             </SectionTitle>
             {latestRun?.brief ? (
               <div className="mt-2">
-                <Markdown>{linkCitations(latestRun.brief, latestRun.sources)}</Markdown>
+                <Annotatable surfaceId="brief">
+                  <Markdown>{linkCitations(latestRun.brief, latestRun.sources)}</Markdown>
+                </Annotatable>
               </div>
             ) : (
               <p className="text-muted text-xs italic mt-2">
@@ -1090,6 +1098,7 @@ export default function DeskPage() {
         </div>
       )}
     </main>
+    </AnnotationsProvider>
   );
 }
 

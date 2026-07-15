@@ -1,5 +1,6 @@
 "use client";
 
+import { Annotatable } from "@/components/Annotations";
 import { useT } from "@/components/PrefsProvider";
 import type { DigestItem, Signal } from "@/lib/types";
 import { IMPACT_DOT, impactLabel, timeAgo } from "./util";
@@ -39,19 +40,21 @@ export function DigestFeed({
             title={impactLabel(d.impact, t)}
           />
           <div className="min-w-0">
-            {d.url ? (
-              <a
-                href={d.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium leading-snug hover:text-accent transition-colors"
-              >
-                {d.headline}
-              </a>
-            ) : (
-              <span className="text-sm font-medium leading-snug">{d.headline}</span>
-            )}
-            <p className="text-xs text-[#b5b5ba] mt-0.5 leading-relaxed">{d.summary}</p>
+            <Annotatable surfaceId={`digest:${d.id}`}>
+              {d.url ? (
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-medium leading-snug hover:text-accent transition-colors"
+                >
+                  {d.headline}
+                </a>
+              ) : (
+                <span className="text-sm font-medium leading-snug">{d.headline}</span>
+              )}
+              <p className="text-xs text-[#b5b5ba] mt-0.5 leading-relaxed">{d.summary}</p>
+            </Annotatable>
             <p className="text-[10px] text-muted mt-1">
               {d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date, t)}

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { chipLabel, linkCitations, sourceClass, type SourceClass } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Attachment, ChatMessage, Citation, Signal, SignalWithReadings } from "@/lib/types";
+import { Annotatable } from "./Annotations";
 import { ChatPanel } from "./ChatPanel";
+import { ClipDialog, type ClipPayload } from "./ClipDialog";
 import { Markdown } from "./Markdown";
 import { useT } from "@/components/PrefsProvider";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
@@ -70,6 +72,7 @@ export function SignalDetail({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [clipItem, setClipItem] = useState<ClipPayload | null>(null);
   const [confirmRetire, setConfirmRetire] = useState(false);
   // Evidence traceability: pick a catalog source to see exactly which readings cited it.
   const [filterUrl, setFilterUrl] = useState<string | null>(null);
@@ -314,13 +317,15 @@ export function SignalDetail({
                     {t("signals.carriedSincePost")}
                   </p>
                 )}
-                <p
-                  className={`mt-2 text-sm leading-relaxed ${
-                    r.newEvidence === false ? "text-muted italic" : "text-emph"
-                  }`}
-                >
-                  {r.rationale}
-                </p>
+                <Annotatable surfaceId={`reading:${r.id}`}>
+                  <p
+                    className={`mt-2 text-sm leading-relaxed ${
+                      r.newEvidence === false ? "text-muted italic" : "text-emph"
+                    }`}
+                  >
+                    {r.rationale}
+                  </p>
+                </Annotatable>
                 {r.citations.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {r.citations.map((c, i) => (
@@ -368,7 +373,9 @@ export function SignalDetail({
 
           <section>
             <p className={sectionTitle}>{t("signals.whyWeTrack")}</p>
-            <p className="mt-1.5 text-xs text-emph leading-relaxed">{signal.thesis}</p>
+            <Annotatable surfaceId={`signal:${signal.id}:thesis`}>
+              <p className="mt-1.5 text-xs text-emph leading-relaxed">{signal.thesis}</p>
+            </Annotatable>
           </section>
 
           <section>
@@ -416,7 +423,9 @@ export function SignalDetail({
                 )}
                 {backstory ? (
                   <div className="mt-2 text-xs">
-                    <Markdown>{linkCitations(backstory, bSources)}</Markdown>
+                    <Annotatable surfaceId={`signal:${signal.id}:backstory`}>
+                      <Markdown>{linkCitations(backstory, bSources)}</Markdown>
+                    </Annotatable>
                     {bAt && (
                       <p className="mt-1.5 text-[10px] text-muted/60">
                         {t("signals.researchedAgo", { when: timeAgo(bAt, t) })} ·{" "}
@@ -562,10 +571,30 @@ export function SignalDetail({
                           {t("signals.carryForward")}
                         </span>
                       )}
+                      <button
+                        onClick={() =>
+                          setClipItem({
+                            headline: `“${signal.name}” — ${levelLabel(h.level, t)}${
+                              h.value != null ? `, ${h.value.toLocaleString(locale)} ${h.valueUnit ?? ""}` : ""
+                            } (${h.date.slice(0, 10)})`,
+                            summary: h.rationale,
+                            url: h.citations[0]?.url ?? null,
+                            source: h.citations[0]?.title ?? null,
+                            date: h.date,
+                            signalNames: [signal.name],
+                          })
+                        }
+                        title={t("notes.clipTitle")}
+                        className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                      >
+                        {t("notes.clipAction")}
+                      </button>
                     </div>
-                    <p className={`mt-0.5 leading-relaxed ${h.newEvidence === false ? "text-muted/70 italic" : "text-[#a8a8ad]"}`}>
-                      {h.rationale}
-                    </p>
+                    <Annotatable surfaceId={`reading:${h.id}`}>
+                      <p className={`mt-0.5 leading-relaxed ${h.newEvidence === false ? "text-muted/70 italic" : "text-[#a8a8ad]"}`}>
+                        {h.rationale}
+                      </p>
+                    </Annotatable>
                     {h.citations.length > 0 && (
                       <p className="mt-0.5 space-x-2">
                         {h.citations.map((c, i) => (
@@ -610,6 +639,11 @@ export function SignalDetail({
         </div>
         )}
       </div>
+
+      {/* Clip a reading into a notepad on the Notes page */}
+      {clipItem && (
+        <ClipDialog symbol={signal.symbol} item={clipItem} onClose={() => setClipItem(null)} />
+      )}
     </div>
   );
 }

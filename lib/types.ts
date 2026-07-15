@@ -436,6 +436,27 @@ export interface NotesPayload {
   focusAreaTitles: string[];
 }
 
+/**
+ * A text annotation: highlight-by-selection over any rendered text surface on
+ * a ticker's pages (brief, dossier, evidence items, readings, chat replies).
+ * Anchored by character offsets within a stable surfaceId, with the selected
+ * text stored so a stale offset can be recovered by searching (the pattern
+ * proven in the Release Edu app's highlighter).
+ */
+export interface Annotation {
+  id: string;
+  symbol: string;
+  /** Stable anchor container, e.g. "brief", "dossier", "digest:<id>", "reading:<id>", "msg:<id>". */
+  surfaceId: string;
+  selectedText: string;
+  startOffset: number;
+  endOffset: number;
+  /** amber | blue | green | purple */
+  color: string;
+  comment: string | null;
+  createdAt: string;
+}
+
 /** Full payload for the ticker detail page. */
 export interface DeskPayload {
   ticker: Ticker;
