@@ -1,0 +1,146 @@
+/**
+ * Financials / DCF section — 10-FY value-investor metrics, valuation snapshot,
+ * peer comparison. Keys named to match FinancialMetric.key and the snapshot
+ * fields so the table can resolve a row label as `financials.<key>`.
+ * Glossary (中文): 企业价值=EV, 所有者盈余=owner earnings, 投入资本回报率=ROIC,
+ * 自由现金流=FCF, 股东权益=shareholders' equity, 护城河 economics stay in finance terms.
+ */
+
+const en = {
+  title: "Financials & valuation",
+  subtitle: "The numbers a value investor checks before owning it — {n} fiscal years.",
+  asOf: "as of {when}",
+  sourceNote: "Yahoo Finance · {n} of 10 FY available",
+  unavailable: "Financials aren’t available for this ticker yet.",
+  loading: "Loading financials…",
+  retry: "Retry",
+
+  // Snapshot block
+  snapshotTitle: "What it costs to own it now",
+  showTable: "Show 10-year table",
+  hideTable: "Hide table",
+
+  // Group headers
+  grp_income: "Income",
+  grp_returns: "Returns on capital",
+  grp_balance: "Balance sheet & solvency",
+  grp_cashflow: "Cash flow",
+  grp_perShare: "Per share",
+
+  // Metric + snapshot labels (keyed to FinancialMetric.key / snapshot fields)
+  marketCap: "Market cap",
+  enterpriseValue: "Enterprise value",
+  netDebt: "Net debt",
+  trailingPE: "P/E (ttm)",
+  forwardPE: "Forward P/E",
+  priceToBook: "Price / book",
+  evToEbit: "EV / EBIT",
+  evToEbitda: "EV / EBITDA",
+  evToRevenue: "EV / revenue",
+  fcfYield: "FCF yield",
+  revenue: "Revenue",
+  operatingIncome: "Operating income",
+  netIncome: "Net income",
+  grossMargin: "Gross margin",
+  operatingMargin: "Operating margin",
+  netMargin: "Net margin",
+  roe: "ROE",
+  roic: "ROIC",
+  roa: "ROA",
+  equity: "Shareholder equity",
+  totalDebt: "Total debt",
+  cash: "Cash & equivalents",
+  debtToEquity: "Debt / equity",
+  currentRatio: "Current ratio",
+  interestCoverage: "Interest coverage",
+  ocf: "Operating cash flow",
+  fcf: "Free cash flow",
+  ownerEarnings: "Owner earnings ≈",
+  buybacks: "Buybacks",
+  dividendsPaid: "Dividends paid",
+  eps: "EPS (diluted)",
+  dps: "Dividend / share",
+  bookValuePerShare: "Book value / share",
+  shares: "Shares out (diluted)",
+
+  // Tooltips for the value-investor-specific figures
+  desc_enterpriseValue: "Market cap + total debt − cash: the whole-company price to a buyer.",
+  desc_roic: "NOPAT ÷ invested capital — the return the business earns on the capital it deploys.",
+  desc_ownerEarnings: "Net income + D&A − capex (approx.): Buffett’s cash a passive owner could take out.",
+  desc_fcfYield: "Trailing free cash flow ÷ enterprise value — the cash return at today’s price.",
+
+  // Peer comparison
+  peersTitle: "Returns & margins vs. peers",
+  peersNote: "Auto-selected comparables · latest reported",
+  peerNone: "No peer data available.",
+  colTicker: "Ticker",
+  thisCompany: "this",
+} as const;
+
+const zh: Record<keyof typeof en, string> = {
+  title: "财务与估值",
+  subtitle: "价值投资者在买入前会核对的数字——共 {n} 个财年。",
+  asOf: "截至 {when}",
+  sourceNote: "Yahoo Finance · 10 个财年中有 {n} 个可用",
+  unavailable: "该股票暂无财务数据。",
+  loading: "正在加载财务数据……",
+  retry: "重试",
+
+  snapshotTitle: "现在买下整家公司的成本",
+  showTable: "显示十年数据表",
+  hideTable: "隐藏数据表",
+
+  grp_income: "利润表",
+  grp_returns: "资本回报",
+  grp_balance: "资产负债与偿债能力",
+  grp_cashflow: "现金流",
+  grp_perShare: "每股",
+
+  marketCap: "市值",
+  enterpriseValue: "企业价值",
+  netDebt: "净负债",
+  trailingPE: "市盈率(TTM)",
+  forwardPE: "预期市盈率",
+  priceToBook: "市净率",
+  evToEbit: "EV / EBIT",
+  evToEbitda: "EV / EBITDA",
+  evToRevenue: "EV / 营收",
+  fcfYield: "自由现金流收益率",
+  revenue: "营业收入",
+  operatingIncome: "营业利润",
+  netIncome: "净利润",
+  grossMargin: "毛利率",
+  operatingMargin: "营业利润率",
+  netMargin: "净利率",
+  roe: "净资产收益率 (ROE)",
+  roic: "投入资本回报率 (ROIC)",
+  roa: "总资产收益率 (ROA)",
+  equity: "股东权益",
+  totalDebt: "总债务",
+  cash: "现金及等价物",
+  debtToEquity: "负债权益比",
+  currentRatio: "流动比率",
+  interestCoverage: "利息保障倍数",
+  ocf: "经营现金流",
+  fcf: "自由现金流",
+  ownerEarnings: "所有者盈余 ≈",
+  buybacks: "股票回购",
+  dividendsPaid: "已付股息",
+  eps: "每股收益(摊薄)",
+  dps: "每股股息",
+  bookValuePerShare: "每股账面价值",
+  shares: "流通股数(摊薄)",
+
+  desc_enterpriseValue: "市值 + 总债务 − 现金：收购整家公司的价格。",
+  desc_roic: "税后营业利润 ÷ 投入资本——企业在其所投入资本上赚取的回报。",
+  desc_ownerEarnings: "净利润 + 折旧摊销 − 资本开支(近似)：巴菲特意义上被动股东可取出的现金。",
+  desc_fcfYield: "过去十二个月自由现金流 ÷ 企业价值——按当前价格的现金回报率。",
+
+  peersTitle: "与同业的回报和利润率对比",
+  peersNote: "自动挑选的可比公司 · 最新披露",
+  peerNone: "暂无同业数据。",
+  colTicker: "股票",
+  thisCompany: "本公司",
+};
+
+export const financials = { en, zh };

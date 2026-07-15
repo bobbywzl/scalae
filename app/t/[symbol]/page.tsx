@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { FinancialsSection } from "@/components/FinancialsCard";
 import { PositionCard } from "@/components/PositionCard";
 import { useT } from "@/components/PrefsProvider";
 import { RunBanner } from "@/components/RunBanner";
@@ -701,6 +702,8 @@ export default function DeskPage() {
               </>
             )}
           </section>
+
+          <FinancialsSection symbol={symbol} />
 
           {suggested.length > 0 && (
             <section>
