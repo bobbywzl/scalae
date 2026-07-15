@@ -68,6 +68,10 @@ const en = {
   clipFailed: "Clip failed — try again.",
 
   loading: "Loading notes…",
+
+  // Highlight-to-annotate (any text surface)
+  annotPlaceholder: "Add a note… (Enter = amber highlight)",
+  annotDelete: "Remove highlight",
 } as const;
 
 const zh: Record<keyof typeof en, string> = {
@@ -130,6 +134,9 @@ const zh: Record<keyof typeof en, string> = {
   clipFailed: "收藏失败——请重试。",
 
   loading: "正在加载笔记……",
+
+  annotPlaceholder: "添加批注……（回车 = 琥珀色高亮）",
+  annotDelete: "移除高亮",
 };
 
 export const notes = { en, zh };

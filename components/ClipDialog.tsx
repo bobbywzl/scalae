@@ -4,7 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "./PrefsProvider";
 import { api } from "./util";
-import type { DigestItem, NotesPayload } from "@/lib/types";
+import type { NotesPayload } from "@/lib/types";
+
+/**
+ * Anything clippable into a notepad — evidence-feed items satisfy this shape
+ * directly, and signal readings are mapped into it (see SignalDetail).
+ */
+export interface ClipPayload {
+  headline: string;
+  summary: string;
+  url: string | null;
+  source: string | null;
+  date: string;
+  signalNames: string[];
+}
 
 /**
  * "Clip to notes": pick (or create) a notepad and the evidence item is appended
@@ -16,7 +29,7 @@ export function ClipDialog({
   onClose,
 }: {
   symbol: string;
-  item: DigestItem;
+  item: ClipPayload;
   onClose: () => void;
 }) {
   const { t } = useT();

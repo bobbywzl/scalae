@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Attachment, ChatMessage, Signal } from "@/lib/types";
 import type { TFunc } from "@/lib/i18n/dictionaries";
+import { Annotatable } from "./Annotations";
 import { useT } from "./PrefsProvider";
 import { localizeError } from "./util";
 import { Markdown } from "./Markdown";
@@ -303,7 +304,19 @@ export function ChatPanel({
                   ))}
                 </div>
               )}
-              {m.role === "assistant" ? <Markdown>{m.content}</Markdown> : m.content}
+              {m.role === "assistant" ? (
+                m.id.length > 12 ? (
+                  // Real (persisted) replies are annotatable; optimistic/temp
+                  // bubbles are not — their ids don't survive the next poll.
+                  <Annotatable surfaceId={`msg:${m.id}`}>
+                    <Markdown>{m.content}</Markdown>
+                  </Annotatable>
+                ) : (
+                  <Markdown>{m.content}</Markdown>
+                )
+              ) : (
+                m.content
+              )}
               {m.role === "assistant" && (
                 <div className="mt-1.5 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
