@@ -371,6 +371,8 @@ export interface TickerFinancials {
   snapshot: FinancialsSnapshot;
   /** Normalized inputs for the investor's own DCF (worksheet + export). */
   dcfInputs: DcfInputs;
+  /** Which data provider supplied this — "Yahoo Finance" or "Financial Modeling Prep". */
+  source: string;
   /** ISO timestamp this data was fetched/computed (drives the cache + "as of"). */
   fetchedAt: string;
 }

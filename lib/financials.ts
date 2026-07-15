@@ -178,10 +178,21 @@ function median(vals: (number | null)[]): number | null {
 }
 
 // ---------------------------------------------------------------------------
-// Fetching
+// Data providers. Yahoo is the default; Financial Modeling Prep is opt-in via
+// FMP_API_KEY (higher fidelity + a real industry-peers endpoint). Both normalize
+// to the SAME bare-key record shape the compute layer above consumes, so
+// extractYear / buildSnapshot / buildDcfInputs never learn which provider ran.
 // ---------------------------------------------------------------------------
 
-async function fetchStatements(symbol: string, years: number): Promise<Rec[]> {
+interface Provider {
+  source: string;
+  statements(symbol: string, years: number): Promise<Rec[]>; // oldest → newest
+  summary(symbol: string): Promise<Rec>; // Yahoo-shaped sub-objects
+  peers(symbol: string): Promise<string[]>; // candidate peer symbols
+}
+
+// ---- Yahoo ----
+async function yahooStatements(symbol: string, years: number): Promise<Rec[]> {
   const period1 = new Date(Date.now() - (years + 1) * 365 * 864e5);
   const res = (await yf.fundamentalsTimeSeries(
     symbol,
@@ -197,21 +208,161 @@ async function fetchStatements(symbol: string, years: number): Promise<Rec[]> {
   return rows.slice(-years);
 }
 
-async function fetchSummary(symbol: string): Promise<Rec> {
+async function yahooSummary(symbol: string): Promise<Rec> {
   return (await yf.quoteSummary(
     symbol,
-    {
-      modules: ["price", "summaryDetail", "defaultKeyStatistics", "financialData", "assetProfile"],
-    },
+    { modules: ["price", "summaryDetail", "defaultKeyStatistics", "financialData", "assetProfile"] },
     { validateResult: false }
   )) as unknown as Rec;
 }
 
+async function yahooPeers(symbol: string): Promise<string[]> {
+  const rec = (await yf.recommendationsBySymbol(symbol)) as unknown as {
+    recommendedSymbols?: { symbol?: string }[];
+  };
+  return (rec?.recommendedSymbols ?? []).map((r) => r.symbol).filter((s): s is string => !!s);
+}
+
+const yahoo: Provider = {
+  source: "Yahoo Finance",
+  statements: yahooStatements,
+  summary: yahooSummary,
+  peers: yahooPeers,
+};
+
+// ---- Financial Modeling Prep (opt-in) ----
+async function fmpGet(path: string): Promise<Rec[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key) throw new Error("FMP_API_KEY not set");
+  const url = `https://financialmodelingprep.com/api${path}${path.includes("?") ? "&" : "?"}apikey=${key}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20_000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`FMP ${res.status}`);
+    const json = await res.json();
+    return (Array.isArray(json) ? json : [json]) as Rec[];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** FMP → the canonical (Yahoo-key) statement record shape. */
+async function fmpStatements(symbol: string, years: number): Promise<Rec[]> {
+  const [inc, bal, cf, km] = await Promise.all([
+    fmpGet(`/v3/income-statement/${symbol}?period=annual&limit=${years}`),
+    fmpGet(`/v3/balance-sheet-statement/${symbol}?period=annual&limit=${years}`),
+    fmpGet(`/v3/cash-flow-statement/${symbol}?period=annual&limit=${years}`),
+    fmpGet(`/v3/key-metrics/${symbol}?period=annual&limit=${years}`).catch(() => [] as Rec[]),
+  ]);
+  const yrKey = (r: Rec) => String(r.calendarYear ?? (r.date as string | undefined)?.slice(0, 4) ?? "");
+  const index = (arr: Rec[]) => new Map(arr.map((r) => [yrKey(r), r]));
+  const bM = index(bal), cM = index(cf), kM = index(km);
+  const rows: Rec[] = inc.map((i) => {
+    const yr = yrKey(i);
+    const b = bM.get(yr) ?? {};
+    const c = cM.get(yr) ?? {};
+    const k = kM.get(yr) ?? {};
+    return {
+      date: i.date,
+      totalRevenue: i.revenue,
+      grossProfit: i.grossProfit,
+      operatingIncome: i.operatingIncome,
+      netIncome: i.netIncome,
+      netIncomeCommonStockholders: i.netIncome,
+      EBIT: i.operatingIncome, // FMP income has no clean EBIT; operating income is the standard proxy
+      pretaxIncome: i.incomeBeforeTax,
+      taxProvision: i.incomeTaxExpense,
+      interestExpense: i.interestExpense,
+      reconciledDepreciation: i.depreciationAndAmortization ?? c.depreciationAndAmortization,
+      depreciationAndAmortization: c.depreciationAndAmortization,
+      dilutedAverageShares: i.weightedAverageShsOutDil,
+      basicAverageShares: i.weightedAverageShsOut,
+      dilutedEPS: i.epsdiluted,
+      basicEPS: i.eps,
+      stockholdersEquity: b.totalStockholdersEquity,
+      commonStockEquity: b.totalStockholdersEquity,
+      totalDebt: b.totalDebt,
+      netDebt: b.netDebt,
+      cashAndCashEquivalents: b.cashAndCashEquivalents,
+      cashCashEquivalentsAndShortTermInvestments: b.cashAndShortTermInvestments,
+      totalAssets: b.totalAssets,
+      currentAssets: b.totalCurrentAssets,
+      currentLiabilities: b.totalCurrentLiabilities,
+      investedCapital: k.investedCapital,
+      operatingCashFlow: c.operatingCashFlow ?? c.netCashProvidedByOperatingActivities,
+      capitalExpenditure: c.capitalExpenditure, // negative (outflow), like Yahoo
+      changeInWorkingCapital: c.changeInWorkingCapital,
+      freeCashFlow: c.freeCashFlow,
+      cashDividendsPaid: c.dividendsPaid,
+      commonStockDividendPaid: c.dividendsPaid,
+      repurchaseOfCapitalStock: c.commonStockRepurchased,
+      dividendPerShare: k.dividendPerShare ?? null,
+    } as Rec;
+  });
+  rows.sort(
+    (a, b) => new Date(a.date as string).getTime() - new Date(b.date as string).getTime()
+  );
+  return rows.slice(-years);
+}
+
+/** FMP → the Yahoo-shaped `summary` object buildSnapshot/buildDcfInputs read. */
+async function fmpSummary(symbol: string): Promise<Rec> {
+  const [profileArr, evArr, ratiosArr] = await Promise.all([
+    fmpGet(`/v3/profile/${symbol}`).catch(() => [] as Rec[]),
+    fmpGet(`/v3/enterprise-values/${symbol}?period=annual&limit=1`).catch(() => [] as Rec[]),
+    fmpGet(`/v3/ratios-ttm/${symbol}`).catch(() => [] as Rec[]),
+  ]);
+  const p = profileArr[0] ?? {};
+  const ev = evArr[0] ?? {};
+  const r = ratiosArr[0] ?? {};
+  return {
+    price: { marketCap: p.mktCap, currency: p.currency, trailingPE: r.priceEarningsRatioTTM },
+    summaryDetail: { marketCap: p.mktCap, trailingPE: r.priceEarningsRatioTTM },
+    defaultKeyStatistics: {
+      enterpriseValue: ev.enterpriseValue,
+      priceToBook: r.priceToBookRatioTTM,
+      enterpriseToEbitda: r.enterpriseValueMultipleTTM,
+      beta: p.beta,
+    },
+    financialData: {
+      returnOnEquity: r.returnOnEquityTTM,
+      returnOnAssets: r.returnOnAssetsTTM,
+      grossMargins: r.grossProfitMarginTTM,
+      operatingMargins: r.operatingProfitMarginTTM,
+      profitMargins: r.netProfitMarginTTM,
+      currentRatio: r.currentRatioTTM,
+      financialCurrency: p.currency,
+    },
+    assetProfile: { industry: p.industry, sector: p.sector },
+  } as Rec;
+}
+
+/** FMP's real industry-peers endpoint (far better than Yahoo's "also viewed"). */
+async function fmpPeers(symbol: string): Promise<string[]> {
+  const res = await fmpGet(`/v4/stock_peers?symbol=${symbol}`).catch(() => [] as Rec[]);
+  const list = (res[0]?.peersList ?? []) as unknown;
+  return Array.isArray(list) ? (list.filter((s) => typeof s === "string") as string[]) : [];
+}
+
+const fmp: Provider = {
+  source: "Financial Modeling Prep",
+  statements: fmpStatements,
+  summary: fmpSummary,
+  peers: fmpPeers,
+};
+
+/** The active provider: FMP when a key is configured, else Yahoo. */
+function provider(): Provider {
+  return process.env.FMP_API_KEY ? fmp : yahoo;
+}
+
 /** One candidate's comparable metrics + its industry (for the same-industry filter). */
 async function peerMetric(s: string): Promise<PeerMetric> {
+  const p = provider();
   const [qs, stmts] = await Promise.all([
-    fetchSummary(s),
-    fetchStatements(s, 2).catch(() => [] as Rec[]),
+    p.summary(s),
+    p.statements(s, 2).catch(() => [] as Rec[]),
   ]);
   const fd = (qs.financialData ?? {}) as Rec;
   const price = (qs.price ?? {}) as Rec;
@@ -238,7 +389,7 @@ async function targetIndustry(sym: string): Promise<string | null> {
   try {
     const cached = await peekFinancials(sym);
     if (cached?.industry) return cached.industry;
-    const qs = await fetchSummary(sym);
+    const qs = await provider().summary(sym);
     return ((qs.assetProfile as Rec | undefined)?.industry as string | undefined) ?? null;
   } catch {
     return null;
@@ -281,12 +432,8 @@ export async function getPeers(symbol: string, customTickers?: string[]): Promis
 
   let candidates: string[] = [];
   try {
-    const rec = (await yf.recommendationsBySymbol(sym)) as unknown as {
-      recommendedSymbols?: { symbol?: string }[];
-    };
-    candidates = (rec?.recommendedSymbols ?? [])
-      .map((r) => r.symbol)
-      .filter((s): s is string => !!s && s.toUpperCase() !== sym)
+    candidates = (await provider().peers(sym))
+      .filter((s) => !!s && s.toUpperCase() !== sym)
       .slice(0, 10);
   } catch {
     candidates = [];
@@ -436,9 +583,10 @@ function buildDcfInputs(ys: YearData[], qs: Rec, snap: FinancialsSnapshot): DcfI
 // ---------------------------------------------------------------------------
 
 async function computeFinancials(symbol: string): Promise<TickerFinancials> {
+  const p = provider();
   const [statements, qs] = await Promise.all([
-    fetchStatements(symbol, MAX_YEARS),
-    fetchSummary(symbol),
+    p.statements(symbol, MAX_YEARS),
+    p.summary(symbol),
   ]);
   const years = statements.map(extractYear);
   const latest = years.length ? years[years.length - 1] : null;
@@ -456,6 +604,7 @@ async function computeFinancials(symbol: string): Promise<TickerFinancials> {
     metrics: buildMetrics(years),
     snapshot,
     dcfInputs: buildDcfInputs(years, qs, snapshot),
+    source: p.source,
     fetchedAt: new Date().toISOString(),
   };
 }
@@ -491,7 +640,7 @@ export function financialsSummary(f: TickerFinancials): string {
   const span = yrs.length ? `${yrs[0]}–${yrs[yrs.length - 1]}` : "n/a";
   const d = f.dcfInputs;
   return [
-    `FINANCIALS (Yahoo, ${yrs.length} FY ${span}${f.industry ? `; industry: ${f.industry}` : ""}):`,
+    `FINANCIALS (${f.source}, ${yrs.length} FY ${span}${f.industry ? `; industry: ${f.industry}` : ""}):`,
     `Cost to own now: EV ${m$(s.enterpriseValue, f.currency)}, mkt cap ${m$(s.marketCap, f.currency)}, net debt ${m$(s.netDebt, f.currency)}, P/E ${xf(s.trailingPE)}, EV/EBIT ${xf(s.evToEbit)}, P/B ${xf(s.priceToBook)}, FCF yield ${pf(s.fcfYield)}.`,
     `Returns/health (latest FY): ROIC ${pf(s.roic)}, ROE ${pf(s.roe)}; margins gross ${pf(s.grossMargin)}/op ${pf(s.operatingMargin)}/net ${pf(s.netMargin)}; debt/equity ${s.debtToEquity != null ? s.debtToEquity.toFixed(2) : "n/a"}, interest cover ${xf(s.interestCoverage)}, current ratio ${s.currentRatio != null ? s.currentRatio.toFixed(2) : "n/a"}.`,
     `Trajectory over ${yrs.length}y: revenue ${m$(first(rev), f.currency)}→${m$(last(rev), f.currency)}, net income ${m$(first(ni), f.currency)}→${m$(last(ni), f.currency)}, latest FCF ${m$(last(fcf), f.currency)}, diluted shares ${nfmt(first(sh))}→${nfmt(last(sh))}.`,
@@ -509,7 +658,21 @@ export function financialsSummary(f: TickerFinancials): string {
 export async function peekFinancials(symbol: string): Promise<TickerFinancials | null> {
   try {
     const cached = await getCachedFinancials(symbol.toUpperCase());
-    return cached ? (JSON.parse(cached.data) as TickerFinancials) : null;
+    return cached ? parseFinancials(cached.data) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse a cached financials blob, rejecting entries written before the current
+ * schema (missing dcfInputs / source) — a deploy that adds fields must never
+ * serve an older shape the UI would choke on; those simply refetch.
+ */
+function parseFinancials(json: string): TickerFinancials | null {
+  try {
+    const f = JSON.parse(json) as TickerFinancials;
+    return f && f.dcfInputs && f.source && Array.isArray(f.metrics) ? f : null;
   } catch {
     return null;
   }
@@ -517,9 +680,9 @@ export async function peekFinancials(symbol: string): Promise<TickerFinancials |
 
 /**
  * Financials for a symbol — from the Postgres cache when fresh, otherwise
- * fetched from Yahoo and cached. Returns null (never throws) when the data
- * can't be obtained, so callers can degrade gracefully. If a refetch fails but
- * a stale cache exists, the stale copy is served rather than nothing.
+ * fetched from the active provider and cached. Returns null (never throws) when
+ * the data can't be obtained, so callers can degrade gracefully. If a refetch
+ * fails but a fresh-enough cache exists, the cached copy is served over nothing.
  */
 export async function getFinancials(symbol: string): Promise<TickerFinancials | null> {
   const sym = symbol.toUpperCase();
@@ -530,11 +693,9 @@ export async function getFinancials(symbol: string): Promise<TickerFinancials | 
     cached = null;
   }
   if (cached && Date.now() - Date.parse(cached.fetchedAt) < TTL_MS) {
-    try {
-      return JSON.parse(cached.data) as TickerFinancials;
-    } catch {
-      /* fall through to refetch */
-    }
+    const f = parseFinancials(cached.data);
+    if (f) return f;
+    // else stale schema → fall through to refetch
   }
 
   try {
@@ -545,14 +706,7 @@ export async function getFinancials(symbol: string): Promise<TickerFinancials | 
     }
     return fresh;
   } catch {
-    // Refetch failed — serve stale cache if we have any, else give up softly.
-    if (cached) {
-      try {
-        return JSON.parse(cached.data) as TickerFinancials;
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    // Refetch failed — serve a schema-valid cached copy if we have one.
+    return cached ? parseFinancials(cached.data) : null;
   }
 }
