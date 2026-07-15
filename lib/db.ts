@@ -294,6 +294,14 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL,
     PRIMARY KEY (hash, lang)
   )`,
+  // ---- financial-statement cache. Fundamentals are immutable once reported and
+  // identical across users, so this is keyed by symbol only (no userId) and
+  // shared. Refreshed on a multi-day TTL by the financials route. ----
+  `CREATE TABLE IF NOT EXISTS financials_cache (
+    symbol TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    "fetchedAt" TEXT NOT NULL
+  )`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -873,6 +881,23 @@ export async function saveTranslations(
             VALUES (${e.hash}, ${lang}, ${e.text}, ${now()})
             ON CONFLICT (hash, lang) DO UPDATE SET text = EXCLUDED.text`;
   }
+}
+
+// ---------- financials cache (per symbol, shared across users) ----------
+
+/** Cached financials JSON for a symbol, with its fetch timestamp — or null. */
+export async function getCachedFinancials(
+  symbol: string
+): Promise<{ data: string; fetchedAt: string } | null> {
+  const rows = await q<{ data: string; fetchedAt: string }>`
+    SELECT data, "fetchedAt" FROM financials_cache WHERE symbol = ${symbol.toUpperCase()}`;
+  return rows[0] ?? null;
+}
+
+export async function setCachedFinancials(symbol: string, data: string): Promise<void> {
+  await q`INSERT INTO financials_cache (symbol, data, "fetchedAt")
+          VALUES (${symbol.toUpperCase()}, ${data}, ${now()})
+          ON CONFLICT (symbol) DO UPDATE SET data = EXCLUDED.data, "fetchedAt" = EXCLUDED."fetchedAt"`;
 }
 
 // ---------- trades (portfolio ledger) ----------

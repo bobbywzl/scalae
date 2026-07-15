@@ -261,6 +261,78 @@ export interface RichQuote {
   spark: number[];
 }
 
+// ---------------------------------------------------------------------------
+// Financials: multi-year value-investor metrics for a ticker (the DCF section).
+// Sourced from Yahoo (fundamentalsTimeSeries + quoteSummary); numbers only, so
+// they render without translation (row labels are localized client-side by key).
+// ---------------------------------------------------------------------------
+
+/** How a metric row is rendered and whether a rising value is "good". */
+export type MetricFormat = "money" | "pct" | "ratio" | "shares" | "perShare" | "x";
+/** Which block of the table a metric belongs to. */
+export type MetricGroup = "income" | "returns" | "balance" | "cashflow" | "perShare";
+
+/** One row of the metrics×years table — values aligned to `fiscalYears`. */
+export interface FinancialMetric {
+  key: string; // stable id, mapped to a localized label + tooltip client-side
+  group: MetricGroup;
+  format: MetricFormat;
+  /** 1 = higher is better, -1 = lower is better, 0 = neutral (delta not colored). */
+  polarity: 1 | -1 | 0;
+  /** Oldest → newest, aligned to fiscalYears; null where the source lacked it. */
+  values: (number | null)[];
+}
+
+/** Current point-in-time valuation & health snapshot (what it costs to own it now). */
+export interface FinancialsSnapshot {
+  marketCap: number | null;
+  /** What you'd pay to buy the whole business today: mkt cap + debt − cash. */
+  enterpriseValue: number | null;
+  netDebt: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  priceToBook: number | null;
+  evToEbit: number | null;
+  evToEbitda: number | null;
+  evToRevenue: number | null;
+  roe: number | null;
+  roic: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  netMargin: number | null;
+  debtToEquity: number | null;
+  currentRatio: number | null;
+  interestCoverage: number | null;
+  fcfYield: number | null; // trailing FCF / enterprise value
+}
+
+/** One peer's comparable returns/margins for the ROIC/ROE-vs-industry table. */
+export interface PeerMetric {
+  symbol: string;
+  name: string | null;
+  roe: number | null;
+  roic: number | null;
+  netMargin: number | null;
+  operatingMargin: number | null;
+  debtToEquity: number | null;
+}
+
+/** The full per-ticker financials payload served by /api/tickers/[symbol]/financials. */
+export interface TickerFinancials {
+  symbol: string;
+  currency: string | null;
+  sector: string | null;
+  industry: string | null;
+  /** Fiscal-year labels oldest → newest, e.g. "2016" … "2025". */
+  fiscalYears: string[];
+  metrics: FinancialMetric[];
+  snapshot: FinancialsSnapshot;
+  /** Best-effort peer comparison (auto-selected via Yahoo related tickers). */
+  peers: PeerMetric[];
+  /** ISO timestamp this data was fetched/computed (drives the cache + "as of"). */
+  fetchedAt: string;
+}
+
 /**
  * One distinct source in a signal's accumulated evidence catalog — deduped
  * across every reading in the signal's history, so the list grows as each

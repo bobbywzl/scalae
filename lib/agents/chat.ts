@@ -27,6 +27,7 @@ import {
   upsertFocusArea,
 } from "../db";
 import { getQuote, quoteLine } from "../market";
+import { financialsSummary, peekFinancials } from "../financials";
 import { computeInvolvement, involvementLine } from "../portfolio";
 import type { Lang } from "../i18n/config";
 import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
@@ -177,7 +178,7 @@ export async function handleChatTurn(
   }
 
   const mode = ticker.onboarded ? "working" : "onboarding";
-  const [focusAreas, active, suggested, dismissed, retired, run, quote, involvement] =
+  const [focusAreas, active, suggested, dismissed, retired, run, quote, involvement, financials] =
     await Promise.all([
       listFocusAreas(userId, symbol),
       listSignals(userId, symbol, "active"),
@@ -187,6 +188,9 @@ export async function handleChatTurn(
       latestRun(userId, symbol),
       getQuote(symbol).catch(() => null),
       computeInvolvement(userId, symbol).catch(() => null),
+      // Cache-only: never pay the Yahoo fetch on the chat path (the desk page
+      // warms it). Present once the investor has opened the desk.
+      peekFinancials(symbol).catch(() => null),
     ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -227,6 +231,7 @@ ${boardLines || "(empty)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
+${financials ? financialsSummary(financials) : ""}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
   // Signal-focused context: the one signal's full world, in depth.
