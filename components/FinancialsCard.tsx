@@ -8,6 +8,7 @@ import type {
   FinancialMetric,
   MetricFormat,
   MetricGroup,
+  PeerComparison,
   PeerMetric,
   TickerFinancials,
 } from "@/lib/types";
@@ -54,13 +55,47 @@ function trendClass(m: FinancialMetric): string {
   return delta > 0 ? "text-gain" : delta < 0 ? "text-loss" : "text-emph";
 }
 
-const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "perShare"];
+const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "dcf", "perShare"];
+
+/** Tab-separated export with RAW numeric values (Excel/CapIQ-ready), so the
+ *  investor can build their own DCF — not the display-formatted strings. */
+function buildTSV(data: TickerFinancials, t: ReturnType<typeof useT>["t"]): string {
+  const cell = (v: number | null) => (v == null ? "" : String(v));
+  const lines: string[] = [];
+  lines.push([data.symbol, ...data.fiscalYears].join("\t"));
+  for (const g of GROUPS) {
+    const rows = data.metrics.filter((m) => m.group === g);
+    if (!rows.length) continue;
+    lines.push(t(`financials.grp_${g}` as TKey));
+    for (const m of rows) lines.push([label(t, m.key), ...m.values.map(cell)].join("\t"));
+  }
+  const d = data.dcfInputs;
+  lines.push("", t("financials.dcfTitle"));
+  const kv: [string, number | null][] = [
+    ["beta", d.beta],
+    ["effectiveTaxRate", d.effectiveTaxRate],
+    ["costOfDebt", d.costOfDebt],
+    ["equityWeight", d.equityWeight],
+    ["debtWeight", d.debtWeight],
+    ["netDebt", d.netDebt],
+    ["sharesOutstanding", d.sharesOutstanding],
+    ["enterpriseValue", d.enterpriseValue],
+    ["medianRevenueGrowth", d.medianRevenueGrowth],
+    ["medianOperatingMargin", d.medianOperatingMargin],
+    ["medianRoic", d.medianRoic],
+    ["medianReinvestmentRate", d.medianReinvestmentRate],
+    ["medianFcffMargin", d.medianFcffMargin],
+  ];
+  for (const [k, v] of kv) lines.push([label(t, k), v == null ? "" : String(v)].join("\t"));
+  return lines.join("\n");
+}
 
 export function FinancialsSection({ symbol }: { symbol: string }) {
   const { t } = useT();
   const [data, setData] = useState<TickerFinancials | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [showTable, setShowTable] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Fetch once per symbol. setState lives in the promise callbacks (with an
   // unmount guard), not synchronously in the effect body.
@@ -113,16 +148,35 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
         <>
           <Snapshot data={data} c={c} t={t} />
 
-          {data.peers.length > 0 && <Peers peers={data.peers} data={data} t={t} />}
+          <DcfInputsBlock data={data} c={c} t={t} />
+
+          <PeerPanel data={data} symbol={symbol} t={t} />
 
           {years.length > 0 && (
             <>
-              <button
-                onClick={() => setShowTable((v) => !v)}
-                className="mt-4 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
-              >
-                {showTable ? t("financials.hideTable") : t("financials.showTable")}
-              </button>
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowTable((v) => !v)}
+                  className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+                >
+                  {showTable ? t("financials.hideTable") : t("financials.showTable")}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(buildTSV(data, t)).then(
+                      () => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1800);
+                      },
+                      () => {}
+                    );
+                  }}
+                  className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+                >
+                  {copied ? t("financials.copied") : t("financials.copyTable")}
+                </button>
+                <span className="text-[10px] text-muted/60">{t("financials.accuracyNote")}</span>
+              </div>
               {showTable && <MetricsTable data={data} c={c} t={t} />}
             </>
           )}
@@ -181,16 +235,89 @@ function Snapshot({
   );
 }
 
-// --- returns & margins vs. peers ---
-function Peers({
-  peers,
+// --- normalized inputs for the investor's own DCF ---
+function DcfInputsBlock({
   data,
+  c,
   t,
 }: {
-  peers: PeerMetric[];
   data: TickerFinancials;
+  c: string;
   t: ReturnType<typeof useT>["t"];
 }) {
+  const d = data.dcfInputs;
+  const cells: { key: string; value: string }[] = [
+    { key: "medianRevenueGrowth", value: fmtMetric(d.medianRevenueGrowth, "pct", c) },
+    { key: "medianOperatingMargin", value: fmtMetric(d.medianOperatingMargin, "pct", c) },
+    { key: "medianRoic", value: fmtMetric(d.medianRoic, "pct", c) },
+    { key: "medianReinvestmentRate", value: fmtMetric(d.medianReinvestmentRate, "pct", c) },
+    { key: "medianFcffMargin", value: fmtMetric(d.medianFcffMargin, "pct", c) },
+    { key: "beta", value: d.beta == null ? "—" : neg(d.beta.toFixed(2)) },
+    { key: "costOfDebt", value: fmtMetric(d.costOfDebt, "pct", c) },
+    { key: "effectiveTaxRate", value: fmtMetric(d.effectiveTaxRate, "pct", c) },
+    { key: "equityWeight", value: fmtMetric(d.equityWeight, "pct", c) },
+    { key: "debtWeight", value: fmtMetric(d.debtWeight, "pct", c) },
+    { key: "netDebt", value: fmtMoney(d.netDebt, c) },
+    { key: "sharesOutstanding", value: fmtInt(d.sharesOutstanding) },
+  ];
+  return (
+    <div className="mt-4 rounded-xl border border-accent/20 bg-accent/[0.04] p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted">
+        {t("financials.dcfTitle")}
+        <span className="text-muted/60 normal-case tracking-normal ml-1.5">
+          · {t("financials.dcfNote", { n: data.fiscalYears.length })}
+        </span>
+      </p>
+      <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2.5">
+        {cells.map((cell) => (
+          <div key={cell.key} className="min-w-0">
+            <p className="text-[9px] uppercase tracking-wider text-muted truncate">{label(t, cell.key)}</p>
+            <p className="text-[12px] tabular-nums text-emph mt-px truncate">{cell.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- returns & margins vs. INDUSTRY peers (loaded only on request) ---
+function PeerPanel({
+  data,
+  symbol,
+  t,
+}: {
+  data: TickerFinancials;
+  symbol: string;
+  t: ReturnType<typeof useT>["t"];
+}) {
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [comp, setComp] = useState<PeerComparison | null>(null);
+  const [input, setInput] = useState("");
+
+  const run = (tickers?: string) => {
+    setState("loading");
+    const qs = tickers && tickers.trim() ? `?tickers=${encodeURIComponent(tickers.trim())}` : "";
+    api<{ comparison: PeerComparison }>(
+      `/api/tickers/${encodeURIComponent(symbol)}/financials/peers${qs}`
+    )
+      .then((res) => {
+        setComp(res.comparison);
+        setState("ready");
+      })
+      .catch(() => setState("error"));
+  };
+
+  if (state === "idle") {
+    return (
+      <button
+        onClick={() => run()}
+        className="mt-4 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+      >
+        {t("financials.comparePeers")}
+      </button>
+    );
+  }
+
   const s = data.snapshot;
   const cols: { key: string; get: (p: PeerMetric) => number | null; self: number | null }[] = [
     { key: "roe", get: (p) => p.roe, self: s.roe },
@@ -200,55 +327,97 @@ function Peers({
     { key: "debtToEquity", get: (p) => p.debtToEquity, self: s.debtToEquity },
   ];
   const pct = (v: number | null) => (v == null ? "—" : neg((v * 100).toFixed(1)) + "%");
+  const cell = (key: string, v: number | null) =>
+    key === "debtToEquity" ? (v == null ? "—" : neg(v.toFixed(2))) : pct(v);
+
   return (
     <div className="mt-4">
       <p className="text-[10px] uppercase tracking-wider text-muted">
         {t("financials.peersTitle")}
         <span className="text-muted/60 normal-case tracking-normal ml-1.5">
-          · {t("financials.peersNote")}
+          ·{" "}
+          {comp?.custom
+            ? t("financials.peersCustomNote")
+            : comp?.industry
+              ? comp.industry
+              : t("financials.peersNote")}
         </span>
       </p>
-      <div className="overflow-x-auto mt-1.5">
-        <table className="w-full text-[11px] tabular-nums">
-          <thead>
-            <tr className="text-muted text-left">
-              <th className="font-medium py-1 pr-3">{t("financials.colTicker")}</th>
-              {cols.map((col) => (
-                <th key={col.key} className="font-medium py-1 px-2 text-right whitespace-nowrap">
-                  {label(t, col.key)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-t border-hairline">
-              <td className="py-1 pr-3 font-semibold text-foreground whitespace-nowrap">
-                {data.symbol}{" "}
-                <span className="text-[9px] text-accent uppercase">{t("financials.thisCompany")}</span>
-              </td>
-              {cols.map((col) => (
-                <td key={col.key} className="py-1 px-2 text-right text-emph">
-                  {col.key === "debtToEquity" ? (col.self == null ? "—" : neg(col.self.toFixed(2))) : pct(col.self)}
-                </td>
-              ))}
-            </tr>
-            {peers.map((p) => (
-              <tr key={p.symbol} className="border-t border-hairline/60">
-                <td className="py-1 pr-3 text-emph whitespace-nowrap" title={p.name ?? undefined}>
-                  {p.symbol}
-                </td>
-                {cols.map((col) => (
-                  <td key={col.key} className="py-1 px-2 text-right text-muted">
-                    {col.key === "debtToEquity"
-                      ? (col.get(p) == null ? "—" : neg(col.get(p)!.toFixed(2)))
-                      : pct(col.get(p))}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {state === "loading" && <p className="text-muted text-xs italic mt-1.5">{t("financials.peersLoading")}</p>}
+      {state === "error" && <p className="text-muted text-xs italic mt-1.5">{t("financials.peersError")}</p>}
+
+      {state === "ready" && comp && (
+        <>
+          {comp.peers.length === 0 ? (
+            <p className="text-muted text-xs mt-1.5">{t("financials.peersNoneAuto")}</p>
+          ) : (
+            <div className="overflow-x-auto mt-1.5">
+              <table className="w-full text-[11px] tabular-nums">
+                <thead>
+                  <tr className="text-muted text-left">
+                    <th className="font-medium py-1 pr-3">{t("financials.colTicker")}</th>
+                    {cols.map((col) => (
+                      <th key={col.key} className="font-medium py-1 px-2 text-right whitespace-nowrap">
+                        {label(t, col.key)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-hairline">
+                    <td className="py-1 pr-3 font-semibold text-foreground whitespace-nowrap">
+                      {data.symbol}{" "}
+                      <span className="text-[9px] text-accent uppercase">{t("financials.thisCompany")}</span>
+                    </td>
+                    {cols.map((col) => (
+                      <td key={col.key} className="py-1 px-2 text-right text-emph">
+                        {cell(col.key, col.self)}
+                      </td>
+                    ))}
+                  </tr>
+                  {comp.peers.map((p) => (
+                    <tr key={p.symbol} className="border-t border-hairline/60">
+                      <td className="py-1 pr-3 text-emph whitespace-nowrap" title={p.name ?? undefined}>
+                        {p.symbol}
+                      </td>
+                      {cols.map((col) => (
+                        <td key={col.key} className="py-1 px-2 text-right text-muted">
+                          {cell(col.key, col.get(p))}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Add your own comparables (any industry — your call). */}
+          <form
+            className="mt-2.5 flex items-center gap-2 flex-wrap"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (input.trim()) run(input);
+            }}
+          >
+            <span className="text-[10px] text-muted">{t("financials.addPeersLabel")}</span>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t("financials.addPeersPlaceholder")}
+              className="rounded-md border border-hairline bg-ink/4 px-2 py-1 text-[11px] w-48 focus:outline-none focus:border-accent/50"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 disabled:opacity-40 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+            >
+              {t("financials.addPeersGo")}
+            </button>
+          </form>
+        </>
+      )}
     </div>
   );
 }
