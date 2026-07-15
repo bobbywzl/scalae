@@ -14,6 +14,7 @@ export function DigestFeed({
   signals = [],
   onOpenSignal,
   onTrackStory,
+  onClip,
 }: {
   items: DigestItem[];
   /** Board signals of any status, used to resolve tag names. */
@@ -21,6 +22,8 @@ export function DigestFeed({
   onOpenSignal?: (id: string) => void;
   /** Untagged stories get a "track this" affordance — asks the analyst to draft a signal (approval-gated). */
   onTrackStory?: (item: DigestItem) => void;
+  /** Clip this evidence into one of the investor's notepads (Notes page). */
+  onClip?: (item: DigestItem) => void;
 }) {
   const { t } = useT();
   if (items.length === 0) {
@@ -52,6 +55,15 @@ export function DigestFeed({
             <p className="text-[10px] text-muted mt-1">
               {d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date, t)}
+              {onClip && (
+                <button
+                  onClick={() => onClip(d)}
+                  title={t("notes.clipTitle")}
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                >
+                  {t("notes.clipAction")}
+                </button>
+              )}
               {d.signalNames.length === 0 && onTrackStory && (
                 <button
                   onClick={() => onTrackStory(d)}

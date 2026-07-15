@@ -14,6 +14,8 @@ import type {
   FeedbackStatus,
   FeedbackTicket,
   FocusArea,
+  Note,
+  NoteSection,
   Order,
   OrderStatus,
   Reading,
@@ -302,6 +304,29 @@ export const SCHEMA_STATEMENTS: string[] = [
     data TEXT NOT NULL,
     "fetchedAt" TEXT NOT NULL
   )`,
+  // ---- investor notes: per-ticker sections, each holding rich-text notepads
+  // (TipTap JSON in notes.content — rendered only through the editor schema). ----
+  `CREATE TABLE IF NOT EXISTS note_sections (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    title TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "sectionId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    "updatedAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_note_sections_user ON note_sections("userId", symbol, position)`,
+  `CREATE INDEX IF NOT EXISTS idx_notes_section ON notes("sectionId", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS idx_notes_user ON notes("userId", symbol)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -898,6 +923,107 @@ export async function setCachedFinancials(symbol: string, data: string): Promise
   await q`INSERT INTO financials_cache (symbol, data, "fetchedAt")
           VALUES (${symbol.toUpperCase()}, ${data}, ${now()})
           ON CONFLICT (symbol) DO UPDATE SET data = EXCLUDED.data, "fetchedAt" = EXCLUDED."fetchedAt"`;
+}
+
+// ---------- investor notes (sections + rich-text notepads) ----------
+
+export async function listNoteSections(userId: string, symbol: string): Promise<NoteSection[]> {
+  return q<NoteSection>`
+    SELECT id, symbol, title, position, "createdAt" FROM note_sections
+    WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY position ASC, "createdAt" ASC`;
+}
+
+export async function createNoteSection(
+  userId: string,
+  symbol: string,
+  title: string
+): Promise<NoteSection> {
+  const rows = await q<{ max: number | null }>`
+    SELECT MAX(position) AS max FROM note_sections WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  const s: NoteSection = {
+    id: uid(),
+    symbol,
+    title: title.trim().slice(0, 120),
+    position: (rows[0]?.max ?? -1) + 1,
+    createdAt: now(),
+  };
+  await q`INSERT INTO note_sections (id, "userId", symbol, title, position, "createdAt")
+          VALUES (${s.id}, ${userId}, ${s.symbol}, ${s.title}, ${s.position}, ${s.createdAt})`;
+  return s;
+}
+
+export async function renameNoteSection(userId: string, id: string, title: string): Promise<void> {
+  await q`UPDATE note_sections SET title = ${title.trim().slice(0, 120)}
+          WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+/** Deleting a section deletes its notepads with it — the page confirms first. */
+export async function deleteNoteSection(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM notes WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
+  await q`DELETE FROM note_sections WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+export async function getNoteSection(userId: string, id: string): Promise<NoteSection | undefined> {
+  const rows = await q<NoteSection>`
+    SELECT id, symbol, title, position, "createdAt" FROM note_sections
+    WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0];
+}
+
+export async function listNotes(userId: string, symbol: string): Promise<Note[]> {
+  return q<Note>`
+    SELECT id, "sectionId", symbol, title, content, "createdAt", "updatedAt" FROM notes
+    WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
+}
+
+export async function getNote(userId: string, id: string): Promise<Note | undefined> {
+  const rows = await q<Note>`
+    SELECT id, "sectionId", symbol, title, content, "createdAt", "updatedAt" FROM notes
+    WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0];
+}
+
+export async function createNote(
+  userId: string,
+  sectionId: string,
+  symbol: string,
+  title: string,
+  content: string
+): Promise<Note> {
+  const n: Note = {
+    id: uid(),
+    sectionId,
+    symbol,
+    title: title.trim().slice(0, 160),
+    content,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+  await q`INSERT INTO notes (id, "userId", "sectionId", symbol, title, content, "createdAt", "updatedAt")
+          VALUES (${n.id}, ${userId}, ${n.sectionId}, ${n.symbol}, ${n.title}, ${n.content}, ${n.createdAt}, ${n.updatedAt})`;
+  return n;
+}
+
+/** Autosave: update title and/or content; either may be omitted. */
+export async function updateNote(
+  userId: string,
+  id: string,
+  patch: { title?: string; content?: string }
+): Promise<void> {
+  if (patch.title !== undefined && patch.content !== undefined) {
+    await q`UPDATE notes SET title = ${patch.title.trim().slice(0, 160)}, content = ${patch.content},
+            "updatedAt" = ${now()} WHERE id = ${id} AND "userId" = ${userId}`;
+  } else if (patch.title !== undefined) {
+    await q`UPDATE notes SET title = ${patch.title.trim().slice(0, 160)}, "updatedAt" = ${now()}
+            WHERE id = ${id} AND "userId" = ${userId}`;
+  } else if (patch.content !== undefined) {
+    await q`UPDATE notes SET content = ${patch.content}, "updatedAt" = ${now()}
+            WHERE id = ${id} AND "userId" = ${userId}`;
+  }
+}
+
+export async function deleteNote(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM notes WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
 // ---------- trades (portfolio ledger) ----------
