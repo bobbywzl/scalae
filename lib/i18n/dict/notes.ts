@@ -72,6 +72,18 @@ const en = {
   // Highlight-to-annotate (any text surface)
   annotPlaceholder: "Add a note… (Enter = amber highlight)",
   annotDelete: "Remove highlight",
+
+  // Annotation records (the reviewable log on the desk)
+  annRecTitle: "Annotations",
+  annSurfBrief: "Today’s brief",
+  annSurfDossier: "Dossier",
+  annSurfEvidence: "Evidence: {headline}",
+  annSurfEvidenceGeneric: "Evidence item",
+  annSurfReading: "“{name}” reading · {date}",
+  annSurfReadingGeneric: "Signal reading",
+  annSurfThesis: "“{name}” — thesis",
+  annSurfBackstory: "“{name}” — deep history",
+  annSurfChat: "Analyst reply",
 } as const;
 
 const zh: Record<keyof typeof en, string> = {
@@ -137,6 +149,17 @@ const zh: Record<keyof typeof en, string> = {
 
   annotPlaceholder: "添加批注……（回车 = 琥珀色高亮）",
   annotDelete: "移除高亮",
+
+  annRecTitle: "批注记录",
+  annSurfBrief: "今日晨报",
+  annSurfDossier: "档案",
+  annSurfEvidence: "证据：{headline}",
+  annSurfEvidenceGeneric: "证据条目",
+  annSurfReading: "“{name}” 读数 · {date}",
+  annSurfReadingGeneric: "信号读数",
+  annSurfThesis: "“{name}”——论点",
+  annSurfBackstory: "“{name}”——深度历史",
+  annSurfChat: "分析师回复",
 };
 
 export const notes = { en, zh };
