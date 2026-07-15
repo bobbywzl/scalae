@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { ClipDialog } from "@/components/ClipDialog";
 import { FinancialsSection } from "@/components/FinancialsCard";
@@ -947,6 +948,13 @@ export default function DeskPage() {
               })}
             </div>
           </section>
+
+          {/* Every highlight made anywhere on this ticker, in one reviewable log. */}
+          <AnnotationRecords
+            digest={desk.digest}
+            signals={[...desk.active, ...desk.retired]}
+            signalsById={signalsById}
+          />
 
           {/* Nothing on this desk is deleted — retired and dismissed signals
               stay auditable and reversible. */}

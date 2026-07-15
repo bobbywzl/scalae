@@ -31,7 +31,7 @@ const COLOR_STYLES: Record<string, { background: string; borderBottom: string }>
   green: { background: "rgba(52,211,153,0.28)", borderBottom: "2px solid rgba(52,211,153,0.65)" },
   purple: { background: "rgba(167,139,250,0.28)", borderBottom: "2px solid rgba(167,139,250,0.65)" },
 };
-const COLOR_SWATCHES: Record<string, string> = {
+export const COLOR_SWATCHES: Record<string, string> = {
   amber: "#FBBF24",
   blue: "#60A5FA",
   green: "#34D399",
@@ -47,6 +47,11 @@ interface AnnotationsCtx {
 }
 
 const Ctx = createContext<AnnotationsCtx | null>(null);
+
+/** The ticker's live annotations (null outside an AnnotationsProvider). */
+export function useAnnotations(): AnnotationsCtx | null {
+  return useContext(Ctx);
+}
 
 export function AnnotationsProvider({ symbol, children }: { symbol: string; children: ReactNode }) {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
