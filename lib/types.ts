@@ -270,7 +270,7 @@ export interface RichQuote {
 /** How a metric row is rendered and whether a rising value is "good". */
 export type MetricFormat = "money" | "pct" | "ratio" | "shares" | "perShare" | "x";
 /** Which block of the table a metric belongs to. */
-export type MetricGroup = "income" | "returns" | "balance" | "cashflow" | "perShare";
+export type MetricGroup = "income" | "returns" | "balance" | "cashflow" | "dcf" | "perShare";
 
 /** One row of the metrics×years table — values aligned to `fiscalYears`. */
 export interface FinancialMetric {
@@ -306,15 +306,57 @@ export interface FinancialsSnapshot {
   fcfYield: number | null; // trailing FCF / enterprise value
 }
 
+/**
+ * Normalized inputs a value investor needs to build their own unlevered DCF —
+ * WACC building blocks, the EV↔equity bridge, and drivers normalized (median)
+ * across the available fiscal years so they aren't anchored to a single year.
+ */
+export interface DcfInputs {
+  /** Equity beta (from the data provider) — for cost of equity. */
+  beta: number | null;
+  /** Effective tax rate to unlever earnings (median of reported rates). */
+  effectiveTaxRate: number | null;
+  /** Pre-tax cost of debt proxy: interest expense ÷ total debt. */
+  costOfDebt: number | null;
+  /** Market-value capital-structure weights (sum to 1). */
+  equityWeight: number | null;
+  debtWeight: number | null;
+  /** EV→equity bridge. */
+  netDebt: number | null;
+  sharesOutstanding: number | null;
+  marketCap: number | null;
+  enterpriseValue: number | null;
+  // Normalized drivers to seed the projection (medians over available years):
+  medianRevenueGrowth: number | null;
+  medianOperatingMargin: number | null;
+  medianRoic: number | null;
+  medianReinvestmentRate: number | null;
+  medianFcffMargin: number | null;
+}
+
 /** One peer's comparable returns/margins for the ROIC/ROE-vs-industry table. */
 export interface PeerMetric {
   symbol: string;
   name: string | null;
+  industry: string | null;
   roe: number | null;
   roic: number | null;
   netMargin: number | null;
   operatingMargin: number | null;
   debtToEquity: number | null;
+}
+
+/**
+ * On-demand peer comparison (loaded only when the investor asks). Auto-selected
+ * peers are filtered to the ticker's own industry — comparing across industries
+ * is meaningless — but the investor can also name specific tickers.
+ */
+export interface PeerComparison {
+  /** The ticker's own industry, the filter auto-peers must match. */
+  industry: string | null;
+  peers: PeerMetric[];
+  /** True when the caller supplied explicit tickers (industry filter skipped). */
+  custom: boolean;
 }
 
 /** The full per-ticker financials payload served by /api/tickers/[symbol]/financials. */
@@ -327,8 +369,8 @@ export interface TickerFinancials {
   fiscalYears: string[];
   metrics: FinancialMetric[];
   snapshot: FinancialsSnapshot;
-  /** Best-effort peer comparison (auto-selected via Yahoo related tickers). */
-  peers: PeerMetric[];
+  /** Normalized inputs for the investor's own DCF (worksheet + export). */
+  dcfInputs: DcfInputs;
   /** ISO timestamp this data was fetched/computed (drives the cache + "as of"). */
   fetchedAt: string;
 }

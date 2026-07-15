@@ -1,10 +1,12 @@
 import YahooFinance from "yahoo-finance2";
 import { getCachedFinancials, setCachedFinancials } from "./db";
 import type {
+  DcfInputs,
   FinancialMetric,
   FinancialsSnapshot,
   MetricFormat,
   MetricGroup,
+  PeerComparison,
   PeerMetric,
   TickerFinancials,
 } from "./types";
@@ -73,6 +75,7 @@ interface YearData {
   currentLiabilities: number | null;
   ocf: number | null;
   capex: number | null; // Yahoo reports this negative (an outflow)
+  changeNWC: number | null; // cash-flow signed: a NWC increase is negative cash
   fcf: number | null;
   dep: number | null;
   dividendsPaid: number | null;
@@ -113,6 +116,7 @@ function extractYear(r: Rec): YearData {
     currentLiabilities: num(r.currentLiabilities),
     ocf,
     capex,
+    changeNWC: num(r.changeInWorkingCapital),
     fcf: num(r.freeCashFlow) ?? (ocf != null && capex != null ? ocf + capex : null),
     dep: num(r.reconciledDepreciation) ?? num(r.depreciationAndAmortization),
     dividendsPaid: num(r.cashDividendsPaid) ?? num(r.commonStockDividendPaid),
@@ -137,6 +141,41 @@ function roic(y: YearData): number | null {
 /** Buffett owner earnings (approx): net income + D&A − capex (capex is negative). */
 const ownerEarnings = (y: YearData): number | null =>
   y.netIncome != null && y.dep != null && y.capex != null ? y.netIncome + y.dep + y.capex : null;
+
+/** After-tax operating profit — the numerator a DCF unlevers to. */
+const nopat = (y: YearData): number | null =>
+  y.ebit != null ? y.ebit * (1 - (y.taxRate ?? 0.21)) : null;
+
+/** Net reinvestment (Damodaran): net capex + increase in working capital, in
+ *  positive spend terms (capex/ΔNWC are stored cash-flow-signed, i.e. negative
+ *  for an outflow). */
+function reinvestment(y: YearData): number | null {
+  if (y.capex == null && y.changeNWC == null) return null;
+  const capexSpend = -(y.capex ?? 0);
+  const nwcIncrease = -(y.changeNWC ?? 0);
+  return capexSpend - (y.dep ?? 0) + nwcIncrease;
+}
+
+/** Unlevered free cash flow (FCFF) = NOPAT − reinvestment — what a WACC DCF discounts. */
+function fcff(y: YearData): number | null {
+  const n = nopat(y);
+  const r = reinvestment(y);
+  return n != null && r != null ? n - r : null;
+}
+
+const reinvestmentRate = (y: YearData): number | null => {
+  const n = nopat(y);
+  const r = reinvestment(y);
+  return n != null && n !== 0 && r != null ? r / n : null;
+};
+
+/** Median of the non-null values (for normalizing DCF drivers across years). */
+function median(vals: (number | null)[]): number | null {
+  const xs = vals.filter((v): v is number => v != null).sort((a, b) => a - b);
+  if (xs.length === 0) return null;
+  const mid = Math.floor(xs.length / 2);
+  return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
+}
 
 // ---------------------------------------------------------------------------
 // Fetching
@@ -168,45 +207,102 @@ async function fetchSummary(symbol: string): Promise<Rec> {
   )) as unknown as Rec;
 }
 
-async function fetchPeers(symbol: string): Promise<PeerMetric[]> {
-  let syms: string[] = [];
+/** One candidate's comparable metrics + its industry (for the same-industry filter). */
+async function peerMetric(s: string): Promise<PeerMetric> {
+  const [qs, stmts] = await Promise.all([
+    fetchSummary(s),
+    fetchStatements(s, 2).catch(() => [] as Rec[]),
+  ]);
+  const fd = (qs.financialData ?? {}) as Rec;
+  const price = (qs.price ?? {}) as Rec;
+  const profile = (qs.assetProfile ?? {}) as Rec;
+  const latest = stmts.length ? extractYear(stmts[stmts.length - 1]) : null;
+  const dte = num(fd.debtToEquity); // Yahoo returns this as a percent (e.g. 154.9)
+  return {
+    symbol: s,
+    name: (price.shortName ?? price.longName ?? null) as string | null,
+    industry: (profile.industry ?? null) as string | null,
+    roe: num(fd.returnOnEquity) ?? (latest ? div(latest.netIncome, latest.equity) : null),
+    roic: latest ? roic(latest) : null,
+    netMargin: num(fd.profitMargins) ?? (latest ? div(latest.netIncome, latest.revenue) : null),
+    operatingMargin:
+      num(fd.operatingMargins) ?? (latest ? div(latest.operatingIncome, latest.revenue) : null),
+    debtToEquity:
+      latest && latest.equity ? div(latest.totalDebt, latest.equity) : dte != null ? dte / 100 : null,
+  };
+}
+
+const normIndustry = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
+
+async function targetIndustry(sym: string): Promise<string | null> {
   try {
-    const rec = (await yf.recommendationsBySymbol(symbol)) as unknown as {
+    const cached = await peekFinancials(sym);
+    if (cached?.industry) return cached.industry;
+    const qs = await fetchSummary(sym);
+    return ((qs.assetProfile as Rec | undefined)?.industry as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Peer comparison — loaded ON DEMAND (never as part of the main financials
+ * fetch). With `customTickers` the investor's exact picks are compared as-is.
+ * Otherwise candidates come from Yahoo's related tickers but are kept ONLY when
+ * their industry matches the target's — comparing a retailer to banks is noise,
+ * so an unknown or non-matching industry yields no auto peers rather than junk.
+ * Auto results are cached per symbol; custom sets aren't. Fail-soft throughout.
+ */
+export async function getPeers(symbol: string, customTickers?: string[]): Promise<PeerComparison> {
+  const sym = symbol.toUpperCase();
+  const industry = await targetIndustry(sym);
+
+  if (customTickers && customTickers.length) {
+    const syms = customTickers
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s && s !== sym)
+      .slice(0, MAX_PEERS);
+    const settled = await Promise.allSettled(syms.map(peerMetric));
+    const peers = settled
+      .filter((r): r is PromiseFulfilledResult<PeerMetric> => r.status === "fulfilled")
+      .map((r) => r.value);
+    return { industry, peers, custom: true };
+  }
+
+  const key = `${sym}:PEERS`;
+  try {
+    const c = await getCachedFinancials(key);
+    if (c && Date.now() - Date.parse(c.fetchedAt) < TTL_MS) {
+      return JSON.parse(c.data) as PeerComparison;
+    }
+  } catch {
+    /* fall through to refetch */
+  }
+
+  let candidates: string[] = [];
+  try {
+    const rec = (await yf.recommendationsBySymbol(sym)) as unknown as {
       recommendedSymbols?: { symbol?: string }[];
     };
-    syms = (rec?.recommendedSymbols ?? [])
+    candidates = (rec?.recommendedSymbols ?? [])
       .map((r) => r.symbol)
-      .filter((s): s is string => !!s && s !== symbol)
-      .slice(0, MAX_PEERS);
+      .filter((s): s is string => !!s && s.toUpperCase() !== sym)
+      .slice(0, 10);
   } catch {
-    return [];
+    candidates = [];
   }
-  const settled = await Promise.allSettled(
-    syms.map(async (s): Promise<PeerMetric> => {
-      const [qs, stmts] = await Promise.all([
-        fetchSummary(s),
-        fetchStatements(s, 2).catch(() => [] as Rec[]),
-      ]);
-      const fd = (qs.financialData ?? {}) as Rec;
-      const price = (qs.price ?? {}) as Rec;
-      const latest = stmts.length ? extractYear(stmts[stmts.length - 1]) : null;
-      const dte = num(fd.debtToEquity); // Yahoo returns this as a percent (e.g. 154.9)
-      return {
-        symbol: s,
-        name: (price.shortName ?? price.longName ?? null) as string | null,
-        roe: num(fd.returnOnEquity) ?? (latest ? div(latest.netIncome, latest.equity) : null),
-        roic: latest ? roic(latest) : null,
-        netMargin: num(fd.profitMargins) ?? (latest ? div(latest.netIncome, latest.revenue) : null),
-        operatingMargin:
-          num(fd.operatingMargins) ?? (latest ? div(latest.operatingIncome, latest.revenue) : null),
-        debtToEquity:
-          latest && latest.equity ? div(latest.totalDebt, latest.equity) : dte != null ? dte / 100 : null,
-      };
-    })
-  );
-  return settled
+  const settled = await Promise.allSettled(candidates.map(peerMetric));
+  const all = settled
     .filter((r): r is PromiseFulfilledResult<PeerMetric> => r.status === "fulfilled")
     .map((r) => r.value);
+  // Same-industry only; without a known target industry we can't guarantee that,
+  // so we return none rather than mixing industries.
+  const peers = industry
+    ? all.filter((p) => normIndustry(p.industry) === normIndustry(industry)).slice(0, MAX_PEERS)
+    : [];
+  const result: PeerComparison = { industry, peers, custom: false };
+  if (peers.length > 0) await setCachedFinancials(key, JSON.stringify(result)).catch(() => {});
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +347,22 @@ function buildMetrics(ys: YearData[]): FinancialMetric[] {
     metric("ownerEarnings", "cashflow", "money", 1, col(ownerEarnings)),
     metric("buybacks", "cashflow", "money", 0, col((y) => y.buybacks)),
     metric("dividendsPaid", "cashflow", "money", 0, col((y) => y.dividendsPaid)),
+    // DCF drivers — the inputs to build an unlevered (FCFF) discounted cash flow
+    metric(
+      "revenueGrowth",
+      "dcf",
+      "pct",
+      1,
+      ys.map((y, i) => (i > 0 ? div(sub(y.revenue, ys[i - 1].revenue), ys[i - 1].revenue) : null))
+    ),
+    metric("taxRate", "dcf", "pct", -1, col((y) => y.taxRate)),
+    metric("nopat", "dcf", "money", 1, col(nopat)),
+    metric("da", "dcf", "money", 0, col((y) => y.dep)),
+    metric("capex", "dcf", "money", 0, col((y) => y.capex)),
+    metric("changeNWC", "dcf", "money", 0, col((y) => y.changeNWC)),
+    metric("reinvestment", "dcf", "money", 0, col(reinvestment)),
+    metric("reinvestmentRate", "dcf", "pct", -1, col(reinvestmentRate)),
+    metric("fcff", "dcf", "money", 1, col(fcff)),
     // Per share
     metric("eps", "perShare", "perShare", 1, col((y) => y.eps)),
     metric("dps", "perShare", "perShare", 1, col((y) => y.dps)),
@@ -294,21 +406,46 @@ function buildSnapshot(qs: Rec, latest: YearData | null): FinancialsSnapshot {
   };
 }
 
+function buildDcfInputs(ys: YearData[], qs: Rec, snap: FinancialsSnapshot): DcfInputs {
+  const stats = (qs.defaultKeyStatistics ?? {}) as Rec;
+  const latest = ys.length ? ys[ys.length - 1] : null;
+  const totalDebt = latest?.totalDebt ?? null;
+  const mc = snap.marketCap;
+  const capBase = mc != null && totalDebt != null ? mc + totalDebt : null;
+  const revGrowth = ys.map((y, i) => (i > 0 ? div(sub(y.revenue, ys[i - 1].revenue), ys[i - 1].revenue) : null));
+  return {
+    beta: num(stats.beta),
+    effectiveTaxRate: median(ys.map((y) => y.taxRate)),
+    costOfDebt: latest ? div(latest.interestExpense, latest.totalDebt) : null,
+    equityWeight: div(mc, capBase),
+    debtWeight: div(totalDebt, capBase),
+    netDebt: snap.netDebt,
+    sharesOutstanding: num(stats.sharesOutstanding) ?? latest?.shares ?? null,
+    marketCap: mc,
+    enterpriseValue: snap.enterpriseValue,
+    medianRevenueGrowth: median(revGrowth),
+    medianOperatingMargin: median(ys.map((y) => div(y.operatingIncome, y.revenue))),
+    medianRoic: median(ys.map(roic)),
+    medianReinvestmentRate: median(ys.map(reinvestmentRate)),
+    medianFcffMargin: median(ys.map((y) => div(fcff(y), y.revenue))),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Public entry — cached, fail-soft
 // ---------------------------------------------------------------------------
 
 async function computeFinancials(symbol: string): Promise<TickerFinancials> {
-  const [statements, qs, peers] = await Promise.all([
+  const [statements, qs] = await Promise.all([
     fetchStatements(symbol, MAX_YEARS),
     fetchSummary(symbol),
-    fetchPeers(symbol).catch(() => [] as PeerMetric[]),
   ]);
   const years = statements.map(extractYear);
   const latest = years.length ? years[years.length - 1] : null;
   const price = (qs.price ?? {}) as Rec;
   const profile = (qs.assetProfile ?? {}) as Rec;
   const fd = (qs.financialData ?? {}) as Rec;
+  const snapshot = buildSnapshot(qs, latest);
 
   return {
     symbol,
@@ -317,8 +454,8 @@ async function computeFinancials(symbol: string): Promise<TickerFinancials> {
     industry: (profile.industry ?? null) as string | null,
     fiscalYears: years.map((y) => y.year),
     metrics: buildMetrics(years),
-    snapshot: buildSnapshot(qs, latest),
-    peers,
+    snapshot,
+    dcfInputs: buildDcfInputs(years, qs, snapshot),
     fetchedAt: new Date().toISOString(),
   };
 }
@@ -351,14 +488,14 @@ export function financialsSummary(f: TickerFinancials): string {
   const first = (a: (number | null)[]) => a.find((v) => v != null) ?? null;
   const last = (a: (number | null)[]) => [...a].reverse().find((v) => v != null) ?? null;
   const rev = vals("revenue"), ni = vals("netIncome"), fcf = vals("fcf"), sh = vals("shares");
-  const peers = f.peers.map((p) => `${p.symbol} (ROE ${pf(p.roe)}, ROIC ${pf(p.roic)})`).join("; ");
   const span = yrs.length ? `${yrs[0]}–${yrs[yrs.length - 1]}` : "n/a";
+  const d = f.dcfInputs;
   return [
     `FINANCIALS (Yahoo, ${yrs.length} FY ${span}${f.industry ? `; industry: ${f.industry}` : ""}):`,
     `Cost to own now: EV ${m$(s.enterpriseValue, f.currency)}, mkt cap ${m$(s.marketCap, f.currency)}, net debt ${m$(s.netDebt, f.currency)}, P/E ${xf(s.trailingPE)}, EV/EBIT ${xf(s.evToEbit)}, P/B ${xf(s.priceToBook)}, FCF yield ${pf(s.fcfYield)}.`,
     `Returns/health (latest FY): ROIC ${pf(s.roic)}, ROE ${pf(s.roe)}; margins gross ${pf(s.grossMargin)}/op ${pf(s.operatingMargin)}/net ${pf(s.netMargin)}; debt/equity ${s.debtToEquity != null ? s.debtToEquity.toFixed(2) : "n/a"}, interest cover ${xf(s.interestCoverage)}, current ratio ${s.currentRatio != null ? s.currentRatio.toFixed(2) : "n/a"}.`,
     `Trajectory over ${yrs.length}y: revenue ${m$(first(rev), f.currency)}→${m$(last(rev), f.currency)}, net income ${m$(first(ni), f.currency)}→${m$(last(ni), f.currency)}, latest FCF ${m$(last(fcf), f.currency)}, diluted shares ${nfmt(first(sh))}→${nfmt(last(sh))}.`,
-    peers ? `Peer returns: ${peers}.` : "",
+    `DCF inputs (normalized): median rev growth ${pf(d.medianRevenueGrowth)}, median op margin ${pf(d.medianOperatingMargin)}, median ROIC ${pf(d.medianRoic)}, median reinvestment ${pf(d.medianReinvestmentRate)}; beta ${d.beta != null ? d.beta.toFixed(2) : "n/a"}, cost of debt ${pf(d.costOfDebt)}, eff. tax ${pf(d.effectiveTaxRate)}, equity/debt weights ${pf(d.equityWeight)}/${pf(d.debtWeight)}; bridge: net debt ${m$(d.netDebt, f.currency)}, shares ${nfmt(d.sharesOutstanding)}.`,
   ]
     .filter(Boolean)
     .join("\n");
