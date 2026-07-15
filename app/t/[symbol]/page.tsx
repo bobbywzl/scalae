@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { ClipDialog } from "@/components/ClipDialog";
 import { FinancialsSection } from "@/components/FinancialsCard";
 import { PositionCard } from "@/components/PositionCard";
 import { useT } from "@/components/PrefsProvider";
@@ -54,6 +55,7 @@ export default function DeskPage() {
   const [boardSort, setBoardSort] = useState<"focus" | "stale" | "confidence" | "health">("focus");
   // Undo window: retire/dismiss/swap get one low-friction second chance.
   const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
+  const [clipItem, setClipItem] = useState<DigestItem | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRan = useRef(false);
 
@@ -505,6 +507,12 @@ export default function DeskPage() {
                 {t("desk.stopResearch")}
               </button>
             )}
+            <Link
+              href={`/t/${encodeURIComponent(symbol)}/notes`}
+              className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              {t("notes.openNotes")}
+            </Link>
             <button
               onClick={startRun}
               disabled={running}
@@ -688,6 +696,7 @@ export default function DeskPage() {
                     items={desk.digest.slice(0, 10)}
                     signals={[...desk.active, ...desk.retired, ...(desk.dismissed ?? [])]}
                     onOpenSignal={(id) => setDetailId(id)}
+                    onClip={(d: DigestItem) => setClipItem(d)}
                     onTrackStory={(d: DigestItem) =>
                       sendChat(
                         t("desk.trackStoryMsg", {
@@ -1051,6 +1060,11 @@ export default function DeskPage() {
           }
           companyDomains={companyDomains}
         />
+      )}
+
+      {/* Clip an evidence item into a notepad on the Notes page */}
+      {clipItem && (
+        <ClipDialog symbol={symbol} item={clipItem} onClose={() => setClipItem(null)} />
       )}
 
       {/* Undo window for retire / dismiss / swap */}

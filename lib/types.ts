@@ -405,6 +405,37 @@ export interface SignalWithReadings extends Signal {
   backstorySources: Citation[];
 }
 
+// ---------------------------------------------------------------------------
+// Notes: the investor's own thinking layer, per ticker. Sections (custom titles
+// or adopted from focus areas) each hold rich-text notepads (TipTap JSON).
+// ---------------------------------------------------------------------------
+
+export interface NoteSection {
+  id: string;
+  symbol: string;
+  title: string;
+  position: number;
+  createdAt: string;
+}
+
+export interface Note {
+  id: string;
+  sectionId: string;
+  symbol: string;
+  title: string;
+  /** TipTap document JSON, serialized. Rendered only through the editor schema. */
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload for the notes page: sections in order, each with its notepads. */
+export interface NotesPayload {
+  sections: (NoteSection & { notes: Note[] })[];
+  /** Focus-area titles offered as one-click section suggestions. */
+  focusAreaTitles: string[];
+}
+
 /** Full payload for the ticker detail page. */
 export interface DeskPayload {
   ticker: Ticker;

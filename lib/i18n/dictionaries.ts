@@ -3,6 +3,7 @@ import { common } from "./dict/common";
 import { compare } from "./dict/compare";
 import { desk } from "./dict/desk";
 import { financials } from "./dict/financials";
+import { notes } from "./dict/notes";
 import { onboarding } from "./dict/onboarding";
 import { portfolio } from "./dict/portfolio";
 import { settings } from "./dict/settings";
@@ -25,6 +26,7 @@ const NAMESPACES = {
   settings,
   desk,
   financials,
+  notes,
   signals,
   chat,
   portfolio,
