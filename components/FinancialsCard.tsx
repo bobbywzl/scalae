@@ -133,7 +133,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
               {t("financials.subtitle", { n: years.length })}
             </span>
             <span className="ml-auto text-[10px] text-muted/70">
-              {t("financials.sourceNote", { n: years.length })} ·{" "}
+              {t("financials.sourceNote", { source: data.source, n: years.length })} ·{" "}
               {t("financials.asOf", { when: timeAgo(data.fetchedAt, t) })}
             </span>
           </>
