@@ -611,9 +611,19 @@ function ResearchPanel({
   const [error, setError] = useState<string | null>(null);
 
   const latest: DiligenceResearch | undefined = section.research[0];
-  const running = latest?.status === "running";
+  const running = latest?.status === "running" ? latest : null;
   const pending = latest?.status === "pending" ? latest : null;
   const failed = latest?.status === "error" ? latest : null;
+  const [stopping, setStopping] = useState(false);
+
+  async function stop() {
+    if (!running || stopping) return;
+    setStopping(true);
+    // Best-effort — the next poll reconciles the state either way.
+    await api(`/api/diligence/research/${running.id}`, { method: "DELETE" }).catch(() => {});
+    await onChanged();
+    setStopping(false);
+  }
 
   async function run() {
     if (busy || running) return;
@@ -652,8 +662,16 @@ function ResearchPanel({
 
   if (running) {
     return (
-      <div className="mt-2 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3">
-        <p className="text-xs text-accent pulse-soft">{t("dd.researchRunning")}</p>
+      <div className="mt-2 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 flex items-center gap-3 flex-wrap">
+        <p className="text-xs text-accent pulse-soft flex-1 min-w-48">{t("dd.researchRunning")}</p>
+        <button
+          onClick={stop}
+          disabled={stopping}
+          title={t("desk.stopHint")}
+          className="shrink-0 rounded-lg bg-loss/15 hover:bg-loss/25 disabled:opacity-50 text-loss text-xs font-medium px-3 py-1.5 transition-colors"
+        >
+          {stopping ? t("dd.deciding") : t("desk.stopResearch")}
+        </button>
       </div>
     );
   }

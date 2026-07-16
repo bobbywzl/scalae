@@ -446,7 +446,13 @@ export interface NotesPayload {
 // insights across the whole record — both strictly on demand.
 // ---------------------------------------------------------------------------
 
-export type DiligenceResearchStatus = "running" | "pending" | "accepted" | "dismissed" | "error";
+export type DiligenceResearchStatus =
+  | "running"
+  | "pending"
+  | "accepted"
+  | "dismissed"
+  | "stopped"
+  | "error";
 
 /** One deep-research pass on a section's topic, reviewed before it enters the record. */
 export interface DiligenceResearch {

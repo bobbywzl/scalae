@@ -5,6 +5,7 @@ import {
   deleteNote,
   getDiligenceResearch,
   getNoteSection,
+  stopDiligenceResearch,
 } from "@/lib/db";
 import { researchNoteDoc } from "@/lib/notes";
 import { requireUser } from "@/lib/auth";
@@ -65,4 +66,20 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ error: "This memo has already been decided." }, { status: 409 });
   }
   return NextResponse.json({ ok: true, note });
+}
+
+/**
+ * Stop an in-flight research pass. The section frees immediately for a fresh
+ * pass; the background pipeline bails at its next checkpoint (see
+ * executeSectionResearch — a stopped row can never resurrect).
+ */
+export async function DELETE(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { id } = await params;
+  if (!(await getDiligenceResearch(user.id, id))) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  const stopped = await stopDiligenceResearch(user.id, id);
+  return NextResponse.json({ stopped });
 }

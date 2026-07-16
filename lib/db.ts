@@ -1155,6 +1155,27 @@ export async function failDiligenceResearch(id: string, error: string): Promise<
 }
 
 /**
+ * Stop an in-flight research pass on the investor's command. The row goes
+ * terminal ('stopped') immediately, which frees the section for a fresh pass;
+ * the background pipeline notices at its next checkpoint and bails, and the
+ * running-only guards on finish/fail mean a zombie can never resurrect it.
+ * Returns true if a running pass was actually stopped.
+ */
+export async function stopDiligenceResearch(userId: string, id: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    UPDATE dd_research SET status = 'stopped', "decidedAt" = ${now()}
+    WHERE id = ${id} AND "userId" = ${userId} AND status = 'running'
+    RETURNING id`;
+  return rows.length > 0;
+}
+
+/** A research pass's current status (for the pipeline's cancellation checkpoints). */
+export async function diligenceResearchStatus(id: string): Promise<string | undefined> {
+  const rows = await q<{ status: string }>`SELECT status FROM dd_research WHERE id = ${id}`;
+  return rows[0]?.status;
+}
+
+/**
  * The investor's review decision on a pending memo. Accepting is what admits
  * the research into the record (the caller appends the notepad); dismissing
  * leaves the record untouched. Only a pending row can be decided.
