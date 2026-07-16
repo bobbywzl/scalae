@@ -491,6 +491,11 @@ export default function DeskPage() {
         {quote?.price != null && (
           <>
             <span className="font-semibold tabular-nums">{fmtPrice(quote.price, quote.currency)}</span>
+            {quote.currency && quote.currency !== "USD" && quote.fxToUsd != null && (
+              <span className="text-[11px] text-muted tabular-nums">
+                ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
+              </span>
+            )}
             <span
               className={`rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
             >
@@ -1138,6 +1143,11 @@ function FullDeskBar({
           <span className="font-semibold tabular-nums text-sm">
             {fmtPrice(quote.price, quote.currency)}
           </span>
+          {quote.currency && quote.currency !== "USD" && quote.fxToUsd != null && (
+            <span className="text-[10px] text-muted tabular-nums">
+              ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
+            </span>
+          )}
           <span
             className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
           >

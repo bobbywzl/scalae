@@ -21,6 +21,16 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
   const { t } = useT();
   const s = position.stock;
   const cur = position.currency;
+  // USD equivalent for non-USD names ("" when native is USD or FX unknown —
+  // an honest blank beats a guessed conversion).
+  const usd = (v: number, digits = 0): string =>
+    cur !== "USD" && position.fxToUsd != null
+      ? ` ≈ ${v * position.fxToUsd >= 0 ? "" : "−"}$${Math.abs(v * position.fxToUsd).toLocaleString(undefined, {
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
+        })}`
+      : "";
+
   // DRIP toggle: optimistic local state; the desk's polling brings the stored
   // value back around — re-sync when the prop actually changes (the React
   // "adjust state during render" pattern, no effect needed).
@@ -55,14 +65,14 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
         {position.unrealized != null && (
           <span className={`text-[11px] font-semibold tabular-nums ${signCls(position.unrealized)}`}>
             {t("trade.unrealizedAmt", {
-              v: `${position.unrealized >= 0 ? "+" : ""}${fmtNative(position.unrealized, cur, 0)}`,
+              v: `${position.unrealized >= 0 ? "+" : ""}${fmtNative(position.unrealized, cur, 0)}${usd(position.unrealized)}`,
             })}
           </span>
         )}
         {position.realized !== 0 && (
           <span className={`text-[11px] tabular-nums ${signCls(position.realized)}`}>
             · {t("trade.realizedAmt", {
-              v: `${position.realized >= 0 ? "+" : ""}${fmtNative(position.realized, cur, 0)}`,
+              v: `${position.realized >= 0 ? "+" : ""}${fmtNative(position.realized, cur, 0)}${usd(position.realized)}`,
             })}
           </span>
         )}
@@ -72,7 +82,7 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
             title={t("trade.dividendsTitle")}
           >
             · {t("trade.dividendsAmt", {
-              v: `${position.dividends >= 0 ? "+" : ""}${fmtNative(position.dividends, cur, 2)}`,
+              v: `${position.dividends >= 0 ? "+" : ""}${fmtNative(position.dividends, cur, 2)}${usd(position.dividends, 2)}`,
             })}
           </span>
         )}
@@ -115,7 +125,9 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
                     </span>
                   )}
                   {s.marketValue != null && (
-                    <span className="ml-1.5">· {t("trade.valueOf", { amount: fmtNative(s.marketValue, cur, 0) })}</span>
+                    <span className="ml-1.5">
+                      · {t("trade.valueOf", { amount: `${fmtNative(s.marketValue, cur, 0)}${usd(s.marketValue)}` })}
+                    </span>
                   )}
                 </>
               ) : (
