@@ -15,6 +15,7 @@ import {
   SECTION_SUGGESTIONS_SCHEMA,
 } from "./framework";
 import {
+  diligenceResearchStatus,
   evidenceDataForSection,
   failDiligenceResearch,
   finishDiligenceResearch,
@@ -229,6 +230,15 @@ export async function executeSectionResearch(
       )
       .map((s) => s.value);
     if (sweeps.length === 0) throw new Error("All research sweeps failed — try again.");
+
+    // Cooperative cancellation: the investor may have stopped this pass while
+    // the sweeps ran — bail before spending the memo synthesis. (The finish/
+    // fail guards below are running-only, so a stopped row can't resurrect
+    // regardless; this checkpoint just saves the flagship call.)
+    if ((await diligenceResearchStatus(researchId)) !== "running") {
+      console.log(`[scalae] due-diligence research ${researchId} stopped by the investor.`);
+      return;
+    }
 
     // Number the deduped sources so the memo cites [n] (the runs' idiom).
     const allSources: Citation[] = [];
