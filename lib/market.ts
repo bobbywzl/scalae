@@ -47,12 +47,17 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
   try {
     const [q, spark] = await Promise.all([yf.quote(symbol), getSpark(symbol)]);
     if (!q) return null;
+    const currency = q.currency ?? null;
+    // Native→USD so the UI can show a USD equivalent for non-USD tickers.
+    // getFxRate is cached (6h) and returns 1 for USD; null when unavailable.
+    const fxToUsd = !currency || currency === "USD" ? 1 : await getFxRate(currency).catch(() => null);
     return {
       symbol,
       name: q.longName || q.shortName || symbol,
       price: q.regularMarketPrice ?? null,
       changePercent: q.regularMarketChangePercent ?? null,
-      currency: q.currency ?? null,
+      currency,
+      fxToUsd,
       marketCap: q.marketCap ?? null,
       trailingPE: q.trailingPE ?? null,
       marketState: q.marketState ?? null,
@@ -288,7 +293,11 @@ export async function getOptionMark(
 /** One-line valuation context for prompts, e.g. "Price $311.61 (+0.96% today), mkt cap $4.6T, trailing P/E 33.8". */
 export function quoteLine(q: Quote | null): string {
   if (!q || q.price == null) return "No market quote available.";
-  const parts = [`Price ${q.currency === "USD" || !q.currency ? "$" : q.currency + " "}${q.price.toFixed(2)}`];
+  const usd =
+    q.currency && q.currency !== "USD" && q.fxToUsd != null
+      ? ` (≈ $${(q.price * q.fxToUsd).toFixed(2)})`
+      : "";
+  const parts = [`Price ${q.currency === "USD" || !q.currency ? "$" : q.currency + " "}${q.price.toFixed(2)}${usd}`];
   if (q.changePercent != null) parts.push(`${q.changePercent >= 0 ? "+" : ""}${q.changePercent.toFixed(2)}% today`);
   if (q.marketCap) parts.push(`market cap ${humanCap(q.marketCap)}`);
   if (q.trailingPE) parts.push(`trailing P/E ${q.trailingPE.toFixed(1)}`);

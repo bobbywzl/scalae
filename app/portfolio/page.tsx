@@ -752,6 +752,16 @@ export default function PortfolioPage() {
                             </span>{" "}
                             <PctChip v={p.unrealizedPct} />
                           </p>
+                          {p.currency !== "USD" && p.fxToUsd !== 1 && (
+                            <p className="text-[10px] text-muted tabular-nums mt-0.5">
+                              {p.marketValue != null && (
+                                <>≈ {fmtUsd(p.marketValue * p.fxToUsd)}</>
+                              )}
+                              {p.unrealized != null && (
+                                <> · {fmtUsd(p.unrealized * p.fxToUsd, { sign: true })}</>
+                              )}
+                            </p>
+                          )}
                         </div>
                         <span
                           aria-hidden

@@ -298,6 +298,14 @@ export default function WatchlistPage() {
                       <div className="font-medium tabular-nums">
                         {fmtPrice(quote?.price, quote?.currency)}
                       </div>
+                      {quote?.price != null &&
+                        quote.currency &&
+                        quote.currency !== "USD" &&
+                        quote.fxToUsd != null && (
+                          <div className="text-[10px] text-muted tabular-nums">
+                            ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
+                          </div>
+                        )}
                       <div
                         className={`mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums text-chipfg ${
                           up ? "bg-gain" : "bg-loss"

@@ -225,6 +225,9 @@ export interface Quote {
   price: number | null;
   changePercent: number | null;
   currency: string | null;
+  /** Native→USD rate (1 for USD; null when FX is unavailable). Lets the UI
+   *  show a USD equivalent next to non-USD tickers. */
+  fxToUsd: number | null;
   marketCap: number | null;
   trailingPE: number | null;
   marketState: string | null;
@@ -700,6 +703,8 @@ export interface TickerInvolvement {
   dividends: number;
   /** Per-symbol dividend-reinvestment setting (future dividend applies buy shares). */
   drip: boolean;
+  /** Native→USD rate (1 for USD; null when FX is unavailable — never guessed). */
+  fxToUsd: number | null;
 }
 
 /** Shape the agents emit when proposing a new signal (pre-approval). */

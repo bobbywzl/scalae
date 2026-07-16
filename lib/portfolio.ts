@@ -279,14 +279,19 @@ export async function computeInvolvement(userId: string, symbol: string): Promis
   const unrealized = held.some((v) => v.unrealized != null)
     ? held.reduce((a, v) => a + (v.unrealized ?? 0), 0)
     : null;
+  const currency = stock?.currency ?? options[0]?.currency ?? "USD";
+  // Honest FX: null when unavailable (valueAll's fxToUsd defaults to 1, which
+  // would render a WRONG "USD" figure for a non-USD name — never guess here).
+  const fxToUsd = currency === "USD" ? 1 : await getFxRate(currency).catch(() => null);
   return {
     symbol: sym,
-    currency: stock?.currency ?? options[0]?.currency ?? "USD",
+    currency,
     stock,
     options,
     realized,
     unrealized,
     dividends,
     drip,
+    fxToUsd,
   };
 }
