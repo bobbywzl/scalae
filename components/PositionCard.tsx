@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { optionLabel } from "@/lib/portfolio-math";
 import { useT } from "./PrefsProvider";
+import { api } from "./util";
 import type { TickerInvolvement } from "@/lib/types";
 
 const fmtNative = (v: number, currency: string, digits = 2) =>
@@ -19,6 +21,33 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
   const { t } = useT();
   const s = position.stock;
   const cur = position.currency;
+  // DRIP toggle: optimistic local state; the desk's polling brings the stored
+  // value back around — re-sync when the prop actually changes (the React
+  // "adjust state during render" pattern, no effect needed).
+  const [drip, setDrip] = useState(position.drip);
+  const [prevPropDrip, setPrevPropDrip] = useState(position.drip);
+  const [dripBusy, setDripBusy] = useState(false);
+  if (position.drip !== prevPropDrip) {
+    setPrevPropDrip(position.drip);
+    setDrip(position.drip);
+  }
+
+  async function toggleDrip() {
+    const next = !drip;
+    setDrip(next);
+    setDripBusy(true);
+    try {
+      await api(`/api/portfolio/drip`, {
+        method: "POST",
+        body: JSON.stringify({ symbol: position.symbol, enabled: next }),
+      });
+    } catch {
+      setDrip(!next); // server said no — roll back
+    } finally {
+      setDripBusy(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
       <div className="flex items-center gap-2 flex-wrap">
@@ -36,6 +65,28 @@ export function PositionCard({ position }: { position: TickerInvolvement }) {
               v: `${position.realized >= 0 ? "+" : ""}${fmtNative(position.realized, cur, 0)}`,
             })}
           </span>
+        )}
+        {position.dividends !== 0 && (
+          <span
+            className={`text-[11px] tabular-nums ${signCls(position.dividends)}`}
+            title={t("trade.dividendsTitle")}
+          >
+            · {t("trade.dividendsAmt", {
+              v: `${position.dividends >= 0 ? "+" : ""}${fmtNative(position.dividends, cur, 2)}`,
+            })}
+          </span>
+        )}
+        {s && s.qty > 0 && (
+          <button
+            onClick={toggleDrip}
+            disabled={dripBusy}
+            title={drip ? t("portfolio.dripOnTitle") : t("portfolio.dripOffTitle")}
+            className={`rounded-full px-2 py-px text-[9px] font-semibold uppercase tracking-wider transition-colors disabled:opacity-50 ${
+              drip ? "bg-gain/15 text-gain" : "bg-ink/6 text-muted hover:bg-ink/10"
+            }`}
+          >
+            {drip ? t("portfolio.dripOnChip") : t("portfolio.dripOffChip")}
+          </button>
         )}
         <Link
           href="/portfolio"

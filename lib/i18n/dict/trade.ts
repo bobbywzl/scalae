@@ -170,6 +170,8 @@ const en = {
   // Position card (desk)
   unrealizedAmt: "{v} unrealized",
   realizedAmt: "{v} realized",
+  dividendsAmt: "{v} dividends",
+  dividendsTitle: "Dividend cash received on this name (net of withholding)",
   managePortfolio: "Manage in portfolio →",
   shortChip: "SHORT",
   nShares: "{n} shares",
@@ -324,6 +326,8 @@ const zh: Record<keyof typeof en, string> = {
 
   unrealizedAmt: "未实现盈亏 {v}",
   realizedAmt: "已实现盈亏 {v}",
+  dividendsAmt: "股息 {v}",
+  dividendsTitle: "该股票已收到的股息现金（税后净额）",
   managePortfolio: "前往投资组合管理 →",
   shortChip: "空头",
   nShares: "{n} 股",

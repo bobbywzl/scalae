@@ -276,5 +276,10 @@ export function involvementLine(inv: TickerInvolvement | null): string {
     );
   }
   if (inv.realized !== 0) parts.push(`realized to date ${cur}${inv.realized.toFixed(2)}`);
+  if (inv.dividends !== 0) {
+    parts.push(
+      `dividends received ${cur}${inv.dividends.toFixed(2)} (reinvestment ${inv.drip ? "ON" : "off"})`
+    );
+  }
   return parts.join("; ");
 }

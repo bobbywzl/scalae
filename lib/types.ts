@@ -671,6 +671,8 @@ export interface PortfolioPayload {
   pendingDividends: PendingDividend[];
   /** Applied dividends, newest first. */
   dividends: DividendReceipt[];
+  /** Total dividend cash received per symbol (USD, net of withholding). */
+  dividendsBySymbol: Record<string, number>;
   /** Per-symbol dividend-reinvestment setting for held stocks. */
   drip: Record<string, boolean>;
   /** Starting cash (USD) the investor set for this book; null = not set. */
@@ -694,6 +696,10 @@ export interface TickerInvolvement {
   /** Native currency. */
   realized: number;
   unrealized: number | null;
+  /** Total dividend cash received on this name (native currency, net of withholding). */
+  dividends: number;
+  /** Per-symbol dividend-reinvestment setting (future dividend applies buy shares). */
+  drip: boolean;
 }
 
 /** Shape the agents emit when proposing a new signal (pre-approval). */
