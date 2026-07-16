@@ -62,8 +62,8 @@ const en = {
   clipTitle: "Clip to a notepad",
   clipPick: "Choose where this evidence goes:",
   clipNewNotepad: "+ New notepad in “{section}”",
-  clipNoSections: "No note sections yet — create one on the Notes page first.",
-  clipGoToNotes: "Open Notes →",
+  clipNoSections: "No sections yet — create one on the Due diligence page first.",
+  clipGoToNotes: "Open Due diligence →",
   clipped: "Clipped ✓",
   clipFailed: "Clip failed — try again.",
 
@@ -140,8 +140,8 @@ const zh: Record<keyof typeof en, string> = {
   clipTitle: "收藏到记事本",
   clipPick: "选择这条证据的去处：",
   clipNewNotepad: "+ 在“{section}”中新建记事本",
-  clipNoSections: "还没有笔记板块——请先在笔记页创建一个。",
-  clipGoToNotes: "打开笔记 →",
+  clipNoSections: "还没有板块——请先在尽职调查页创建一个。",
+  clipGoToNotes: "打开尽职调查 →",
   clipped: "已收藏 ✓",
   clipFailed: "收藏失败——请重试。",
 

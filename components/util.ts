@@ -85,6 +85,8 @@ const ERROR_PATTERNS: { rx: RegExp; key: Parameters<TFunc>[0]; params?: (m: RegE
   { rx: /^The comparison failed — try again\.$/, key: "common.errComparisonFailed" },
   { rx: /^History research failed — try again\.$/, key: "common.errHistoryFailed" },
   { rx: /^Run interrupted \(server restarted mid-run\)\. Start it again\.$/, key: "common.errRunInterrupted" },
+  { rx: /^Open at least one section before synthesizing\.$/, key: "dd.errNeedSection" },
+  { rx: /^Research is already running on this section\.$/, key: "dd.errResearchRunning" },
   { rx: /^Pick a category for the request\.$/, key: "common.errPickCategory" },
   { rx: /^Give the request a short subject\.$/, key: "common.errNeedSubject" },
   { rx: /^Describe the issue or idea\.$/, key: "common.errNeedDescription" },

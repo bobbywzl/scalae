@@ -36,6 +36,7 @@ export const MODELS_REVIEWED_AT = "2026-07";
 export type ModelRole =
   | "synthesis"
   | "chat"
+  | "diligence"
   | "triage"
   | "backstory"
   | "scoutBreadth"
@@ -67,6 +68,17 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   chat: {
     provider: "claude",
     env: "CLAUDE_CHAT_MODEL",
+    include: /^claude-opus-\d/,
+    exclude: /-(fast|latest)\b/,
+    fallback: "claude-opus-4-8",
+  },
+  // Due-diligence record work: deep-research memos per section topic, the
+  // standing synthesis of core insights, and section-topic suggestions. Runs
+  // ONLY on the investor's explicit ask (never on the daily cron), and the
+  // memo is the record's centrepiece — flagship quality is earned here.
+  diligence: {
+    provider: "claude",
+    env: "CLAUDE_DILIGENCE_MODEL",
     include: /^claude-opus-\d/,
     exclude: /-(fast|latest)\b/,
     fallback: "claude-opus-4-8",

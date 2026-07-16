@@ -126,11 +126,43 @@ are what it reasons *about*.
 - **Rejected ideas stay rejected** unless materially new evidence emerges, and any
   re-proposal must say what changed.
 
+## The due-diligence record is the desk's centre
+
+The signal board is the instrument panel; the **due-diligence record is the ship's
+log** — the primary surface of the product. Per ticker it is organized into
+**sections**: large qualitative topics specific to that company (its moat mechanism,
+its founder culture, its regulatory exposure — whatever the crux questions are),
+each holding freely-editable notepads the investor owns outright.
+
+- **The investor's understanding is the product.** Every feature exists to deepen
+  and organize one person's circle of competence on one business. Research that
+  isn't absorbed into the record is scaffolding, not progress.
+- **Deep research is proposed, never imposed.** The desk researches a section's
+  topic on the investor's ask — long-horizon, era-honest, built on authentic and
+  primary sources from the open web — and returns a cited memo. It enters the
+  record only when the investor accepts it, as a dated, fully-editable document.
+  The desk never writes into the investor's notes uninvited.
+- **A standing synthesis of core insights** distills the whole record — what is
+  actually understood, where sections contradict one another, and which crux
+  questions have no section at all — refreshed on the investor's ask, with its
+  staleness shown honestly rather than papered over.
+- **The circle-of-competence loop.** Signals and due diligence feed each other, in
+  both directions and always through the human gate: the desk suggests section
+  topics worth opening ("the right things to look at") from what the board already
+  watches, and the growing record steers which signals the desk proposes next —
+  crux threads of the business model or culture the record still ignores, and
+  signals whose long-run trend would strengthen or test the analysis already
+  written in a section. The two anchors, the no-overlap rule, and the approval
+  gates govern this loop exactly as they govern everything else.
+
 ## Human sovereignty
 
 Nothing the agents devise becomes active without the investor's explicit approval.
 Signals, focus areas, and tracking systems are proposed, argued for, and then gated
 on a human decision. The investor's chat feedback steers the next day's research.
+The due-diligence record is the strongest form of this sovereignty: the desk reads
+it as the investor's evolving thesis, contributes to it only on request and only
+through accept/dismiss review, and never edits what the investor wrote.
 
 ## Self-reinforcing discovery
 

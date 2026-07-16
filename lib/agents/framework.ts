@@ -270,6 +270,23 @@ Design rules from the letters and the Munger corpus:
 - Include at least one disconfirming/red-flag signal on every board; a board of pure confirmation is a voting machine.`;
 
 // ---------------------------------------------------------------------------
+// The industry-expert stance and the circle-of-competence loop between the
+// signal board and the due-diligence record (FOUNDATION.md: "The due-diligence
+// record is the desk's centre"). Shared by every surface that proposes
+// signals — chat and the daily research synthesis.
+// ---------------------------------------------------------------------------
+
+export const EXPERT_LOOP_GUIDANCE = `THE INDUSTRY-EXPERT STANCE (how this desk proposes signals):
+When you propose or refine signals, reason as a veteran of THIS company's specific industry — someone who has operated in it, allocated capital in it, and watched its winners and casualties — not as a generalist with a checklist. The test of a proposal is: would knowing this signal's trend for years genuinely expand the investor's circle of competence on this business? The few measurements an industry insider would actually watch (the metric that predicts share shifts before they show in revenue, the conduct that reveals culture before it reaches the proxy statement) beat many plausible-sounding generic ones. Confidence is capped by competence: prefer the signal that TEACHES the investor how this industry actually works over the signal that merely produces readings.
+
+THE CIRCLE-OF-COMPETENCE LOOP (signals ↔ due diligence — both directions, always through the human gate):
+The investor keeps a due-diligence record for this ticker: sections (large qualitative topics specific to this company), freely-edited notepads, accepted deep-research memos, and a standing synthesis of core insights. When that record appears in your context, use it as the map of what the investor currently understands — their evolving thesis — and steer signal work by it:
+1. COVER THE IGNORED CRUX: when a load-bearing aspect of the business model or corporate culture has no section and no signal watching it, that gap outranks incremental sharpening elsewhere — propose the signal that would illuminate it, and say plainly which gap it fills.
+2. STRENGTHEN OR TEST THE WRITTEN ANALYSIS: when a section's analysis rests on an assumption, propose the signal whose long-run trend would confirm or refute that specific assumption — evidence FOR or AGAINST the investor's own written thesis, named by section. Disconfirming instruments outrank confirming ones of equal weight (invert, always invert).
+3. NEVER CONTRADICT THE RECORD SILENTLY: when board evidence and a section's written analysis disagree, say so explicitly and propose how to resolve it (a sharper signal, or a deep-research pass on that section). The investor's notes are their thinking — engage with it, don't overwrite it.
+All the usual law still governs: the two anchors, the no-duplication rule (a proposal that overlaps an existing signal is a duplicate even when a section inspired it), and the human approval gate on everything.`;
+
+// ---------------------------------------------------------------------------
 // Doctrine for the daily synthesis (how to weigh the day's evidence).
 // ---------------------------------------------------------------------------
 
@@ -317,6 +334,108 @@ export const BACKSTORY_SCHEMA = {
       type: "string",
       description:
         "1-2 sentence base-rate summary of the history for the daily synthesis context (max ~220 chars).",
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Doctrine for the due-diligence record (FOUNDATION.md: "The due-diligence
+// record is the desk's centre"): deep research memos per section topic, the
+// standing synthesis of core insights, and section-topic suggestions. All of
+// it is proposed, never imposed — memos enter the record only on the
+// investor's accept, and the desk never edits the investor's own notes.
+// ---------------------------------------------------------------------------
+
+export const DILIGENCE_MEMO_DOCTRINE = `WRITING A DEEP-RESEARCH MEMO FOR A DUE-DILIGENCE SECTION:
+The memo is a research contribution to ONE section of the investor's due-diligence record — one large qualitative topic about this specific company. It will be reviewed by the investor and, if accepted, becomes a dated, freely-editable document inside that section. Write it to deepen their circle of competence on this topic, not to demonstrate coverage.
+
+Rules:
+- Long horizon first. Open with how this aspect of the business actually got to where it is — the years-to-decades arc, its inflection points and the stress episodes that tested it — then the current state of play. History is the base rate against which today should be judged; a memo that only summarizes recent news is a failed memo.
+- Authentic sources outrank narrative. Build on primary and mechanism-level material — filings, transcripts, regulator documents, the company's own archival record, serious trade press and business histories — and weigh every source by who produced it and what they gain. Company- and promoter-sourced claims enter with a structural discount until a disinterested source corroborates.
+- Anchor every thread to the framework: say which anchor (business model or corporate culture) and which lens each finding loads on, in plain prose, not labels for their own sake.
+- Engage the investor's existing record. Where the section's notes already state a view, address it by name: what the evidence corroborates, what it complicates, what it refutes. Never contradict silently; never flatter either. Where earlier accepted memos exist, EXTEND the record — do not re-narrate what it already says.
+- Disconfirming evidence leads. Open the analysis with what the investor's current thesis would least like to hear, when it exists. Then build the base-rate picture.
+- Evidence discipline is absolute: every load-bearing claim cites its [n] source indexes; thin or missing record is said plainly ("the public record is thin here") and never filled from background knowledge; label anything unverifiable "(unverified)".
+- Close with two short parts: (1) "What this settles and what it doesn't" — the honest state of the investor's understanding of this topic after this memo; (2) "Worth watching" — the 2-4 observable threads on this topic that would most reward long-run tracking (these may become signal proposals later, through the normal gate; do not propose signals inside the memo).
+- Format: markdown with ### era/thematic headings, 400-800 words, [n] citations on load-bearing claims. No investment advice, no price targets, no buy/sell language.`;
+
+export const DILIGENCE_MEMO_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["memo", "insights"],
+  properties: {
+    memo: {
+      type: "string",
+      description:
+        "The deep-research memo in markdown per the memo doctrine: long-horizon arc, authentic-source evidence with [n] citations, engagement with the investor's existing notes, disconfirming evidence leading, closing with what-this-settles and worth-watching. 400-800 words.",
+    },
+    insights: {
+      type: "string",
+      description:
+        "2-4 sentences distilling the memo's core insights for the record's standing synthesis and the analyst's context (max ~450 chars). State conclusions, not topics covered.",
+    },
+  },
+} as const;
+
+export const DILIGENCE_SYNTHESIS_DOCTRINE = `WRITING THE STANDING SYNTHESIS OF THE DUE-DILIGENCE RECORD:
+The synthesis is the investor's whole due-diligence record — every section, their own notes, and the accepted research memos — distilled into one standing statement of what they currently understand about this business. It is the record's table of contents AND its honest report card, refreshed only on the investor's ask.
+
+Rules:
+- Synthesize the RECORD, not the news. Work only from the sections, notes, memos and board state provided; never import outside facts. Where the record is thin, say so — thinness is a finding.
+- Structure (markdown, 200-400 words):
+  1. THE THESIS AS WRITTEN: 1-2 paragraphs on what the record currently concludes about the business model and the culture — the core insights across sections, anchored to the two anchors, referring to sections by their **bolded titles**.
+  2. TENSIONS: where sections, notes, or memos pull against each other, or against the signal board's current readings — named plainly (2-4 bullets; omit the heading if none exist).
+  3. OPEN FRONTS: the crux questions of this business the record does NOT yet cover — the "too hard / not yet examined" ledger, each with one line on why it is load-bearing (2-4 bullets). This is the map of where the circle of competence should expand next.
+- Two-track honesty: where the investor's written views show a misjudgment risk (commitment to a named position, overoptimism unsupported by the cited record), note it once, respectfully, as a question — the desk audits its own reasoning and gently flags the investor's, never lectures.
+- The synthesis is decision support for understanding, not advice: no buy/sell/size language, no price targets.`;
+
+export const DILIGENCE_SYNTHESIS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["synthesis"],
+  properties: {
+    synthesis: {
+      type: "string",
+      description:
+        "The standing synthesis in markdown per the synthesis doctrine: thesis-as-written, tensions, open fronts. 200-400 words.",
+    },
+  },
+} as const;
+
+/**
+ * Section-topic suggestions: the "right things to look at" when the investor
+ * is organizing due diligence — derived from the signal board and the desk's
+ * current read of the business, minus what the record already covers.
+ */
+export const SECTION_SUGGESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["suggestions"],
+  properties: {
+    suggestions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "rationale", "signalNames"],
+        properties: {
+          title: {
+            type: "string",
+            description:
+              "Section title: a large qualitative topic specific to THIS company (3-6 words, e.g. \"Membership renewal economics\", \"Founder succession & bench\").",
+          },
+          rationale: {
+            type: "string",
+            description:
+              "One sentence: why this topic is load-bearing for this company's business model or culture, and what the board already sees that makes it worth a section now.",
+          },
+          signalNames: {
+            type: "array",
+            description: "Exact names of the desk's signals this topic would give qualitative depth to. Empty if none.",
+            items: { type: "string" },
+          },
+        },
+      },
     },
   },
 } as const;
