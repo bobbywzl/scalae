@@ -1,4 +1,4 @@
-import type { Attachment } from "@/lib/types";
+import type { Attachment, EvidenceKind } from "@/lib/types";
 
 /**
  * Client-side attachment processing, shared by the desk chat and the support
@@ -42,6 +42,57 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
 }
 
 const CLAUDE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+/** What an evidence upload sends: an attachment shape whose kind may be "file". */
+export interface EvidenceFile {
+  kind: EvidenceKind;
+  name: string;
+  mediaType: string;
+  size: number;
+  data: string;
+}
+
+/** Binary evidence cap (original bytes) — keeps one-file request bodies inside limits. */
+export const EVIDENCE_BINARY_MAX = 3_000_000;
+/** Text-like types/extensions that should be read as text, not raw binary. */
+const TEXTUAL_TYPES = new Set(["application/json", "application/xml", "application/x-yaml"]);
+const TEXTUAL_EXT = /\.(txt|md|csv|tsv|json|xml|ya?ml|log|htm|html)$/i;
+
+/** processFile's Attachment (data optional in the type) → EvidenceFile (data required). */
+async function asEvidence(p: Promise<Attachment>): Promise<EvidenceFile> {
+  const a = await p;
+  if (!a.data) throw new Error(`Could not read ${a.name}`);
+  return { kind: a.kind, name: a.name, mediaType: a.mediaType, size: a.size, data: a.data };
+}
+
+/**
+ * Evidence-locker version of processFile: same handling for images (downscale),
+ * PDFs and text — but ANY other type is accepted as a generic binary "file"
+ * (spreadsheets, decks, archives, audio) instead of being force-read as text.
+ */
+export async function processEvidenceFile(file: File): Promise<EvidenceFile> {
+  if (file.type.startsWith("image/")) return asEvidence(processFile(file));
+  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+    if (file.size > EVIDENCE_BINARY_MAX) {
+      throw new Error(`${file.name} is ${fmtBytes(file.size)} — evidence PDFs up to ${fmtBytes(EVIDENCE_BINARY_MAX)} only.`);
+    }
+    return asEvidence(processFile(file));
+  }
+  if (file.type.startsWith("text/") || TEXTUAL_TYPES.has(file.type) || TEXTUAL_EXT.test(file.name)) {
+    return asEvidence(processFile(file));
+  }
+  if (file.size > EVIDENCE_BINARY_MAX) {
+    throw new Error(`${file.name} is ${fmtBytes(file.size)} — evidence files up to ${fmtBytes(EVIDENCE_BINARY_MAX)} only.`);
+  }
+  const dataUrl = await readAsDataURL(file);
+  return {
+    kind: "file",
+    name: file.name,
+    mediaType: file.type || "application/octet-stream",
+    size: file.size,
+    data: dataUrl.split(",")[1],
+  };
+}
 
 export async function processFile(file: File): Promise<Attachment> {
   if (file.type.startsWith("image/")) {

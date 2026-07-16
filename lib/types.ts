@@ -475,6 +475,33 @@ export interface DiligenceSynthesis {
   updatedAt: string;
 }
 
+/**
+ * Evidence files: image/pdf/text are model-readable (the memo agent reads
+ * them natively); "file" is any other type — spreadsheets, decks, audio,
+ * archives — stored and served back, listed to the agents by caption only.
+ */
+export type EvidenceKind = AttachmentKind | "file";
+
+/**
+ * One filed piece of evidence in a section's locker — any file type, with the
+ * investor's caption saying what it shows. Payloads carry metadata only; the
+ * bytes are served by /api/diligence/evidence/[id]/file.
+ */
+export interface DiligenceEvidence {
+  id: string;
+  sectionId: string;
+  symbol: string;
+  kind: EvidenceKind;
+  /** Original filename. */
+  name: string;
+  mediaType: string;
+  /** Original size in bytes (pre-encoding). */
+  size: number;
+  /** The investor's caption — what this evidence shows and why it's filed. */
+  caption: string;
+  createdAt: string;
+}
+
 /** A suggested section topic — "the right thing to look at" — from the signal board. */
 export interface SectionSuggestion {
   title: string;
@@ -486,7 +513,11 @@ export interface SectionSuggestion {
 /** Payload for the due-diligence page: the whole record plus board context. */
 export interface DiligencePayload {
   ticker: Ticker;
-  sections: (NoteSection & { notes: Note[]; research: DiligenceResearch[] })[];
+  sections: (NoteSection & {
+    notes: Note[];
+    research: DiligenceResearch[];
+    evidence: DiligenceEvidence[];
+  })[];
   synthesis: DiligenceSynthesis | null;
   /** True when sections/notes/memos changed after the synthesis was written. */
   synthesisStale: boolean;

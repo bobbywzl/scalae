@@ -18,6 +18,7 @@ import {
   insertMessage,
   insertProposal,
   latestRun,
+  listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
   listMessagesWithAttachments,
@@ -89,7 +90,8 @@ const RECENT_ATTACHMENT_TURNS = 8;
 /** Total base64/text budget per model request across all inlined attachments. */
 const ATTACHMENT_BUDGET = 9_000_000;
 
-function attachmentBlocks(atts: Attachment[]): Anthropic.ContentBlockParam[] {
+/** Attachments → Claude content blocks (exported for the diligence memo agent). */
+export function attachmentBlocks(atts: Attachment[]): Anthropic.ContentBlockParam[] {
   const blocks: Anthropic.ContentBlockParam[] = [];
   for (const a of atts) {
     if (!a.data) continue;
@@ -198,6 +200,7 @@ export async function handleChatTurn(
     notes,
     ddResearch,
     ddSynthesis,
+    ddEvidence,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -214,6 +217,7 @@ export async function handleChatTurn(
     listNotes(userId, symbol).catch(() => []),
     listDiligenceResearch(userId, symbol).catch(() => []),
     getDiligenceSynthesis(userId, symbol).catch(() => null),
+    listDiligenceEvidence(userId, symbol).catch(() => []),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -255,7 +259,7 @@ Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 ${financials ? financialsSummary(financials) : ""}
-${diligenceContext(noteSections, notes, ddResearch, ddSynthesis)}
+${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
   // Signal-focused context: the one signal's full world, in depth.

@@ -24,6 +24,7 @@ import {
   insertProposal,
   insertReading,
   latestRun,
+  listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
   listMessages,
@@ -467,7 +468,8 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       listNotes(userId, symbol).catch(() => []),
       listDiligenceResearch(userId, symbol).catch(() => []),
       getDiligenceSynthesis(userId, symbol).catch(() => null),
-    ]).then(([s, n, r, syn]) => diligenceContext(s, n, r, syn ?? null));
+      listDiligenceEvidence(userId, symbol).catch(() => []),
+    ]).then(([s, n, r, syn, ev]) => diligenceContext(s, n, r, syn ?? null, ev));
 
     const researchBlock = sweeps
       .map(

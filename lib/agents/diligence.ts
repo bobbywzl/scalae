@@ -1,7 +1,9 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
+import { attachmentBlocks } from "./chat";
 import { withDeadline } from "./research";
 import {
   DESK_DOCTRINE,
@@ -13,6 +15,7 @@ import {
   SECTION_SUGGESTIONS_SCHEMA,
 } from "./framework";
 import {
+  evidenceDataForSection,
   failDiligenceResearch,
   finishDiligenceResearch,
   getDiligenceResearch,
@@ -20,6 +23,7 @@ import {
   getNoteSection,
   getTicker,
   latestRun,
+  listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
   listNoteSections,
@@ -30,7 +34,9 @@ import {
 } from "../db";
 import { docToPlainText } from "../notes";
 import type {
+  Attachment,
   Citation,
+  DiligenceEvidence,
   DiligenceSynthesis,
   NoteSection,
   SectionSuggestion,
@@ -92,6 +98,47 @@ async function loadSectionRecord(
   return { section, notesText, priorInsights };
 }
 
+/** One evidence line for prompts: caption first (the investor's words), then the file. */
+export function evidenceLine(e: DiligenceEvidence): string {
+  return `- ${e.caption ? `"${e.caption}"` : "(no caption)"} — ${e.name} (${e.kind}, filed ${e.createdAt.slice(0, 10)})`;
+}
+
+/**
+ * The section's evidence locker, prepared for the memo call: a metadata list
+ * of EVERY filed item (any kind), plus Claude content blocks for the
+ * machine-readable ones (image/pdf/text) within a total payload budget —
+ * the memo agent reads what it can and knows about the rest.
+ */
+const EVIDENCE_INLINE_BUDGET = 6_000_000;
+
+async function loadSectionEvidence(
+  userId: string,
+  sectionId: string
+): Promise<{ listText: string; blocks: Anthropic.ContentBlockParam[] }> {
+  const rows = await evidenceDataForSection(userId, sectionId).catch(() => []);
+  if (rows.length === 0) return { listText: "", blocks: [] };
+  const blocks: Anthropic.ContentBlockParam[] = [];
+  let budget = EVIDENCE_INLINE_BUDGET;
+  const lines: string[] = [];
+  for (const e of rows) {
+    const readable = e.kind !== "file" && e.data.length <= budget;
+    lines.push(`${evidenceLine(e)}${readable ? "" : " — not machine-readable here; judge it from its caption"}`);
+    if (!readable) continue;
+    budget -= e.data.length;
+    // Caption travels immediately before its file so the model can pair them.
+    blocks.push({
+      type: "text",
+      text: `Filed evidence "${e.name}"${e.caption ? ` — investor's caption: ${e.caption}` : ""}:`,
+    });
+    blocks.push(
+      ...attachmentBlocks([
+        { kind: e.kind, name: e.name, mediaType: e.mediaType, size: e.size, data: e.data } as Attachment,
+      ])
+    );
+  }
+  return { listText: lines.join("\n"), blocks };
+}
+
 // ---------------------------------------------------------------------------
 // Scout prompts — three angles on one section topic: the long-horizon company
 // record, the outside (industry/base-rate) view, and the authentic current
@@ -149,6 +196,7 @@ export async function executeSectionResearch(
     if (!ticker) throw new Error(`Unknown ticker ${research.symbol}`);
     const rec = await loadSectionRecord(userId, research.symbol, research.sectionId);
     if (!rec) throw new Error("Unknown section for this desk.");
+    const filed = await loadSectionEvidence(userId, research.sectionId);
 
     const [deepModel, memoModel] = await Promise.all([
       resolveModel("scoutDeep"),
@@ -224,6 +272,9 @@ THE DUE-DILIGENCE SECTION THIS MEMO SERVES:
 THE INVESTOR'S OWN NOTES IN THIS SECTION (verbatim; engage with them by name, never contradict silently):
 ${rec.notesText || "(nothing written yet)"}
 
+THE INVESTOR'S FILED EVIDENCE IN THIS SECTION (their captions are their words — machine-readable files are attached above this message; engage each by filename, and treat captions as the investor's claims about what the file shows, to be weighed like any interested-party framing):
+${filed.listText || "(none filed)"}
+
 EARLIER ACCEPTED RESEARCH ON THIS SECTION (extend the record, do not re-narrate it):
 ${rec.priorInsights.join("\n") || "(none)"}
 
@@ -250,7 +301,11 @@ LANGUAGE: Write every output field in English — the record's stored form is ca
             { text: DESK_DOCTRINE, cache: true },
             { text: `${deskIdentity(research.symbol, ticker.name)}\n\n${DILIGENCE_MEMO_DOCTRINE}` },
           ],
-          messages: [{ role: "user", content: task }],
+          // Filed evidence rides first (each file preceded by its caption),
+          // the research task last — same reading order the prompt describes.
+          messages: [
+            { role: "user", content: [...filed.blocks, { type: "text", text: task }] },
+          ],
           schema: DILIGENCE_MEMO_SCHEMA as unknown as Record<string, unknown>,
           maxTokens: 10000,
           effort: "medium",
@@ -293,10 +348,11 @@ export async function refreshDiligenceSynthesis(
 ): Promise<DiligenceSynthesis> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-  const [sections, notes, research, signals, focusAreas, run] = await Promise.all([
+  const [sections, notes, research, evidence, signals, focusAreas, run] = await Promise.all([
     listNoteSections(userId, symbol),
     listNotes(userId, symbol),
     listDiligenceResearch(userId, symbol),
+    listDiligenceEvidence(userId, symbol),
     listSignals(userId, symbol, "active"),
     listFocusAreas(userId, symbol),
     latestRun(userId, symbol),
@@ -319,6 +375,9 @@ export async function refreshDiligenceSynthesis(
       }
       const ns = notesBySection.get(s.id) ?? [];
       for (const t of ns) parts.push(`Investor note — ${t}`);
+      for (const e of evidence.filter((e) => e.sectionId === s.id)) {
+        parts.push(`Filed evidence ${evidenceLine(e).slice(2)}`);
+      }
       if (parts.length === 1) parts.push("(section opened, nothing written yet)");
       return parts.join("\n");
     })
