@@ -439,6 +439,63 @@ export interface NotesPayload {
   focusAreaTitles: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Due diligence: the desk's centre (FOUNDATION.md). Sections are large
+// qualitative topics; the desk contributes deep-research memos that enter the
+// record only on the investor's accept, plus a standing synthesis of core
+// insights across the whole record — both strictly on demand.
+// ---------------------------------------------------------------------------
+
+export type DiligenceResearchStatus = "running" | "pending" | "accepted" | "dismissed" | "error";
+
+/** One deep-research pass on a section's topic, reviewed before it enters the record. */
+export interface DiligenceResearch {
+  id: string;
+  sectionId: string;
+  symbol: string;
+  status: DiligenceResearchStatus;
+  /** Optional investor steer ("focus on the 2019 price war") captured at kickoff. */
+  question: string;
+  /** The research memo (markdown, [n] citations into `sources`); null until done. */
+  memo: string | null;
+  /** 2-4 sentence core-insights distillation (feeds the synthesis + analyst context). */
+  insights: string | null;
+  /** Numbered source list resolving the memo's [n] citations. */
+  sources: Citation[];
+  error: string | null;
+  createdAt: string;
+  /** When the investor accepted or dismissed it (null while running/pending). */
+  decidedAt: string | null;
+}
+
+/** The standing synthesis of core insights across the whole record (one per ticker). */
+export interface DiligenceSynthesis {
+  symbol: string;
+  content: string;
+  updatedAt: string;
+}
+
+/** A suggested section topic — "the right thing to look at" — from the signal board. */
+export interface SectionSuggestion {
+  title: string;
+  rationale: string;
+  /** Desk signals this topic would give qualitative depth to. */
+  signalNames: string[];
+}
+
+/** Payload for the due-diligence page: the whole record plus board context. */
+export interface DiligencePayload {
+  ticker: Ticker;
+  sections: (NoteSection & { notes: Note[]; research: DiligenceResearch[] })[];
+  synthesis: DiligenceSynthesis | null;
+  /** True when sections/notes/memos changed after the synthesis was written. */
+  synthesisStale: boolean;
+  /** Focus-area titles offered as one-click section suggestions. */
+  focusAreaTitles: string[];
+  /** Active board signals (chips + the suggest-topics flow). */
+  activeSignals: { id: string; name: string; focusArea: string }[];
+}
+
 /**
  * A text annotation: highlight-by-selection over any rendered text surface on
  * a ticker's pages (brief, dossier, evidence items, readings, chat replies).

@@ -102,7 +102,7 @@ export function ClipDialog({
           <div className="mt-4">
             <p className="text-muted text-xs">{t("notes.clipNoSections")}</p>
             <Link
-              href={`/t/${encodeURIComponent(symbol)}/notes`}
+              href={`/t/${encodeURIComponent(symbol)}`}
               className="inline-block mt-2 text-accent text-xs font-medium hover:underline"
             >
               {t("notes.clipGoToNotes")}

@@ -9,6 +9,8 @@ import type {
   ChatMessage,
   Citation,
   DigestItem,
+  DiligenceResearch,
+  DiligenceSynthesis,
   DividendReceipt,
   FeedbackCategory,
   FeedbackMessage,
@@ -343,6 +345,31 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_annotations_user ON annotations("userId", symbol)`,
+  // ---- due diligence: deep-research memos per section (accept-gated) and the
+  // standing synthesis of core insights across the record (one per ticker). ----
+  `CREATE TABLE IF NOT EXISTS dd_research (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "sectionId" TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    question TEXT NOT NULL DEFAULT '',
+    memo TEXT,
+    insights TEXT,
+    sources TEXT NOT NULL DEFAULT '[]',
+    error TEXT,
+    "createdAt" TEXT NOT NULL,
+    "decidedAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ddr_user ON dd_research("userId", symbol, "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS idx_ddr_section ON dd_research("sectionId", "createdAt")`,
+  `CREATE TABLE IF NOT EXISTS dd_synthesis (
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    content TEXT NOT NULL,
+    "updatedAt" TEXT NOT NULL,
+    PRIMARY KEY ("userId", symbol)
+  )`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -397,6 +424,8 @@ export async function removeTicker(userId: string, symbol: string): Promise<void
   await q`DELETE FROM digest_items WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM dd_research WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM dd_synthesis WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
@@ -1040,6 +1069,134 @@ export async function updateNote(
 
 export async function deleteNote(userId: string, id: string): Promise<void> {
   await q`DELETE FROM notes WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+// ---------- due diligence (deep-research memos + standing synthesis) ----------
+
+interface DiligenceResearchRow extends Omit<DiligenceResearch, "sources"> {
+  sources: string;
+}
+
+function parseDiligenceResearch(r: DiligenceResearchRow): DiligenceResearch {
+  let sources: Citation[] = [];
+  try {
+    sources = JSON.parse(r.sources || "[]") as Citation[];
+  } catch {
+    /* malformed row — memo renders without linked citations */
+  }
+  return { ...r, sources };
+}
+
+/** Start a research pass on a section (status 'running'; the pipeline fills it in). */
+export async function createDiligenceResearch(
+  userId: string,
+  symbol: string,
+  sectionId: string,
+  question: string
+): Promise<DiligenceResearch> {
+  const row: DiligenceResearch = {
+    id: uid(),
+    sectionId,
+    symbol,
+    status: "running",
+    question: question.trim().slice(0, 500),
+    memo: null,
+    insights: null,
+    sources: [],
+    error: null,
+    createdAt: now(),
+    decidedAt: null,
+  };
+  await q`INSERT INTO dd_research (id, "userId", symbol, "sectionId", status, question, "createdAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.sectionId}, 'running', ${row.question}, ${row.createdAt})`;
+  return row;
+}
+
+/**
+ * Complete a research pass: store the memo + insights + numbered sources and
+ * move it to 'pending' — the investor's review gate. Guarded to a still-running
+ * row so a pass the investor already cleaned up can't resurrect itself.
+ */
+export async function finishDiligenceResearch(
+  id: string,
+  memo: string,
+  insights: string,
+  sources: Citation[]
+): Promise<void> {
+  await q`UPDATE dd_research SET status = 'pending', memo = ${memo}, insights = ${insights},
+          sources = ${JSON.stringify(sources)} WHERE id = ${id} AND status = 'running'`;
+}
+
+export async function failDiligenceResearch(id: string, error: string): Promise<void> {
+  await q`UPDATE dd_research SET status = 'error', error = ${error}
+          WHERE id = ${id} AND status = 'running'`;
+}
+
+/**
+ * The investor's review decision on a pending memo. Accepting is what admits
+ * the research into the record (the caller appends the notepad); dismissing
+ * leaves the record untouched. Only a pending row can be decided.
+ */
+export async function decideDiligenceResearch(
+  userId: string,
+  id: string,
+  accept: boolean
+): Promise<DiligenceResearch | undefined> {
+  const rows = await q<DiligenceResearchRow>`
+    UPDATE dd_research SET status = ${accept ? "accepted" : "dismissed"}, "decidedAt" = ${now()}
+    WHERE id = ${id} AND "userId" = ${userId} AND status = 'pending'
+    RETURNING *`;
+  return rows[0] ? parseDiligenceResearch(rows[0]) : undefined;
+}
+
+export async function getDiligenceResearch(
+  userId: string,
+  id: string
+): Promise<DiligenceResearch | undefined> {
+  const rows = await q<DiligenceResearchRow>`
+    SELECT * FROM dd_research WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0] ? parseDiligenceResearch(rows[0]) : undefined;
+}
+
+/** Every research pass for a ticker, newest first (the page groups by section). */
+export async function listDiligenceResearch(
+  userId: string,
+  symbol: string
+): Promise<DiligenceResearch[]> {
+  const rows = await q<DiligenceResearchRow>`
+    SELECT * FROM dd_research WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" DESC`;
+  return rows.map(parseDiligenceResearch);
+}
+
+/** Mark research stuck in 'running' for over 15 minutes as failed (instance died mid-pass). */
+export async function reapStuckDiligence(userId: string, symbol: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+  await q`UPDATE dd_research SET status = 'error',
+          error = 'Research interrupted (server restarted mid-pass). Run it again.'
+          WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' AND "createdAt" < ${cutoff}`;
+}
+
+export async function getDiligenceSynthesis(
+  userId: string,
+  symbol: string
+): Promise<DiligenceSynthesis | undefined> {
+  const rows = await q<DiligenceSynthesis>`
+    SELECT symbol, content, "updatedAt" FROM dd_synthesis
+    WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  return rows[0];
+}
+
+export async function saveDiligenceSynthesis(
+  userId: string,
+  symbol: string,
+  content: string
+): Promise<DiligenceSynthesis> {
+  const row: DiligenceSynthesis = { symbol, content, updatedAt: now() };
+  await q`INSERT INTO dd_synthesis ("userId", symbol, content, "updatedAt")
+          VALUES (${userId}, ${symbol}, ${row.content}, ${row.updatedAt})
+          ON CONFLICT ("userId", symbol) DO UPDATE SET content = EXCLUDED.content, "updatedAt" = EXCLUDED."updatedAt"`;
+  return row;
 }
 
 // ---------- text annotations (highlight-by-selection) ----------

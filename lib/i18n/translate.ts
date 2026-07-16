@@ -6,9 +6,13 @@ import { getTranslations, saveTranslations } from "../db";
 import type {
   DeskPayload,
   DigestItem,
+  DiligencePayload,
+  DiligenceResearch,
+  DiligenceSynthesis,
   FocusArea,
   Reading,
   Run,
+  SectionSuggestion,
   Signal,
   SignalWithReadings,
 } from "../types";
@@ -328,4 +332,77 @@ export async function localizeBackstory<T extends { backstory?: string | null; b
     backstory: result.backstory != null ? tr(result.backstory) : result.backstory,
     brief: result.brief != null ? tr(result.brief) : result.brief,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Due-diligence record. Only desk-authored fields translate — the investor's
+// own notes, section titles and research steers stay verbatim, exactly like
+// chat messages (their thinking is never rewritten by the display layer).
+// ---------------------------------------------------------------------------
+
+function localizeResearch(r: DiligenceResearch, tr: Translated): DiligenceResearch {
+  return {
+    ...r,
+    memo: r.memo != null ? tr(r.memo) : r.memo,
+    insights: r.insights != null ? tr(r.insights) : r.insights,
+  };
+}
+
+function applySynthesis(s: DiligenceSynthesis, tr: Translated): DiligenceSynthesis {
+  return { ...s, content: tr(s.content) };
+}
+
+export async function localizeDiligenceSynthesis(
+  s: DiligenceSynthesis,
+  lang: Lang,
+  meta?: UsageMeta
+): Promise<DiligenceSynthesis> {
+  if (lang === "en") return s;
+  const tr = await makeTranslator([s.content], lang, meta);
+  return applySynthesis(s, tr);
+}
+
+export async function localizeDiligencePayload(
+  p: DiligencePayload,
+  lang: Lang,
+  meta?: UsageMeta
+): Promise<DiligencePayload> {
+  if (lang === "en") return p;
+  const candidates: (string | null | undefined)[] = [p.synthesis?.content];
+  for (const s of p.sections) {
+    for (const r of s.research) candidates.push(r.memo, r.insights);
+  }
+  // Signal names use the same cached strings the desk payload translates, so
+  // chips here match the board's localized names.
+  for (const s of p.activeSignals) candidates.push(s.name, s.focusArea);
+  const tr = await makeTranslator(candidates, lang, meta);
+  return {
+    ...p,
+    synthesis: p.synthesis ? applySynthesis(p.synthesis, tr) : p.synthesis,
+    sections: p.sections.map((s) => ({
+      ...s,
+      research: s.research.map((r) => localizeResearch(r, tr)),
+    })),
+    activeSignals: p.activeSignals.map((s) => ({
+      ...s,
+      name: tr(s.name),
+      focusArea: tr(s.focusArea),
+    })),
+  };
+}
+
+export async function localizeSectionSuggestions(
+  suggestions: SectionSuggestion[],
+  lang: Lang,
+  meta?: UsageMeta
+): Promise<SectionSuggestion[]> {
+  if (lang === "en") return suggestions;
+  const candidates: (string | null | undefined)[] = [];
+  for (const s of suggestions) candidates.push(s.title, s.rationale, ...s.signalNames);
+  const tr = await makeTranslator(candidates, lang, meta);
+  return suggestions.map((s) => ({
+    title: tr(s.title),
+    rationale: tr(s.rationale),
+    signalNames: s.signalNames.map((n) => tr(n)),
+  }));
 }

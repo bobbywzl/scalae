@@ -9,6 +9,7 @@ Under the hood it runs Phil Fisher's "scuttlebutt" method (the practice, famousl
 ## What it does
 
 - **Watchlist** (Apple Stocks-style): add any public-market ticker.
+- **Due Diligence workspace — the ticker's main page** (`/t/SYMBOL`): your deep qualitative research record, organized into **sections** (large qualitative topics specific to the company — moat mechanism, founder culture, regulatory exposure…), each holding freely-editable rich-text notepads. On your ask, the desk runs **deep research on a section's topic** — long-horizon company record, industry outside-view, and authentic primary-source sweeps, synthesized into a cited memo that **parks for your review**: accept adds it to the section as a dated, fully-editable notepad; dismiss leaves the record untouched (the desk never writes into your notes uninvited). A standing **synthesis of core insights** distills the whole record — the thesis as written, its tensions, and the open fronts — refreshed on demand, with honest staleness shown when the record has moved. Section-topic suggestions come from your signal board ("the right things to look at"), and the growing record steers which signals the analyst proposes next — the **circle-of-competence feedback loop**. The signal board itself lives at `/t/SYMBOL/signals`.
 - **Onboarding conversation**: a Claude analyst first classifies the business Buffett-style (great/good/gruesome economics, franchise vs. commodity), then interviews you about the value-investing questions you care about — or proposes the ones with the most open debate if you're unsure.
 - **Signal board**: the analyst proposes concrete, trackable signals (quantitative metrics and qualitative judgments), each with a thesis tied to the framework and a measurement plan. **Nothing activates without your approval.**
 - **Deep daily research runs** — a four-stage multi-agent pipeline, every run:
@@ -100,7 +101,7 @@ Admins triage from **`/admin/feedback`**: respond (optionally respond-and-close)
 | Neon Postgres (`@neondatabase/serverless`) | Persistence: desks, signals, readings (with per-source citations), digests, runs, chat + attachments. Local and Vercel share one database. |
 | Next.js 16 App Router | UI + API routes; research runs continue via `after()` after the response |
 
-Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the desk UI + full-screen mode).
+Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/agents/diligence.ts` (due-diligence deep research, record synthesis, topic suggestions), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the due-diligence workspace — the ticker's main page), `app/t/[symbol]/signals/page.tsx` (the signal desk UI + full-screen mode).
 
 ## Why these models — and how they stay current
 
@@ -121,6 +122,7 @@ each run.
 | Deep-dive scouts | newest Gemini **Pro** | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of probes that cross-check conflicting primary sources. |
 | Analyst-desk chat & pairwise compare | newest flagship **Opus** | The investor's live analyst — frontier judgment with fast interactive turns; chat reads attachments (images, PDFs, text) natively. |
 | Deep synthesis | newest flagship **Opus** | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump, where Claude leads. Stays flagship: it carries the desk's quality. |
+| Due-diligence memos, record synthesis & topic suggestions | newest flagship **Opus** | The record is the product's centre and every call is an explicit human ask (never the cron) — flagship quality is earned here (`CLAUDE_DILIGENCE_MODEL` to pin). |
 | Gap triage & signal deep-history | newest **Sonnet** (value) | Bounded support work that runs on every desk every day — routing which threads deserve a deep dive, and writing each signal's decades-scale backstory (cached forever). Sonnet handles both well; the flagship isn't earned here (`CLAUDE_TRIAGE_MODEL` / `CLAUDE_BACKSTORY_MODEL` to pin). |
 | Display translation (中文 mode) | newest Claude **Haiku** | High-volume, mechanical, cached per text in the `translations` table — each string is translated exactly once, so the value tier is plenty (`CLAUDE_TRANSLATE_MODEL` to pin). |
 

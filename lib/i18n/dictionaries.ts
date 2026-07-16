@@ -1,6 +1,7 @@
 import { chat } from "./dict/chat";
 import { common } from "./dict/common";
 import { compare } from "./dict/compare";
+import { dd } from "./dict/dd";
 import { desk } from "./dict/desk";
 import { financials } from "./dict/financials";
 import { notes } from "./dict/notes";
@@ -24,6 +25,7 @@ const NAMESPACES = {
   common,
   watchlist,
   settings,
+  dd,
   desk,
   financials,
   notes,

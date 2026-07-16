@@ -6,16 +6,19 @@ import {
   DESK_DOCTRINE,
   deskIdentity,
   CHAT_SCHEMA,
+  EXPERT_LOOP_GUIDANCE,
   QUESTION_METHOD,
   SIGNAL_GUIDANCE,
 } from "./framework";
 import {
   approveSignal,
+  getDiligenceSynthesis,
   getSignal,
   getTicker,
   insertMessage,
   insertProposal,
   latestRun,
+  listDiligenceResearch,
   listFocusAreas,
   listMessagesWithAttachments,
   listNoteSections,
@@ -30,7 +33,7 @@ import {
 } from "../db";
 import { getQuote, quoteLine } from "../market";
 import { financialsSummary, peekFinancials } from "../financials";
-import { notesContext } from "../notes";
+import { diligenceContext } from "../notes";
 import { computeInvolvement, involvementLine } from "../portfolio";
 import type { Lang } from "../i18n/config";
 import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
@@ -193,6 +196,8 @@ export async function handleChatTurn(
     financials,
     noteSections,
     notes,
+    ddResearch,
+    ddSynthesis,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -207,6 +212,8 @@ export async function handleChatTurn(
     peekFinancials(symbol).catch(() => null),
     listNoteSections(userId, symbol).catch(() => []),
     listNotes(userId, symbol).catch(() => []),
+    listDiligenceResearch(userId, symbol).catch(() => []),
+    getDiligenceSynthesis(userId, symbol).catch(() => null),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -248,7 +255,7 @@ Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 ${financials ? financialsSummary(financials) : ""}
-${notesContext(noteSections, notes)}
+${diligenceContext(noteSections, notes, ddResearch, ddSynthesis)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
   // Signal-focused context: the one signal's full world, in depth.
@@ -330,6 +337,8 @@ LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, profes
 ${QUESTION_METHOD}
 
 ${SIGNAL_GUIDANCE}
+
+${EXPERT_LOOP_GUIDANCE}
 
 ATTACHMENTS: The investor can attach images (charts, product photos, screenshots), PDFs (filings, reports, broker notes) and text files. Treat them as first-class evidence: read them through the desk's lenses, tie what you find to the active board by signal name, and propose new trackable signals when a document reveals a thread the board misses (approval-gated as always). Refer to an attachment by its filename when you rely on it.
 

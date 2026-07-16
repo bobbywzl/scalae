@@ -7,6 +7,7 @@ import { citationOverlap } from "../compare";
 import {
   DESK_DOCTRINE,
   deskIdentity,
+  EXPERT_LOOP_GUIDANCE,
   GAP_SCHEMA,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
@@ -17,13 +18,17 @@ import {
   createRun,
   failRun,
   finishRun,
+  getDiligenceSynthesis,
   getTicker,
   insertDigestItem,
   insertProposal,
   insertReading,
   latestRun,
+  listDiligenceResearch,
   listFocusAreas,
   listMessages,
+  listNoteSections,
+  listNotes,
   listSignals,
   readingsForSignal,
   reapStuckRuns,
@@ -32,6 +37,7 @@ import {
   setRunStage,
   touchLastRun,
 } from "../db";
+import { diligenceContext } from "../notes";
 import { getQuote, quoteLine } from "../market";
 import type { Citation, Delta, ReadingLevel, Run, Signal, SignalProposal } from "../types";
 
@@ -113,9 +119,10 @@ function synthesisEffort(): "low" | "medium" | "high" | "xhigh" | "max" {
  * and tokens), and the call is also raced against the timer so the stage can
  * NEVER exceed the limit even if a provider ignores the signal. On timeout it
  * rejects with a labeled error; each caller decides whether that's fatal
- * (synthesis) or a graceful degrade (scouts, triage, backstory).
+ * (synthesis) or a graceful degrade (scouts, triage, backstory). Exported for
+ * the other user-triggered pipelines (due-diligence research) to share.
  */
-async function withDeadline<T>(
+export async function withDeadline<T>(
   label: string,
   fn: (signal: AbortSignal) => Promise<T>,
   ms = STAGE_LIMIT_MS
@@ -452,6 +459,15 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       .slice(-6)
       .map((m) => `- ${m.content.slice(0, 300)}`)
       .join("\n");
+    // The due-diligence record: the map of what the investor currently
+    // understands, which the circle-of-competence loop steers proposals by
+    // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
+    const ddBlock = await Promise.all([
+      listNoteSections(userId, symbol).catch(() => []),
+      listNotes(userId, symbol).catch(() => []),
+      listDiligenceResearch(userId, symbol).catch(() => []),
+      getDiligenceSynthesis(userId, symbol).catch(() => null),
+    ]).then(([s, n, r, syn]) => diligenceContext(s, n, r, syn ?? null));
 
     const researchBlock = sweeps
       .map(
@@ -485,7 +501,7 @@ ${boardBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
+${ddBlock ? `${ddBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -499,7 +515,7 @@ TASK — produce today's desk output:
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
 3b. dossier: the STANDING view of the business, 150-300 words in markdown — not today's news. Paragraph 1: how this company makes money right now (segments, the earnings engine, moat trajectory) as evidenced by the board's current readings. Paragraph 2: the culture/trust verdict. Update only what today's evidence moved; keep the rest stable so the investor sees a consistent thesis evolving, not a rewrite. Cite [n] source indexes on every load-bearing claim, and when a claim reads off a board signal, add that signal's key in double braces right after it — e.g. "the toll booth is repricing {{S1}} [4]" — so the investor can jump from claim to signal. Refer to signals by name in the prose (the {{Sk}} markers render as links, never as raw keys).
-4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
+4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Propose as the industry expert of the circle-of-competence loop: where the investor's due-diligence record (above, when present) leaves a load-bearing business-model or culture thread unexamined and unwatched, or where a signal's long-run trend would strengthen or test a section's written analysis, prefer THAT proposal and name the gap or section in its thesis. Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
@@ -517,7 +533,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       // ~0.1× input cost for every desk it sweeps, not once per call.
       system: [
         { text: DESK_DOCTRINE, cache: true },
-        { text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}` },
+        {
+          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
+        },
       ],
       messages: [{ role: "user", content: task }],
       schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,

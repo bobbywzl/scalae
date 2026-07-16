@@ -339,8 +339,8 @@ export default function ComparePage() {
               <div className="mt-2 divide-y divide-hairline">
                 {matched.pairs.map((p) => (
                   <div key={p.a.id} className="grid grid-cols-2 divide-x divide-hairline">
-                    <SignalCell s={p.a} onNavigate={`/t/${encodeURIComponent(symA!)}`} />
-                    <SignalCell s={p.b} onNavigate={`/t/${encodeURIComponent(symB!)}`} />
+                    <SignalCell s={p.a} onNavigate={`/t/${encodeURIComponent(symA!)}/signals`} />
+                    <SignalCell s={p.b} onNavigate={`/t/${encodeURIComponent(symB!)}/signals`} />
                   </div>
                 ))}
               </div>
@@ -363,7 +363,7 @@ export default function ComparePage() {
                   {list.length === 0 ? (
                     <p className="px-3 py-2 text-[11px] text-muted italic">{t("compare.nothingUnique")}</p>
                   ) : (
-                    list.map((s) => <SignalCell key={s.id} s={s} onNavigate={`/t/${encodeURIComponent(sym!)}`} />)
+                    list.map((s) => <SignalCell key={s.id} s={s} onNavigate={`/t/${encodeURIComponent(sym!)}/signals`} />)
                   )}
                 </div>
               ))}
