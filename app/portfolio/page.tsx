@@ -724,6 +724,16 @@ export default function PortfolioPage() {
                                 {t("portfolio.realizedAmt", { amt: fmtNative(p.realized, p.currency, 0) })}
                               </span>
                             )}
+                            {(data.dividendsBySymbol[p.symbol] ?? 0) !== 0 && (
+                              <span
+                                className={`ml-2 ${signCls(data.dividendsBySymbol[p.symbol])}`}
+                                title={t("portfolio.divReceivedTitle")}
+                              >
+                                {t("portfolio.divReceived", {
+                                  v: fmtUsd(data.dividendsBySymbol[p.symbol], { sign: true }),
+                                })}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="text-right shrink-0">

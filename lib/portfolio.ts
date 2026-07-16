@@ -190,15 +190,23 @@ export async function computePortfolio(userId: string): Promise<PortfolioPayload
   const divFx = new Map<string, number | null>(
     await Promise.all(divCurrencies.map(async (c) => [c, await getFxRate(c)] as const))
   );
+  // USD per receipt — summed both in total and per symbol (the rows note each
+  // name's dividend cash; the summary keeps the book-level figure).
+  const dividendsBySymbol: Record<string, number> = {};
   const dividendsUsd = sum(
     dividends.map((d) => {
-      if (d.currency === "USD") return d.amount;
-      const rate = divFx.get(d.currency);
-      if (rate == null) {
-        console.warn(`[scalae] no FX rate for ${d.currency} dividend on ${d.symbol} — excluded from USD total`);
-        return 0;
+      let usd: number;
+      if (d.currency === "USD") usd = d.amount;
+      else {
+        const rate = divFx.get(d.currency);
+        if (rate == null) {
+          console.warn(`[scalae] no FX rate for ${d.currency} dividend on ${d.symbol} — excluded from USD total`);
+          return 0;
+        }
+        usd = d.amount * rate;
       }
-      return d.amount * rate;
+      dividendsBySymbol[d.symbol] = (dividendsBySymbol[d.symbol] ?? 0) + usd;
+      return usd;
     })
   );
   const last = series[series.length - 1];
@@ -241,6 +249,7 @@ export async function computePortfolio(userId: string): Promise<PortfolioPayload
     orderHistory,
     pendingDividends: pending,
     dividends,
+    dividendsBySymbol,
     drip,
     initialCapital,
     cash,
@@ -250,23 +259,34 @@ export async function computePortfolio(userId: string): Promise<PortfolioPayload
 
 /** Involvement in one symbol (ticker desk card, watchlist badge, analyst context). */
 export async function computeInvolvement(userId: string, symbol: string): Promise<TickerInvolvement | null> {
-  const trades = await listTrades(userId, symbol.toUpperCase());
+  const sym = symbol.toUpperCase();
+  const trades = await listTrades(userId, sym);
   if (trades.length === 0) return null;
-  const { valued } = await valueAll(trades);
+  const [{ valued }, allDividends, drip] = await Promise.all([
+    valueAll(trades),
+    listDividends(userId).catch(() => []),
+    dripEnabled(userId, sym).catch(() => false),
+  ]);
   const stock = valued.find((v) => v.kind === "stock" && v.qty !== 0) ?? null;
   const options = valued.filter((v) => v.kind === "option" && v.qty !== 0);
   const realized = valued.reduce((a, v) => a + v.realized, 0);
-  if (!stock && options.length === 0 && realized === 0) return null;
+  // Native currency — a symbol's receipts share its trading currency.
+  const dividends = allDividends
+    .filter((d) => d.symbol === sym)
+    .reduce((a, d) => a + d.amount, 0);
+  if (!stock && options.length === 0 && realized === 0 && dividends === 0) return null;
   const held = [stock, ...options].filter(Boolean) as ValuedPosition[];
   const unrealized = held.some((v) => v.unrealized != null)
     ? held.reduce((a, v) => a + (v.unrealized ?? 0), 0)
     : null;
   return {
-    symbol: symbol.toUpperCase(),
+    symbol: sym,
     currency: stock?.currency ?? options[0]?.currency ?? "USD",
     stock,
     options,
     realized,
     unrealized,
+    dividends,
+    drip,
   };
 }
