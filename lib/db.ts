@@ -9,9 +9,11 @@ import type {
   ChatMessage,
   Citation,
   DigestItem,
+  DiligenceEvidence,
   DiligenceResearch,
   DiligenceSynthesis,
   DividendReceipt,
+  EvidenceKind,
   FeedbackCategory,
   FeedbackMessage,
   FeedbackStatus,
@@ -370,6 +372,23 @@ export const SCHEMA_STATEMENTS: string[] = [
     "updatedAt" TEXT NOT NULL,
     PRIMARY KEY ("userId", symbol)
   )`,
+  // ---- due-diligence evidence lockers: any file type, captioned, per section.
+  // data is base64 (or raw text for kind='text'); listings never select it. ----
+  `CREATE TABLE IF NOT EXISTS dd_evidence (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "sectionId" TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    "mediaType" TEXT NOT NULL DEFAULT '',
+    size INTEGER NOT NULL DEFAULT 0,
+    caption TEXT NOT NULL DEFAULT '',
+    data TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_dde_user ON dd_evidence("userId", symbol, "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS idx_dde_section ON dd_evidence("sectionId", "createdAt")`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -426,6 +445,7 @@ export async function removeTicker(userId: string, symbol: string): Promise<void
   await q`DELETE FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM dd_research WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM dd_synthesis WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM dd_evidence WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
@@ -1002,9 +1022,11 @@ export async function renameNoteSection(userId: string, id: string, title: strin
           WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
-/** Deleting a section deletes its notepads with it — the page confirms first. */
+/** Deleting a section deletes its notepads, research and evidence with it — the page confirms first. */
 export async function deleteNoteSection(userId: string, id: string): Promise<void> {
   await q`DELETE FROM notes WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
+  await q`DELETE FROM dd_research WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
+  await q`DELETE FROM dd_evidence WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
   await q`DELETE FROM note_sections WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
@@ -1197,6 +1219,78 @@ export async function saveDiligenceSynthesis(
           VALUES (${userId}, ${symbol}, ${row.content}, ${row.updatedAt})
           ON CONFLICT ("userId", symbol) DO UPDATE SET content = EXCLUDED.content, "updatedAt" = EXCLUDED."updatedAt"`;
   return row;
+}
+
+// ---------- due-diligence evidence lockers (any file type, captioned) ----------
+
+export async function insertDiligenceEvidence(
+  userId: string,
+  symbol: string,
+  sectionId: string,
+  file: { kind: EvidenceKind; name: string; mediaType: string; size: number; data: string },
+  caption: string
+): Promise<DiligenceEvidence> {
+  const row: DiligenceEvidence = {
+    id: uid(),
+    sectionId,
+    symbol,
+    kind: file.kind,
+    name: file.name,
+    mediaType: file.mediaType,
+    size: file.size,
+    caption: caption.trim().slice(0, 500),
+    createdAt: now(),
+  };
+  await q`INSERT INTO dd_evidence (id, "userId", symbol, "sectionId", kind, name, "mediaType", size, caption, data, "createdAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.sectionId}, ${row.kind}, ${row.name},
+                  ${row.mediaType}, ${row.size}, ${row.caption}, ${file.data}, ${row.createdAt})`;
+  return row;
+}
+
+/** Every evidence row for a ticker — METADATA ONLY (the data column never rides listings). */
+export async function listDiligenceEvidence(
+  userId: string,
+  symbol: string
+): Promise<DiligenceEvidence[]> {
+  return q<DiligenceEvidence>`
+    SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, "createdAt"
+    FROM dd_evidence WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" ASC`;
+}
+
+/** One evidence row including its payload — for the file route and the memo agent. */
+export async function getDiligenceEvidenceWithData(
+  userId: string,
+  id: string
+): Promise<(DiligenceEvidence & { data: string }) | undefined> {
+  const rows = await q<DiligenceEvidence & { data: string }>`
+    SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, data, "createdAt"
+    FROM dd_evidence WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0];
+}
+
+/** Payloads for a SECTION's readable evidence, oldest first — the memo agent's reading pile. */
+export async function evidenceDataForSection(
+  userId: string,
+  sectionId: string
+): Promise<(DiligenceEvidence & { data: string })[]> {
+  return q<DiligenceEvidence & { data: string }>`
+    SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, data, "createdAt"
+    FROM dd_evidence WHERE "sectionId" = ${sectionId} AND "userId" = ${userId}
+    ORDER BY "createdAt" ASC`;
+}
+
+export async function updateDiligenceEvidenceCaption(
+  userId: string,
+  id: string,
+  caption: string
+): Promise<void> {
+  await q`UPDATE dd_evidence SET caption = ${caption.trim().slice(0, 500)}
+          WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+export async function deleteDiligenceEvidence(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM dd_evidence WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
 // ---------- text annotations (highlight-by-selection) ----------

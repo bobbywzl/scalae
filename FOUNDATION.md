@@ -132,7 +132,11 @@ The signal board is the instrument panel; the **due-diligence record is the ship
 log** — the primary surface of the product. Per ticker it is organized into
 **sections**: large qualitative topics specific to that company (its moat mechanism,
 its founder culture, its regulatory exposure — whatever the crux questions are),
-each holding freely-editable notepads the investor owns outright.
+each holding freely-editable notepads the investor owns outright, plus an
+**evidence locker**: files of any type — filings, screenshots, spreadsheets,
+photos, recordings — each carrying the investor's caption saying what it shows.
+The desk reads what is machine-readable when researching that section and treats
+captions as the investor's claims about the file, weighed like any framing.
 
 - **The investor's understanding is the product.** Every feature exists to deepen
   and organize one person's circle of competence on one business. Research that

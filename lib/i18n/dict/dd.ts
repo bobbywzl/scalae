@@ -47,6 +47,17 @@ const en = {
   suggestDeepens: "Deepens: {names}",
   suggestNone: "The desk had no new topics to suggest — the record already covers the board's crux questions.",
 
+  // Evidence lockers (any file type, captioned, per section)
+  evidenceTitle: "Evidence",
+  evidenceDrop: "Drop files here or click to add — filings, screenshots, spreadsheets, photos, anything",
+  evidenceUploading: "Filing “{name}”…",
+  evidenceCaptionPlaceholder: "Caption — what does this evidence show?",
+  evidenceDelete: "Remove evidence",
+  evidenceDeleteConfirm: "Remove “{name}” from this section's evidence? This cannot be undone.",
+  evidenceOpen: "Open",
+  evidenceReadNote: "Readable files are read by the desk when researching this section; everything else is judged by its caption.",
+  evidenceFailed: "“{name}” failed: {error}",
+
   // Signals cross-links
   boardLine: "{n} active signal(s) on the board feed this record.",
   boardLineNone: "No active signals yet — the signals desk proposes what to track.",
@@ -91,6 +102,16 @@ const zh: Record<keyof typeof en, string> = {
   suggestExplainer: "来自你的信号板——接下来值得深入的方向：",
   suggestDeepens: "可深化：{names}",
   suggestNone: "分析台暂无新主题可推荐——记录已覆盖信号板的关键问题。",
+
+  evidenceTitle: "证据",
+  evidenceDrop: "拖放文件到此处或点击添加——申报文件、截图、电子表格、照片，任何类型皆可",
+  evidenceUploading: "正在归档“{name}”……",
+  evidenceCaptionPlaceholder: "说明——这份证据显示了什么？",
+  evidenceDelete: "移除证据",
+  evidenceDeleteConfirm: "从该板块的证据中移除“{name}”？此操作不可撤销。",
+  evidenceOpen: "打开",
+  evidenceReadNote: "可读文件会在研究该板块时被分析台阅读；其余文件按其说明来判断。",
+  evidenceFailed: "“{name}”失败：{error}",
 
   boardLine: "信号板上有 {n} 个活跃信号为这份记录供给证据。",
   boardLineNone: "还没有活跃信号——信号工作台会提议要跟踪的信号。",

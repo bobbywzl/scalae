@@ -1,4 +1,11 @@
-import type { Citation, DiligenceResearch, DiligenceSynthesis, Note, NoteSection } from "./types";
+import type {
+  Citation,
+  DiligenceEvidence,
+  DiligenceResearch,
+  DiligenceSynthesis,
+  Note,
+  NoteSection,
+} from "./types";
 
 /**
  * Server-side helpers for the notes feature. Note content is a TipTap document
@@ -277,6 +284,7 @@ export function diligenceContext(
   notes: Note[],
   research: DiligenceResearch[] = [],
   synthesis: DiligenceSynthesis | null = null,
+  evidence: DiligenceEvidence[] = [],
   maxChars = 2600
 ): string {
   if (sections.length === 0 && !synthesis) return "";
@@ -291,6 +299,11 @@ export function diligenceContext(
     if (!acceptedBySection.has(r.sectionId)) acceptedBySection.set(r.sectionId, []);
     acceptedBySection.get(r.sectionId)!.push(r);
   }
+  const evidenceBySection = new Map<string, DiligenceEvidence[]>();
+  for (const e of evidence) {
+    if (!evidenceBySection.has(e.sectionId)) evidenceBySection.set(e.sectionId, []);
+    evidenceBySection.get(e.sectionId)!.push(e);
+  }
   const lines: string[] = [];
   if (synthesis?.content) {
     lines.push(
@@ -302,8 +315,9 @@ export function diligenceContext(
   for (const s of sections) {
     const ns = bySection.get(s.id) ?? [];
     const accepted = acceptedBySection.get(s.id) ?? [];
+    const filed = evidenceBySection.get(s.id) ?? [];
     lines.push(`## ${s.title}`);
-    if (ns.length === 0 && accepted.length === 0) {
+    if (ns.length === 0 && accepted.length === 0 && filed.length === 0) {
       lines.push(`- (section opened, nothing written yet)`);
       continue;
     }
@@ -313,6 +327,13 @@ export function diligenceContext(
     for (const n of ns) {
       const text = docToPlainText(n.content).replace(/\s+/g, " ").slice(0, 280);
       if (text) lines.push(`- ${n.title ? `${n.title}: ` : ""}${text}`);
+    }
+    // Filed evidence appears by caption — the investor's own words about what
+    // each file shows (payloads are read only by the section's memo agent).
+    for (const e of filed.slice(0, 6)) {
+      lines.push(
+        `- filed evidence: ${e.caption ? `"${e.caption.replace(/\s+/g, " ").slice(0, 160)}"` : "(no caption)"} [${e.name}]`
+      );
     }
   }
   if (lines.length === 0) return "";

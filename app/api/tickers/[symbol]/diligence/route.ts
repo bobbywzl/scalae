@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getDiligenceSynthesis,
   getTicker,
+  listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
   listNoteSections,
@@ -26,27 +27,34 @@ export async function GET(_req: Request, { params }: Params) {
   if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await reapStuckDiligence(user.id, symbol);
-  const [sections, notes, research, synthesis, focusAreas, activeSignals] = await Promise.all([
-    listNoteSections(user.id, symbol),
-    listNotes(user.id, symbol),
-    listDiligenceResearch(user.id, symbol),
-    getDiligenceSynthesis(user.id, symbol),
-    listFocusAreas(user.id, symbol),
-    listSignals(user.id, symbol, "active"),
-  ]);
+  const [sections, notes, research, evidence, synthesis, focusAreas, activeSignals] =
+    await Promise.all([
+      listNoteSections(user.id, symbol),
+      listNotes(user.id, symbol),
+      listDiligenceResearch(user.id, symbol),
+      listDiligenceEvidence(user.id, symbol),
+      getDiligenceSynthesis(user.id, symbol),
+      listFocusAreas(user.id, symbol),
+      listSignals(user.id, symbol, "active"),
+    ]);
 
   const byId = new Map(
-    sections.map((s) => [s.id, { ...s, notes: [] as typeof notes, research: [] as typeof research }])
+    sections.map((s) => [
+      s.id,
+      { ...s, notes: [] as typeof notes, research: [] as typeof research, evidence: [] as typeof evidence },
+    ])
   );
   for (const n of notes) byId.get(n.sectionId)?.notes.push(n);
   for (const r of research) byId.get(r.sectionId)?.research.push(r);
+  for (const e of evidence) byId.get(e.sectionId)?.evidence.push(e);
 
   // Staleness is shown, never acted on: the record changed after the synthesis
-  // was written (new section, edited note, accepted memo) — refresh stays a
-  // human decision (FOUNDATION: on-demand only).
+  // was written (new section, edited note, accepted memo, filed evidence) —
+  // refresh stays a human decision (FOUNDATION: on-demand only).
   let latestActivity = "";
   for (const s of sections) if (s.createdAt > latestActivity) latestActivity = s.createdAt;
   for (const n of notes) if (n.updatedAt > latestActivity) latestActivity = n.updatedAt;
+  for (const e of evidence) if (e.createdAt > latestActivity) latestActivity = e.createdAt;
   for (const r of research) {
     if (r.status === "accepted" && r.decidedAt && r.decidedAt > latestActivity) {
       latestActivity = r.decidedAt;

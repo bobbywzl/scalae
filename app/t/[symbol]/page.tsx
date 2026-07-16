@@ -6,9 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Markdown } from "@/components/Markdown";
 import { NoteEditor } from "@/components/NoteEditor";
 import { useT } from "@/components/PrefsProvider";
+import { fmtBytes, processEvidenceFile } from "@/components/attach";
 import { api, localizeError, timeAgo } from "@/components/util";
 import { linkCitations } from "@/lib/citations";
 import type {
+  DiligenceEvidence,
   DiligencePayload,
   DiligenceResearch,
   Note,
@@ -374,6 +376,8 @@ function SectionBlock({
 
       <ResearchPanel symbol={symbol} section={section} onChanged={onChanged} />
 
+      <EvidenceStrip symbol={symbol} section={section} onChanged={onChanged} />
+
       {section.notes.length === 0 ? (
         <p className="text-muted/70 text-[11px] italic mt-2">{t("notes.emptySection")}</p>
       ) : (
@@ -384,6 +388,205 @@ function SectionBlock({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The section's evidence locker: drop (or pick) files of ANY type — filings,
+ * screenshots, spreadsheets, photos — and caption each one. Uploads run one
+ * file at a time (request-size limits); captions autosave. Readable files are
+ * read by the memo agent when researching the section; the rest are carried
+ * by their captions.
+ */
+function EvidenceStrip({
+  symbol,
+  section,
+  onChanged,
+}: {
+  symbol: string;
+  section: Section;
+  onChanged: () => Promise<unknown>;
+}) {
+  const { t } = useT();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  async function fileMany(files: File[]) {
+    if (files.length === 0 || uploadingName) return;
+    setErrors([]);
+    for (const f of files) {
+      setUploadingName(f.name);
+      try {
+        const processed = await processEvidenceFile(f);
+        await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/evidence`, {
+          method: "POST",
+          body: JSON.stringify({ sectionId: section.id, caption: "", file: processed }),
+        });
+      } catch (e) {
+        setErrors((errs) => [
+          ...errs,
+          t("dd.evidenceFailed", {
+            name: f.name,
+            error: e instanceof Error ? localizeError(e.message, t) : "—",
+          }),
+        ]);
+      }
+    }
+    setUploadingName(null);
+    await onChanged();
+  }
+
+  return (
+    <div className="mt-2">
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          fileMany([...e.dataTransfer.files]);
+        }}
+        role="button"
+        className={`rounded-xl border border-dashed px-3 py-2 text-[11px] cursor-pointer transition-colors ${
+          dragOver
+            ? "border-accent/60 bg-accent/10 text-accent"
+            : "border-hairline bg-ink/3 text-muted hover:bg-ink/6 hover:text-emph"
+        }`}
+      >
+        {uploadingName
+          ? t("dd.evidenceUploading", { name: uploadingName })
+          : `📎 ${t("dd.evidenceDrop")}`}
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            fileMany([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {errors.map((err) => (
+        <p key={err} className="mt-1 text-[11px] text-loss">
+          {err}
+        </p>
+      ))}
+      {section.evidence.length > 0 && (
+        <>
+          <div className="mt-2 grid sm:grid-cols-2 gap-2">
+            {section.evidence.map((e) => (
+              <EvidenceCard key={e.id} evidence={e} onChanged={onChanged} />
+            ))}
+          </div>
+          <p className="mt-1.5 text-[10px] text-muted/60">{t("dd.evidenceReadNote")}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const KIND_ICON: Record<DiligenceEvidence["kind"], string> = {
+  image: "🖼",
+  pdf: "📄",
+  text: "📃",
+  file: "📎",
+};
+
+function EvidenceCard({
+  evidence,
+  onChanged,
+}: {
+  evidence: DiligenceEvidence;
+  onChanged: () => Promise<unknown>;
+}) {
+  const { t } = useT();
+  const [caption, setCaption] = useState(evidence.caption);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileUrl = `/api/diligence/evidence/${evidence.id}/file`;
+
+  // Debounced caption autosave, the notepad-title idiom.
+  function queueCaption(v: string) {
+    setCaption(v);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      api(`/api/diligence/evidence/${evidence.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ caption: v }),
+      }).catch(() => {});
+    }, 1000);
+  }
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  async function remove() {
+    if (!confirm(t("dd.evidenceDeleteConfirm", { name: evidence.name }))) return;
+    setBusy(true);
+    await api(`/api/diligence/evidence/${evidence.id}`, { method: "DELETE" }).catch(() => {});
+    await onChanged();
+    setBusy(false);
+  }
+
+  return (
+    <div className="rounded-xl bg-card border border-hairline p-2.5 flex gap-2.5">
+      {evidence.kind === "image" ? (
+        <a href={fileUrl} target="_blank" rel="noreferrer" className="shrink-0">
+          {/* Served by our own authenticated route — next/image gains nothing here. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={fileUrl}
+            alt={evidence.caption || evidence.name}
+            className="w-16 h-16 rounded-lg object-cover border border-hairline"
+          />
+        </a>
+      ) : (
+        <span className="shrink-0 w-16 h-16 rounded-lg bg-ink/5 border border-hairline flex items-center justify-center text-2xl">
+          {KIND_ICON[evidence.kind]}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={t("dd.evidenceOpen")}
+            className="text-[11px] font-medium text-emph hover:text-accent truncate transition-colors"
+          >
+            {evidence.name}
+          </a>
+          <span className="shrink-0 text-[9px] text-muted/70 tabular-nums">
+            {fmtBytes(evidence.size)}
+          </span>
+          <button
+            onClick={remove}
+            disabled={busy}
+            title={t("dd.evidenceDelete")}
+            className="ml-auto shrink-0 rounded-md px-1 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
+          >
+            ✕
+          </button>
+        </div>
+        <input
+          value={caption}
+          onChange={(e) => queueCaption(e.target.value)}
+          placeholder={t("dd.evidenceCaptionPlaceholder")}
+          className="mt-1 w-full rounded-md border border-hairline bg-ink/4 px-2 py-1 text-[11px] focus:outline-none focus:border-accent/50 placeholder:text-muted/50"
+        />
+        <p className="mt-0.5 text-[9px] text-muted/60">{evidence.createdAt.slice(0, 10)}</p>
+      </div>
+    </div>
   );
 }
 
