@@ -52,8 +52,12 @@ export interface EvidenceFile {
   data: string;
 }
 
-/** Binary evidence cap (original bytes) — keeps one-file request bodies inside limits. */
-export const EVIDENCE_BINARY_MAX = 3_000_000;
+/**
+ * Binary evidence cap (original bytes). Files bigger than one request body
+ * allows are uploaded in sequential chunks (see the evidence upload flow), so
+ * this is a true per-file ceiling, not a per-request one.
+ */
+export const EVIDENCE_BINARY_MAX = 25_000_000;
 /** Text-like types/extensions that should be read as text, not raw binary. */
 const TEXTUAL_TYPES = new Set(["application/json", "application/xml", "application/x-yaml"]);
 const TEXTUAL_EXT = /\.(txt|md|csv|tsv|json|xml|ya?ml|log|htm|html)$/i;
@@ -65,33 +69,40 @@ async function asEvidence(p: Promise<Attachment>): Promise<EvidenceFile> {
   return { kind: a.kind, name: a.name, mediaType: a.mediaType, size: a.size, data: a.data };
 }
 
-/**
- * Evidence-locker version of processFile: same handling for images (downscale),
- * PDFs and text — but ANY other type is accepted as a generic binary "file"
- * (spreadsheets, decks, archives, audio) instead of being force-read as text.
- */
-export async function processEvidenceFile(file: File): Promise<EvidenceFile> {
-  if (file.type.startsWith("image/")) return asEvidence(processFile(file));
-  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
-    if (file.size > EVIDENCE_BINARY_MAX) {
-      throw new Error(`${file.name} is ${fmtBytes(file.size)} — evidence PDFs up to ${fmtBytes(EVIDENCE_BINARY_MAX)} only.`);
-    }
-    return asEvidence(processFile(file));
-  }
-  if (file.type.startsWith("text/") || TEXTUAL_TYPES.has(file.type) || TEXTUAL_EXT.test(file.name)) {
-    return asEvidence(processFile(file));
-  }
-  if (file.size > EVIDENCE_BINARY_MAX) {
-    throw new Error(`${file.name} is ${fmtBytes(file.size)} — evidence files up to ${fmtBytes(EVIDENCE_BINARY_MAX)} only.`);
-  }
+/** Read any file as base64 (no size gate — the caller enforces the cap). */
+async function asBinaryEvidence(file: File, kind: "pdf" | "file"): Promise<EvidenceFile> {
   const dataUrl = await readAsDataURL(file);
   return {
-    kind: "file",
+    kind,
     name: file.name,
-    mediaType: file.type || "application/octet-stream",
+    mediaType: file.type || (kind === "pdf" ? "application/pdf" : "application/octet-stream"),
     size: file.size,
     data: dataUrl.split(",")[1],
   };
+}
+
+/**
+ * Evidence-locker version of processFile: images downscale (chat pipeline),
+ * small text reads as text — but PDFs and ANY other type are accepted as
+ * binary up to EVIDENCE_BINARY_MAX (deliberately NOT the chat pipeline's
+ * small single-request PDF cap; big files upload in chunks). Text files past
+ * the chat text cap ride as generic binary instead of failing.
+ */
+export async function processEvidenceFile(file: File): Promise<EvidenceFile> {
+  if (file.type.startsWith("image/")) return asEvidence(processFile(file));
+  if (file.size > EVIDENCE_BINARY_MAX) {
+    throw new Error(`${file.name} is ${fmtBytes(file.size)} — evidence files up to ${fmtBytes(EVIDENCE_BINARY_MAX)} only.`);
+  }
+  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+    return asBinaryEvidence(file, "pdf");
+  }
+  if (
+    file.size <= TEXT_MAX_BYTES &&
+    (file.type.startsWith("text/") || TEXTUAL_TYPES.has(file.type) || TEXTUAL_EXT.test(file.name))
+  ) {
+    return asEvidence(processFile(file));
+  }
+  return asBinaryEvidence(file, "file");
 }
 
 export async function processFile(file: File): Promise<Attachment> {

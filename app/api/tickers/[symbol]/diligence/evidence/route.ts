@@ -7,9 +7,12 @@ type Params = { params: Promise<{ symbol: string }> };
 
 /**
  * File one piece of evidence into a section's locker — any file type, with a
- * caption. One file per request (keeps each body inside the platform's
- * function-payload limit; the page queues multi-file drops sequentially).
- * Body: { sectionId, caption?, file: { kind, name, mediaType, size, data } }.
+ * caption. The body carries the payload's FIRST chunk plus the total length;
+ * when more is coming the row is created incomplete and the client appends
+ * the rest via POST /api/diligence/evidence/[id]/chunk (the platform caps a
+ * single request body, so big files can't arrive whole). Multi-file drops
+ * queue sequentially on the page.
+ * Body: { sectionId, caption?, file: { kind, name, mediaType, size, data, expectedLength? } }.
  */
 export async function POST(req: Request, { params }: Params) {
   const user = await requireUser();
@@ -32,12 +35,14 @@ export async function POST(req: Request, { params }: Params) {
   const file = sanitizeEvidence(body.file);
   if ("error" in file) return NextResponse.json({ error: file.error }, { status: 400 });
 
+  const complete = file.expectedLength === file.data.length;
   const evidence = await insertDiligenceEvidence(
     user.id,
     symbol,
     section.id,
     file,
-    typeof body.caption === "string" ? body.caption : ""
+    typeof body.caption === "string" ? body.caption : "",
+    complete
   );
-  return NextResponse.json({ evidence });
+  return NextResponse.json({ evidence, complete });
 }
