@@ -110,7 +110,9 @@ export function evidenceLine(e: DiligenceEvidence): string {
  * machine-readable ones (image/pdf/text) within a total payload budget —
  * the memo agent reads what it can and knows about the rest.
  */
-const EVIDENCE_INLINE_BUDGET = 6_000_000;
+// Bounded by the model API's total-request ceiling with room for the sweeps
+// and system prompt; files past the budget stay caption-only in the prompt.
+const EVIDENCE_INLINE_BUDGET = 10_000_000;
 
 async function loadSectionEvidence(
   userId: string,

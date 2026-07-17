@@ -8,6 +8,7 @@ import {
   listNoteSections,
   listNotes,
   listSignals,
+  reapStaleEvidenceUploads,
   reapStuckDiligence,
 } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -27,6 +28,7 @@ export async function GET(_req: Request, { params }: Params) {
   if (!ticker) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   await reapStuckDiligence(user.id, symbol);
+  await reapStaleEvidenceUploads(user.id, symbol).catch(() => {});
   const [sections, notes, research, evidence, synthesis, focusAreas, activeSignals] =
     await Promise.all([
       listNoteSections(user.id, symbol),

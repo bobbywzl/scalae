@@ -389,6 +389,9 @@ export const SCHEMA_STATEMENTS: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_dde_user ON dd_evidence("userId", symbol, "createdAt")`,
   `CREATE INDEX IF NOT EXISTS idx_dde_section ON dd_evidence("sectionId", "createdAt")`,
+  // ---- chunked evidence uploads: rows assemble across requests and only
+  // become part of the record once complete (legacy rows default complete). ----
+  `ALTER TABLE dd_evidence ADD COLUMN IF NOT EXISTS complete INTEGER NOT NULL DEFAULT 1`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -1249,7 +1252,8 @@ export async function insertDiligenceEvidence(
   symbol: string,
   sectionId: string,
   file: { kind: EvidenceKind; name: string; mediaType: string; size: number; data: string },
-  caption: string
+  caption: string,
+  complete = true
 ): Promise<DiligenceEvidence> {
   const row: DiligenceEvidence = {
     id: uid(),
@@ -1262,43 +1266,76 @@ export async function insertDiligenceEvidence(
     caption: caption.trim().slice(0, 500),
     createdAt: now(),
   };
-  await q`INSERT INTO dd_evidence (id, "userId", symbol, "sectionId", kind, name, "mediaType", size, caption, data, "createdAt")
+  await q`INSERT INTO dd_evidence (id, "userId", symbol, "sectionId", kind, name, "mediaType", size, caption, data, "createdAt", complete)
           VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.sectionId}, ${row.kind}, ${row.name},
-                  ${row.mediaType}, ${row.size}, ${row.caption}, ${file.data}, ${row.createdAt})`;
+                  ${row.mediaType}, ${row.size}, ${row.caption}, ${file.data}, ${row.createdAt}, ${complete ? 1 : 0})`;
   return row;
 }
 
-/** Every evidence row for a ticker — METADATA ONLY (the data column never rides listings). */
+/**
+ * Append one chunk to an in-flight (incomplete) upload. Returns the assembled
+ * length so the route can enforce the per-kind cap, or null when there is no
+ * matching incomplete row (finished, reaped, or not the owner's).
+ */
+export async function appendEvidenceChunk(
+  userId: string,
+  id: string,
+  chunk: string
+): Promise<{ length: number; kind: EvidenceKind } | null> {
+  const rows = await q<{ len: number; kind: EvidenceKind }>`
+    UPDATE dd_evidence SET data = data || ${chunk}
+    WHERE id = ${id} AND "userId" = ${userId} AND complete = 0
+    RETURNING length(data) AS len, kind`;
+  return rows[0] ? { length: Number(rows[0].len), kind: rows[0].kind } : null;
+}
+
+/** Mark a chunked upload assembled — the row joins the record atomically. */
+export async function completeEvidenceUpload(userId: string, id: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    UPDATE dd_evidence SET complete = 1
+    WHERE id = ${id} AND "userId" = ${userId} AND complete = 0
+    RETURNING id`;
+  return rows.length > 0;
+}
+
+/** Every COMPLETE evidence row for a ticker — METADATA ONLY (data never rides listings). */
 export async function listDiligenceEvidence(
   userId: string,
   symbol: string
 ): Promise<DiligenceEvidence[]> {
   return q<DiligenceEvidence>`
     SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, "createdAt"
-    FROM dd_evidence WHERE "userId" = ${userId} AND symbol = ${symbol}
+    FROM dd_evidence WHERE "userId" = ${userId} AND symbol = ${symbol} AND complete = 1
     ORDER BY "createdAt" ASC`;
 }
 
-/** One evidence row including its payload — for the file route and the memo agent. */
+/** One complete evidence row including its payload — for the file route and the memo agent. */
 export async function getDiligenceEvidenceWithData(
   userId: string,
   id: string
 ): Promise<(DiligenceEvidence & { data: string }) | undefined> {
   const rows = await q<DiligenceEvidence & { data: string }>`
     SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, data, "createdAt"
-    FROM dd_evidence WHERE id = ${id} AND "userId" = ${userId}`;
+    FROM dd_evidence WHERE id = ${id} AND "userId" = ${userId} AND complete = 1`;
   return rows[0];
 }
 
-/** Payloads for a SECTION's readable evidence, oldest first — the memo agent's reading pile. */
+/** Payloads for a SECTION's readable complete evidence, oldest first — the memo agent's pile. */
 export async function evidenceDataForSection(
   userId: string,
   sectionId: string
 ): Promise<(DiligenceEvidence & { data: string })[]> {
   return q<DiligenceEvidence & { data: string }>`
     SELECT id, "sectionId", symbol, kind, name, "mediaType", size, caption, data, "createdAt"
-    FROM dd_evidence WHERE "sectionId" = ${sectionId} AND "userId" = ${userId}
+    FROM dd_evidence WHERE "sectionId" = ${sectionId} AND "userId" = ${userId} AND complete = 1
     ORDER BY "createdAt" ASC`;
+}
+
+/** Delete abandoned chunked uploads (browser closed mid-upload) after an hour. */
+export async function reapStaleEvidenceUploads(userId: string, symbol: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 60 * 60_000).toISOString();
+  await q`DELETE FROM dd_evidence
+          WHERE "userId" = ${userId} AND symbol = ${symbol} AND complete = 0 AND "createdAt" < ${cutoff}`;
 }
 
 export async function updateDiligenceEvidenceCaption(

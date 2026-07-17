@@ -411,19 +411,46 @@ function EvidenceStrip({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Base64 chars per request — under the server's EVIDENCE_CHUNK_MAX and the
+  // platform's request-body cap. Big files upload as create + sequential appends.
+  const CHUNK = 3_000_000;
+
+  async function uploadOne(f: File) {
+    const processed = await processEvidenceFile(f);
+    const total = processed.data.length;
+    const { evidence, complete } = await api<{ evidence: { id: string }; complete: boolean }>(
+      `/api/tickers/${encodeURIComponent(symbol)}/diligence/evidence`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          sectionId: section.id,
+          caption: "",
+          file: { ...processed, data: processed.data.slice(0, CHUNK), expectedLength: total },
+        }),
+      }
+    );
+    if (complete) return;
+    for (let off = CHUNK; off < total; off += CHUNK) {
+      const data = processed.data.slice(off, off + CHUNK);
+      await api(`/api/diligence/evidence/${evidence.id}/chunk`, {
+        method: "POST",
+        body: JSON.stringify({ data, last: off + CHUNK >= total }),
+      });
+      setUploadPct(Math.min(100, Math.round(((off + data.length) / total) * 100)));
+    }
+  }
 
   async function fileMany(files: File[]) {
     if (files.length === 0 || uploadingName) return;
     setErrors([]);
     for (const f of files) {
       setUploadingName(f.name);
+      setUploadPct(null);
       try {
-        const processed = await processEvidenceFile(f);
-        await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/evidence`, {
-          method: "POST",
-          body: JSON.stringify({ sectionId: section.id, caption: "", file: processed }),
-        });
+        await uploadOne(f);
       } catch (e) {
         setErrors((errs) => [
           ...errs,
@@ -435,6 +462,7 @@ function EvidenceStrip({
       }
     }
     setUploadingName(null);
+    setUploadPct(null);
     await onChanged();
   }
 
@@ -460,7 +488,7 @@ function EvidenceStrip({
         }`}
       >
         {uploadingName
-          ? t("dd.evidenceUploading", { name: uploadingName })
+          ? `${t("dd.evidenceUploading", { name: uploadingName })}${uploadPct != null ? ` · ${uploadPct}%` : ""}`
           : `📎 ${t("dd.evidenceDrop")}`}
         <input
           ref={inputRef}
