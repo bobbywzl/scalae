@@ -4,7 +4,10 @@ import { requireUser } from "@/lib/auth";
 import { getTicker } from "@/lib/db";
 import { requestLang } from "@/lib/i18n/server";
 
-export const maxDuration = 120;
+// The verdict is one large Opus call over two desk snapshots; 300s is the
+// plan ceiling and the call itself is capped at 240s (COMPARE_DEADLINE_MS) so
+// a hung call fails into retry rather than the platform kill.
+export const maxDuration = 300;
 
 /**
  * The compare view's analyst verdict: pairwise opportunity-cost weighing of

@@ -30,6 +30,22 @@ export async function listClaudeModels(): Promise<string[]> {
   return out;
 }
 
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+/**
+ * Reasoning effort for a call site, env-overridable. On the current models
+ * adaptive thinking has no token budget — output_config.effort is the ONE
+ * lever for thinking depth, and thinking spends from the same max_tokens as
+ * the reply. Interactive surfaces default LOW so turns come back in seconds
+ * and the schema-constrained reply is never starved by a long think; raise a
+ * surface via its env var once latency headroom is proven.
+ */
+export function effortFromEnv(envVar: string, fallback: Effort): Effort {
+  const v = process.env[envVar]?.trim().toLowerCase();
+  if (v === "low" || v === "medium" || v === "high" || v === "xhigh" || v === "max") return v;
+  return fallback;
+}
+
 /**
  * A system prompt is either a plain string or an ordered list of text blocks.
  * A block with `cache: true` becomes an Anthropic ephemeral cache breakpoint:

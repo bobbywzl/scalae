@@ -1,7 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { claudeJSON } from "../ai/claude";
+import { claudeJSON, effortFromEnv } from "../ai/claude";
 import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
+import { withDeadline } from "./research";
 import {
   DESK_DOCTRINE,
   deskIdentity,
@@ -85,6 +86,12 @@ Nothing goes live without your sign-off: I'll propose focus areas and specific t
 // ---------------------------------------------------------------------------
 
 const IMAGE_MEDIA = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+/**
+ * Hard wall-clock cap for one analyst turn, covering the primary call and the
+ * overload-fallback attempt together. Under the chat routes' 300s maxDuration
+ * with margin for the desk queries and the response write.
+ */
+const CHAT_DEADLINE_MS = 240_000;
 /** How many recent user messages keep their attachment payloads inlined. */
 const RECENT_ATTACHMENT_TURNS = 8;
 /** Total base64/text budget per model request across all inlined attachments. */
@@ -356,6 +363,7 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
 
   const history = (await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId })).slice(-16);
   const messages = historyToMessages(history);
+  const chatModel = await resolveModel("chat");
 
   // Adaptive thinking shares the max_tokens budget with the reply, so a hard
   // turn can spend most of the budget reasoning and leave the schema-constrained
@@ -366,17 +374,29 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
       Array.isArray(m.content) &&
       m.content.some((b) => b.type === "document" || b.type === "image")
   );
-  const out = await claudeJSON<ChatOutput>({
-    model: await resolveModel("chat"),
-    system,
-    messages,
-    schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
-    maxTokens: hasAttachmentBlocks ? 24000 : 16000,
-    effort: "medium",
-    meta: { userId, feature: "chat" },
-    // Interactive: don't hard-fail the investor on a transient Opus overload.
-    fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
-  });
+  // Interactive turn: LOW effort by default (see effortFromEnv — effort is the
+  // only thinking-depth lever, and a medium/high think over this desk-sized
+  // context runs minutes and can starve the reply's token budget), and a hard
+  // deadline covering the primary AND the overload-fallback attempt — a hung
+  // turn fails fast into the saved-message + retry path instead of riding to
+  // the platform's function kill, which the investor experiences as a timeout.
+  const out = await withDeadline(
+    "Analyst reply",
+    (signal) =>
+      claudeJSON<ChatOutput>({
+        model: chatModel,
+        signal,
+        system,
+        messages,
+        schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
+        maxTokens: hasAttachmentBlocks ? 24000 : 16000,
+        effort: effortFromEnv("CLAUDE_CHAT_EFFORT", "low"),
+        meta: { userId, feature: "chat" },
+        // Interactive: don't hard-fail the investor on a transient Opus overload.
+        fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
+      }),
+    CHAT_DEADLINE_MS
+  );
 
   // --- focus areas & new proposals (approval-gated) ---
   for (const fa of out.focusAreas ?? []) {
