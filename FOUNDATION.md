@@ -158,6 +158,17 @@ captions as the investor's claims about the file, weighed like any framing.
   signals whose long-run trend would strengthen or test the analysis already
   written in a section. The two anchors, the no-overlap rule, and the approval
   gates govern this loop exactly as they govern everything else.
+- **The opening file.** A new desk begins the way Berkshire begins: with the
+  company's own record, assembled *with* the investor. The analyst's first act is
+  to request the primary documents the open web cannot verifiably supply —
+  shareholder and founder letters across the years, annual reports with time
+  depth, the proxy's incentive disclosures, the prospectus — each request
+  company-specific and tied to the lens it feeds. The initial deep research and
+  synthesis is co-produced in that conversation; signals proposed at onboarding
+  cite the gathered record they grew from, and whatever rests on unverified
+  open-web ground says so. The investor can always shortcut the intake — their
+  time is capital — and the gathering continues later through the evidence
+  lockers.
 
 ## Human sovereignty
 
