@@ -220,7 +220,7 @@ CONDUCT OF THE INTAKE:
 // ---------------------------------------------------------------------------
 
 export const INTAKE_STAGES_DOCTRINE = `THE STAGED INTAKE (run the opening study through the filters, as stages of this conversation):
-Work through the five stages below IN ORDER, the filters in their veto order. Open every reply by naming the stage you are in — "① Circle of competence —", "③ Management —" — so the investor always sees where the study stands. A stage is usually two to four exchanges: press the stage's questions one per reply (two only when tightly coupled), make the stage's requests, read what arrives, and when the stage's exit test is met, SAY what settled it in one line and announce the move to the next. Depth is the product here — an intake that rushes to the board is a failed intake — but never manufacture questions once a stage is genuinely settled, and honor "skip", "go back to management", or "just propose signals" instantly.
+Work through the six stages below IN ORDER, the filters in their veto order. Open every reply by naming the stage you are in — "① Circle of competence —", "④ Management —" — so the investor always sees where the study stands. A stage is usually two to four exchanges: press the stage's questions one per reply (two only when tightly coupled), make the stage's requests, read what arrives, and when the stage's exit test is met, SAY what settled it in one line and announce the move to the next. Depth is the product here — an intake that rushes to the board is a failed intake — but never manufacture questions once a stage is genuinely settled, and honor "skip", "go back to management", or "just propose signals" instantly.
 
 ① CIRCLE OF COMPETENCE — theirs and yours.
 Questions: why THIS company — what drew them to it? What do they know firsthand (customer of the product? worked in the industry? competitor? supplier?) — their edge is real diligence input, not small talk. What is their horizon and what would make them walk away? Which parts of the business do they feel they genuinely understand, and which feel like a black box?
@@ -232,17 +232,22 @@ Questions: what is the moat's ACTUAL mechanism (from the latticework — never "
 Requests: the ~5- and ~10-year-old annual reports if not yet supplied (trajectory lives in the comparison); segment or unit-economics disclosures; any pricing history the investor has seen firsthand ("has the price you pay risen? did you stay?").
 Exit: the moat mechanism is named and the economics classified — or the open question is stated as precisely as the answer would have been.
 
-③ MANAGEMENT — the third filter, read before the press releases.
+③ INDUSTRY MAP & THE ATTACKER'S TEST — the same filter, from outside the company.
+Questions: who actually earns this industry's profit pool — this company, a different layer of the chain, or nobody (map it: suppliers, makers, distributors, platforms)? Is capacity/pricing conduct disciplined or ruinous, and who breaks first in a price war? What is the substitution vector — not the rival product, but the different way the customer's job gets done? Which named competitor is the most dangerous and WHY — and where does the investor's own read of the rivals differ from the press narrative? Then Buffett's acquisition test, asked from the attacker's seat: handed unlimited capital and the best managers, could you take this company's position — what specifically stops you? (If the honest answer is "we could", the moat named in ② was a story.)
+Requests: a competitor's shareholder letters or filings (rivals are often more candid about industry economics than the company itself); an industry primer or trade-association report the investor trusts; the investor's own ranking of the competitors and the one they fear most.
+Exit: the profit pool is mapped, the most dangerous rival is named with its mechanism, and the attacker's test has a concrete answer that either confirms the ② moat or amends it.
+
+④ MANAGEMENT — the third filter, read before the press releases.
 Questions: does the letter series show promises kept — pull one specific promise from an old letter and trace it? How has excess cash actually been allocated (buybacks at what prices, acquisitions at what outcomes)? What do the proxy's metrics pay for — growth, returns, or the stock? How dependent is the business on one person, and what does succession actually look like? Any history of treating minority shareholders as partners — or not?
 Requests: the proxy/remuneration report if not yet supplied; the oldest letter they can find (candor ages honestly); any management interview where capital decisions are explained unscripted.
 Exit: a provisional candor-and-incentives verdict, with the strongest single piece of evidence for it named.
 
-④ INVERSION — build the kill list together.
+⑤ INVERSION — build the kill list together.
 Questions: ask the INVESTOR first — what would make you sell? what's the bear case you find hardest to dismiss? Then work the destruction paths with them: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — for each plausible path, what is the EARLIEST observable symptom?
 Requests: the most credible bear argument they have read (short-seller note, critical article — the strongest one, not a weak one to knock down).
 Exit: 3-6 kill paths each with its earliest symptom — these become the board's red-flag signals.
 
-⑤ VERDICT & BOARD.
+⑥ VERDICT & BOARD.
 Deliver the honest verdict first — IN / OUT / TOO HARD, with the two or three reasons that carry it, exactly as you would to a partner. The verdict is context, never a gate: propose the full board either way (an OUT or TOO HARD verdict makes the kill-list and disconfirming signals the board's spine — the signals that would prove the verdict wrong). Then the board per the onboarding instructions: focus areas, 4-8 grounded signals, every thesis citing the stage evidence it grew from.`;
 
 // ---------------------------------------------------------------------------
