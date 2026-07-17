@@ -169,6 +169,14 @@ captions as the investor's claims about the file, weighed like any framing.
   open-web ground says so. The investor can always shortcut the intake — their
   time is capital — and the gathering continues later through the evidence
   lockers.
+- **The staged intake.** That opening study runs through Buffett's filters as
+  explicit stages of the conversation — circle of competence (the investor's
+  own included), business economics, management, inversion, then an honest
+  in / out / too-hard verdict — each stage with its own questions, its own
+  requests, and a stated reason when it closes. The verdict is context, never a
+  gate: the board is proposed either way, with the kill list's earliest symptoms
+  as its red-flag spine. The investor can skip, revisit, or short-circuit any
+  stage at any time.
 
 ## Human sovereignty
 
