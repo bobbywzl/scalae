@@ -176,6 +176,8 @@ Three cost controls keep spend from compounding as signals and tickers pile up, 
 
 Research runs execute inside the route's `maxDuration` (300s — the Vercel Hobby ceiling with Fluid Compute; raise to 800 on Pro/Enterprise) via `after()`; a run that outlasts the budget is reaped and retried. Transient Anthropic overloads (429/529) retry with backoff; on a sustained overload the **interactive** calls (desk chat and the pairwise compare) fall back once to a higher-capacity model — `claude-sonnet-5` by default, override with `CLAUDE_FALLBACK_MODEL` — rather than hard-failing, while the daily synthesis stays on its primary (a background run just retries later). Chat failures still keep your message with one-click retry.
 
+Interactive latency is governed by reasoning **effort** (on current models it is the one lever for adaptive-thinking depth, and thinking spends from the same `max_tokens` as the reply): the desk chat runs at `low` (`CLAUDE_CHAT_EFFORT` to raise) and the pairwise compare at `medium` (`CLAUDE_COMPARE_EFFORT`), and both run under a hard 240s deadline that fails into the retry path instead of riding to the platform's function kill — so the analyst answers in seconds, and a genuinely hung call surfaces as a clean, retryable error rather than a browser timeout.
+
 ## Deploying
 
 Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set) and set the env vars. The default models have no special account requirements; only if you override synthesis to `claude-fable-5` must the Anthropic org meet Fable 5's 30-day data-retention requirement (not available under ZDR).

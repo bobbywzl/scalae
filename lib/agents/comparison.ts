@@ -1,7 +1,8 @@
-import { claudeJSON } from "../ai/claude";
+import { claudeJSON, effortFromEnv } from "../ai/claude";
 import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import { comparisonPersona } from "./framework";
+import { withDeadline } from "./research";
 import { getTicker, latestRun, listFocusAreas, listSignals, readingsForSignal } from "../db";
 import type { Lang } from "../i18n/config";
 import { getQuote, quoteLine } from "../market";
@@ -13,6 +14,9 @@ import { computeInvolvement, involvementLine } from "../portfolio";
  * evidence (dossiers + current signal readings). No new web research happens
  * here; freshness comes from running each desk's research, not this call.
  */
+
+/** Hard wall-clock cap for the verdict call (primary + overload fallback). */
+const COMPARE_DEADLINE_MS = 240_000;
 
 const VERDICT_SCHEMA = {
   type: "object",
@@ -82,15 +86,23 @@ export async function runComparison(
     lang === "zh"
       ? "\nLANGUAGE: Write the verdict in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; quote signal names in their original English)."
       : "";
-  const out = await claudeJSON<{ verdict: string }>({
-    model,
-    // The comparison persona is fully static (the two desks go in the user
-    // message) — cache it so back-to-back comparisons re-read it cheaply.
-    system: [{ text: comparisonPersona(), cache: true }],
-    messages: [
-      {
-        role: "user",
-        content: `Today is ${new Date().toDateString()}. Weigh these two desks against each other.
+  // Interactive verdict: medium effort by default (effortFromEnv — a "high"
+  // think over two full desk snapshots ran past the route budget and surfaced
+  // to the investor as a timeout), under a hard deadline so a hung call fails
+  // into the retry path rather than the platform's function kill.
+  const out = await withDeadline(
+    "Comparison verdict",
+    (signal) =>
+      claudeJSON<{ verdict: string }>({
+        model,
+        signal,
+        // The comparison persona is fully static (the two desks go in the user
+        // message) — cache it so back-to-back comparisons re-read it cheaply.
+        system: [{ text: comparisonPersona(), cache: true }],
+        messages: [
+          {
+            role: "user",
+            content: `Today is ${new Date().toDateString()}. Weigh these two desks against each other.
 
 === DESK A ===
 ${snapA}
@@ -99,15 +111,17 @@ ${snapA}
 ${snapB}
 
 TASK: Produce the pairwise opportunity-cost verdict per your output structure. Remember: desks' evidence only; four filters in veto order with price last; invert (compare kill lists); "too close to call" / "too thin to call" are honest verdicts; no buy/sell/size instructions.${languageNote}`,
-      },
-    ],
-    schema: VERDICT_SCHEMA as unknown as Record<string, unknown>,
-    maxTokens: 8000,
-    effort: "high",
-    meta: { userId, feature: "compare" },
-    // Interactive: fall back rather than fail the verdict on an Opus overload.
-    fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
-  });
+          },
+        ],
+        schema: VERDICT_SCHEMA as unknown as Record<string, unknown>,
+        maxTokens: 8000,
+        effort: effortFromEnv("CLAUDE_COMPARE_EFFORT", "medium"),
+        meta: { userId, feature: "compare" },
+        // Interactive: fall back rather than fail the verdict on an Opus overload.
+        fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
+      }),
+    COMPARE_DEADLINE_MS
+  );
   const verdict = out.verdict?.trim();
   if (!verdict) throw new Error("Comparison came back empty — try again.");
   return verdict;
