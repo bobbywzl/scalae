@@ -8,6 +8,7 @@ import {
   deskIdentity,
   CHAT_SCHEMA,
   EXPERT_LOOP_GUIDANCE,
+  OPENING_FILE_DOCTRINE,
   QUESTION_METHOD,
   SIGNAL_GUIDANCE,
 } from "./framework";
@@ -64,21 +65,21 @@ export function welcomeMessage(symbol: string, name: string, lang: Lang = "en"):
 
 我的工作是运行巴菲特所依赖的那种信息网络：每天从开放网络搜集与*您*关心的问题相关的证据，维护一块实时信号板，并标记任何一位长期企业所有者应当知道的动向。短期来看市场是一台投票机——这个研究台的使命是称量企业本身。
 
-**要设置研究台，请告诉我您想了解 ${symbol} 的哪些方面。**例如：护城河是否稳固？管理层的资本配置是否明智？企业文化是否在恶化？
+**我们像伯克希尔一样开局：从公司自己的记录读起。**告诉我您想了解 ${symbol} 的哪些方面，我会列出最能推进分析的一手文件——历年股东信与创始人致辞、新旧年报、薪酬与激励披露（委托书）、IPO 招股书。开放网络只能给我碎片和转述；文件本身需要您提供。**直接把文件拖进这个对话**（PDF、截图、文本均可），我会逐份按巴菲特/芒格的框架研读，然后我们一起设计信号板。
 
-如果您不确定从哪里开始，直接说一声——我会先判断 ${name} 是哪一类生意，并按照巴菲特/芒格框架提出当下争议最大的价值投资问题：指出护城河的真实机制、先读激励再读新闻稿、建立"证伪清单"（反过来想！），并对照芒格的误判清单检查心理偏差——管理层的，也包括我们自己的。护城河持久度、特许经营 vs 大宗商品、所有者盈余、资本配置、管理层坦诚度、风险警示……
+如果您不确定从哪里开始，直接说一声——我会先判断 ${name} 是哪一类生意，提出当下争议最大的问题，并列出*这家*公司值得收集的具体文件：指出护城河的真实机制、先读激励再读新闻稿、建立"证伪清单"（反过来想！），并对照芒格的误判清单检查心理偏差。
 
-未经您批准，任何内容都不会生效：我会提出关注领域和具体可跟踪的信号，由您逐一批准或拒绝。研究台启用后，您也可以直接在这里让我批准或停用信号，或立即运行研究。`;
+未经您批准，任何内容都不会生效：我会提出关注领域和具体可跟踪的信号——每一条都注明依据来自我们收集的哪份材料——由您逐一批准或拒绝。赶时间？说一句"直接提议信号"，我会立即基于开放网络记录起草信号板，并标明哪些结论尚未经一手材料验证。`;
   }
   return `Welcome — this is your **${name}** Scalae desk. I'm your lead analyst.
 
 My job is to run the kind of information network Buffett relied on: every day I'll sweep the open web for evidence on the questions *you* care about, keep a live signal board, and flag anything a long-term owner of this business should know. In the short run the market is a voting machine — this desk exists to weigh the business.
 
-**To set up the desk, tell me what you want to understand about ${symbol}.** For example: is the moat holding? Is management allocating capital sensibly? Is the culture deteriorating?
+**We start the way Berkshire starts: with the company's own record.** Tell me what you want to understand about ${symbol}, and I'll tell you which primary documents would most move the analysis — shareholder and founder letters across the years, annual reports old and new, the proxy's incentive disclosures, the IPO prospectus. The open web gives me fragments and retellings; the documents themselves I need from you. **Drop them right into this conversation** (PDFs, screenshots, text) and I'll read each through the Buffett/Munger lenses before we design the board together.
 
-If you're not sure where to start, just say so — I'll size up what kind of business ${name} is and suggest the value-investing questions with the most open debate, following the Buffett/Munger framework: name the moat's actual mechanism, read the incentives before the press releases, build the kill list (invert!), and check the psychology — management's and ours — against Munger's misjudgment checklist. Moat durability, franchise vs. commodity, owner earnings, capital allocation, management candor, red flags…
+If you're not sure where to start, just say so — I'll size up what kind of business ${name} is, name the questions with the most open debate, and list the specific documents worth gathering for *this* company: name the moat's actual mechanism, read the incentives before the press releases, build the kill list (invert!), and check the psychology against Munger's misjudgment checklist.
 
-Nothing goes live without your sign-off: I'll propose focus areas and specific trackable signals, and you approve or reject each one. Once the desk is live you can also just tell me here to approve or retire signals, or to run the research now.`;
+Nothing goes live without your sign-off: I'll propose focus areas and specific trackable signals — each grounded in what we gathered — and you approve or reject each one. In a hurry? Say "just propose signals" and I'll draft the board immediately from the open-web record, marking what remains unverified.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -316,11 +317,11 @@ This conversation lives inside the dedicated view for "${focusSignal.name}" — 
 - Investor asks to run/refresh research → startResearch=true.
 Keep replies concrete and evidence-first; cite sources by domain when you lean on them. Set onboardingComplete=false.`
     : mode === "onboarding"
-      ? `MODE: Onboarding interview.
-The investor just opened this desk. Follow the question-generation method above:
-1. First, silently classify ${ticker.name}: great/good/gruesome economics, franchise vs. commodity — and identify which of the four filters carries the most open doubt for this specific company. Let that drive your questions and proposals, not a generic checklist.
-2. Learn which questions the investor wants investigated. Ask focused questions — at most one per reply. When the investor is unsure, suggest the 3-5 lenses where ${ticker.name} has the most genuinely open debate right now, each with one line on why it's open for THIS business.
-3. Once you know enough (usually within 1-3 exchanges — don't drag it out; if their first message is already clear, propose immediately): emit 2-4 focusAreas and an initial board of 4-8 signals via the structured fields, spread across those areas, mixing quantitative and qualitative, guarding load-bearing assumptions and at least one inverted/red-flag signal. In "reply", walk through the proposed board briefly — including what kind of business you judge this to be and why those are the right questions — and tell them to approve the signals they want. Set onboardingComplete=true when you do this.
+      ? `MODE: Onboarding intake — the desk's opening study of ${ticker.name}, conducted WITH the investor (see THE OPENING FILE above; the question-generation method drives what you ask).
+1. FIRST REPLY — classify, then open the file: silently classify ${ticker.name} (great/good/gruesome economics, franchise vs. commodity; which of the four filters carries the most open doubt), give the investor your one-paragraph read of what kind of business this is and where the genuinely open debate sits — then request the opening file per the doctrine: the 3-5 documents that would most move THIS company's analysis, actual names, priority order, one line each on the lens it feeds. Invite them to drop the files directly into this conversation, and ask what they want understood alongside what you need.
+2. MIDDLE TURNS — read and interrogate: everything that arrives is read through the lenses immediately; lead each reply with what the new material settled, unsettled or contradicted before asking for more. Probe the specifics an industry veteran would (the moat's actual mechanism, evidence of pricing power exercised, the incentive layer, the kill list) — at most one question per reply, though a document request may list several items. Never re-request what has arrived; acknowledge gaps the investor says they cannot fill and move on.
+3. PROPOSE when the record is assembled, when the investor tells you to, or when their first message already made their needs clear: emit 2-4 focusAreas and an initial board of 4-8 signals via the structured fields — spread across the areas, mixing quantitative and qualitative, guarding load-bearing assumptions, at least one inverted/red-flag signal. EVERY thesis names its grounding: the document or statement it draws on ("the 2021 letter's margin promise", "the proxy's revenue-weighted comp"), the investor's own point, or plainly "unverified: open-web only" plus the document that would firm it. In "reply", walk through the board — the business classification, why these are the crux questions, what remains unverified — and tell them to approve the signals they want. Set onboardingComplete=true when you do this.
+The investor controls the pace: "just propose signals" at any point is honored immediately, that turn.
 Leave approveProposals/dismissProposals/retireSignals empty and startResearch=false unless the investor explicitly asks (e.g. "approve them all" → list every pending name in approveProposals).`
       : `MODE: Working session with the investor.
 Use the desk state above to answer questions with evidence (cite readings/brief items by name). Take feedback into the desk:
@@ -347,7 +348,7 @@ LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, profes
 
 ${QUESTION_METHOD}
 
-${SIGNAL_GUIDANCE}
+${!ticker.onboarded && !focusSignal ? `${OPENING_FILE_DOCTRINE}\n\n` : ""}${SIGNAL_GUIDANCE}
 
 ${EXPERT_LOOP_GUIDANCE}
 
@@ -380,6 +381,10 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
   // deadline covering the primary AND the overload-fallback attempt — a hung
   // turn fails fast into the saved-message + retry path instead of riding to
   // the platform's function kill, which the investor experiences as a timeout.
+  // Two deliberate exceptions run at MEDIUM: onboarding-intake turns (the
+  // opening study of the company — framework depth is the product there, and
+  // the investor is settling in, not firing quick questions) and turns whose
+  // history carries documents/images the analyst must actually work through.
   const out = await withDeadline(
     "Analyst reply",
     (signal) =>
@@ -390,7 +395,10 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
         messages,
         schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
         maxTokens: hasAttachmentBlocks ? 24000 : 16000,
-        effort: effortFromEnv("CLAUDE_CHAT_EFFORT", "low"),
+        effort: effortFromEnv(
+          "CLAUDE_CHAT_EFFORT",
+          mode === "onboarding" || hasAttachmentBlocks ? "medium" : "low"
+        ),
         meta: { userId, feature: "chat" },
         // Interactive: don't hard-fail the investor on a transient Opus overload.
         fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
