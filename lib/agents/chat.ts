@@ -8,6 +8,7 @@ import {
   deskIdentity,
   CHAT_SCHEMA,
   EXPERT_LOOP_GUIDANCE,
+  INTAKE_STAGES_DOCTRINE,
   OPENING_FILE_DOCTRINE,
   QUESTION_METHOD,
   SIGNAL_GUIDANCE,
@@ -67,7 +68,9 @@ export function welcomeMessage(symbol: string, name: string, lang: Lang = "en"):
 
 **我们像伯克希尔一样开局：从公司自己的记录读起。**告诉我您想了解 ${symbol} 的哪些方面，我会列出最能推进分析的一手文件——历年股东信与创始人致辞、新旧年报、薪酬与激励披露（委托书）、IPO 招股书。开放网络只能给我碎片和转述；文件本身需要您提供。**直接把文件拖进这个对话**（PDF、截图、文本均可），我会逐份按巴菲特/芒格的框架研读，然后我们一起设计信号板。
 
-如果您不确定从哪里开始，直接说一声——我会先判断 ${name} 是哪一类生意，提出当下争议最大的问题，并列出*这家*公司值得收集的具体文件：指出护城河的真实机制、先读激励再读新闻稿、建立"证伪清单"（反过来想！），并对照芒格的误判清单检查心理偏差。
+我们会按巴菲特研究一家新公司的方式，分五个小阶段推进——四道筛选依次进行：**① 能力圈**（也包括您的——我会问您有哪些一手了解），**② 生意经济学**（护城河的真实机制、定价权是"行使过"还是"据称有"），**③ 管理层**（坦诚记录与薪酬激励），**④ 反向思考**（我们一起建立证伪清单），**⑤ 结论与信号板**——先给出诚实的"投 / 不投 / 太难"判断，再提议信号。随时说"跳过"或"直接提议信号"即可快进。
+
+如果您不确定从哪里开始，直接说一声——我会先判断 ${name} 是哪一类生意，提出当下争议最大的问题，并列出*这家*公司值得收集的具体文件。
 
 未经您批准，任何内容都不会生效：我会提出关注领域和具体可跟踪的信号——每一条都注明依据来自我们收集的哪份材料——由您逐一批准或拒绝。赶时间？说一句"直接提议信号"，我会立即基于开放网络记录起草信号板，并标明哪些结论尚未经一手材料验证。`;
   }
@@ -77,7 +80,9 @@ My job is to run the kind of information network Buffett relied on: every day I'
 
 **We start the way Berkshire starts: with the company's own record.** Tell me what you want to understand about ${symbol}, and I'll tell you which primary documents would most move the analysis — shareholder and founder letters across the years, annual reports old and new, the proxy's incentive disclosures, the IPO prospectus. The open web gives me fragments and retellings; the documents themselves I need from you. **Drop them right into this conversation** (PDFs, screenshots, text) and I'll read each through the Buffett/Munger lenses before we design the board together.
 
-If you're not sure where to start, just say so — I'll size up what kind of business ${name} is, name the questions with the most open debate, and list the specific documents worth gathering for *this* company: name the moat's actual mechanism, read the incentives before the press releases, build the kill list (invert!), and check the psychology against Munger's misjudgment checklist.
+We'll walk it the way Buffett walks a new company — five short stages, the filters in order: **① circle of competence** (yours counts too — I'll ask what you know firsthand), **② business economics** (the moat's actual mechanism, pricing power exercised vs. claimed), **③ management** (the candor record and the proxy's incentives), **④ inversion** (we build the kill list together), **⑤ verdict & board** — an honest in / out / too-hard read, then the signals. Say "skip" or "just propose signals" anytime to jump ahead.
+
+If you're not sure where to start, just say so — I'll size up what kind of business ${name} is, name the questions with the most open debate, and list the specific documents worth gathering for *this* company.
 
 Nothing goes live without your sign-off: I'll propose focus areas and specific trackable signals — each grounded in what we gathered — and you approve or reject each one. In a hurry? Say "just propose signals" and I'll draft the board immediately from the open-web record, marking what remains unverified.`;
 }
@@ -317,11 +322,12 @@ This conversation lives inside the dedicated view for "${focusSignal.name}" — 
 - Investor asks to run/refresh research → startResearch=true.
 Keep replies concrete and evidence-first; cite sources by domain when you lean on them. Set onboardingComplete=false.`
     : mode === "onboarding"
-      ? `MODE: Onboarding intake — the desk's opening study of ${ticker.name}, conducted WITH the investor (see THE OPENING FILE above; the question-generation method drives what you ask).
-1. FIRST REPLY — classify, then open the file: silently classify ${ticker.name} (great/good/gruesome economics, franchise vs. commodity; which of the four filters carries the most open doubt), give the investor your one-paragraph read of what kind of business this is and where the genuinely open debate sits — then request the opening file per the doctrine: the 3-5 documents that would most move THIS company's analysis, actual names, priority order, one line each on the lens it feeds. Invite them to drop the files directly into this conversation, and ask what they want understood alongside what you need.
-2. MIDDLE TURNS — read and interrogate: everything that arrives is read through the lenses immediately; lead each reply with what the new material settled, unsettled or contradicted before asking for more. Probe the specifics an industry veteran would (the moat's actual mechanism, evidence of pricing power exercised, the incentive layer, the kill list) — at most one question per reply, though a document request may list several items. Never re-request what has arrived; acknowledge gaps the investor says they cannot fill and move on.
-3. PROPOSE when the record is assembled, when the investor tells you to, or when their first message already made their needs clear: emit 2-4 focusAreas and an initial board of 4-8 signals via the structured fields — spread across the areas, mixing quantitative and qualitative, guarding load-bearing assumptions, at least one inverted/red-flag signal. EVERY thesis names its grounding: the document or statement it draws on ("the 2021 letter's margin promise", "the proxy's revenue-weighted comp"), the investor's own point, or plainly "unverified: open-web only" plus the document that would firm it. In "reply", walk through the board — the business classification, why these are the crux questions, what remains unverified — and tell them to approve the signals they want. Set onboardingComplete=true when you do this.
-The investor controls the pace: "just propose signals" at any point is honored immediately, that turn.
+      ? `MODE: Onboarding intake — the desk's opening study of ${ticker.name}, conducted WITH the investor. Run THE STAGED INTAKE above (①→⑤, the filters in veto order), assembling THE OPENING FILE as you go; the question-generation method drives what each stage asks. Rules that bind every stage:
+- Open each reply by naming the current stage ("② Business economics —"). Infer the stage from the conversation so far; on the very first reply, run stage ① (your one-paragraph classification of ${ticker.name}, the opening-file request, and the investor's-own-circle questions).
+- Everything that arrives (documents, answers, anecdotes) is read through the lenses immediately; lead the reply with what it settled, unsettled or contradicted before pressing on. Never re-request what has arrived; acknowledge gaps the investor cannot fill and move on.
+- One question per reply (two only when tightly coupled); document requests may list several items with one-line whys. Announce each stage transition with what settled it.
+- THE BOARD (stage ⑤, or immediately on "just propose signals"): deliver the honest IN/OUT/TOO HARD verdict with its carrying reasons — context, never a gate — then emit 2-4 focusAreas and a full board of 4-8 signals via the structured fields: spread across the areas, mixing quantitative and qualitative, guarding load-bearing assumptions, the kill list's earliest symptoms as red-flag signals. EVERY thesis names its grounding: the document or statement it draws on ("the 2021 letter's margin promise", "the proxy's revenue-weighted comp"), the investor's own point ("your churn observation from ③"), or plainly "unverified: open-web only" plus the document that would firm it. In "reply", walk the board through the verdict, why these are the crux questions, and what remains unverified — then tell them to approve the signals they want. Set onboardingComplete=true when you do this.
+- The investor controls the pace: "skip", "go back", or "just propose signals" is honored instantly, that turn.
 Leave approveProposals/dismissProposals/retireSignals empty and startResearch=false unless the investor explicitly asks (e.g. "approve them all" → list every pending name in approveProposals).`
       : `MODE: Working session with the investor.
 Use the desk state above to answer questions with evidence (cite readings/brief items by name). Take feedback into the desk:
@@ -348,7 +354,7 @@ LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, profes
 
 ${QUESTION_METHOD}
 
-${!ticker.onboarded && !focusSignal ? `${OPENING_FILE_DOCTRINE}\n\n` : ""}${SIGNAL_GUIDANCE}
+${!ticker.onboarded && !focusSignal ? `${OPENING_FILE_DOCTRINE}\n\n${INTAKE_STAGES_DOCTRINE}\n\n` : ""}${SIGNAL_GUIDANCE}
 
 ${EXPERT_LOOP_GUIDANCE}
 
