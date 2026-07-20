@@ -17,10 +17,13 @@ import { listGeminiModels } from "./gemini";
  *     (legacy global GEMINI_MODEL / CLAUDE_MODEL pins are IGNORED with a warning).
  *
  * TIER by role (cost discipline — spend the flagship only where it is earned):
- *   - Opus (flagship): synthesis (the daily crown-jewel reading) and chat/compare
- *     (the investor's live analyst). These carry the desk's quality.
- *   - Sonnet (value): triage and backstory — bounded, high-frequency support
- *     work that runs on every desk every day; the flagship is not earned here.
+ *   - Opus (flagship): synthesis (the daily crown-jewel reading), compare, and
+ *     the chat DEEP lane — signal building, document reads, desk actions,
+ *     onboarding. These carry the desk's quality.
+ *   - Sonnet (value): the chat FAST lane (simple working-chat Q&A answered in
+ *     seconds from a compact snapshot; escalates to the deep lane for anything
+ *     heavier), plus triage and backstory — bounded, high-frequency support
+ *     work where the flagship is not earned.
  *   - Haiku (economy): display-language translation (mechanical, cached).
  * To move synthesis to the pricier Fable/Mythos tier (30-day retention, ~2×),
  * add `fable|mythos` to the `synthesis` include below, or set
@@ -36,6 +39,7 @@ export const MODELS_REVIEWED_AT = "2026-07";
 export type ModelRole =
   | "synthesis"
   | "chat"
+  | "chatFast"
   | "diligence"
   | "triage"
   | "backstory"
@@ -71,6 +75,18 @@ const ROLES: Record<ModelRole, RoleConfig> = {
     include: /^claude-opus-\d/,
     exclude: /-(fast|latest)\b/,
     fallback: "claude-opus-4-8",
+  },
+  // The chat FAST lane: simple working-chat Q&A answered from a compact desk
+  // snapshot. It runs on every quick question, must come back in seconds, and
+  // can take no desk action — the value tier is exactly right. Turns that
+  // build signals, read documents, or synthesize new information escalate to
+  // the flagship "chat" role above. (Pin with CLAUDE_CHAT_FAST_MODEL.)
+  chatFast: {
+    provider: "claude",
+    env: "CLAUDE_CHAT_FAST_MODEL",
+    include: /^claude-sonnet-\d/,
+    exclude: /-(fast|latest)\b/,
+    fallback: "claude-sonnet-5",
   },
   // Due-diligence record work: deep-research memos per section topic, the
   // standing synthesis of core insights, and section-topic suggestions. Runs

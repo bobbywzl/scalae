@@ -11,6 +11,8 @@ import {
   INTAKE_STAGES_DOCTRINE,
   OPENING_FILE_DOCTRINE,
   QUESTION_METHOD,
+  QUICK_CHAT_DOCTRINE,
+  QUICK_CHAT_SCHEMA,
   SIGNAL_GUIDANCE,
 } from "./framework";
 import {
@@ -98,6 +100,12 @@ const IMAGE_MEDIA = new Set(["image/jpeg", "image/png", "image/gif", "image/webp
  * with margin for the desk queries and the response write.
  */
 const CHAT_DEADLINE_MS = 240_000;
+/**
+ * The fast lane's own cap. A value-tier reply over the compact snapshot lands
+ * in seconds; if it hasn't by now, the turn falls through to the senior
+ * analyst, whose deadline is whatever remains of CHAT_DEADLINE_MS.
+ */
+const QUICK_DEADLINE_MS = 45_000;
 /** How many recent user messages keep their attachment payloads inlined. */
 const RECENT_ATTACHMENT_TURNS = 8;
 /** Total base64/text budget per model request across all inlined attachments. */
@@ -246,20 +254,20 @@ export async function handleChatTurn(
       }
     }
   }
-  const boardLines = (
-    await Promise.all(
-      active.map(async (s) => {
-        const latest = (await readingsForSignal(s.id, 1))[0];
-        const reading = latest
-          ? ` Latest (${latest.date.slice(0, 10)}): ${latest.level}${latest.value != null ? `, ${latest.value} ${latest.valueUnit ?? ""}` : ""} — ${latest.rationale}`
-          : " No readings yet.";
-        const overlapNote = overlapWith.has(s.id)
-          ? ` NOTE: investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement.`
-          : "";
-        return `- "${s.name}" (${s.type}, ${s.focusArea}): ${s.measurementPlan}${reading}${overlapNote}`;
-      })
-    )
-  ).join("\n");
+  const latestBySignal = await Promise.all(
+    active.map(async (s) => ({ s, latest: (await readingsForSignal(s.id, 1))[0] }))
+  );
+  const boardLines = latestBySignal
+    .map(({ s, latest }) => {
+      const reading = latest
+        ? ` Latest (${latest.date.slice(0, 10)}): ${latest.level}${latest.value != null ? `, ${latest.value} ${latest.valueUnit ?? ""}` : ""} — ${latest.rationale}`
+        : " No readings yet.";
+      const overlapNote = overlapWith.has(s.id)
+        ? ` NOTE: investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement.`
+        : "";
+      return `- "${s.name}" (${s.type}, ${s.focusArea}): ${s.measurementPlan}${reading}${overlapNote}`;
+    })
+    .join("\n");
 
   const positionLine = involvementLine(involvement);
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
@@ -275,8 +283,32 @@ ${financials ? financialsSummary(financials) : ""}
 ${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
+  // Compact snapshot for the fast lane: the dossier + brief carry the standing
+  // thesis, board lines carry each signal's latest reading — a fraction of the
+  // deep context, enough to answer simple questions in seconds.
+  const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
+  const quickBoardLines = latestBySignal
+    .map(({ s, latest }) => {
+      const reading = latest
+        ? `${latest.level}${latest.value != null ? ` (${latest.value} ${latest.valueUnit ?? ""})` : ""} ${latest.date.slice(0, 10)} — ${clip(latest.rationale, 200)}`
+        : "no readings yet";
+      return `- "${s.name}" (${s.focusArea}): ${clip(s.thesis, 150)} Latest: ${reading}`;
+    })
+    .join("\n");
+  const quickContext = `DESK STATE — COMPACT SNAPSHOT (today: ${new Date().toISOString().slice(0, 10)}):
+Market: ${quoteLine(quote)}
+Investor's position in ${symbol}: ${positionLine || "none recorded"}
+Focus areas: ${focusAreas.map((f) => f.title).join("; ") || "none yet"}
+Active signals (${active.length}), latest reading each:
+${quickBoardLines || "(empty board)"}
+Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
+Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
+Due-diligence sections: ${noteSections.map((n) => n.title).join("; ") || "none"}
+${run?.dossier ? `\nTHE BUSINESS, AS THE DESK READS IT (standing dossier):\n${run.dossier}\n` : ""}${run?.brief ? `\nLATEST DAILY BRIEF:\n${run.brief}\n` : ""}${ddSynthesis?.content ? `\nDUE-DILIGENCE RECORD — STANDING SYNTHESIS:\n${ddSynthesis.content}\n` : ""}`;
+
   // Signal-focused context: the one signal's full world, in depth.
   let signalContext = "";
+  let quickSignalContext = "";
   if (focusSignal) {
     const [readings, catalog, digest] = await Promise.all([
       readingsForSignal(focusSignal.id, 10),
@@ -311,6 +343,20 @@ Accumulated evidence catalog (${catalog.length} distinct sources):
 ${catalogLines || "(none yet)"}
 Digest items tied to this signal:
 ${related || "(none)"}`;
+    quickSignalContext = `SIGNAL IN FOCUS — the investor opened this signal's dedicated view; answer from ITS world first:
+"${focusSignal.name}" (${focusSignal.type}, focus area: ${focusSignal.focusArea}, status: ${focusSignal.status})
+Thesis: ${focusSignal.thesis}
+Measurement plan: ${focusSignal.measurementPlan}
+Recent readings (newest first):
+${
+  readings
+    .slice(0, 3)
+    .map(
+      (r) =>
+        `- ${r.date.slice(0, 10)}: ${r.level}${r.value != null ? `, ${r.value} ${r.valueUnit ?? ""}` : ""} — ${clip(r.rationale, 200)}`
+    )
+    .join("\n") || "(no readings yet)"
+}`;
   }
 
   const modeInstructions = focusSignal
@@ -368,9 +414,71 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
     { text: systemTail },
   ];
 
-  const history = (await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId })).slice(-16);
+  const historyAll = await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId });
+  const history = historyAll.slice(-16);
   const messages = historyToMessages(history);
-  const chatModel = await resolveModel("chat");
+  const [chatModel, chatFastModel] = await Promise.all([resolveModel("chat"), resolveModel("chatFast")]);
+
+  // ---- The fast lane --------------------------------------------------------
+  // Working-chat turns without fresh documents go to the value-tier model
+  // first, over the compact snapshot: simple questions come back in seconds
+  // instead of riding the flagship's full-context think. The fast lane takes
+  // no desk action (its schema has none) — it either answers or escalates, and
+  // any failure falls through to the senior analyst below. Onboarding turns
+  // and turns carrying attachments always start deep: the opening study and
+  // document work are exactly where the flagship is earned.
+  const turnStart = Date.now();
+  const lastUser = [...historyAll].reverse().find((m) => m.role === "user");
+  const freshAttachments =
+    (opts.attachments?.length ?? 0) > 0 ||
+    (opts.retry === true && (lastUser?.attachments?.length ?? 0) > 0);
+  if (mode === "working" && !freshAttachments) {
+    const quickLanguageDirective =
+      opts.lang === "zh"
+        ? `\n\nLANGUAGE: The investor uses Simplified Chinese — write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; give signal names in English quotes, optionally with a short Chinese gloss).`
+        : "";
+    const quickSystem = `${QUICK_CHAT_DOCTRINE}
+
+${deskIdentity(symbol, ticker.name)}
+
+${quickContext}
+
+${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless and costs the investor nothing — when in doubt whether this turn is yours, escalate.${quickLanguageDirective}`;
+    // Attachments never inline in the fast lane — a document question escalates.
+    const quickMessages: Anthropic.MessageParam[] = history.slice(-8).map((m) => {
+      const atts = m.attachments ?? [];
+      const note = atts.length
+        ? `\n[Attached files on record, not shown in the fast lane: ${atts.map((a) => `${a.name} (${a.kind})`).join(", ")}]`
+        : "";
+      return { role: m.role, content: `${m.content}${note}`.trim() || "…" };
+    });
+    try {
+      const q = await withDeadline(
+        "Quick analyst reply",
+        (signal) =>
+          claudeJSON<{ reply: string; escalate: boolean; startResearch: boolean }>({
+            model: chatFastModel,
+            signal,
+            system: quickSystem,
+            messages: quickMessages,
+            schema: QUICK_CHAT_SCHEMA as unknown as Record<string, unknown>,
+            maxTokens: 3000,
+            effort: effortFromEnv("CLAUDE_CHAT_FAST_EFFORT", "low"),
+            meta: { userId, feature: "chat-fast" },
+          }),
+        QUICK_DEADLINE_MS
+      );
+      if (!q.escalate && /[\p{L}\p{N}]/u.test(q.reply ?? "")) {
+        const message = await insertMessage(userId, symbol, "assistant", q.reply, [], [], scopeId);
+        return { message, startResearch: active.length > 0 && q.startResearch === true };
+      }
+    } catch (e) {
+      console.warn(
+        `[scalae] chat fast lane failed for ${symbol} — falling through to the senior analyst:`,
+        e instanceof Error ? e.message : e
+      );
+    }
+  }
 
   // Adaptive thinking shares the max_tokens budget with the reply, so a hard
   // turn can spend most of the budget reasoning and leave the schema-constrained
@@ -409,7 +517,10 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
         // Interactive: don't hard-fail the investor on a transient Opus overload.
         fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
       }),
-    CHAT_DEADLINE_MS
+    // Whatever the fast lane left of the turn's wall-clock budget (all of it
+    // when the turn started deep), floored so an escalated turn still gets a
+    // real window.
+    Math.max(90_000, CHAT_DEADLINE_MS - (Date.now() - turnStart))
   );
 
   // --- focus areas & new proposals (approval-gated) ---
