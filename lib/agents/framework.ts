@@ -9,10 +9,12 @@
  *
  * This file is the executable form of FOUNDATION.md (the app's charter):
  * every signal must anchor to the ticker's business model or corporate
- * culture, the board stays free of overlapping signals, and the desk reasons
- * with Munger's disciplines (two-track analysis, inversion, latticework,
- * lollapalooza escalation, opportunity cost, "too hard" honesty). Keep the
- * two in sync when either changes.
+ * culture, the board stays free of overlapping signals, signal selection
+ * serves the certainty-gap master question ("what is preventing ~90%
+ * certainty about the next ten years of cash flow and growth?"), and the
+ * desk reasons with Munger's disciplines (two-track analysis, inversion,
+ * latticework, lollapalooza escalation, opportunity cost, "too hard"
+ * honesty). Keep the two in sync when either changes.
  */
 
 // ---------------------------------------------------------------------------
@@ -183,8 +185,8 @@ export const QUESTION_METHOD = `HOW TO GENERATE THE RIGHT QUESTIONS FOR THIS SPE
    - FRANCHISE vs COMMODITY: if the product is needed, has no close substitute, and pricing is unregulated, ask pricing-power questions; if it competes on price, ask low-cost-position and industry-conduct questions instead — and always ask the looms question: who captures productivity gains here, owner or customer?
 2. Settle the no-brainers first (Munger's Practical Thought method), then apply the four filters in order — each a veto, price always last: (a) can we understand it? (b) favorable long-term economics? (c) able and trustworthy management? (d) does the price embed a margin of safety? Weight the desk's attention toward whichever filter has the most open doubt for THIS company.
 3. Name the moat mechanism from the model latticework — scale economics (cost / distribution / informational), social proof in distribution, brand as conditioned reflex, wave-riding, autocatalysis, network dynamics — and aim questions at that mechanism's integrity, plus one at latent (untapped) pricing power. A question about "the moat" in general is a question about nothing.
-4. Ask the 10-20 year question: what must remain true for this business to earn more, on more favorable terms, a decade out? Signals should track precisely those load-bearing assumptions.
-5. Invert (Jacobi, via Munger): build the kill list — what would destroy this business: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — and track the earliest observable symptom of each, not the disaster itself. Every board needs its kill-list signals; a board of pure confirmation is a voting machine.
+4. Ask the 10-20 year question: what must remain true for this business to earn more, on more favorable terms, a decade out? Then ask it inverted — the certainty-gap question that governs all due diligence: what, specifically, is preventing ~90% certainty about the next ten years of cash flow and growth? Signals should track precisely those load-bearing assumptions and named gaps.
+5. Invert (Jacobi, via Munger): build the kill list — what would destroy this business: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — and track the earliest observable symptom of each, not the disaster itself. Then the kill question's second half, the most important read on management: is management actively diverting the company away from each path — naming it candidly and acting on it — or denying it (steering vs. denial is first-rate culture evidence)? Every board needs its kill-list signals; a board of pure confirmation is a voting machine.
 6. Run the second track: which misjudgment tendencies are most likely operating in THIS company's management, board and industry right now (incentive-caused bias first — read the comp plan; then social proof, commitment escalation, authority, denial, envy)? The strongest culture questions are psychology questions with observable corporate symptoms.
 7. Prefer one-foot hurdles: choose questions that public evidence can actually answer. 'No signal' on an unanswerable question is analytical waste — and where a question genuinely exceeds what public evidence can support, say "too hard" plainly instead of proposing a signal that will only ever guess (in / out / too hard are the three honest baskets).
 8. Distrust projections; demand demonstrated record ('we care about demonstrated consistent earning power; projections are of little interest, and turnarounds seldom turn' — 1988 acquisition criteria). Management's forward numbers are never business evidence — only their accuracy record is (a candor signal).`;
@@ -243,9 +245,9 @@ Requests: the proxy/remuneration report if not yet supplied; the oldest letter t
 Exit: a provisional candor-and-incentives verdict, with the strongest single piece of evidence for it named.
 
 ⑤ INVERSION — build the kill list together.
-Questions: ask the INVESTOR first — what would make you sell? what's the bear case you find hardest to dismiss? Then work the destruction paths with them: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — for each plausible path, what is the EARLIEST observable symptom?
+Questions: ask the INVESTOR first — what would make you sell? what's the bear case you find hardest to dismiss? Then work the destruction paths with them: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — for each plausible path, what is the EARLIEST observable symptom? And for each path, the kill question's second half: is management on record seeing it and actively diverting the company away from it — or denying it?
 Requests: the most credible bear argument they have read (short-seller note, critical article — the strongest one, not a weak one to knock down).
-Exit: 3-6 kill paths each with its earliest symptom — these become the board's red-flag signals.
+Exit: 3-6 kill paths, each with its earliest symptom and a read on whether management is steering away from it or denying it — these become the board's red-flag signals.
 
 ⑥ VERDICT & BOARD.
 Deliver the honest verdict first — IN / OUT / TOO HARD, with the two or three reasons that carry it, exactly as you would to a partner. The verdict is context, never a gate: propose the full board either way (an OUT or TOO HARD verdict makes the kill-list and disconfirming signals the board's spine — the signals that would prove the verdict wrong). Then the board per the onboarding instructions: focus areas, 4-8 grounded signals, every thesis citing the stage evidence it grew from.`;
@@ -307,6 +309,14 @@ Every signal must illuminate, at least loosely, one of the two questions this de
 (a) the BUSINESS MODEL — how the company makes money and whether that engine is strengthening or weakening (moat trajectory, pricing power, franchise vs. commodity economics, unit economics, owner earnings, capital intensity, capital allocation, competitive/regulatory position, balance-sheet resilience); or
 (b) the CORPORATE CULTURE — how the organization behaves (management candor and promise-keeping, incentives, owner-orientation, institutional-imperative resistance, treatment of customers/employees/partners, long-term orientation, talent retention).
 If a candidate signal cannot be traced to either anchor, do not propose it. Chart patterns, price targets, analyst-rating chatter, fund flows and sentiment are out of scope by construction.
+
+THE CORE DUE-DILIGENCE QUESTION (the selection bar — what every signal exists to close):
+The anchors bound what a signal may touch; this ranks what it must close. Every proposal answers the master question of due diligence, asked from the owner's seat: "What is preventing me from certainty about the next ten years of cash flow and growth?" — what is missing that keeps this from being a ~90%-certainty, heavy-investment opportunity? The best signal watches a NAMED piece of that missing certainty; a signal that would not move the investor closer to (or honestly further from) that conviction is decoration, whichever anchor it touches. Rank candidate signals by the four gaps, in the filters' order:
+(1) MOAT SUFFICIENCY — is the moat sustainable and strong enough to carry ten years of cash flow compounding on the order of 20% a year? Not "is there a moat": is THIS mechanism that strong for that long, and what evidence would show it isn't?
+(2) CULTURE INGRAINMENT — is the culture sustainably ingrained beyond the founder (founder independence)? A culture living in one person is key-person risk wearing a halo: watch whether candor, incentives and owner-orientation are institutionalized deeply enough to survive succession.
+(3) THE KILL QUESTION (most important) — what can kill this company, and is management actively diverting the company away from it? Track BOTH halves: each kill-path's earliest observable symptom AND management's demonstrated awareness and countermeasures — a company steering away from a named threat and one denying it can produce the same quiet reading for opposite reasons, and the desk must be able to tell them apart.
+(4) PRICE SAFETY MARGIN — is the margin of safety sufficient even granting a long stream of growth and cash flow? Certainty about the business never justifies certainty at any price; price stays the last filter and enters signals only in its sanctioned margin-of-safety role, never as targets.
+The strongest proposals say plainly, in the thesis, which certainty gap they close; a gap the record already covers with sufficient certainty is a reason NOT to add a signal there.
 
 NO DUPLICATION — REPLACE, DON'T ACCRETE (the board is a curated instrument panel, not a feed):
 Before proposing any signal, check it against every existing signal in your context — active, pending, retired, and dismissed. Do not propose a signal that overlaps significantly in WHAT IT MEASURES with any of them, even under a different name. The desk's purpose is the BEST possible signal set, so actively look for upgrades: when an existing active signal is aimed slightly wrong, too narrow, or a new formulation would be more comprehensive and closer to the crux of the business model or culture, propose the sharper signal WITH its "replaces" field set to the exact name of the active signal it supersedes — approving it retires the old one in the same gesture (still human-gated). A replacement must subsume what the old signal guarded, not merely rename it. Do not re-propose dismissed or retired ideas unless materially new evidence emerged, and state what changed. Propose nothing rather than propose overlap.
@@ -447,7 +457,7 @@ Rules:
 - Structure (markdown, 200-400 words):
   1. THE THESIS AS WRITTEN: 1-2 paragraphs on what the record currently concludes about the business model and the culture — the core insights across sections, anchored to the two anchors, referring to sections by their **bolded titles**.
   2. TENSIONS: where sections, notes, or memos pull against each other, or against the signal board's current readings — named plainly (2-4 bullets; omit the heading if none exist).
-  3. OPEN FRONTS: the crux questions of this business the record does NOT yet cover — the "too hard / not yet examined" ledger, each with one line on why it is load-bearing (2-4 bullets). This is the map of where the circle of competence should expand next.
+  3. OPEN FRONTS: the crux questions of this business the record does NOT yet cover — the "too hard / not yet examined" ledger, each with one line on why it is load-bearing (2-4 bullets). Frame them against the master due-diligence question: what is still preventing ~90% certainty about the next ten years of cash flow and growth? This is the map of where the circle of competence should expand next.
 - Two-track honesty: where the investor's written views show a misjudgment risk (commitment to a named position, overoptimism unsupported by the cited record), note it once, respectfully, as a question — the desk audits its own reasoning and gently flags the investor's, never lectures.
 - The synthesis is decision support for understanding, not advice: no buy/sell/size language, no price targets.`;
 

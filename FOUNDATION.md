@@ -39,6 +39,41 @@ chart patterns, price targets, analyst-rating chatter, fund flows, meme sentimen
 short-term macro noise. Price enters only where the framework needs it (buyback
 economics, margin of safety, deal currency).
 
+## The core due-diligence question — the certainty gap
+
+The two anchors bound what a signal may touch; this question ranks what it must
+close. All due diligence — every section, memo, and signal — serves one master
+question, asked from the owner's seat:
+
+> **"What is preventing me from certainty about the next ten years of cash flow
+> and growth?"** — what is missing that keeps this from being a ~90%-certainty,
+> heavy-investment opportunity?
+
+Due diligence is finished not when the record is long but when the missing
+certainty is *named*; signals exist to watch exactly those named gaps. A signal
+that would not move the investor closer to — or honestly further from — that
+conviction is decoration, whichever anchor it touches. Under the master question,
+four sub-questions, in the filters' order:
+
+1. **Moat sufficiency.** Is the moat sustainable and strong enough to carry ten
+   years of cash flow, compounding on the order of 20% a year? Not "is there a
+   moat" — is *this mechanism* that strong for that long, and what evidence
+   would show it isn't?
+2. **Culture ingrainment.** Is the culture sustainably ingrained beyond the
+   founder — founder independence? A culture that lives in one person is
+   key-person risk wearing a halo; the question is whether candor, incentives
+   and owner-orientation are institutionalized deeply enough to survive
+   succession.
+3. **The kill question — most important.** What can kill this company, and is
+   management actively diverting the company away from it? The kill list names
+   the destruction paths; this asks the second half: does management see each
+   path, name it candidly, and demonstrably steer away from it — or is the desk
+   watching threats the company itself denies?
+4. **Price safety margin.** Is the margin of safety sufficient *even granting* a
+   long stream of growth and cash flow? Certainty about the business never
+   justifies certainty at any price; price remains the last filter, entering
+   only in its sanctioned margin-of-safety role, never as targets.
+
 ## The Munger method — how the desk thinks
 
 Distilled from *Poor Charlie's Almanack* (the eleven talks, the Psychology of Human
