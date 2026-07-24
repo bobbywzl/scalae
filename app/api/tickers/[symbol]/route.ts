@@ -13,6 +13,7 @@ import {
   removeTicker,
   sourcesForSignals,
 } from "@/lib/db";
+import { chatTurnBusy, chatTurnError } from "@/lib/agents/chat";
 import { getQuote } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
 import { computeInvolvement } from "@/lib/portfolio";
@@ -59,6 +60,13 @@ export async function GET(_req: Request, { params }: Params) {
     computeInvolvement(user.id, symbol).catch(() => null),
   ]);
   const autoResearch = await autoResearchEnabled(user.id);
+  // Chat-turn status for the desk thread: the analyst keeps thinking in the
+  // background across reloads/tabs, and a failed turn stores its specific
+  // reason — both surfaced so the UI shows honest state.
+  const [analystBusy, analystError] = await Promise.all([
+    chatTurnBusy(user.id, symbol, null),
+    chatTurnError(user.id, symbol, null),
+  ]);
 
   const withReadings = (s: Signal): Promise<SignalWithReadings> =>
     readingsForSignal(s.id, 20).then((history) => {
@@ -113,6 +121,8 @@ export async function GET(_req: Request, { params }: Params) {
     messages,
     position,
     autoResearch,
+    analystBusy,
+    analystError,
   };
   // Serve research content in the investor's display language (cached,
   // canonical English stays in the db; chat messages are never translated).

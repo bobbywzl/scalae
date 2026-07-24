@@ -46,6 +46,7 @@ export default function DeskPage() {
   const [desk, setDesk] = useState<DeskPayload | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [sending, setSending] = useState(false);
+  const chatAbort = useRef<AbortController | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [fullDesk, setFullDesk] = useState(false);
@@ -97,11 +98,20 @@ export default function DeskPage() {
 
   const running = desk?.latestRun?.status === "running";
 
+  // Background chat state: a turn started earlier (another tab, or before a
+  // reload) may still be running server-side — the analyst keeps thinking in
+  // the background. Show the thinking bubble, poll fast until it resolves,
+  // and surface the stored failure reason when a background turn died.
+  const lastMsg = desk ? desk.messages[desk.messages.length - 1] : undefined;
+  const remoteBusy = !sending && !!desk?.analystBusy && lastMsg?.role === "user";
+  const bgChatError =
+    !sending && !remoteBusy && lastMsg?.role === "user" ? (desk?.analystError ?? null) : null;
+
   // Poll fast while the agents are working, slowly otherwise.
   useEffect(() => {
-    const timer = setInterval(load, running || sending ? 2500 : 30_000);
+    const timer = setInterval(load, running || sending || remoteBusy ? 2500 : 30_000);
     return () => clearInterval(timer);
-  }, [load, running, sending]);
+  }, [load, running, sending, remoteBusy]);
 
   const startRun = useCallback(async () => {
     try {
@@ -161,14 +171,21 @@ export default function DeskPage() {
           }
         : d
     );
+    const controller = new AbortController();
+    chatAbort.current = controller;
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
         method: "POST",
         body: JSON.stringify({ message: text, attachments }),
+        signal: controller.signal,
       });
     } catch (e) {
-      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
+      // A pause aborts the fetch — that's the investor's choice, not an error.
+      if (!controller.signal.aborted) {
+        setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
+      }
     } finally {
+      chatAbort.current = null;
       setSending(false);
       load();
     }
@@ -178,17 +195,36 @@ export default function DeskPage() {
   async function retryChat() {
     setSending(true);
     setChatError(null);
+    const controller = new AbortController();
+    chatAbort.current = controller;
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
         method: "POST",
         body: JSON.stringify({ retry: true }),
+        signal: controller.signal,
       });
     } catch (e) {
-      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
+      if (!controller.signal.aborted) {
+        setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errChatFailed"));
+      }
     } finally {
+      chatAbort.current = null;
       setSending(false);
       load();
     }
+  }
+
+  // Pause: stop waiting locally AND cancel server-side — the in-flight turn's
+  // reply is discarded and no desk action is taken.
+  async function pauseChat() {
+    chatAbort.current?.abort();
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, { method: "DELETE" });
+    } catch {
+      /* best-effort — the busy marker goes stale on its own */
+    }
+    setSending(false);
+    load();
   }
 
   const signalsById = useMemo(() => {
@@ -593,12 +629,14 @@ export default function DeskPage() {
               messages={desk.messages}
               signalsById={signalsById}
               sending={sending}
+              remoteBusy={remoteBusy}
               showLensChips={desk.messages.filter((m) => m.role === "user").length === 0}
               onSend={sendChat}
               onAct={act}
               actingId={actingId}
-              error={chatError}
+              error={chatError ?? bgChatError}
               onRetry={retryChat}
+              onPause={pauseChat}
               tall={!fullDesk}
               expanded={fullDesk}
               onToggleExpand={() => setFullDesk((v) => !v)}
@@ -1036,12 +1074,14 @@ export default function DeskPage() {
               messages={desk.messages}
               signalsById={signalsById}
               sending={sending}
+              remoteBusy={remoteBusy}
               showLensChips={false}
               onSend={sendChat}
               onAct={act}
               actingId={actingId}
-              error={chatError}
+              error={chatError ?? bgChatError}
               onRetry={retryChat}
+              onPause={pauseChat}
               expanded={fullDesk}
               onToggleExpand={() => setFullDesk((v) => !v)}
               onOpenSignal={(id) => {

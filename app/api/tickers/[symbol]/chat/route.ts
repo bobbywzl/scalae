@@ -1,8 +1,8 @@
 import { NextResponse, after } from "next/server";
-import { handleChatTurn } from "@/lib/agents/chat";
+import { chatBusyKey, chatCancelKey, chatErrorKey, handleChatTurn } from "@/lib/agents/chat";
 import { friendlyAIError } from "@/lib/ai/claude";
 import { executeRun, startRun } from "@/lib/agents/research";
-import { getTicker } from "@/lib/db";
+import { getTicker, setSetting } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { sanitizeAttachments } from "@/lib/attachments";
 import { requestLang } from "@/lib/i18n/server";
@@ -52,9 +52,28 @@ export async function POST(req: Request, { params }: Params) {
       const { run, started } = await startRun(user.id, symbol);
       if (started) after(() => executeRun(user.id, run.id, symbol));
     }
-    return NextResponse.json({ reply: result.message, researchStarted: result.startResearch });
+    return NextResponse.json({
+      reply: result.message,
+      paused: result.paused === true,
+      researchStarted: result.startResearch,
+    });
   } catch (e) {
     console.error(`[scalae] chat (${symbol}) failed:`, e instanceof Error ? e.message : e);
+    // Record the SPECIFIC failure so the thread shows an honest reason even
+    // after a reload (the client may be long gone), and clear the busy marker.
+    await setSetting(user.id, chatBusyKey(symbol, null), "").catch(() => {});
+    await setSetting(user.id, chatErrorKey(symbol, null), friendlyAIError(e)).catch(() => {});
     return NextResponse.json({ error: friendlyAIError(e), retryable: true }, { status: 502 });
   }
+}
+
+/** Pause the in-flight analyst turn: its reply is discarded, no desk action taken. */
+export async function DELETE(_req: Request, { params }: Params) {
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { symbol: raw } = await params;
+  const symbol = raw.toUpperCase();
+  await setSetting(user.id, chatCancelKey(symbol, null), new Date().toISOString()).catch(() => {});
+  await setSetting(user.id, chatBusyKey(symbol, null), "").catch(() => {});
+  return NextResponse.json({ ok: true });
 }

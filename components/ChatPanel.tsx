@@ -10,6 +10,9 @@ import { Markdown } from "./Markdown";
 import { SuggestionCard } from "./SuggestionCard";
 // Attachment processing lives in components/attach.ts (shared with /support).
 import { MAX_FILES, fmtBytes, processFile } from "./attach";
+// Read-aloud: the natural-voice reader (network/neural voice picker) — the
+// browser-default voice sounds robotic. See lib/voice.ts.
+import { speak, speechSynthesisSupported, stopSpeaking, voiceLangTag } from "@/lib/voice";
 
 const LENS_CHIP_KEYS = [
   "chat.lensMoat",
@@ -70,17 +73,6 @@ function speechRecognitionCtor(): (new () => SRLike) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-/** Rough markdown → speech text (read-aloud shouldn't say "asterisk"). */
-function speakable(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, " code block omitted. ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[#*_>|~-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function AttachmentChip({
   a,
   onRemove,
@@ -127,6 +119,8 @@ export function ChatPanel({
   actingId,
   error,
   onRetry,
+  onPause,
+  remoteBusy = false,
   tall = false,
   expanded = false,
   onToggleExpand,
@@ -143,6 +137,15 @@ export function ChatPanel({
   actingId: string | null;
   error: string | null;
   onRetry: () => void;
+  /** Stop the in-flight analyst turn (aborts locally + cancels server-side). */
+  onPause?: () => void;
+  /**
+   * The analyst is working on this thread in the BACKGROUND (a turn started
+   * earlier — possibly from another tab or before a reload — is still
+   * running server-side). Shows the thinking bubble and suppresses the
+   * "hasn't replied" prompt until the turn resolves.
+   */
+  remoteBusy?: boolean;
   tall?: boolean;
   /** Fullscreen desk mode — the page controls positioning, this styles the frame. */
   expanded?: boolean;
@@ -162,27 +165,39 @@ export function ChatPanel({
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const recRef = useRef<SRLike | null>(null);
   const dictationBase = useRef("");
   const speechOK = speechRecognitionCtor() !== null;
+  // A turn is in flight — locally sent this session, or running server-side.
+  const busy = sending || remoteBusy;
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, sending]);
+  }, [messages.length, busy]);
+
+  // SOTA-chat input: the box grows to fit the full text (wrapped lines
+  // included), capped so long drafts scroll inside the box, never a slit.
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, expanded ? 320 : 200)}px`;
+  }, [text, expanded]);
 
   // Stop mic + speech when the panel unmounts.
   useEffect(
     () => () => {
       recRef.current?.stop();
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      stopSpeaking();
     },
     []
   );
 
   function submit() {
     const msg = text.trim();
-    if ((!msg && attachments.length === 0) || sending || attachBusy) return;
+    if ((!msg && attachments.length === 0) || busy || attachBusy) return;
     stopListening();
     setText("");
     setAttachments([]);
@@ -238,25 +253,21 @@ export function ChatPanel({
   }
 
   function toggleSpeak(m: ChatMessage) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
+    if (!speechSynthesisSupported()) return;
     if (speakingId === m.id) {
-      synth.cancel();
+      stopSpeaking();
       setSpeakingId(null);
       return;
     }
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(speakable(m.content));
-    u.lang = lang === "zh" ? "zh-CN" : "en-US";
-    u.onend = () => setSpeakingId(null);
-    u.onerror = () => setSpeakingId(null);
-    synth.speak(u);
+    speak(m.content, voiceLangTag(lang), () => setSpeakingId(null));
     setSpeakingId(m.id);
   }
 
-  // A user message with no analyst reply (e.g. after a failed call + reload).
+  // A user message with no analyst reply AND no turn running anywhere — only
+  // then is the thread genuinely stranded (e.g. after a failed call + reload).
+  // While a background turn is in flight this shows the thinking bubble instead.
   const stranded =
-    !sending && !error && messages.length > 0 && messages[messages.length - 1].role === "user";
+    !busy && !error && messages.length > 0 && messages[messages.length - 1].role === "user";
 
   return (
     <div
@@ -378,14 +389,14 @@ export function ChatPanel({
             </div>
           </div>
         ))}
-        {sending && (
+        {busy && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 text-sm text-muted pulse-soft">
               {t("chat.thinking")}
             </div>
           </div>
         )}
-        {error && !sending && (
+        {error && !busy && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md border border-loss/30 bg-loss/8 px-3.5 py-2.5 text-xs max-w-[92%]">
               <p className="text-loss font-medium">{localizeError(error, t)}</p>
@@ -461,9 +472,11 @@ export function ChatPanel({
               e.target.value = "";
             }}
           />
+          {/* Attach and dictate stay usable while the analyst thinks — the
+              investor can stage the next message; only Send waits its turn. */}
           <button
             onClick={() => fileRef.current?.click()}
-            disabled={sending || attachBusy}
+            disabled={attachBusy}
             title={t("chat.attachTitle")}
             aria-label={t("chat.attachTitle")}
             className="shrink-0 rounded-lg hover:bg-ink/8 disabled:opacity-40 px-1.5 py-1.5 text-base leading-none transition-colors"
@@ -473,7 +486,6 @@ export function ChatPanel({
           {speechOK && (
             <button
               onClick={() => (listening ? stopListening() : startListening())}
-              disabled={sending}
               title={listening ? t("chat.dictateStop") : t("chat.dictate")}
               aria-label={listening ? t("chat.dictateStop") : t("chat.dictate")}
               className={`shrink-0 rounded-lg px-1.5 py-1.5 text-base leading-none transition-colors ${
@@ -484,6 +496,7 @@ export function ChatPanel({
             </button>
           )}
           <textarea
+            ref={textRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -499,17 +512,27 @@ export function ChatPanel({
                 addFiles(files);
               }
             }}
-            rows={Math.min(expanded ? 8 : 4, Math.max(1, text.split("\n").length))}
+            rows={1}
             placeholder={listening ? t("chat.placeholderListening") : t("chat.placeholder")}
-            className="flex-1 bg-transparent outline-none resize-none text-sm placeholder:text-muted/60 leading-relaxed"
+            className="flex-1 bg-transparent outline-none resize-none text-sm placeholder:text-muted/60 leading-relaxed overflow-y-auto"
           />
-          <button
-            onClick={submit}
-            disabled={sending || attachBusy || (!text.trim() && attachments.length === 0)}
-            className="shrink-0 rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
-          >
-            {t("chat.send")}
-          </button>
+          {busy && onPause ? (
+            <button
+              onClick={onPause}
+              title={t("chat.pauseTitle")}
+              className="shrink-0 rounded-lg bg-loss/15 hover:bg-loss/25 text-loss text-xs font-semibold px-3 py-1.5 transition-colors"
+            >
+              ◼ {t("chat.pause")}
+            </button>
+          ) : (
+            <button
+              onClick={submit}
+              disabled={busy || attachBusy || (!text.trim() && attachments.length === 0)}
+              className="shrink-0 rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+            >
+              {t("chat.send")}
+            </button>
+          )}
         </div>
       </div>
     </div>

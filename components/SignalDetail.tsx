@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { chipLabel, linkCitations, sourceClass, type SourceClass } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Attachment, ChatMessage, Citation, Signal, SignalWithReadings } from "@/lib/types";
@@ -72,6 +72,11 @@ export function SignalDetail({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  // Server-side turn state for THIS signal's thread: the analyst keeps
+  // thinking in the background across close/reopen; failures store a reason.
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [bgError, setBgError] = useState<string | null>(null);
+  const chatAbort = useRef<AbortController | null>(null);
   const [clipItem, setClipItem] = useState<ClipPayload | null>(null);
   const [confirmRetire, setConfirmRetire] = useState(false);
   // Evidence traceability: pick a catalog source to see exactly which readings cited it.
@@ -111,10 +116,15 @@ export function SignalDetail({
 
   const loadChat = useCallback(async () => {
     try {
-      const { messages } = await api<{ messages: ChatMessage[] }>(
-        `/api/signals/${signal.id}/chat`
-      );
+      const { messages, analystBusy, analystError } = await api<{
+        messages: ChatMessage[];
+        analystBusy?: boolean;
+        analystError?: string | null;
+      }>(`/api/signals/${signal.id}/chat`);
       setMessages(messages);
+      const lastIsUser = messages.length > 0 && messages[messages.length - 1].role === "user";
+      setRemoteBusy(analystBusy === true && lastIsUser);
+      setBgError(!analystBusy && lastIsUser && analystError?.trim() ? analystError : null);
     } catch {
       /* keep last state */
     }
@@ -122,12 +132,13 @@ export function SignalDetail({
 
   useEffect(() => {
     if (readOnly) return; // archive view: no chat thread to load
-    // Same initial-fetch-then-poll idiom as the watchlist/desk pages.
+    // Same initial-fetch-then-poll idiom as the watchlist/desk pages —
+    // fast while a background turn is running, slow otherwise.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadChat();
-    const timer = setInterval(loadChat, 30_000);
+    const timer = setInterval(loadChat, remoteBusy ? 2500 : 30_000);
     return () => clearInterval(timer);
-  }, [loadChat, readOnly]);
+  }, [loadChat, readOnly, remoteBusy]);
 
   // Esc closes; page scroll locks underneath.
   useEffect(() => {
@@ -158,14 +169,18 @@ export function SignalDetail({
         createdAt: new Date().toISOString(),
       },
     ]);
+    const controller = new AbortController();
+    chatAbort.current = controller;
     try {
       await api(`/api/signals/${signal.id}/chat`, {
         method: "POST",
         body: JSON.stringify({ message: text, attachments }),
+        signal: controller.signal,
       });
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Chat failed");
+      if (!controller.signal.aborted) setChatError(e instanceof Error ? e.message : "Chat failed");
     } finally {
+      chatAbort.current = null;
       setSending(false);
       loadChat();
     }
@@ -174,17 +189,34 @@ export function SignalDetail({
   async function retryChat() {
     setSending(true);
     setChatError(null);
+    const controller = new AbortController();
+    chatAbort.current = controller;
     try {
       await api(`/api/signals/${signal.id}/chat`, {
         method: "POST",
         body: JSON.stringify({ retry: true }),
+        signal: controller.signal,
       });
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Chat failed");
+      if (!controller.signal.aborted) setChatError(e instanceof Error ? e.message : "Chat failed");
     } finally {
+      chatAbort.current = null;
       setSending(false);
       loadChat();
     }
+  }
+
+  // Pause the in-flight turn: abort locally, discard server-side.
+  async function pauseChat() {
+    chatAbort.current?.abort();
+    try {
+      await api(`/api/signals/${signal.id}/chat`, { method: "DELETE" });
+    } catch {
+      /* best-effort */
+    }
+    setSending(false);
+    setRemoteBusy(false);
+    loadChat();
   }
 
   const r = signal.latest;
@@ -628,12 +660,14 @@ export function SignalDetail({
             messages={messages}
             signalsById={signalsById}
             sending={sending}
+            remoteBusy={remoteBusy}
             showLensChips={false}
             onSend={send}
             onAct={onAct}
             actingId={actingId}
-            error={chatError ? localizeError(chatError, t) : null}
+            error={chatError ?? bgError ? localizeError((chatError ?? bgError)!, t) : null}
             onRetry={retryChat}
+            onPause={pauseChat}
             emptyHint={t("signals.signalDeskHint", { name: signal.name })}
           />
         </div>

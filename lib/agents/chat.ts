@@ -18,6 +18,7 @@ import {
 import {
   approveSignal,
   getDiligenceSynthesis,
+  getSetting,
   getSignal,
   getTicker,
   insertMessage,
@@ -33,6 +34,7 @@ import {
   markOnboarded,
   readingsForSignal,
   recentDigest,
+  setSetting,
   setSignalStatus,
   sourcesForSignals,
   upsertFocusArea,
@@ -56,9 +58,55 @@ interface ChatOutput {
 }
 
 export interface ChatTurnResult {
-  message: ChatMessage;
+  /** Null when the investor paused the turn — nothing was persisted. */
+  message: ChatMessage | null;
   /** The route should kick a research run (investor asked, or desk just activated). */
   startResearch: boolean;
+  /** The investor paused this turn mid-flight; the reply was discarded. */
+  paused?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Chat turn status markers (settings kv), per thread (ticker desk or one
+// signal's scoped chat). They let the UI show honest state across reloads and
+// tabs: BUSY = a turn is running server-side (the analyst keeps thinking in
+// the background when the investor navigates away); ERROR = the last turn
+// failed, with the specific reason; CANCEL = the investor paused — a turn
+// started before the marker discards its reply instead of persisting it.
+// ---------------------------------------------------------------------------
+
+const chatScope = (symbol: string, scopeId: string | null) => `${symbol}:${scopeId ?? "main"}`;
+export const chatBusyKey = (symbol: string, scopeId: string | null) =>
+  `chatBusy:${chatScope(symbol, scopeId)}`;
+export const chatErrorKey = (symbol: string, scopeId: string | null) =>
+  `chatError:${chatScope(symbol, scopeId)}`;
+export const chatCancelKey = (symbol: string, scopeId: string | null) =>
+  `chatCancel:${chatScope(symbol, scopeId)}`;
+/**
+ * A busy marker older than this is a dead turn (the serverless function was
+ * killed mid-flight) — treat as not busy so the thread doesn't stick on
+ * "thinking" forever. Comfortably above CHAT_DEADLINE_MS.
+ */
+export const CHAT_BUSY_STALE_MS = 6 * 60_000;
+
+/** Is a chat turn currently running for this thread (fresh busy marker)? */
+export async function chatTurnBusy(
+  userId: string,
+  symbol: string,
+  scopeId: string | null
+): Promise<boolean> {
+  const at = await getSetting(userId, chatBusyKey(symbol, scopeId)).catch(() => null);
+  return !!at && Date.now() - Date.parse(at) < CHAT_BUSY_STALE_MS;
+}
+
+/** The last turn's stored failure reason for this thread, if any. */
+export async function chatTurnError(
+  userId: string,
+  symbol: string,
+  scopeId: string | null
+): Promise<string | null> {
+  const err = await getSetting(userId, chatErrorKey(symbol, scopeId)).catch(() => null);
+  return err?.trim() ? err : null;
 }
 
 /** The templated first message shown when a desk opens (stored at ticker creation). */
@@ -205,6 +253,19 @@ export async function handleChatTurn(
   if (!opts.retry) {
     await insertMessage(userId, symbol, "user", userText, [], opts.attachments ?? [], scopeId);
   }
+
+  // Turn status markers: the turn keeps running server-side even if the
+  // investor navigates away (the UI reads BUSY to show honest state), and a
+  // pause (CANCEL marker newer than this turn's start) discards the reply
+  // instead of persisting it. On failure the ROUTE records the specific
+  // reason under chatErrorKey and clears busy.
+  const turnStartedAt = new Date().toISOString();
+  await setSetting(userId, chatBusyKey(symbol, scopeId), turnStartedAt).catch(() => {});
+  await setSetting(userId, chatErrorKey(symbol, scopeId), "").catch(() => {});
+  const clearBusy = () => setSetting(userId, chatBusyKey(symbol, scopeId), "").catch(() => {});
+  const pausedByInvestor = async () =>
+    ((await getSetting(userId, chatCancelKey(symbol, scopeId)).catch(() => null)) ?? "") >=
+    turnStartedAt;
 
   const mode = ticker.onboarded ? "working" : "onboarding";
   const [
@@ -469,7 +530,12 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
         QUICK_DEADLINE_MS
       );
       if (!q.escalate && /[\p{L}\p{N}]/u.test(q.reply ?? "")) {
+        if (await pausedByInvestor()) {
+          await clearBusy();
+          return { message: null, startResearch: false, paused: true };
+        }
         const message = await insertMessage(userId, symbol, "assistant", q.reply, [], [], scopeId);
+        await clearBusy();
         return { message, startResearch: active.length > 0 && q.startResearch === true };
       }
     } catch (e) {
@@ -522,6 +588,13 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
     // real window.
     Math.max(90_000, CHAT_DEADLINE_MS - (Date.now() - turnStart))
   );
+
+  // Paused mid-turn: the investor stopped this turn — discard the reply and
+  // take NO desk action (no proposals, approvals, or research kicks).
+  if (await pausedByInvestor()) {
+    await clearBusy();
+    return { message: null, startResearch: false, paused: true };
+  }
 
   // --- focus areas & new proposals (approval-gated) ---
   for (const fa of out.focusAreas ?? []) {
@@ -578,6 +651,7 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
       : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
   const message = await insertMessage(userId, symbol, "assistant", replyText, proposalIds, [], scopeId);
+  await clearBusy();
   const hasActive = (await listSignals(userId, symbol, "active")).length > 0;
   return {
     message,

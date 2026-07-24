@@ -594,6 +594,10 @@ export interface DeskPayload {
   position: TickerInvolvement | null;
   /** Global auto-research switch — gates the stale-desk auto-run client-side. */
   autoResearch: boolean;
+  /** A chat turn for the desk thread is running server-side (background thinking). */
+  analystBusy: boolean;
+  /** The desk thread's last turn failed with this specific reason (null = none). */
+  analystError: string | null;
 }
 
 export interface WatchlistRow {

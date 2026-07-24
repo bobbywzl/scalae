@@ -12,7 +12,7 @@ import type { WatchlistRow } from "@/lib/types";
 
 export default function WatchlistPage() {
   const router = useRouter();
-  const { t, locale } = useT();
+  const { t, lang, locale } = useT();
   const [rows, setRows] = useState<WatchlistRow[] | null>(null);
   const [today, setToday] = useState("");
   const [autoResearch, setAutoResearch] = useState<boolean | null>(null);
@@ -23,6 +23,20 @@ export default function WatchlistPage() {
     needsOnboarding?: boolean;
     user: { name: string; email: string; picture: string; role: string } | null;
   } | null>(null);
+  const [profile, setProfile] = useState<{
+    name?: string;
+    age?: number;
+    country?: string;
+    industries?: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    api<{ profile: { name?: string; age?: number; country?: string; industries?: string[] } | null }>(
+      "/api/profile"
+    )
+      .then((p) => setProfile(p.profile ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // The greeting moment — once per browser session, decided before data
@@ -109,122 +123,21 @@ export default function WatchlistPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 py-10 flex-1">
+    <main className="mx-auto w-full max-w-5xl px-5 py-10 flex-1">
       {splash && <WelcomeSplash name={me?.user?.name} onDone={() => setSplash(false)} />}
       <header className="mb-6">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-muted text-sm font-medium min-h-5">{today}</p>
-            <h1 className="text-3xl font-bold tracking-tight">Scalae</h1>
-            <p className="text-muted text-sm mt-1">{t("watchlist.tagline")}</p>
-          </div>
-          <div className="shrink-0 mt-5 flex items-center gap-2">
-            {(rows?.length ?? 0) >= 2 && (
-              <Link
-                href="/compare"
-                title={t("watchlist.compareTitle")}
-                className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-ink/25 hover:bg-ink/4 px-3 py-2 transition-colors"
-              >
-                <span className="text-accent text-sm leading-none">⇄</span>
-                <span className="text-xs font-semibold">{t("watchlist.compare")}</span>
-              </Link>
-            )}
-            <Link
-              href="/portfolio"
-              title={t("watchlist.portfolioTitle")}
-              className="flex items-center gap-2 rounded-xl bg-card border border-hairline hover:border-ink/25 hover:bg-ink/4 px-3 py-2 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-accent">
-                <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
-                <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2" />
-                <path d="M3 12h18" stroke="currentColor" strokeWidth="2" />
-              </svg>
-              <span className="text-xs font-semibold">{t("watchlist.portfolio")}</span>
-            </Link>
-            {/* Who you are → /profile; how the app behaves → /settings. */}
-            <Link
-              href="/profile"
-              title={
-                me?.user
-                  ? t("watchlist.profileLinkTitle", { name: me.user.name || me.user.email })
-                  : t("watchlist.profileLinkTitleAnon")
-              }
-              className="flex items-center rounded-xl bg-card border border-hairline hover:border-ink/25 hover:bg-ink/4 p-2 transition-colors text-muted hover:text-foreground"
-            >
-              {me?.authEnabled && me.user?.picture ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={me.user.picture} alt="" className="h-5 w-5 rounded-full" />
-              ) : me?.authEnabled && me.user ? (
-                <span className="h-5 w-5 rounded-full bg-ink/10 flex items-center justify-center text-[10px]">
-                  {me.user.name[0]?.toUpperCase()}
-                </span>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-label={t("common.profile")}>
-                  <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
-                  <path d="M4 20c1.4-3.4 4.4-5 8-5s6.6 1.6 8 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              )}
-            </Link>
-            <Link
-              href="/settings"
-              title={t("watchlist.settingsLinkTitle")}
-              className="flex items-center rounded-xl bg-card border border-hairline hover:border-ink/25 hover:bg-ink/4 p-2 transition-colors text-muted hover:text-foreground"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-label={t("common.settings")}>
-                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" strokeWidth="2" />
-                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.12-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.85a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10.05 3V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01c.26.62.86 1.03 1.53 1.03H21a2 2 0 1 1 0 4h-.09c-.67 0-1.27.4-1.51 1.03Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-              </svg>
-            </Link>
-            {me?.authEnabled && me.user && (
-              <a
-                href="/api/auth/logout"
-                title={t("common.signOut")}
-                className="flex items-center rounded-xl bg-card border border-hairline hover:border-loss/40 p-2 transition-colors text-muted hover:text-loss"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-label={t("common.signOut")}>
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Auto daily research switch — the token spend lever. */}
-        <div className="mt-4 flex items-center gap-2.5 rounded-xl bg-card border border-hairline px-3.5 py-2.5">
-          <button
-            role="switch"
-            aria-checked={autoResearch === true}
-            disabled={autoResearch === null || savingAuto}
-            onClick={toggleAutoResearch}
-            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-              autoResearch ? "bg-gain" : "bg-ink/15"
-            }`}
-            title={autoResearch ? t("watchlist.autoTurnOff") : t("watchlist.autoTurnOn")}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-                autoResearch ? "left-[18px]" : "left-0.5"
-              }`}
-            />
-          </button>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold">
-              {t("watchlist.autoTitle")}{" "}
-              <span className={autoResearch ? "text-gain" : "text-muted"}>
-                {autoResearch === null ? "…" : autoResearch ? t("common.on") : t("common.off")}
-              </span>
-            </p>
-            <p className="text-[11px] text-muted leading-snug">
-              {autoResearch === false ? t("watchlist.autoOffDesc") : t("watchlist.autoOnDesc")}
-            </p>
-          </div>
-        </div>
+        <p className="text-muted text-sm font-medium min-h-5">{today}</p>
+        <h1 className="text-3xl font-bold tracking-tight">Scalae</h1>
+        <p className="text-muted text-sm mt-1">{t("watchlist.tagline")}</p>
       </header>
 
-      <AddTicker />
+      {/* The dashboard: watchlist on the left, who-you-are & how-the-app-
+          behaves on the right — side by side, everything in view. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
+        <div className="min-w-0">
+          <AddTicker />
 
-      <section className="mt-6">
+          <section className="mt-6">
         {rows === null ? (
           <div className="text-muted text-sm py-16 text-center">{t("watchlist.loadingList")}</div>
         ) : rows.length === 0 ? (
@@ -330,7 +243,166 @@ export default function WatchlistPage() {
             })}
           </ul>
         )}
-      </section>
+          </section>
+        </div>
+
+        {/* Right rail: account, investor profile, preferences, tools. */}
+        <aside className="space-y-4 lg:sticky lg:top-6">
+          {/* Account */}
+          <div className="rounded-2xl bg-card border border-hairline p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                {t("watchlist.dashAccount")}
+              </p>
+              {me?.authEnabled && me.user && (
+                <a
+                  href="/api/auth/logout"
+                  className="text-[11px] text-muted hover:text-loss transition-colors"
+                >
+                  {t("common.signOut")}
+                </a>
+              )}
+            </div>
+            <div className="mt-2.5 flex items-center gap-3">
+              {me?.authEnabled && me.user?.picture ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.user.picture} alt="" className="h-10 w-10 rounded-full" />
+              ) : (
+                <span className="h-10 w-10 rounded-full bg-ink/10 flex items-center justify-center text-sm font-semibold">
+                  {(me?.user?.name || profile?.name || "S")[0]?.toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">
+                  {me?.user?.name || profile?.name || "Scalae"}
+                </p>
+                <p className="text-[11px] text-muted truncate">
+                  {me?.user?.email || t("watchlist.dashSingleUser")}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/profile"
+              className="mt-3 block rounded-lg bg-ink/6 hover:bg-ink/10 text-center text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              {t("watchlist.dashEditProfile")}
+            </Link>
+          </div>
+
+          {/* Investor profile */}
+          <div className="rounded-2xl bg-card border border-hairline p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              {t("watchlist.dashProfile")}
+            </p>
+            {profile && (profile.name || profile.country || profile.age || (profile.industries?.length ?? 0) > 0) ? (
+              <div className="mt-2 space-y-1.5">
+                {(profile.name || profile.age != null || profile.country) && (
+                  <p className="text-xs">
+                    {profile.name && <span className="font-medium">{profile.name}</span>}
+                    {(profile.age != null || profile.country) && (
+                      <span className="text-muted">
+                        {profile.name ? " · " : ""}
+                        {[profile.age, profile.country].filter((v) => v != null && v !== "").join(" · ")}
+                      </span>
+                    )}
+                  </p>
+                )}
+                {(profile.industries?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {profile.industries!.map((ind) => (
+                      <span
+                        key={ind}
+                        className="rounded-full bg-ink/6 border border-hairline px-2 py-0.5 text-[10px] text-emph"
+                      >
+                        {ind}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-muted leading-snug">{t("watchlist.dashNoProfile")}</p>
+            )}
+          </div>
+
+          {/* Preferences — the auto-research lever + language, with settings a tap away. */}
+          <div className="rounded-2xl bg-card border border-hairline p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                {t("watchlist.dashPreferences")}
+              </p>
+              <Link href="/settings" className="text-[11px] text-accent hover:opacity-80 transition-opacity">
+                {t("common.settings")} →
+              </Link>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                role="switch"
+                aria-checked={autoResearch === true}
+                disabled={autoResearch === null || savingAuto}
+                onClick={toggleAutoResearch}
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                  autoResearch ? "bg-gain" : "bg-ink/15"
+                }`}
+                title={autoResearch ? t("watchlist.autoTurnOff") : t("watchlist.autoTurnOn")}
+              >
+                <span
+                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                    autoResearch ? "left-[18px]" : "left-0.5"
+                  }`}
+                />
+              </button>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold">
+                  {t("watchlist.autoTitle")}{" "}
+                  <span className={autoResearch ? "text-gain" : "text-muted"}>
+                    {autoResearch === null ? "…" : autoResearch ? t("common.on") : t("common.off")}
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted leading-snug">
+                  {autoResearch === false ? t("watchlist.autoOffDesc") : t("watchlist.autoOnDesc")}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-hairline pt-2.5 text-xs">
+              <span className="text-muted">{t("watchlist.dashLanguage")}</span>
+              <span className="font-medium">{lang === "zh" ? "简体中文" : "English"}</span>
+            </div>
+          </div>
+
+          {/* Tools */}
+          <div className="rounded-2xl bg-card border border-hairline p-4">
+            <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              {t("watchlist.dashTools")}
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Link
+                href="/portfolio"
+                title={t("watchlist.portfolioTitle")}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-ink/6 hover:bg-ink/10 px-3 py-2 text-xs font-medium transition-colors"
+              >
+                <span className="text-accent">💼</span> {t("watchlist.portfolio")}
+              </Link>
+              {(rows?.length ?? 0) >= 2 ? (
+                <Link
+                  href="/compare"
+                  title={t("watchlist.compareTitle")}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-ink/6 hover:bg-ink/10 px-3 py-2 text-xs font-medium transition-colors"
+                >
+                  <span className="text-accent">⇄</span> {t("watchlist.compare")}
+                </Link>
+              ) : (
+                <Link
+                  href="/support"
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-ink/6 hover:bg-ink/10 px-3 py-2 text-xs font-medium transition-colors"
+                >
+                  {t("watchlist.sendFeedback")}
+                </Link>
+              )}
+            </div>
+          </div>
+        </aside>
+      </div>
 
       <footer className="mt-10 text-center text-[11px] text-muted/60">
         {t("watchlist.footer")} {t("common.notAdvice")}{" "}
