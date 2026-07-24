@@ -126,6 +126,9 @@ const en = {
 
   // DigestFeed
   noDigest: "No digest yet — run today’s research.",
+  sourceClassPrimary: "Primary source",
+  sourceClassTrade: "Trade press",
+  sourceClassNarrative: "Media report",
   trackThis: "✚ track this",
   trackThisTitle: "No signal watches this thread — ask the analyst to draft one (you approve it)",
   openSignalTitle: "Open this signal",
@@ -235,6 +238,9 @@ const zh: Record<keyof typeof en, string> = {
     "此对话仅针对“{name}”——分析师掌握其论点、完整读数历史与证据目录。您可以询问读数为何变动、质疑测量计划，或要求提出更精准的替代信号。（股票级研究台掌握全局。）",
 
   noDigest: "暂无摘要——请运行今日研究。",
+  sourceClassPrimary: "一手来源",
+  sourceClassTrade: "行业媒体",
+  sourceClassNarrative: "媒体报道",
   trackThis: "✚ 跟踪此线索",
   trackThisTitle: "尚无信号跟踪此线索——可请分析师起草一个（需您批准）",
   openSignalTitle: "打开此信号",

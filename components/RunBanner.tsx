@@ -6,6 +6,7 @@ import type { Run } from "@/lib/types";
 import { localizeError, timeAgo } from "./util";
 
 const STAGES: { key: string; labelKey: TKey }[] = [
+  { key: "questions", labelKey: "desk.stageQuestions" },
   { key: "sweeping", labelKey: "desk.stageSweeping" },
   { key: "probing", labelKey: "desk.stageProbing" },
   { key: "synthesizing", labelKey: "desk.stageSynthesizing" },
@@ -66,6 +67,19 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
       </div>
       {/* stageDetail is produced server-side in the user's language — render as-is. */}
       <p className="text-[11px] text-muted mt-1.5">{run.stageDetail}</p>
+      {/* The question suggestor's framing — what this run exists to answer. */}
+      {(run.questions ?? []).length > 0 && (
+        <div className="mt-2 rounded-lg border border-hairline bg-ink/4 px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+            {t("desk.runQuestionsTitle")}
+          </p>
+          <ol className="mt-1 space-y-0.5 text-[11px] text-emph list-decimal list-inside">
+            {(run.questions ?? []).map((q, i) => (
+              <li key={i}>{q}</li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

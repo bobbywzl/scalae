@@ -258,6 +258,7 @@ function localizeDigestItem(d: DigestItem, tr: Translated): DigestItem {
     ...d,
     headline: tr(d.headline),
     summary: tr(d.summary),
+    sourceNote: d.sourceNote != null ? tr(d.sourceNote) : d.sourceNote,
     // Same source strings as the signals' names → same cached translations,
     // so name-keyed chips and cross-links keep matching after localization.
     signalNames: d.signalNames.map((n) => tr(n)),
@@ -269,7 +270,7 @@ function localizeFocusArea(f: FocusArea, tr: Translated): FocusArea {
 }
 
 export function runTexts(run: Run): (string | null | undefined)[] {
-  return [run.brief, run.dossier, run.stageDetail, run.error];
+  return [run.brief, run.dossier, run.stageDetail, run.error, ...(run.questions ?? [])];
 }
 
 function applyRun(run: Run, tr: Translated): Run {
@@ -278,6 +279,7 @@ function applyRun(run: Run, tr: Translated): Run {
     brief: run.brief != null ? tr(run.brief) : run.brief,
     dossier: run.dossier != null ? tr(run.dossier) : run.dossier,
     stageDetail: tr(run.stageDetail),
+    questions: (run.questions ?? []).map((q) => tr(q)),
     error: run.error != null ? tr(run.error) : run.error,
   };
 }
@@ -303,7 +305,7 @@ export async function localizeDeskPayload(
   }
   for (const s of [...p.suggested, ...p.dismissed]) candidates.push(...signalTexts(s));
   for (const f of p.focusAreas) candidates.push(f.title, f.description);
-  for (const d of p.digest) candidates.push(d.headline, d.summary, ...d.signalNames);
+  for (const d of p.digest) candidates.push(d.headline, d.summary, d.sourceNote, ...d.signalNames);
   if (p.latestRun) candidates.push(...runTexts(p.latestRun));
 
   const tr = await makeTranslator(candidates, lang, meta);

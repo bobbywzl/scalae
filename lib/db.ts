@@ -235,6 +235,9 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE focus_areas ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceClass" TEXT`,
+  `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceNote" TEXT`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS questions TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE trades ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -705,22 +708,23 @@ interface DigestRow extends Omit<DigestItem, "signalNames"> {
 }
 
 export async function insertDigestItem(userId: string, d: Omit<DigestItem, "id">): Promise<void> {
-  await q`INSERT INTO digest_items (id, "userId", symbol, "runId", date, headline, summary, url, source, impact, "signalNames")
+  await q`INSERT INTO digest_items (id, "userId", symbol, "runId", date, headline, summary, url, source, impact, "signalNames", "sourceClass", "sourceNote")
           VALUES (${uid()}, ${userId}, ${d.symbol}, ${d.runId}, ${d.date}, ${d.headline}, ${d.summary},
-                  ${d.url}, ${d.source}, ${d.impact}, ${JSON.stringify(d.signalNames)})`;
+                  ${d.url}, ${d.source}, ${d.impact}, ${JSON.stringify(d.signalNames)}, ${d.sourceClass}, ${d.sourceNote})`;
 }
 
 export async function recentDigest(userId: string, symbol: string, limit = 24): Promise<DigestItem[]> {
   const rows = await q<DigestRow>`
-    SELECT id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames"
+    SELECT id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames", "sourceClass", "sourceNote"
     FROM digest_items WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY date DESC, seq DESC LIMIT ${limit}`;
   return rows.map((r) => ({ ...r, signalNames: JSON.parse(r.signalNames) as string[] }));
 }
 
 // ---------- runs ----------
 
-interface RunRow extends Omit<Run, "sources"> {
+interface RunRow extends Omit<Run, "sources" | "questions"> {
   sources: string;
+  questions: string | null;
 }
 
 function parseRun(r: RunRow | undefined): Run | undefined {
@@ -731,7 +735,13 @@ function parseRun(r: RunRow | undefined): Run | undefined {
   } catch {
     /* legacy row */
   }
-  return { ...r, sources };
+  let questions: string[] = [];
+  try {
+    questions = JSON.parse(r.questions || "[]") as string[];
+  } catch {
+    /* legacy row */
+  }
+  return { ...r, sources, questions };
 }
 
 export async function createRun(userId: string, symbol: string): Promise<Run> {
@@ -746,6 +756,7 @@ export async function createRun(userId: string, symbol: string): Promise<Run> {
     brief: null,
     dossier: null,
     sources: [],
+    questions: [],
     error: null,
   };
   await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail")
@@ -755,6 +766,11 @@ export async function createRun(userId: string, symbol: string): Promise<Run> {
 
 export async function setRunStage(id: string, stage: string, stageDetail: string): Promise<void> {
   await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
+}
+
+/** Store the run's framed focus questions (the question suggestor's output). */
+export async function setRunQuestions(id: string, questions: string[]): Promise<void> {
+  await q`UPDATE runs SET questions = ${JSON.stringify(questions)} WHERE id = ${id}`;
 }
 
 /** Recent finished runs (newest first) — enough to compute dossier provenance. */

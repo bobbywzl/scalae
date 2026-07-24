@@ -9,6 +9,9 @@ import {
   deskIdentity,
   EXPERT_LOOP_GUIDANCE,
   GAP_SCHEMA,
+  QUESTION_METHOD,
+  RUN_QUESTIONS_DOCTRINE,
+  RUN_QUESTIONS_SCHEMA,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
@@ -35,6 +38,7 @@ import {
   reapStuckRuns,
   runStatus,
   runningRun,
+  setRunQuestions,
   setRunStage,
   touchLastRun,
 } from "../db";
@@ -62,12 +66,18 @@ interface SynthesisOutput {
     sourceIndex: number | null;
     impact: "positive" | "negative" | "mixed" | "neutral";
     signalNames: string[];
+    sourceClass: "primary" | "trade" | "narrative";
+    sourceNote: string;
   }[];
   proposals: SignalProposal[];
 }
 
 interface GapOutput {
   followUps: { query: string; reason: string; signalKeys: string[] }[];
+}
+
+interface QuestionsOutput {
+  questions: { question: string; why: string; signalKeys: string[] }[];
 }
 
 interface Sweep {
@@ -229,6 +239,21 @@ Hunt the incentive layer specifically (Munger: behavior follows the comp plan, n
 Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
 }
 
+function questionSweepPrompt(
+  symbol: string,
+  name: string,
+  days: number,
+  qs: { question: string; why: string }[]
+): string {
+  return `You are a research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+Before any searching, the desk's analyst framed TODAY'S FOCUS QUESTIONS — the open questions this run exists to move. Research each one directly:
+
+${qs.map((q, i) => `Q${i + 1}. ${q.question} (why the desk asks: ${q.why})`).join("\n")}
+
+Search each question from multiple angles and prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators. Favor evidence from roughly the last ${days} days — but for these questions an older primary source the desk likely hasn't seen is fair game when it actually answers the question (label it with its date). Open every finding with 'Q<n>:' naming the question it informs, and state plainly which questions found NO evidence — an honest "nothing found" is valuable. ${SCOUT_RULES}`;
+}
+
 function followUpPrompt(
   symbol: string,
   name: string,
@@ -250,8 +275,12 @@ Research it thoroughly: search from multiple angles, prefer primary sources (fil
 
 /**
  * Execute the deep multi-agent pipeline for a run created by startRun():
- *   1) Wave-1 breadth sweeps (grounded scouts, parallel): per-signal bundles,
- *      broad company news, primary sources, culture scuttlebutt
+ *   0) Question framing: the question suggestor decides what today's run must
+ *      ANSWER — worked from the certainty gap and the question method over the
+ *      board, the due-diligence record and the investor's guidance — and the
+ *      framed questions steer every later stage (circle of competence first)
+ *   1) Wave-1 breadth sweeps (grounded scouts, parallel): focus questions,
+ *      per-signal bundles, broad company news, primary sources, scuttlebutt
  *   2) Gap analysis: the analyst triages evidence vs. the board and
  *      commissions targeted follow-up probes
  *   3) Wave-2 deep-dive sweeps (parallel, stronger scout model)
@@ -279,40 +308,10 @@ export async function executeRun(userId: string, runId: string, symbol: string):
 
     const days = await windowDays(userId, symbol);
     const bundles = chunk(signals, 5);
-    const waveOneCount = bundles.length + 3;
-    await throwIfStopped(runId);
-    await setRunStage(
-      runId,
-      "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
-    );
 
-    const waveOneJobs: { label: string; prompt: string }[] = [
-      ...bundles.map((b, i) => ({
-        label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, b),
-      })),
-      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) },
-      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) },
-      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) },
-    ];
-    const waveOneSettled = await Promise.allSettled(
-      waveOneJobs.map((j) =>
-        withDeadline(`sweep:${j.label}`, (signal) =>
-          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal })
-        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
-      )
-    );
-    const sweeps: Sweep[] = waveOneSettled
-      .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
-      .map((s) => s.value);
-    if (sweeps.length === 0) {
-      const firstErr = waveOneSettled.find(
-        (s) => s.status === "rejected"
-      ) as PromiseRejectedResult;
-      throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
-    }
-
+    // Board context, the due-diligence record and the investor's guidance are
+    // needed BEFORE any searching now — the question suggestor reads them —
+    // and are reused by triage and synthesis below.
     // Stable short keys so synthesis readings can't miss on name drift.
     const keyed = signals.map((s, i) => ({ key: `S${i + 1}`, signal: s }));
     const byKey = new Map(keyed.map((k) => [k.key, k.signal]));
@@ -361,6 +360,135 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       )
     ).join("\n");
 
+    const focusAreas = await listFocusAreas(userId, symbol);
+    const guidance = (await listMessages(userId, symbol))
+      .filter((m) => m.role === "user")
+      .slice(-6)
+      .map((m) => `- ${m.content.slice(0, 300)}`)
+      .join("\n");
+    // The due-diligence record: the map of what the investor currently
+    // understands, which the circle-of-competence loop steers proposals by
+    // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
+    const ddBlock = await Promise.all([
+      listNoteSections(userId, symbol).catch(() => []),
+      listNotes(userId, symbol).catch(() => []),
+      listDiligenceResearch(userId, symbol).catch(() => []),
+      getDiligenceSynthesis(userId, symbol).catch(() => null),
+      listDiligenceEvidence(userId, symbol).catch(() => []),
+    ]).then(([s, n, r, syn, ev]) => diligenceContext(s, n, r, syn ?? null, ev));
+
+    // ---- Stage 0: the question suggestor frames what today's run must answer ----
+    // The circle-of-competence discipline made operational (FOUNDATION.md):
+    // research starts from the investor's open questions, never from the news.
+    // Graceful degrade — if framing fails, the run proceeds exactly as before.
+    await throwIfStopped(runId);
+    await setRunStage(
+      runId,
+      "questions",
+      `Question suggestor (${triageModel}) framing what today's run must answer — reading the board, the due-diligence record and your guidance…`
+    );
+    let questions: { question: string; why: string; signalKeys: string[] }[] = [];
+    try {
+      const framed = await withDeadline("questions", (signal) =>
+        claudeJSON<QuestionsOutput>({
+          model: triageModel,
+          signal,
+          // Same cached doctrine prefix as triage/synthesis — the daily cron
+          // re-reads it at ~0.1× input cost for every desk it sweeps.
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+          ],
+          messages: [
+            {
+              role: "user",
+              content: `DESK STATE (today: ${new Date().toDateString()}):
+
+ACTIVE SIGNAL BOARD (with previous readings):
+${boardBlock}
+
+INVESTOR FOCUS AREAS:
+${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
+
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
+            },
+          ],
+          schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 2500,
+          effort: "low",
+          meta: { userId, feature: "questions" },
+        })
+      );
+      questions = (framed.questions ?? [])
+        .filter((q) => q.question?.trim())
+        .slice(0, 6)
+        .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: q.signalKeys ?? [] }));
+      if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
+    } catch (e) {
+      console.error(
+        `[scalae] question framing timed out or failed (running without focus questions):`,
+        e instanceof Error ? e.message : e
+      );
+    }
+    const questionsBlock = questions.length
+      ? `\nTODAY'S FOCUS QUESTIONS (framed by the question suggestor before the sweeps — the run exists to move these):\n${questions
+          .map(
+            (q, i) =>
+              `Q${i + 1}. ${q.question} — ${q.why}${q.signalKeys.length ? ` [serves ${q.signalKeys.join(", ")}]` : ""}`
+          )
+          .join("\n")}\n`
+      : "";
+    // Every breadth scout gets the questions as steering; the dedicated
+    // focus-question sweep researches them head-on.
+    const questionSteer = questions.length
+      ? `\n\nTHE DESK'S FOCUS QUESTIONS TODAY (steer searching toward evidence that answers these; tag findings 'Informs Q<n>' where one applies):\n${questions.map((q, i) => `Q${i + 1}. ${q.question}`).join("\n")}`
+      : "";
+
+    const waveOneCount = bundles.length + 3 + (questions.length > 0 ? 1 : 0);
+    await throwIfStopped(runId);
+    await setRunStage(
+      runId,
+      "sweeping",
+      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: ${questions.length > 0 ? `${questions.length} focus questions, ` : ""}signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
+    );
+
+    const waveOneJobs: { label: string; prompt: string }[] = [
+      ...(questions.length > 0
+        ? [
+            {
+              label: "Focus-question sweep",
+              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+            },
+          ]
+        : []),
+      ...bundles.map((b, i) => ({
+        label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
+        prompt: signalSweepPrompt(symbol, ticker.name, days, b) + questionSteer,
+      })),
+      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) + questionSteer },
+      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) + questionSteer },
+      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) + questionSteer },
+    ];
+    const waveOneSettled = await Promise.allSettled(
+      waveOneJobs.map((j) =>
+        withDeadline(`sweep:${j.label}`, (signal) =>
+          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal })
+        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
+      )
+    );
+    const sweeps: Sweep[] = waveOneSettled
+      .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
+      .map((s) => s.value);
+    if (sweeps.length === 0) {
+      const firstErr = waveOneSettled.find(
+        (s) => s.status === "rejected"
+      ) as PromiseRejectedResult;
+      throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
+    }
+
     // ---- Stage 2: the analyst triages wave 1 and commissions deep dives ----
     await throwIfStopped(runId);
     await setRunStage(
@@ -386,7 +514,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         messages: [
           {
             role: "user",
-            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
+            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n${questionsBlock}\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: focus questions the sweeps left open or half-answered, signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
           },
         ],
         schema: GAP_SCHEMA as unknown as Record<string, unknown>,
@@ -454,23 +582,8 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     );
 
     const quote = await getQuote(symbol).catch(() => null);
-    const focusAreas = await listFocusAreas(userId, symbol);
-    const guidance = (await listMessages(userId, symbol))
-      .filter((m) => m.role === "user")
-      .slice(-6)
-      .map((m) => `- ${m.content.slice(0, 300)}`)
-      .join("\n");
-    // The due-diligence record: the map of what the investor currently
-    // understands, which the circle-of-competence loop steers proposals by
-    // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
-    const ddBlock = await Promise.all([
-      listNoteSections(userId, symbol).catch(() => []),
-      listNotes(userId, symbol).catch(() => []),
-      listDiligenceResearch(userId, symbol).catch(() => []),
-      getDiligenceSynthesis(userId, symbol).catch(() => null),
-      listDiligenceEvidence(userId, symbol).catch(() => []),
-    ]).then(([s, n, r, syn, ev]) => diligenceContext(s, n, r, syn ?? null, ev));
-
+    // focusAreas, guidance and the due-diligence block were gathered before
+    // the question stage (stage 0) and are reused here unchanged.
     const researchBlock = sweeps
       .map(
         (s) =>
@@ -499,7 +612,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 
 ACTIVE SIGNAL BOARD:
 ${boardBlock}
-
+${questionsBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
@@ -514,8 +627,8 @@ TASK — produce today's desk output:
    - newEvidence=false (pure carry-forward): rationale must be ONE short sentence — "No new information this run." optionally plus a brief note of what was checked (max ~140 chars total). Do NOT re-narrate the prior story, figures, or history — the board already shows them. Keep the previous level and value, delta "flat", and confidence at or slightly below the previous reading's.
    - newEvidence=true: the rationale must LEAD with what is new versus the previous reading (the delta), then its implication — never restate the whole running story. Where the board shows a "History base rate" for the signal, judge today's evidence against it: is this move normal variation for this aspect, a rhyme with a named past episode, or a genuine break from decades of record? Say which when it changes the reading.
    For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added. Never write bracketed [n] references inside rationale text — cite only via citationIndexes (the app renders them as linked chips).
-2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null).
-3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
+2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null). Weigh each item's source per the evidence doctrine: sourceClass classes the cited source (primary = the company's or a regulator's own document/statement; trade = specialist/industry press or data provider with original reporting; narrative = general-media or aggregator retelling), and sourceNote is the desk's one-line source recommendation — why this source is, or is not, the one worth opening for this item, naming the better primary source when the citation is only a retelling. When sourceIndex is null: sourceClass "narrative", sourceNote "".
+3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Where today's evidence moved a focus question, say so; focus questions that found no evidence get one honest collective line, never manufactured movement. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
 3b. dossier: the STANDING view of the business, 150-300 words in markdown — not today's news. Paragraph 1: how this company makes money right now (segments, the earnings engine, moat trajectory) as evidenced by the board's current readings. Paragraph 2: the culture/trust verdict. Update only what today's evidence moved; keep the rest stable so the investor sees a consistent thesis evolving, not a rewrite. Cite [n] source indexes on every load-bearing claim, and when a claim reads off a board signal, add that signal's key in double braces right after it — e.g. "the toll booth is repricing {{S1}} [4]" — so the investor can jump from claim to signal. Refer to signals by name in the prose (the {{Sk}} markers render as links, never as raw keys).
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Propose as the industry expert of the circle-of-competence loop: where the investor's due-diligence record (above, when present) leaves a load-bearing business-model or culture thread unexamined and unwatched, or where a signal's long-run trend would strengthen or test a section's written analysis, prefer THAT proposal and name the gap or section in its thesis. Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
 
@@ -588,6 +701,11 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
         source: src?.title ?? null,
         impact: d.impact ?? "neutral",
         signalNames: d.signalNames ?? [],
+        sourceClass:
+          src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
+            ? d.sourceClass
+            : null,
+        sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
       });
     }
 

@@ -12,6 +12,8 @@ const en = {
     "Your deep qualitative research on {name} — your own notes plus desk research that enters the record only when you accept it.",
   openDiligence: "Due diligence",
   openSignals: "Signals desk",
+  tabDiligence: "Due diligence",
+  tabSignals: "Signals",
   loading: "Loading the record…",
 
   // Standing synthesis of core insights
@@ -73,6 +75,8 @@ const zh: Record<keyof typeof en, string> = {
     "你对 {name} 的深度定性研究——你自己的笔记，加上只有经你接受才会进入记录的分析台研究。",
   openDiligence: "尽职调查",
   openSignals: "信号工作台",
+  tabDiligence: "尽职调查",
+  tabSignals: "信号",
   loading: "正在加载记录……",
 
   synthesisTitle: "核心洞见",

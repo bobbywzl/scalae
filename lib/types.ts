@@ -125,6 +125,14 @@ export interface Reading {
   citations: Citation[];
 }
 
+/**
+ * Evidence class of a digest item's cited source, per the desk's weighing
+ * doctrine: "primary" = the company's or a regulator's own document
+ * (mechanism-level), "trade" = specialist/industry press with original
+ * reporting, "narrative" = general media / aggregator retelling.
+ */
+export type SourceClass = "primary" | "trade" | "narrative";
+
 export interface DigestItem {
   id: string;
   symbol: string;
@@ -136,6 +144,10 @@ export interface DigestItem {
   source: string | null;
   impact: Impact;
   signalNames: string[];
+  /** Evidence class of the cited source (null on legacy items). */
+  sourceClass: SourceClass | null;
+  /** The desk's one-line source recommendation: why this source for this item. */
+  sourceNote: string | null;
 }
 
 export interface Run {
@@ -151,6 +163,12 @@ export interface Run {
   dossier: string | null;
   /** The run's numbered source list — resolves [n] citations to links. */
   sources: Citation[];
+  /**
+   * Today's focus questions, framed by the question suggestor before the
+   * sweeps (the run's first stage). Empty on legacy runs or when framing
+   * gracefully degraded.
+   */
+  questions: string[];
   error: string | null;
 }
 

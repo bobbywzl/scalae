@@ -117,10 +117,12 @@ const en = {
   backToBoard: "Back to board",
 
   // RunBanner
+  stageQuestions: "Questions framed",
   stageSweeping: "Scouts sweep the web",
   stageProbing: "Analyst commissions deep dives",
   stageSynthesizing: "Deep synthesis",
   stageRecording: "Board updated",
+  runQuestionsTitle: "Today's focus questions",
   runFailed: "Research run failed",
   runInProgress: "Daily research in progress",
   startedAgo: "started {when}",
@@ -228,10 +230,12 @@ const zh: Record<keyof typeof en, string> = {
 
   backToBoard: "返回信号板",
 
+  stageQuestions: "研究问题已拟定",
   stageSweeping: "侦察员扫描全网",
   stageProbing: "分析师委派深度调查",
   stageSynthesizing: "深度综合",
   stageRecording: "信号板已更新",
+  runQuestionsTitle: "今日核心问题",
   runFailed: "研究运行失败",
   runInProgress: "每日研究进行中",
   startedAgo: "开始于 {when}",

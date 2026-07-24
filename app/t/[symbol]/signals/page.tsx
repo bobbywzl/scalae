@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
+import { DeskTabs } from "@/components/DeskTabs";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
@@ -487,6 +488,7 @@ export default function DeskPage() {
         <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
         <p className="text-muted text-xs truncate">{ticker.name}</p>
       </div>
+      {!onboarding && <DeskTabs symbol={symbol} active="signals" />}
       <div className="flex items-center gap-2 ml-auto">
         {quote?.price != null && (
           <>
@@ -514,12 +516,6 @@ export default function DeskPage() {
                 {t("desk.stopResearch")}
               </button>
             )}
-            <Link
-              href={`/t/${encodeURIComponent(symbol)}`}
-              className="rounded-lg bg-accent/12 hover:bg-accent/20 text-accent text-xs font-medium px-3 py-1.5 transition-colors"
-            >
-              {t("dd.openDiligence")}
-            </Link>
             <button
               onClick={startRun}
               disabled={running}

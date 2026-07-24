@@ -2,8 +2,22 @@
 
 import { Annotatable } from "@/components/Annotations";
 import { useT } from "@/components/PrefsProvider";
-import type { DigestItem, Signal } from "@/lib/types";
+import type { TKey } from "@/lib/i18n/dictionaries";
+import type { DigestItem, Signal, SourceClass } from "@/lib/types";
 import { IMPACT_DOT, impactLabel, timeAgo } from "./util";
+
+// Evidence-class chips, per the desk's weighing doctrine: primary documents
+// outrank trade press, which outranks aggregator retellings.
+const SOURCE_CLASS_CHIP: Record<SourceClass, string> = {
+  primary: "bg-gain/15 text-gain",
+  trade: "bg-accent/12 text-accent",
+  narrative: "bg-ink/8 text-muted",
+};
+const SOURCE_CLASS_LABEL: Record<SourceClass, TKey> = {
+  primary: "signals.sourceClassPrimary",
+  trade: "signals.sourceClassTrade",
+  narrative: "signals.sourceClassNarrative",
+};
 
 /**
  * Evidence feed. Signal tags resolve against the live board: active signals
@@ -55,8 +69,35 @@ export function DigestFeed({
               )}
               <p className="text-xs text-[#b5b5ba] mt-0.5 leading-relaxed">{d.summary}</p>
             </Annotatable>
+            {/* The source, emphasized: its evidence class and the desk's
+                one-line recommendation on whether it's the one to open.
+                Legacy items (no class/note) keep the old muted byline. */}
+            {(d.sourceClass || d.sourceNote) && (
+              <p className="text-[11px] mt-1 leading-snug">
+                {d.sourceClass && (
+                  <span
+                    className={`mr-1.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide align-middle ${SOURCE_CLASS_CHIP[d.sourceClass]}`}
+                  >
+                    {t(SOURCE_CLASS_LABEL[d.sourceClass])}
+                  </span>
+                )}
+                {d.url ? (
+                  <a
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-emph hover:text-accent transition-colors"
+                  >
+                    {d.source ?? d.url}
+                  </a>
+                ) : (
+                  d.source && <span className="font-medium text-emph">{d.source}</span>
+                )}
+                {d.sourceNote && <span className="text-muted"> — {d.sourceNote}</span>}
+              </p>
+            )}
             <p className="text-[10px] text-muted mt-1">
-              {d.source ? `${d.source} · ` : ""}
+              {!(d.sourceClass || d.sourceNote) && d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date, t)}
               {onClip && (
                 <button

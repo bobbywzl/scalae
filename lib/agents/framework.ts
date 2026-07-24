@@ -664,6 +664,56 @@ export const QUICK_CHAT_SCHEMA = {
   },
 } as const;
 
+// ---------------------------------------------------------------------------
+// The question suggestor — the daily run's FIRST stage. Before any searching,
+// the desk decides what it must ANSWER today: the circle-of-competence
+// discipline made operational. The framed questions steer the scout sweeps,
+// the gap triage and the synthesis (FOUNDATION.md: research starts from the
+// investor's open questions, never from the news).
+// ---------------------------------------------------------------------------
+
+export const RUN_QUESTIONS_DOCTRINE = `FRAMING TODAY'S QUESTIONS (the question suggestor — the run's first stage):
+Before any searching, decide what this desk must ANSWER today. Research that starts from questions compounds the investor's circle of competence; research that starts from "what's new" produces a news feed. Work from the certainty-gap master question — what is preventing ~90% certainty about the next ten years of cash flow and growth? — through the question-generation method above, against everything the desk already holds: the board and its previous readings, the due-diligence record (the investor's own evolving thesis), and the investor's recent guidance.
+
+Rules:
+- 3-6 questions, each genuinely OPEN for this company today — never a question the record already answers, never generic checklist filler that would fit any ticker.
+- Invert first: at least one question must hunt evidence that would REFUTE the board's current read or catch a kill-path's earliest observable symptom. Steering-vs-denial questions (is management naming the threat and acting?) are first-rate here.
+- One-foot hurdles only: each question must be answerable from the open web THIS run — name the company, metric, event, actor or period. "Is the moat durable?" is not a question; "did the July price increase hold volume through the EU duty change?" is.
+- Tie each question to what it serves: signalKeys lists the board signals it feeds (empty for board-level questions); "why" says in one line which certainty gap, kill-path or record thread makes it TODAY'S question.
+- The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.`;
+
+export const RUN_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["questions"],
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["question", "why", "signalKeys"],
+        properties: {
+          question: {
+            type: "string",
+            description: "A concrete, search-answerable research question for today's run.",
+          },
+          why: {
+            type: "string",
+            description:
+              "One line: the certainty gap, kill-path or due-diligence thread that makes this today's question.",
+          },
+          signalKeys: {
+            type: "array",
+            description: 'Bracketed keys of the board signals this question feeds, e.g. ["S2"]. Empty if board-level.',
+            items: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 /**
  * Mid-run gap analysis: after the breadth sweeps, the analyst triages the
  * evidence against the board and commissions targeted deep-dive sweeps for
@@ -761,7 +811,7 @@ export const SYNTHESIS_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["headline", "summary", "sourceIndex", "impact", "signalNames"],
+        required: ["headline", "summary", "sourceIndex", "impact", "signalNames", "sourceClass", "sourceNote"],
         properties: {
           headline: { type: "string" },
           summary: { type: "string" },
@@ -771,6 +821,17 @@ export const SYNTHESIS_SCHEMA = {
           },
           impact: { type: "string", enum: ["positive", "negative", "mixed", "neutral"] },
           signalNames: { type: "array", items: { type: "string" } },
+          sourceClass: {
+            type: "string",
+            enum: ["primary", "trade", "narrative"],
+            description:
+              'Evidence class of the cited source, per the weighing doctrine: "primary" = the company\'s or a regulator\'s own document or statement (filings, transcripts, orders — mechanism-level); "trade" = specialist/industry press or data provider with original reporting; "narrative" = general media or aggregator retelling. Use "narrative" when sourceIndex is null.',
+          },
+          sourceNote: {
+            type: "string",
+            description:
+              'The desk\'s source recommendation for this item, one line (max ~140 chars): why THIS source is — or is not — the one to open, relative to what the item claims (e.g. "the 8-K itself: exact covenant terms", "aggregator retelling; the underlying proxy is the source to read"). "" when sourceIndex is null.',
+          },
         },
       },
     },

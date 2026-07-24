@@ -225,11 +225,17 @@ through accept/dismiss review, and never edits what the investor wrote.
 
 ## Self-reinforcing discovery
 
-The desk is not a static dashboard. Each daily run may surface a small number of new
-candidate signals discovered in the evidence — threads the current board misses that
-better illuminate the business model or culture. This loop is what makes the desk
-smarter every day; the two anchors and the no-duplication rule are what keep it from
-sprawling.
+The desk is not a static dashboard. Each daily run **opens with a question-framing
+stage**: before any searching, the desk asks what it must answer today — worked from
+the certainty-gap master question and the question-generation method over the board,
+the due-diligence record and the investor's guidance — and those questions steer the
+day's sweeps, probes and synthesis. Research starts from the investor's open
+questions, never from the news; that is the circle of competence run as a loop.
+
+Each daily run may also surface a small number of new candidate signals discovered
+in the evidence — threads the current board misses that better illuminate the
+business model or culture. This loop is what makes the desk smarter every day; the
+two anchors and the no-duplication rule are what keep it from sprawling.
 
 ## Evidence discipline
 

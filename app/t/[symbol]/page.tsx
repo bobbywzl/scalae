@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { DeskTabs } from "@/components/DeskTabs";
 import { Markdown } from "@/components/Markdown";
 import { NoteEditor } from "@/components/NoteEditor";
 import { useT } from "@/components/PrefsProvider";
@@ -149,21 +150,14 @@ export default function DiligencePage() {
           {t("common.backToWatchlist")}
         </Link>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-tight">
-            {ticker.symbol} <span className="text-muted font-normal">· {t("dd.title")}</span>
-          </h1>
+          <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
           <p className="text-muted text-xs">{t("dd.pageSubtitle", { name: ticker.name })}</p>
         </div>
+        <DeskTabs symbol={symbol} active="dd" />
         <div className="flex items-center gap-2 ml-auto">
           {researching && (
             <span className="text-[11px] text-accent pulse-soft">{t("desk.researching")}</span>
           )}
-          <Link
-            href={`/t/${encodeURIComponent(symbol)}/signals`}
-            className="rounded-lg bg-accent/12 hover:bg-accent/20 text-accent text-xs font-medium px-3 py-1.5 transition-colors"
-          >
-            {t("dd.openSignals")} →
-          </Link>
         </div>
       </header>
 
