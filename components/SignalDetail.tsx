@@ -1,16 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { chipLabel, linkCitations, sourceClass, type SourceClass } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
-import type { Attachment, ChatMessage, Citation, Signal, SignalWithReadings } from "@/lib/types";
+import type {
+  Attachment,
+  ChatMessage,
+  Citation,
+  DigestItem,
+  ReadingLevel,
+  Signal,
+  SignalWithReadings,
+} from "@/lib/types";
 import { Annotatable } from "./Annotations";
 import { ChatPanel } from "./ChatPanel";
 import { ClipDialog, type ClipPayload } from "./ClipDialog";
 import { Markdown } from "./Markdown";
 import { useT } from "@/components/PrefsProvider";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
-import { api, DELTA_ARROW, LEVEL_STYLE, levelLabel, localizeError, timeAgo } from "./util";
+import { api, DELTA_ARROW, IMPACT_DOT, LEVEL_STYLE, levelLabel, localizeError, timeAgo } from "./util";
 
 const fmtDay = (iso: string, locale: string) => {
   const d = new Date(iso);
@@ -41,6 +49,7 @@ const SRC_CLASS_TITLE_KEY: Record<SourceClass, TKey> = {
 export function SignalDetail({
   signal,
   signalsById,
+  digest = [],
   onClose,
   onAct,
   actingId,
@@ -53,6 +62,8 @@ export function SignalDetail({
 }: {
   signal: SignalWithReadings;
   signalsById: Map<string, Signal>;
+  /** The desk's evidence feed — catalog entries import their descriptions from it. */
+  digest?: DigestItem[];
   onClose: () => void;
   onAct: (id: string, action: "approve" | "dismiss") => void;
   actingId: string | null;
@@ -223,6 +234,31 @@ export function SignalDetail({
   const level = r ? LEVEL_STYLE[r.level] : null;
   const delta = r ? DELTA_ARROW[r.delta] : null;
   const sources = signal.sources ?? [];
+
+  // Evidence catalog enrichment: each source imports its DESCRIPTION from the
+  // evidence feed (headline, summary, impact, the desk's source note) and its
+  // IMPLICATION for this signal from the most recent reading that cited it —
+  // the analyst's doctrine-anchored judgment, not a bare link list.
+  const digestByUrl = useMemo(() => {
+    const m = new Map<string, DigestItem>();
+    for (const d of digest) {
+      if (d.url && !m.has(d.url)) m.set(d.url, d); // newest first in the feed
+    }
+    return m;
+  }, [digest]);
+  const implicationByUrl = useMemo(() => {
+    const m = new Map<string, { date: string; level: ReadingLevel; rationale: string }>();
+    for (const h of signal.history) {
+      // history is newest-first: the first hit per source is the latest word.
+      for (const c of h.citations) {
+        if (c.url && !m.has(c.url) && h.rationale) {
+          m.set(c.url, { date: h.date, level: h.level, rationale: h.rationale });
+        }
+      }
+    }
+    return m;
+  }, [signal.history]);
+  const clipText = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
   const sectionTitle = "text-[10px] uppercase tracking-wider text-muted font-semibold";
 
   const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
@@ -532,9 +568,46 @@ export function SignalDetail({
                         {src.lastSeen !== src.firstSeen && ` → ${fmtDay(src.lastSeen, locale)}`}
                       </span>
                     </div>
-                    <a href={src.url} target="_blank" rel="noreferrer" className="block text-[#b5b5ba] hover:text-white mt-0.5">
-                      {src.title.length > 100 ? src.title.slice(0, 100) + "…" : src.title}
-                    </a>
+                    {src.title && src.title !== src.domain && (
+                      <a href={src.url} target="_blank" rel="noreferrer" className="block text-[#b5b5ba] hover:text-white mt-0.5">
+                        {src.title.length > 100 ? src.title.slice(0, 100) + "…" : src.title}
+                      </a>
+                    )}
+                    {(() => {
+                      const d = digestByUrl.get(src.url);
+                      const imp = implicationByUrl.get(src.url);
+                      if (!d && !imp) return null;
+                      return (
+                        <div className="mt-1 space-y-1">
+                          {d && (
+                            <p className="text-[11px] leading-snug">
+                              <span
+                                className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 align-middle ${IMPACT_DOT[d.impact]}`}
+                              />
+                              <span className="font-medium text-emph">{d.headline}</span>
+                              {d.summary && (
+                                <span className="text-muted"> — {clipText(d.summary, 200)}</span>
+                              )}
+                            </p>
+                          )}
+                          {d?.sourceNote && (
+                            <p className="text-[10px] text-muted/90 leading-snug">☞ {d.sourceNote}</p>
+                          )}
+                          {imp && (
+                            <p className="text-[11px] text-[#b5b5ba] leading-snug">
+                              <span className="text-accent/85 font-medium">
+                                {t("signals.srcImplication", {
+                                  date: fmtDay(imp.date, locale),
+                                  level: levelLabel(imp.level, t),
+                                })}
+                                :
+                              </span>{" "}
+                              {clipText(imp.rationale, 220)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </li>
                 ))}
               </ul>

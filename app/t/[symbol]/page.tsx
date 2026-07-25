@@ -359,12 +359,15 @@ function SectionBlock({
         >
           {t("notes.addNotepad")}
         </button>
+        {/* Deleting a section must be findable at a glance — a real button,
+            not a ghost link (still confirm-gated; a whole section goes). */}
         <button
           onClick={remove}
           disabled={busy}
-          className="ml-auto rounded-md px-2 py-0.5 text-[10px] text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
+          title={t("notes.deleteSection")}
+          className="ml-auto flex items-center gap-1 rounded-md border border-loss/25 bg-loss/8 hover:bg-loss/18 px-2 py-0.5 text-[10px] font-medium text-loss transition-colors disabled:opacity-40"
         >
-          {t("notes.deleteSection")}
+          🗑 {t("notes.deleteSection")}
         </button>
       </div>
 

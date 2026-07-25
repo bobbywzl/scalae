@@ -713,6 +713,11 @@ export async function insertDigestItem(userId: string, d: Omit<DigestItem, "id">
                   ${d.url}, ${d.source}, ${d.impact}, ${JSON.stringify(d.signalNames)}, ${d.sourceClass}, ${d.sourceNote})`;
 }
 
+/** Remove one item from the evidence feed (the readings keep their citations). */
+export async function deleteDigestItem(userId: string, id: string): Promise<void> {
+  await q`DELETE FROM digest_items WHERE "userId" = ${userId} AND id = ${id}`;
+}
+
 export async function recentDigest(userId: string, symbol: string, limit = 24): Promise<DigestItem[]> {
   const rows = await q<DigestRow>`
     SELECT id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames", "sourceClass", "sourceNote"

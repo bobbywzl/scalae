@@ -214,6 +214,23 @@ export default function DeskPage() {
     }
   }
 
+  // Curate the evidence feed: remove one item (readings keep their citations).
+  async function deleteDigest(d: DigestItem) {
+    if (!confirm(t("signals.feedRemoveConfirm", { headline: d.headline }))) return;
+    // Optimistic: drop it immediately; the next poll reconciles either way.
+    setDesk((prev) =>
+      prev ? { ...prev, digest: prev.digest.filter((x) => x.id !== d.id) } : prev
+    );
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/digest`, {
+        method: "DELETE",
+        body: JSON.stringify({ id: d.id }),
+      });
+    } catch {
+      load(); // restore on failure
+    }
+  }
+
   // Pause: stop waiting locally AND cancel server-side — the in-flight turn's
   // reply is discarded and no desk action is taken.
   async function pauseChat() {
@@ -744,6 +761,7 @@ export default function DeskPage() {
                     items={desk.digest.slice(0, 10)}
                     signals={[...desk.active, ...desk.retired, ...(desk.dismissed ?? [])]}
                     onOpenSignal={(id) => setDetailId(id)}
+                    onDelete={deleteDigest}
                     onClip={(d: DigestItem) => setClipItem(d)}
                     onTrackStory={(d: DigestItem) =>
                       sendChat(
@@ -1097,6 +1115,7 @@ export default function DeskPage() {
         <SignalDetail
           signal={detailSignal}
           signalsById={signalsById}
+          digest={desk.digest}
           onClose={() => setDetailId(null)}
           onAct={act}
           actingId={actingId}

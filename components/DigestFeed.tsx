@@ -30,6 +30,7 @@ export function DigestFeed({
   onOpenSignal,
   onTrackStory,
   onClip,
+  onDelete,
 }: {
   items: DigestItem[];
   /** Board signals of any status, used to resolve tag names. */
@@ -39,6 +40,8 @@ export function DigestFeed({
   onTrackStory?: (item: DigestItem) => void;
   /** Clip this evidence into one of the investor's notepads (Notes page). */
   onClip?: (item: DigestItem) => void;
+  /** Remove this item from the feed (curation — readings keep their citations). */
+  onDelete?: (item: DigestItem) => void;
 }) {
   const { t } = useT();
   if (items.length === 0) {
@@ -115,6 +118,15 @@ export function DigestFeed({
                   className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
                 >
                   {t("signals.trackThis")}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(d)}
+                  title={t("signals.feedRemoveTitle")}
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-loss/10 hover:border-loss/30 px-1.5 py-px text-[10px] text-muted hover:text-loss transition-colors"
+                >
+                  ✕ {t("signals.feedRemove")}
                 </button>
               )}
               {d.signalNames.length > 0 && (
