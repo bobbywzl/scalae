@@ -214,6 +214,31 @@ captions as the investor's claims about the file, weighed like any framing.
   as its red-flag spine. The investor can skip, revisit, or short-circuit any
   stage at any time.
 
+## The finance-cleansing bench — owner-earnings normalization, never adjusted metrics
+
+Each ticker carries, beside the record and the board, the investor's **cleansed view
+of the reported financials**: the raw public data overlaid with specific, human-approved
+adjustments that strip genuine distortions — **noise** (one-time impairments and
+write-downs, settlements, disposals, unstable income with no forward claim) and
+**windfall growth** (unrealized mark-to-market gains, revaluation one-offs when a
+held stake's paper valuation jumps). This is the business-model anchor applied to
+the numbers themselves: owner earnings made visible.
+
+- **It is the opposite of promotional "adjusted earnings."** Gains are stripped as
+  readily as charges; real recurring costs (scheduled depreciation, stock comp,
+  maintenance capex) are never removed — depreciation is real. Serially recurring
+  "one-time" charges are flagged as a culture datum, not cleansed away.
+- **Every delta traces** to a named disclosure with the disclosed amount, and the
+  raw provider data is never modified — cleansing is a deterministic overlay.
+- **Human approval gates everything.** The desk's moderation pass and the financial
+  analyst desk only *propose* adjustments; an explicit instruction from the investor
+  is the one thing that applies a change in the same gesture, and every apply is
+  reversible.
+- **The history is the point.** An append-only log records every difference between
+  the raw public record and the customized view — proposal, application, dismissal,
+  revert — dated and per line-item. A cleansed view that cannot show its audit
+  trail is exactly the instrument this desk refuses.
+
 ## Human sovereignty
 
 Nothing the agents devise becomes active without the investor's explicit approval.

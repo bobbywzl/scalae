@@ -14,6 +14,7 @@ const en = {
   openSignals: "Signals desk",
   tabDiligence: "Due diligence",
   tabSignals: "Signals",
+  tabFinCleansing: "Finance cleansing",
   loading: "Loading the record…",
 
   // Standing synthesis of core insights
@@ -77,6 +78,7 @@ const zh: Record<keyof typeof en, string> = {
   openSignals: "信号工作台",
   tabDiligence: "尽职调查",
   tabSignals: "信号",
+  tabFinCleansing: "财务清洗",
   loading: "正在加载记录……",
 
   synthesisTitle: "核心洞见",

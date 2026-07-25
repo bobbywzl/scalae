@@ -18,6 +18,13 @@ import type {
   FeedbackMessage,
   FeedbackStatus,
   FeedbackTicket,
+  FinAdjustment,
+  FinAdjustmentOrigin,
+  FinAdjustmentProposal,
+  FinAdjustmentStatus,
+  FinCleansingEvent,
+  FinMessage,
+  FinSuggestRun,
   FocusArea,
   Note,
   NoteSection,
@@ -395,6 +402,63 @@ export const SCHEMA_STATEMENTS: string[] = [
   // ---- chunked evidence uploads: rows assemble across requests and only
   // become part of the record once complete (legacy rows default complete). ----
   `ALTER TABLE dd_evidence ADD COLUMN IF NOT EXISTS complete INTEGER NOT NULL DEFAULT 1`,
+  // ---- finance cleansing: user-owned adjustments overlaid on the raw
+  // financials (the provider cache is never touched), an append-only audit
+  // log of every raw → cleansed difference, the suggestion passes, and the
+  // financial analyst desk's chat thread. Nothing is ever deleted — dismissed
+  // and reverted adjustments stay in the history. ----
+  `CREATE TABLE IF NOT EXISTS fin_adjustments (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "metricKey" TEXT NOT NULL,
+    "fiscalYear" TEXT NOT NULL,
+    delta DOUBLE PRECISION NOT NULL,
+    title TEXT NOT NULL,
+    rationale TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'noise',
+    origin TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'suggested',
+    sources TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TEXT NOT NULL,
+    "appliedAt" TEXT,
+    "decidedAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_finadj_user ON fin_adjustments("userId", symbol, status)`,
+  `CREATE TABLE IF NOT EXISTS fin_cleansing_events (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "adjustmentId" TEXT NOT NULL,
+    action TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    at TEXT NOT NULL,
+    seq BIGINT GENERATED ALWAYS AS IDENTITY
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_finevt_user ON fin_cleansing_events("userId", symbol, seq)`,
+  `CREATE TABLE IF NOT EXISTS fin_suggest_runs (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    note TEXT,
+    "proposalCount" INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    "createdAt" TEXT NOT NULL,
+    "finishedAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_finrun_user ON fin_suggest_runs("userId", symbol, "createdAt")`,
+  `CREATE TABLE IF NOT EXISTS fin_messages (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    "adjustmentIds" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TEXT NOT NULL,
+    seq BIGINT GENERATED ALWAYS AS IDENTITY
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_finmsg_user ON fin_messages("userId", symbol, seq)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -452,6 +516,10 @@ export async function removeTicker(userId: string, symbol: string): Promise<void
   await q`DELETE FROM dd_research WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM dd_synthesis WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM dd_evidence WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM fin_adjustments WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM fin_cleansing_events WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM fin_suggest_runs WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM fin_messages WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
@@ -1370,6 +1438,229 @@ export async function updateDiligenceEvidenceCaption(
 
 export async function deleteDiligenceEvidence(userId: string, id: string): Promise<void> {
   await q`DELETE FROM dd_evidence WHERE id = ${id} AND "userId" = ${userId}`;
+}
+
+// ---------------------------------------------------------------------------
+// Finance cleansing: adjustments (human-gated overlays on the raw financials),
+// the append-only audit log, suggestion passes, and the analyst desk thread.
+// ---------------------------------------------------------------------------
+
+interface FinAdjustmentRow extends Omit<FinAdjustment, "sources"> {
+  sources: string;
+}
+
+function parseFinAdjustment(r: FinAdjustmentRow): FinAdjustment {
+  let sources: Citation[] = [];
+  try {
+    sources = JSON.parse(r.sources || "[]") as Citation[];
+  } catch {
+    /* malformed row — adjustment renders without linked citations */
+  }
+  return { ...r, sources };
+}
+
+/** Every adjustment for a ticker, any status, newest first. */
+export async function listFinAdjustments(userId: string, symbol: string): Promise<FinAdjustment[]> {
+  const rows = await q<FinAdjustmentRow>`
+    SELECT * FROM fin_adjustments WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" DESC`;
+  return rows.map(parseFinAdjustment);
+}
+
+export async function getFinAdjustment(userId: string, id: string): Promise<FinAdjustment | undefined> {
+  const rows = await q<FinAdjustmentRow>`
+    SELECT * FROM fin_adjustments WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0] ? parseFinAdjustment(rows[0]) : undefined;
+}
+
+/** Park a new adjustment. Status 'suggested' (the review gate) unless the caller applies it in the same gesture (an explicit investor instruction). */
+export async function insertFinAdjustment(
+  userId: string,
+  symbol: string,
+  p: FinAdjustmentProposal,
+  origin: FinAdjustmentOrigin,
+  sources: Citation[],
+  status: Extract<FinAdjustmentStatus, "suggested" | "applied"> = "suggested"
+): Promise<FinAdjustment> {
+  const ts = now();
+  const row: FinAdjustment = {
+    id: uid(),
+    symbol,
+    metricKey: p.metricKey,
+    fiscalYear: p.fiscalYear,
+    delta: p.delta,
+    title: p.title.trim().slice(0, 160),
+    rationale: p.rationale.trim().slice(0, 1200),
+    kind: p.kind === "growth" ? "growth" : "noise",
+    origin,
+    status,
+    sources,
+    createdAt: ts,
+    appliedAt: status === "applied" ? ts : null,
+    decidedAt: null,
+  };
+  await q`INSERT INTO fin_adjustments (id, "userId", symbol, "metricKey", "fiscalYear", delta, title, rationale, kind, origin, status, sources, "createdAt", "appliedAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.metricKey}, ${row.fiscalYear}, ${row.delta},
+                  ${row.title}, ${row.rationale}, ${row.kind}, ${row.origin}, ${row.status},
+                  ${JSON.stringify(row.sources)}, ${row.createdAt}, ${row.appliedAt})`;
+  return row;
+}
+
+/**
+ * Gated status transitions — each guarded to its legal predecessor so a stale
+ * click can't double-apply or resurrect a decided row. Returns the updated
+ * adjustment, or undefined when the transition didn't apply.
+ *   apply:   suggested → applied      (the investor's approval)
+ *   dismiss: suggested → dismissed    (rejected; stays in history)
+ *   revert:  applied   → reverted     (undone; stays in history)
+ */
+export async function transitionFinAdjustment(
+  userId: string,
+  id: string,
+  action: "apply" | "dismiss" | "revert"
+): Promise<FinAdjustment | undefined> {
+  const ts = now();
+  let rows: FinAdjustmentRow[];
+  if (action === "apply") {
+    rows = await q<FinAdjustmentRow>`
+      UPDATE fin_adjustments SET status = 'applied', "appliedAt" = ${ts}
+      WHERE id = ${id} AND "userId" = ${userId} AND status = 'suggested' RETURNING *`;
+  } else if (action === "dismiss") {
+    rows = await q<FinAdjustmentRow>`
+      UPDATE fin_adjustments SET status = 'dismissed', "decidedAt" = ${ts}
+      WHERE id = ${id} AND "userId" = ${userId} AND status = 'suggested' RETURNING *`;
+  } else {
+    rows = await q<FinAdjustmentRow>`
+      UPDATE fin_adjustments SET status = 'reverted', "decidedAt" = ${ts}
+      WHERE id = ${id} AND "userId" = ${userId} AND status = 'applied' RETURNING *`;
+  }
+  return rows[0] ? parseFinAdjustment(rows[0]) : undefined;
+}
+
+/** Append one entry to the cleansing audit log (never updated, never deleted). */
+export async function insertFinCleansingEvent(
+  userId: string,
+  symbol: string,
+  adjustmentId: string,
+  action: FinCleansingEvent["action"],
+  detail: string
+): Promise<void> {
+  await q`INSERT INTO fin_cleansing_events (id, "userId", symbol, "adjustmentId", action, detail, at)
+          VALUES (${uid()}, ${userId}, ${symbol}, ${adjustmentId}, ${action}, ${detail.slice(0, 400)}, ${now()})`;
+}
+
+/** The cleansing audit log, newest first. */
+export async function listFinCleansingEvents(
+  userId: string,
+  symbol: string,
+  limit = 200
+): Promise<FinCleansingEvent[]> {
+  return q<FinCleansingEvent>`
+    SELECT id, symbol, "adjustmentId", action, detail, at
+    FROM fin_cleansing_events WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY seq DESC LIMIT ${limit}`;
+}
+
+// ---------- suggestion passes (the finance bench's research-run analogue) ----------
+
+export async function createFinSuggestRun(userId: string, symbol: string): Promise<FinSuggestRun> {
+  const run: FinSuggestRun = {
+    id: uid(),
+    symbol,
+    status: "running",
+    note: null,
+    proposalCount: 0,
+    error: null,
+    createdAt: now(),
+    finishedAt: null,
+  };
+  await q`INSERT INTO fin_suggest_runs (id, "userId", symbol, status, "createdAt")
+          VALUES (${run.id}, ${userId}, ${run.symbol}, 'running', ${run.createdAt})`;
+  return run;
+}
+
+/** Complete a pass (running-only guard — a stopped pass can't resurrect). */
+export async function finishFinSuggestRun(id: string, note: string, proposalCount: number): Promise<void> {
+  await q`UPDATE fin_suggest_runs SET status = 'done', note = ${note}, "proposalCount" = ${proposalCount},
+          "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
+}
+
+export async function failFinSuggestRun(id: string, error: string): Promise<void> {
+  await q`UPDATE fin_suggest_runs SET status = 'error', error = ${error}, "finishedAt" = ${now()}
+          WHERE id = ${id} AND status = 'running'`;
+}
+
+/** Stop the in-flight pass on the investor's command; true if one was stopped. */
+export async function stopFinSuggestRun(userId: string, symbol: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    UPDATE fin_suggest_runs SET status = 'stopped',
+           error = 'Stopped — start a fresh pass when ready.', "finishedAt" = ${now()}
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running'
+    RETURNING id`;
+  return rows.length > 0;
+}
+
+/** A pass's current status (for the pipeline's cooperative-cancellation checkpoints). */
+export async function finSuggestRunStatus(id: string): Promise<string | undefined> {
+  const rows = await q<{ status: string }>`SELECT status FROM fin_suggest_runs WHERE id = ${id}`;
+  return rows[0]?.status;
+}
+
+export async function latestFinSuggestRun(
+  userId: string,
+  symbol: string
+): Promise<FinSuggestRun | undefined> {
+  const rows = await q<FinSuggestRun>`
+    SELECT id, symbol, status, note, "proposalCount", error, "createdAt", "finishedAt"
+    FROM fin_suggest_runs WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" DESC LIMIT 1`;
+  return rows[0];
+}
+
+/** Mark passes stuck in 'running' for over 15 minutes as failed (instance died mid-pass). */
+export async function reapStuckFinSuggestRuns(userId: string, symbol: string): Promise<void> {
+  const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+  await q`UPDATE fin_suggest_runs SET status = 'error',
+          error = 'Pass interrupted (server restarted mid-pass). Run it again.', "finishedAt" = ${now()}
+          WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' AND "createdAt" < ${cutoff}`;
+}
+
+// ---------- the financial analyst desk's thread ----------
+
+interface FinMessageRow extends Omit<FinMessage, "adjustmentIds"> {
+  adjustmentIds: string;
+}
+
+export async function insertFinMessage(
+  userId: string,
+  symbol: string,
+  role: "user" | "assistant",
+  content: string,
+  adjustmentIds: string[] = []
+): Promise<FinMessage> {
+  const m: FinMessage = {
+    id: uid(),
+    symbol,
+    role,
+    content,
+    adjustmentIds,
+    createdAt: now(),
+  };
+  await q`INSERT INTO fin_messages (id, "userId", symbol, role, content, "adjustmentIds", "createdAt")
+          VALUES (${m.id}, ${userId}, ${m.symbol}, ${m.role}, ${m.content}, ${JSON.stringify(m.adjustmentIds)}, ${m.createdAt})`;
+  return m;
+}
+
+export async function listFinMessages(
+  userId: string,
+  symbol: string,
+  limit = 200
+): Promise<FinMessage[]> {
+  const rows = await q<FinMessageRow>`
+    SELECT id, symbol, role, content, "adjustmentIds", "createdAt"
+    FROM fin_messages WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY seq ASC LIMIT ${limit}`;
+  return rows.map((r) => ({ ...r, adjustmentIds: JSON.parse(r.adjustmentIds) as string[] }));
 }
 
 // ---------- text annotations (highlight-by-selection) ----------

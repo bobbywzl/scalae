@@ -111,6 +111,82 @@ const en = {
   addPeersGo: "Compare",
   colTicker: "Ticker",
   thisCompany: "this",
+
+  // ---- Finance cleansing (the /t/[symbol]/financials screen) ----
+  cleansePageSubtitle:
+    "Your customized view of {name}’s reported record — noise and windfalls stripped, every change traced.",
+  cleanseLoading: "Opening the bench…",
+  cleanseUnavailable:
+    "Financials aren’t available for this ticker, so there is nothing to cleanse yet. The rest of the desk keeps working without them.",
+
+  // Raw ↔ cleansed view toggle
+  viewCleansed: "Cleansed",
+  viewReported: "As reported",
+  viewCleansedNote:
+    "{n} applied adjustment(s) move {m} cell(s) — highlighted below. The valuation snapshot, peers, and rows whose inputs aren’t in this table (gross margin, ROIC, ROA, NOPAT, FCFF, tax rate, current ratio, interest coverage, DPS) stay as reported.",
+  cellReportedTip: "As reported: {raw} · via {titles}",
+
+  // The "suggest moderations" pass
+  suggestBtn: "✦ Suggest moderations",
+  suggestRunning: "Scanning the record…",
+  suggestStop: "Stop pass",
+  suggestRunningNote:
+    "Scanning the company’s disclosures for one-time items and windfall gains — both directions. A few minutes.",
+  suggestFailed: "Pass failed: {error}",
+  suggestNoteTitle: "Last pass",
+  suggestFoundN: "{n} proposal(s) parked for your review.",
+  suggestFoundNone: "Nothing new to propose.",
+
+  // Adjustments (the human gate)
+  adjPendingTitle: "Proposed moderations",
+  adjPendingBadge: "{n} awaiting your review",
+  adjPendingExplainer:
+    "Nothing changes your numbers until you apply it. Apply folds an item into your cleansed view; dismiss leaves the record as reported.",
+  adjAppliedTitle: "Applied adjustments",
+  adjApply: "Apply",
+  adjDismiss: "Dismiss",
+  adjRevert: "Revert",
+  adjWorking: "Working…",
+  adjKindNoise: "noise",
+  adjKindGrowth: "windfall",
+  adjLine: "{key} · FY{year}",
+  adjNone: "No adjustments yet — run a moderation pass or ask the analyst desk.",
+  adjArchive: "Cleansing archive",
+  adjArchiveCounts: "{d} dismissed · {r} reverted",
+  adjStatusDismissed: "dismissed",
+  adjStatusReverted: "reverted",
+
+  // The financial analyst desk (the cleansing chat)
+  deskTitle: "Financial analyst desk",
+  deskExplainer:
+    "Ask for the customization you want — “remove the 2025 IPO windfall from net income”, “strip last year’s impairment” — and the analyst implements it precisely. Explicit commands apply at once; explorations park for your review.",
+  deskPlaceholder: "e.g. Remove the unrealized valuation gain from FY2025 net income",
+  deskSend: "Send",
+  deskThinking: "The analyst is working…",
+  deskPause: "Pause",
+  deskRetry: "Retry",
+  deskEmpty: "No conversation yet. The analyst knows this ticker’s reported table and your current adjustments.",
+  deskParkedN: "This turn recorded {n} adjustment(s):",
+
+  // History: raw → cleansed differences + the audit log
+  historyTitle: "Cleansing history",
+  historyExplainer:
+    "The full record of differences between the raw public data and your customized view — every proposal, application, dismissal and revert, dated.",
+  historyDiffTitle: "Current differences (raw → cleansed)",
+  historyDiffNone: "No differences — your cleansed view currently equals the reported record.",
+  historyDerived: "derived",
+  historyColMetric: "Metric",
+  historyColFY: "FY",
+  historyColRaw: "As reported",
+  historyColCleansed: "Cleansed",
+  historyColVia: "Via",
+  historyEventsTitle: "Audit log",
+  historyNone: "Nothing recorded yet.",
+
+  // Errors (canonical server phrases mapped in components/util.ts)
+  errPassRunning: "A moderation pass is already running on this ticker.",
+  errPassInterrupted: "Pass interrupted (server restarted mid-pass). Run it again.",
+  errAdjStale: "This adjustment already moved on — reload to see its current state.",
 } as const;
 
 const zh: Record<keyof typeof en, string> = {
@@ -212,6 +288,70 @@ const zh: Record<keyof typeof en, string> = {
   addPeersGo: "对比",
   colTicker: "股票",
   thisCompany: "本公司",
+
+  cleansePageSubtitle: "你对 {name} 公开财报的自定义视图——剔除噪音与一次性暴利，每处改动皆可追溯。",
+  cleanseLoading: "正在打开清洗工作台……",
+  cleanseUnavailable: "该股票暂无财务数据，因此还没有可清洗的内容。研究台的其他部分不受影响。",
+
+  viewCleansed: "清洗后",
+  viewReported: "按披露",
+  viewCleansedNote:
+    "{n} 项已生效的调整改动了 {m} 个单元格——已在下方高亮。估值快照、同业对比，以及输入项不在本表中的行（毛利率、ROIC、ROA、NOPAT、FCFF、税率、流动比率、利息保障倍数、每股股息）保持披露原值。",
+  cellReportedTip: "披露原值：{raw} · 来自 {titles}",
+
+  suggestBtn: "✦ 建议调整项",
+  suggestRunning: "正在扫描记录……",
+  suggestStop: "停止扫描",
+  suggestRunningNote: "正在扫描公司披露文件中的一次性项目与暴利收益——双向清查。约需几分钟。",
+  suggestFailed: "扫描失败：{error}",
+  suggestNoteTitle: "上次扫描",
+  suggestFoundN: "{n} 条提议已提交待你审阅。",
+  suggestFoundNone: "暂无新的提议。",
+
+  adjPendingTitle: "待审阅的调整提议",
+  adjPendingBadge: "{n} 项待你审阅",
+  adjPendingExplainer: "未经你的确认，任何数字都不会改变。应用后该项计入你的清洗视图；不采纳则记录保持披露原样。",
+  adjAppliedTitle: "已生效的调整",
+  adjApply: "应用",
+  adjDismiss: "不采纳",
+  adjRevert: "撤销",
+  adjWorking: "处理中……",
+  adjKindNoise: "噪音",
+  adjKindGrowth: "暴利",
+  adjLine: "{key} · {year} 财年",
+  adjNone: "还没有调整项——运行一次建议扫描，或询问下方的财务分析台。",
+  adjArchive: "清洗档案",
+  adjArchiveCounts: "{d} 项未采纳 · {r} 项已撤销",
+  adjStatusDismissed: "未采纳",
+  adjStatusReverted: "已撤销",
+
+  deskTitle: "财务分析台",
+  deskExplainer:
+    "说出你想要的自定义——“把 2025 年 IPO 暴利从净利润中剔除”、“剔除去年的减值”——分析师会精确执行。明确的指令立即生效；探讨性的问题会先提交待你审阅。",
+  deskPlaceholder: "例如：把 2025 财年净利润中的未实现估值收益剔除",
+  deskSend: "发送",
+  deskThinking: "分析师处理中……",
+  deskPause: "暂停",
+  deskRetry: "重试",
+  deskEmpty: "还没有对话。分析师已掌握该股票的披露数据表和你当前的调整项。",
+  deskParkedN: "本轮记录了 {n} 项调整：",
+
+  historyTitle: "清洗历史",
+  historyExplainer: "公开原始数据与你的自定义视图之间差异的完整记录——每次提议、应用、不采纳与撤销，均有日期。",
+  historyDiffTitle: "当前差异（原始 → 清洗后）",
+  historyDiffNone: "暂无差异——你的清洗视图目前与披露记录一致。",
+  historyDerived: "推算",
+  historyColMetric: "指标",
+  historyColFY: "财年",
+  historyColRaw: "披露原值",
+  historyColCleansed: "清洗后",
+  historyColVia: "来源调整",
+  historyEventsTitle: "审计日志",
+  historyNone: "暂无记录。",
+
+  errPassRunning: "该股票的调整建议扫描正在进行中。",
+  errPassInterrupted: "扫描被中断（服务器在扫描中重启）。请重新运行。",
+  errAdjStale: "该调整项状态已变化——请刷新查看最新状态。",
 };
 
 export const financials = { en, zh };

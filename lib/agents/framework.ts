@@ -17,6 +17,8 @@
  * honesty). Keep the two in sync when either changes.
  */
 
+import { ADJUSTABLE_METRIC_KEYS } from "../cleansing";
+
 // ---------------------------------------------------------------------------
 // The ten lenses — each carries Buffett's own screening test and the kinds of
 // open-web evidence that move it, so signals attach to real analytical work.
@@ -510,6 +512,141 @@ export const SECTION_SUGGESTIONS_SCHEMA = {
           },
         },
       },
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Doctrine for the finance-cleansing bench (FOUNDATION: business-model
+// anchor — owner earnings; "EBITDA = bullshit earnings"; febezzlement).
+// The investor's own normalization of the reported record: strip genuine
+// one-offs and windfalls, both directions, every delta traceable, everything
+// human-gated, the full raw → cleansed history kept. This is the OPPOSITE of
+// promotional adjusted metrics — the audit trail is the point.
+// ---------------------------------------------------------------------------
+
+export const CLEANSING_DOCTRINE = `THE FINANCE-CLEANSING BENCH (owner-earnings normalization — never promotional adjustment):
+The investor keeps, per ticker, a cleansed view of the reported financials: the raw public record overlaid with specific, human-approved adjustments that strip DISTORTIONS so the underlying earning power is visible. Two kinds:
+- "noise": genuinely non-recurring or non-operating items — impairments and one-time write-downs, legal settlements, restructuring charges (when truly episodic), gains/losses on asset disposals, insurance recoveries, one-off tax effects, discontinued-operations swings, income streams with no forward claim.
+- "growth": windfall gains that flatter the record without operating substance — unrealized mark-to-market gains on investment stakes, revaluation gains when a holding's paper valuation jumps (a portfolio company's IPO, a private stake marked up after a funding round), bargain-purchase gains, one-off subsidies or credits.
+
+LAWS OF THE BENCH:
+1. SYMMETRIC HONESTY. Strip one-time GAINS exactly as readily as one-time charges. A bench that only removes bad news is manufacturing "adjusted earnings" — the instrument this desk refuses by construction ("whenever an investment banker starts talking about EBITDA, zip up your wallet"). Never balance artificially either: if the record holds mostly gain-stripping candidates, say so plainly.
+2. REAL COSTS STAY. Scheduled depreciation and amortization are real ("depreciation is real"); ongoing stock compensation, normal R&D, maintenance capex and routine working-capital swings are real. NEVER propose removing them. A one-time impairment or write-down qualifies as noise; recurring D&A never does. "Restructuring" charges that recur year after year are operating costs wearing a costume — flag the pattern in the note instead of cleansing it away (the Quant Tech phony-growth chain begins exactly there).
+3. EVERY DELTA TRACES. Each adjustment names the disclosure it comes from (filing, statement note, release) with the DISCLOSED amount, cited [n]. Never estimate an amount the record doesn't state; where only a pre-tax figure is disclosed, use it and say so in the rationale. Febezzlement watch: earnings whose quality depends on rising asset prices (mark-to-model gains, valuation markups) are the first candidates.
+4. SIGN CONVENTION. delta = the amount ADDED to the reported figure to reach the cleansed figure, in the reporting currency's RAW units (e.g. -1200000000 for removing a $1.2B gain — never millions/billions shorthand). Removing a one-time GAIN of X → delta = −X. Removing a one-time CHARGE of X → delta = +X. For "shares", delta is a share count.
+5. PLACE THE DELTA WHERE THE ITEM SITS. A non-cash investment gain usually sits in netIncome but NOT in operatingIncome or ocf; an operating impairment hits operatingIncome (pre-tax) and netIncome (after-tax where the tax effect is disclosed, otherwise pre-tax with a note in the rationale). Emit one adjustment per affected line-year so each is separately reviewable; never smear an item across lines it did not touch, and never adjust a cell reported as null.
+6. NO DUPLICATION, HUMAN GATE. Check every existing adjustment (applied, pending, dismissed, reverted) before proposing — the same item on the same line and year is a duplicate even under a different name. A dismissed item stays dismissed absent materially new evidence. Everything you propose parks for the investor's review — nothing changes their view of the numbers until they apply it.`;
+
+/** Proposal fields shared by the suggestion pass and the analyst desk. */
+const FIN_PROPOSAL_PROPERTIES = {
+  metricKey: {
+    type: "string",
+    enum: [...ADJUSTABLE_METRIC_KEYS],
+    description: "The reported line the delta lands on (adjustable base rows only).",
+  },
+  fiscalYear: {
+    type: "string",
+    description: 'Fiscal-year label exactly as in the reported table (e.g. "2025").',
+  },
+  delta: {
+    type: "number",
+    description:
+      'Signed amount ADDED to the reported figure, reporting currency, RAW units (share count for "shares"). Removing a gain of X → −X; removing a charge of X → +X.',
+  },
+  title: {
+    type: "string",
+    description: 'Short name of the item (e.g. "Unrealized Anthropic stake markup").',
+  },
+  rationale: {
+    type: "string",
+    description:
+      "1-3 sentences: what the item is, the disclosure it traces to with the disclosed amount, and why it distorts the record. Cite [n] source indexes where sources are numbered.",
+  },
+  kind: {
+    type: "string",
+    enum: ["noise", "growth"],
+    description: "noise = non-recurring charge/credit or unstable income; growth = windfall/mark-to-market gain.",
+  },
+  citationIndexes: {
+    type: "array",
+    items: { type: "integer" },
+    description: "Indexes into the numbered source list backing the amount. Empty if none apply.",
+  },
+} as const;
+
+export const CLEANSING_SUGGEST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["note", "proposals"],
+  properties: {
+    note: {
+      type: "string",
+      description:
+        "2-4 sentences for the investor: what the pass examined, what it found (both directions), and anything it deliberately did NOT propose (e.g. a recurring 'restructuring' pattern flagged instead of cleansed). Plain text.",
+    },
+    proposals: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["metricKey", "fiscalYear", "delta", "title", "rationale", "kind", "citationIndexes"],
+        properties: FIN_PROPOSAL_PROPERTIES,
+      },
+    },
+  },
+} as const;
+
+export const FIN_ANALYST_DOCTRINE = `THE FINANCIAL ANALYST DESK (the cleansing bench's working chat):
+You are this desk's financial analyst, seated at the cleansing bench. The investor customizes their view of the reported financials here; your job is to implement their customization requests EXACTLY — precise line, precise fiscal year, precise amount — under the bench laws above.
+
+CONDUCT:
+- When the investor asks to remove or moderate an item: identify the exact metricKey cells and fiscal years affected, compute each delta from the reported table and the disclosed amounts in your context, and emit the adjustment proposals. If their instruction is an explicit command to change the numbers now ("remove it", "strip the 2025 IPO gain"), set applyNow=true on those proposals — the investor's ask is the approval. If they are exploring ("what would it look like without…?"), park them with applyNow=false and say they await their review.
+- Amounts come ONLY from the reported table, the numbered sources, or a figure the investor states. If none contains the amount, say what is missing and either ask for the figure or point them at the "Suggest moderations" pass — NEVER invent a number.
+- applyAdjustmentIds / revertAdjustmentIds / dismissAdjustmentIds: fill ONLY with ids copied from the adjustment list in your context, ONLY when the investor explicitly asked for that action on that item this turn ("apply the pending ones", "undo the settlement adjustment"). Confirm every action in your reply.
+- Answer questions about the cleansed-vs-reported view from the tables provided, naming the cells you used. Where a derived row does not recompute under cleansing (ROIC, NOPAT, FCFF, gross margin — their inputs aren't in the table), say so honestly instead of implying it moved.
+- No investment advice, no price targets, no buy/sell language. Reply concise and concrete — a working bench, not a report. State every delta with its sign, line, FY and currency so the investor can eyeball it before it lands.`;
+
+export const FIN_ANALYST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "proposals", "applyAdjustmentIds", "revertAdjustmentIds", "dismissAdjustmentIds"],
+  properties: {
+    reply: {
+      type: "string",
+      description: "Your message to the investor, in markdown.",
+    },
+    proposals: {
+      type: "array",
+      description: "Adjustments implementing the investor's request. Empty if none.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["metricKey", "fiscalYear", "delta", "title", "rationale", "kind", "citationIndexes", "applyNow"],
+        properties: {
+          ...FIN_PROPOSAL_PROPERTIES,
+          applyNow: {
+            type: "boolean",
+            description:
+              "True ONLY when the investor's message explicitly commands the change now (their ask is the approval); false parks it for review.",
+          },
+        },
+      },
+    },
+    applyAdjustmentIds: {
+      type: "array",
+      description: "Ids of PENDING (suggested) adjustments to apply — only on the investor's explicit ask this turn.",
+      items: { type: "string" },
+    },
+    revertAdjustmentIds: {
+      type: "array",
+      description: "Ids of APPLIED adjustments to revert — only on the investor's explicit ask this turn.",
+      items: { type: "string" },
+    },
+    dismissAdjustmentIds: {
+      type: "array",
+      description: "Ids of PENDING (suggested) adjustments to dismiss — only on the investor's explicit ask this turn.",
+      items: { type: "string" },
     },
   },
 } as const;

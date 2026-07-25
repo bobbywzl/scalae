@@ -4,6 +4,7 @@ import { resolveModel } from "../ai/models";
 import type { UsageMeta } from "../ai/usage";
 import { getTranslations, saveTranslations } from "../db";
 import type {
+  CleansingPayload,
   DeskPayload,
   DigestItem,
   DiligencePayload,
@@ -390,6 +391,33 @@ export async function localizeDiligencePayload(
       name: tr(s.name),
       focusArea: tr(s.focusArea),
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Finance cleansing. Desk-authored fields only — adjustment titles/rationales,
+// the pass note, and the audit log's frozen detail lines. The analyst-desk
+// chat is NOT translated (a conversation stays in the language it was
+// written, exactly like the main desk chat).
+// ---------------------------------------------------------------------------
+
+export async function localizeCleansingPayload(
+  p: CleansingPayload,
+  lang: Lang,
+  meta?: UsageMeta
+): Promise<CleansingPayload> {
+  if (lang === "en") return p;
+  const candidates: (string | null | undefined)[] = [p.suggestRun?.note];
+  for (const a of p.adjustments) candidates.push(a.title, a.rationale);
+  for (const e of p.events) candidates.push(e.detail);
+  const tr = await makeTranslator(candidates, lang, meta);
+  return {
+    ...p,
+    adjustments: p.adjustments.map((a) => ({ ...a, title: tr(a.title), rationale: tr(a.rationale) })),
+    events: p.events.map((e) => ({ ...e, detail: tr(e.detail) })),
+    suggestRun: p.suggestRun
+      ? { ...p.suggestRun, note: p.suggestRun.note != null ? tr(p.suggestRun.note) : p.suggestRun.note }
+      : p.suggestRun,
   };
 }
 

@@ -398,6 +398,146 @@ export interface TickerFinancials {
   fetchedAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// Finance cleansing: the investor's own normalized view of the reported
+// record, per ticker. Adjustments remove NOISE (one-time impairments,
+// settlements, asset-sale gains, unstable income) and windfall GROWTH
+// (unrealized mark-to-market gains, revaluation one-offs) from specific
+// metric cells. The raw provider data is never touched — cleansing is a
+// deterministic overlay, every change is human-gated, and an append-only
+// event log records the full raw → cleansed history (FOUNDATION: human
+// sovereignty; "depreciation is real" — this is owner-earnings
+// normalization, never promotional adjusted metrics).
+// ---------------------------------------------------------------------------
+
+/** noise = non-recurring charges/credits & unstable income; growth = windfall/mark-to-market gains. */
+export type FinAdjustmentKind = "noise" | "growth";
+export type FinAdjustmentStatus = "suggested" | "applied" | "dismissed" | "reverted";
+/** Where the adjustment came from: the suggestion pass or the analyst desk chat. */
+export type FinAdjustmentOrigin = "suggest" | "analyst";
+
+/**
+ * One cleansing adjustment: a signed delta on one metric cell (metricKey ×
+ * fiscalYear), in the ticker's reporting currency (raw units, not millions).
+ * delta is the amount ADDED to the reported figure to reach the cleansed
+ * figure: removing a one-time gain of X → −X; removing a one-time charge → +X.
+ */
+export interface FinAdjustment {
+  id: string;
+  symbol: string;
+  /** One of the directly-adjustable base metric keys (lib/cleansing.ts). */
+  metricKey: string;
+  /** Fiscal-year label, matching TickerFinancials.fiscalYears (e.g. "2025"). */
+  fiscalYear: string;
+  delta: number;
+  /** Short name of the item, e.g. "Unrealized Anthropic stake gain". */
+  title: string;
+  /** Why this item distorts the record, citing the disclosure it traces to. */
+  rationale: string;
+  kind: FinAdjustmentKind;
+  origin: FinAdjustmentOrigin;
+  status: FinAdjustmentStatus;
+  /** Sources backing the amount ([n] indexes in rationale resolve here). */
+  sources: Citation[];
+  createdAt: string;
+  /** When it was (last) applied to the cleansed view. */
+  appliedAt: string | null;
+  /** When it was dismissed or reverted. */
+  decidedAt: string | null;
+}
+
+/** Shape the cleansing agents emit when proposing an adjustment (pre-review). */
+export interface FinAdjustmentProposal {
+  metricKey: string;
+  fiscalYear: string;
+  delta: number;
+  title: string;
+  rationale: string;
+  kind: FinAdjustmentKind;
+}
+
+/**
+ * One entry in the append-only cleansing audit log — the history of every
+ * difference between the raw public data and the customized view.
+ */
+export interface FinCleansingEvent {
+  id: string;
+  symbol: string;
+  adjustmentId: string;
+  action: "suggested" | "applied" | "dismissed" | "reverted";
+  /** Human line frozen at event time, e.g. "Net income FY2025 −$1.2B — SpaceX IPO gain". */
+  detail: string;
+  at: string;
+}
+
+/** One "suggest moderations" pass (the finance bench's research-run analogue). */
+export interface FinSuggestRun {
+  id: string;
+  symbol: string;
+  status: RunStatus;
+  /** The pass's short summary once done (what it looked at, what it found). */
+  note: string | null;
+  /** How many proposals the pass parked for review. */
+  proposalCount: number;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+/** One message on the financial analyst desk (the cleansing chat). */
+export interface FinMessage {
+  id: string;
+  symbol: string;
+  role: "user" | "assistant";
+  content: string;
+  /** Adjustments this assistant turn created (rendered as cards in-thread). */
+  adjustmentIds: string[];
+  createdAt: string;
+}
+
+/** One cell whose cleansed value differs from the raw reported value. */
+export interface CleansedCell {
+  metricKey: string;
+  /** Fiscal-year label. */
+  year: string;
+  raw: number | null;
+  cleansed: number | null;
+  /** Applied adjustments contributing to this cell (directly or via recompute). */
+  adjustmentIds: string[];
+  /** True when this cell was recomputed from adjusted inputs, not directly targeted. */
+  derived: boolean;
+}
+
+/** The deterministic result of overlaying the applied adjustments on the raw table. */
+export interface CleansedFinancials {
+  /** Full metric set, adjusted where applicable — same shape as the raw table. */
+  metrics: FinancialMetric[];
+  /** DCF inputs with the normalized medians recomputed off the cleansed rows. */
+  dcfInputs: DcfInputs;
+  /** Every cell that differs from raw (the current raw → cleansed diff). */
+  cells: CleansedCell[];
+}
+
+/** Payload for the finance-cleansing screen. */
+export interface CleansingPayload {
+  ticker: Ticker;
+  financials: TickerFinancials | null;
+  /** Null when there are no applied adjustments (or no financials). */
+  cleansed: CleansedFinancials | null;
+  /** Every adjustment, any status, newest first. */
+  adjustments: FinAdjustment[];
+  /** The audit log, newest first. */
+  events: FinCleansingEvent[];
+  /** The latest suggestion pass, if any. */
+  suggestRun: FinSuggestRun | null;
+  /** The analyst desk thread, oldest first. */
+  messages: FinMessage[];
+  /** An analyst turn is running server-side (background thinking). */
+  analystBusy: boolean;
+  /** The last analyst turn failed with this reason (null = none). */
+  analystError: string | null;
+}
+
 /**
  * One distinct source in a signal's accumulated evidence catalog — deduped
  * across every reading in the signal's history, so the list grows as each

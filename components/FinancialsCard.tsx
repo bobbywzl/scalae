@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useT } from "./PrefsProvider";
 import { api, timeAgo } from "./util";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type {
+  CleansedCell,
+  CleansedFinancials,
+  DcfInputs,
+  FinAdjustment,
   FinancialMetric,
   MetricFormat,
   MetricGroup,
@@ -32,7 +36,7 @@ function fmtMoney(v: number | null, c: string): string {
 const fmtInt = (v: number | null): string =>
   v == null ? "—" : v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : v.toLocaleString();
 
-function fmtMetric(v: number | null, format: MetricFormat, c: string): string {
+export function fmtMetric(v: number | null, format: MetricFormat, c: string): string {
   if (v == null) return "—";
   switch (format) {
     case "money": return fmtMoney(v, c);
@@ -58,18 +62,24 @@ function trendClass(m: FinancialMetric): string {
 const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "dcf", "perShare"];
 
 /** Tab-separated export with RAW numeric values (Excel/CapIQ-ready), so the
- *  investor can build their own DCF — not the display-formatted strings. */
-function buildTSV(data: TickerFinancials, t: ReturnType<typeof useT>["t"]): string {
+ *  investor can build their own DCF — not the display-formatted strings.
+ *  Exports whichever view (reported or cleansed) is active. */
+function buildTSV(
+  symbol: string,
+  fiscalYears: string[],
+  metrics: FinancialMetric[],
+  d: DcfInputs,
+  t: ReturnType<typeof useT>["t"]
+): string {
   const cell = (v: number | null) => (v == null ? "" : String(v));
   const lines: string[] = [];
-  lines.push([data.symbol, ...data.fiscalYears].join("\t"));
+  lines.push([symbol, ...fiscalYears].join("\t"));
   for (const g of GROUPS) {
-    const rows = data.metrics.filter((m) => m.group === g);
+    const rows = metrics.filter((m) => m.group === g);
     if (!rows.length) continue;
     lines.push(t(`financials.grp_${g}` as TKey));
     for (const m of rows) lines.push([label(t, m.key), ...m.values.map(cell)].join("\t"));
   }
-  const d = data.dcfInputs;
   lines.push("", t("financials.dcfTitle"));
   const kv: [string, number | null][] = [
     ["beta", d.beta],
@@ -90,36 +100,57 @@ function buildTSV(data: TickerFinancials, t: ReturnType<typeof useT>["t"]): stri
   return lines.join("\n");
 }
 
-export function FinancialsSection({ symbol }: { symbol: string }) {
+/**
+ * The financials section — the finance-cleansing screen's centrepiece. Fed by
+ * the page (no self-fetch): the raw reported payload, plus the cleansed
+ * overlay when applied adjustments exist. The view toggle switches the 10-FY
+ * table and DCF inputs between "as reported" and "cleansed"; moved cells are
+ * highlighted with their raw value and contributing adjustments on hover.
+ * The valuation snapshot and peer panel always show reported figures.
+ */
+export function FinancialsSection({
+  symbol,
+  data,
+  cleansed,
+  adjustments,
+}: {
+  symbol: string;
+  data: TickerFinancials;
+  cleansed: CleansedFinancials | null;
+  adjustments: FinAdjustment[];
+}) {
   const { t } = useT();
-  const [data, setData] = useState<TickerFinancials | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [showTable, setShowTable] = useState(false);
+  const [showTable, setShowTable] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<"cleansed" | "reported">(cleansed ? "cleansed" : "reported");
 
-  // Fetch once per symbol. setState lives in the promise callbacks (with an
-  // unmount guard), not synchronously in the effect body.
-  useEffect(() => {
-    let alive = true;
-    api<{ financials: TickerFinancials }>(`/api/tickers/${encodeURIComponent(symbol)}/financials`)
-      .then((res) => {
-        if (!alive) return;
-        setData(res.financials);
-        setState("ready");
-      })
-      .catch(() => {
-        if (alive) setState("error");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [symbol]);
+  const c = data.currency ?? "USD";
+  const years = data.fiscalYears;
+  const cleansedActive = view === "cleansed" && cleansed != null;
+  const metrics = cleansedActive ? cleansed.metrics : data.metrics;
+  const dcfInputs = cleansedActive ? cleansed.dcfInputs : data.dcfInputs;
 
-  // Silently absent for tickers Yahoo has no fundamentals for — no empty shell.
-  if (state === "error") return null;
+  // "metricKey:year" → moved cell, for highlighting + hover provenance.
+  const movedCells = useMemo(() => {
+    const m = new Map<string, CleansedCell>();
+    if (cleansed) for (const cell of cleansed.cells) m.set(`${cell.metricKey}:${cell.year}`, cell);
+    return m;
+  }, [cleansed]);
+  const titleById = useMemo(
+    () => new Map(adjustments.map((a) => [a.id, a.title])),
+    [adjustments]
+  );
+  const tipFor = (m: FinancialMetric, yearIdx: number): string | undefined => {
+    if (!cleansedActive) return undefined;
+    const cell = movedCells.get(`${m.key}:${years[yearIdx]}`);
+    if (!cell) return undefined;
+    return t("financials.cellReportedTip", {
+      raw: fmtMetric(cell.raw, m.format, c),
+      titles: cell.adjustmentIds.map((id) => titleById.get(id) ?? "…").join(", ") || "—",
+    });
+  };
 
-  const c = data?.currency ?? "USD";
-  const years = data?.fiscalYears ?? [];
+  const appliedCount = adjustments.filter((a) => a.status === "applied").length;
 
   return (
     <section className="rounded-2xl bg-card border border-hairline p-5">
@@ -127,58 +158,77 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
         <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
           {t("financials.title")}
         </h2>
-        {data && (
-          <>
-            <span className="text-[11px] text-muted/80">
-              {t("financials.subtitle", { n: years.length })}
-            </span>
-            <span className="ml-auto text-[10px] text-muted/70">
-              {t("financials.sourceNote", { source: data.source, n: years.length })} ·{" "}
-              {t("financials.asOf", { when: timeAgo(data.fetchedAt, t) })}
-            </span>
-          </>
-        )}
+        <span className="text-[11px] text-muted/80">
+          {t("financials.subtitle", { n: years.length })}
+        </span>
+        <span className="ml-auto text-[10px] text-muted/70">
+          {t("financials.sourceNote", { source: data.source, n: years.length })} ·{" "}
+          {t("financials.asOf", { when: timeAgo(data.fetchedAt, t) })}
+        </span>
       </div>
 
-      {state === "loading" && (
-        <p className="text-muted text-xs italic mt-3">{t("financials.loading")}</p>
+      {/* Raw ↔ cleansed switch (only once applied adjustments exist). */}
+      {cleansed && (
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 rounded-full border border-hairline bg-ink/4 p-0.5">
+            {(
+              [
+                { v: "cleansed", label: t("financials.viewCleansed") },
+                { v: "reported", label: t("financials.viewReported") },
+              ] as const
+            ).map((o) => (
+              <button
+                key={o.v}
+                onClick={() => setView(o.v)}
+                className={`rounded-full px-2.5 py-0.5 text-[11px] transition-colors ${
+                  view === o.v ? "bg-accent/15 text-accent font-semibold" : "text-muted hover:text-emph"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[10px] text-muted/70">
+            {t("financials.viewCleansedNote", { n: appliedCount, m: cleansed.cells.length })}
+          </span>
+        </div>
       )}
 
-      {data && (
+      <Snapshot data={data} c={c} t={t} />
+
+      <DcfInputsBlock d={dcfInputs} n={years.length} c={c} t={t} />
+
+      <PeerPanel data={data} symbol={symbol} t={t} />
+
+      {years.length > 0 && (
         <>
-          <Snapshot data={data} c={c} t={t} />
-
-          <DcfInputsBlock data={data} c={c} t={t} />
-
-          <PeerPanel data={data} symbol={symbol} t={t} />
-
-          {years.length > 0 && (
-            <>
-              <div className="mt-4 flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setShowTable((v) => !v)}
-                  className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
-                >
-                  {showTable ? t("financials.hideTable") : t("financials.showTable")}
-                </button>
-                <button
-                  onClick={() => {
-                    navigator.clipboard?.writeText(buildTSV(data, t)).then(
-                      () => {
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 1800);
-                      },
-                      () => {}
-                    );
-                  }}
-                  className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
-                >
-                  {copied ? t("financials.copied") : t("financials.copyTable")}
-                </button>
-                <span className="text-[10px] text-muted/60">{t("financials.accuracyNote")}</span>
-              </div>
-              {showTable && <MetricsTable data={data} c={c} t={t} />}
-            </>
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowTable((v) => !v)}
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+            >
+              {showTable ? t("financials.hideTable") : t("financials.showTable")}
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard
+                  ?.writeText(buildTSV(data.symbol, years, metrics, dcfInputs, t))
+                  .then(
+                    () => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1800);
+                    },
+                    () => {}
+                  );
+              }}
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+            >
+              {copied ? t("financials.copied") : t("financials.copyTable")}
+            </button>
+            <span className="text-[10px] text-muted/60">{t("financials.accuracyNote")}</span>
+          </div>
+          {showTable && (
+            <MetricsTable years={years} metrics={metrics} c={c} t={t} tipFor={tipFor} />
           )}
         </>
       )}
@@ -186,7 +236,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
   );
 }
 
-// --- the "what it costs to own it now" valuation snapshot ---
+// --- the "what it costs to own it now" valuation snapshot (always reported) ---
 function Snapshot({
   data,
   c,
@@ -235,17 +285,18 @@ function Snapshot({
   );
 }
 
-// --- normalized inputs for the investor's own DCF ---
+// --- normalized inputs for the investor's own DCF (follows the active view) ---
 function DcfInputsBlock({
-  data,
+  d,
+  n,
   c,
   t,
 }: {
-  data: TickerFinancials;
+  d: DcfInputs;
+  n: number;
   c: string;
   t: ReturnType<typeof useT>["t"];
 }) {
-  const d = data.dcfInputs;
   const cells: { key: string; value: string }[] = [
     { key: "medianRevenueGrowth", value: fmtMetric(d.medianRevenueGrowth, "pct", c) },
     { key: "medianOperatingMargin", value: fmtMetric(d.medianOperatingMargin, "pct", c) },
@@ -265,7 +316,7 @@ function DcfInputsBlock({
       <p className="text-[10px] uppercase tracking-wider text-muted">
         {t("financials.dcfTitle")}
         <span className="text-muted/60 normal-case tracking-normal ml-1.5">
-          · {t("financials.dcfNote", { n: data.fiscalYears.length })}
+          · {t("financials.dcfNote", { n })}
         </span>
       </p>
       <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2.5">
@@ -280,7 +331,7 @@ function DcfInputsBlock({
   );
 }
 
-// --- returns & margins vs. INDUSTRY peers (loaded only on request) ---
+// --- returns & margins vs. INDUSTRY peers (loaded only on request; reported figures) ---
 function PeerPanel({
   data,
   symbol,
@@ -422,17 +473,21 @@ function PeerPanel({
   );
 }
 
-// --- the full 10-FY metrics × years table ---
+// --- the full 10-FY metrics × years table (view-aware, moved cells highlighted) ---
 function MetricsTable({
-  data,
+  years,
+  metrics,
   c,
   t,
+  tipFor,
 }: {
-  data: TickerFinancials;
+  years: string[];
+  metrics: FinancialMetric[];
   c: string;
   t: ReturnType<typeof useT>["t"];
+  /** Hover text for a moved cell in the cleansed view (undefined = untouched). */
+  tipFor: (m: FinancialMetric, yearIdx: number) => string | undefined;
 }) {
-  const years = data.fiscalYears;
   return (
     <div className="overflow-x-auto mt-2">
       <table className="w-full text-[11px] tabular-nums border-collapse">
@@ -448,7 +503,7 @@ function MetricsTable({
         </thead>
         <tbody>
           {GROUPS.map((group) => {
-            const rows = data.metrics.filter((m) => m.group === group);
+            const rows = metrics.filter((m) => m.group === group);
             if (rows.length === 0) return null;
             return (
               <FragmentGroup key={group} groupLabel={t(`financials.grp_${group}` as TKey)} span={years.length + 1}>
@@ -459,16 +514,24 @@ function MetricsTable({
                       <td className="sticky left-0 bg-card py-1 pr-3 text-muted whitespace-nowrap z-10">
                         {label(t, m.key)}
                       </td>
-                      {m.values.map((v, i) => (
-                        <td
-                          key={i}
-                          className={`py-1 px-2 text-right whitespace-nowrap ${
-                            i === m.values.length - 1 ? trend : "text-emph"
-                          }`}
-                        >
-                          {fmtMetric(v, m.format, c)}
-                        </td>
-                      ))}
+                      {m.values.map((v, i) => {
+                        const tip = tipFor(m, i);
+                        return (
+                          <td
+                            key={i}
+                            title={tip}
+                            className={`py-1 px-2 text-right whitespace-nowrap ${
+                              tip
+                                ? "text-accent font-semibold underline decoration-dotted decoration-accent/50 underline-offset-2 cursor-help"
+                                : i === m.values.length - 1
+                                  ? trend
+                                  : "text-emph"
+                            }`}
+                          >
+                            {fmtMetric(v, m.format, c)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
