@@ -265,6 +265,7 @@ async function fmpStatements(symbol: string, years: number): Promise<Rec[]> {
     const k = kM.get(yr) ?? {};
     return {
       date: i.date,
+      reportedCurrency: i.reportedCurrency, // statement currency (ADR trap guard)
       totalRevenue: i.revenue,
       grossProfit: i.grossProfit,
       operatingIncome: i.operatingIncome,
@@ -518,7 +519,16 @@ function buildMetrics(ys: YearData[]): FinancialMetric[] {
   ];
 }
 
-function buildSnapshot(qs: Rec, latest: YearData | null): FinancialsSnapshot {
+/**
+ * The point-in-time snapshot. CURRENCY DISCIPLINE: market-side figures
+ * (market cap, provider EV, P/E, P/B) live in the TRADING currency;
+ * statement-side figures (net debt, EBIT, FCF) live in the STATEMENT
+ * currency. When the two differ (the ADR trap — PDD trades in USD, reports
+ * in CNY), every value that would DIVIDE or ADD across the pair is omitted
+ * (null) rather than computed as garbage — an honest gap beats a confident
+ * wrong number (FOUNDATION: evidence discipline).
+ */
+function buildSnapshot(qs: Rec, latest: YearData | null, mismatch: boolean): FinancialsSnapshot {
   const price = (qs.price ?? {}) as Rec;
   const detail = (qs.summaryDetail ?? {}) as Rec;
   const stats = (qs.defaultKeyStatistics ?? {}) as Rec;
@@ -526,8 +536,11 @@ function buildSnapshot(qs: Rec, latest: YearData | null): FinancialsSnapshot {
 
   const marketCap = num(price.marketCap) ?? num(detail.marketCap);
   const netDebt = latest?.netDebt ?? sub(num(fd.totalDebt), num(fd.totalCash));
+  // Provider EV is internally consistent (trading currency); our fallback
+  // (mkt cap + statement net debt) is legal only when currencies match.
   const enterpriseValue =
-    num(stats.enterpriseValue) ?? (marketCap != null && netDebt != null ? marketCap + netDebt : null);
+    num(stats.enterpriseValue) ??
+    (!mismatch && marketCap != null && netDebt != null ? marketCap + netDebt : null);
   const fcf = latest?.fcf ?? num(fd.freeCashflow);
   const dteRaw = num(fd.debtToEquity);
   return {
@@ -537,9 +550,11 @@ function buildSnapshot(qs: Rec, latest: YearData | null): FinancialsSnapshot {
     trailingPE: num(detail.trailingPE) ?? num(price.trailingPE),
     forwardPE: num(stats.forwardPE) ?? num(detail.forwardPE),
     priceToBook: num(stats.priceToBook),
-    evToEbit: div(enterpriseValue, latest?.ebit ?? null),
+    evToEbit: mismatch ? null : div(enterpriseValue, latest?.ebit ?? null),
     evToEbitda: num(stats.enterpriseToEbitda),
-    evToRevenue: num(stats.enterpriseToRevenue) ?? div(enterpriseValue, latest?.revenue ?? null),
+    evToRevenue:
+      num(stats.enterpriseToRevenue) ??
+      (mismatch ? null : div(enterpriseValue, latest?.revenue ?? null)),
     roe: (latest ? div(latest.netIncome, latest.equity) : null) ?? num(fd.returnOnEquity),
     roic: latest ? roic(latest) : null,
     grossMargin: num(fd.grossMargins),
@@ -549,16 +564,23 @@ function buildSnapshot(qs: Rec, latest: YearData | null): FinancialsSnapshot {
       (latest ? div(latest.totalDebt, latest.equity) : null) ?? (dteRaw != null ? dteRaw / 100 : null),
     currentRatio: num(fd.currentRatio) ?? (latest ? div(latest.currentAssets, latest.currentLiabilities) : null),
     interestCoverage: latest ? div(latest.ebit, latest.interestExpense) : null,
-    fcfYield: div(fcf, enterpriseValue),
+    fcfYield: mismatch ? null : div(fcf, enterpriseValue),
   };
 }
 
-function buildDcfInputs(ys: YearData[], qs: Rec, snap: FinancialsSnapshot): DcfInputs {
+function buildDcfInputs(
+  ys: YearData[],
+  qs: Rec,
+  snap: FinancialsSnapshot,
+  mismatch: boolean
+): DcfInputs {
   const stats = (qs.defaultKeyStatistics ?? {}) as Rec;
   const latest = ys.length ? ys[ys.length - 1] : null;
   const totalDebt = latest?.totalDebt ?? null;
   const mc = snap.marketCap;
-  const capBase = mc != null && totalDebt != null ? mc + totalDebt : null;
+  // Capital-structure weights mix market cap (trading currency) with balance-
+  // sheet debt (statement currency) — meaningless across an ADR pair; omit.
+  const capBase = !mismatch && mc != null && totalDebt != null ? mc + totalDebt : null;
   const revGrowth = ys.map((y, i) => (i > 0 ? div(sub(y.revenue, ys[i - 1].revenue), ys[i - 1].revenue) : null));
   return {
     beta: num(stats.beta),
@@ -568,8 +590,10 @@ function buildDcfInputs(ys: YearData[], qs: Rec, snap: FinancialsSnapshot): DcfI
     debtWeight: div(totalDebt, capBase),
     netDebt: snap.netDebt,
     sharesOutstanding: num(stats.sharesOutstanding) ?? latest?.shares ?? null,
-    marketCap: mc,
-    enterpriseValue: snap.enterpriseValue,
+    // Trading-currency figures don't belong in a statement-currency worksheet
+    // when the pair differs — the snapshot carries them, properly labeled.
+    marketCap: mismatch ? null : mc,
+    enterpriseValue: mismatch ? null : snap.enterpriseValue,
     medianRevenueGrowth: median(revGrowth),
     medianOperatingMargin: median(ys.map((y) => div(y.operatingIncome, y.revenue))),
     medianRoic: median(ys.map(roic)),
@@ -593,17 +617,39 @@ async function computeFinancials(symbol: string): Promise<TickerFinancials> {
   const price = (qs.price ?? {}) as Rec;
   const profile = (qs.assetProfile ?? {}) as Rec;
   const fd = (qs.financialData ?? {}) as Rec;
-  const snapshot = buildSnapshot(qs, latest);
+
+  // THE ADR TRAP: the quote currency (price.currency — USD for PDD/BABA
+  // ADRs) is NOT the currency the statements are reported in
+  // (financialCurrency — CNY). The table shows statement data, so the
+  // payload's `currency` is the STATEMENT currency; the quote currency
+  // rides separately, and a mismatch disables every cross-currency combo.
+  const tradingCurrency = ((price.currency ?? null) as string | null)?.toUpperCase() ?? null;
+  const statementCurrency =
+    ((statements[statements.length - 1]?.reportedCurrency ?? // FMP rows carry it
+      fd.financialCurrency ?? // Yahoo's statement currency
+      price.currency ??
+      null) as string | null)?.toUpperCase() ?? null;
+  const currencyMismatch =
+    !!statementCurrency && !!tradingCurrency && statementCurrency !== tradingCurrency;
+  if (currencyMismatch) {
+    console.warn(
+      `[scalae] ${symbol}: statements in ${statementCurrency}, listing trades in ${tradingCurrency} — cross-currency ratios omitted.`
+    );
+  }
+
+  const snapshot = buildSnapshot(qs, latest, currencyMismatch);
 
   return {
     symbol,
-    currency: (price.currency ?? fd.financialCurrency ?? null) as string | null,
+    currency: statementCurrency,
+    tradingCurrency,
+    currencyMismatch,
     sector: (profile.sector ?? null) as string | null,
     industry: (profile.industry ?? null) as string | null,
     fiscalYears: years.map((y) => y.year),
     metrics: buildMetrics(years),
     snapshot,
-    dcfInputs: buildDcfInputs(years, qs, snapshot),
+    dcfInputs: buildDcfInputs(years, qs, snapshot, currencyMismatch),
     source: p.source,
     fetchedAt: new Date().toISOString(),
   };
@@ -639,9 +685,15 @@ export function financialsSummary(f: TickerFinancials): string {
   const rev = vals("revenue"), ni = vals("netIncome"), fcf = vals("fcf"), sh = vals("shares");
   const span = yrs.length ? `${yrs[0]}–${yrs[yrs.length - 1]}` : "n/a";
   const d = f.dcfInputs;
+  // Market-side figures are quoted in the TRADING currency; statement figures
+  // in the STATEMENT currency. Say so plainly whenever the two differ.
+  const tc = f.tradingCurrency ?? f.currency;
   return [
-    `FINANCIALS (${f.source}, ${yrs.length} FY ${span}${f.industry ? `; industry: ${f.industry}` : ""}):`,
-    `Cost to own now: EV ${m$(s.enterpriseValue, f.currency)}, mkt cap ${m$(s.marketCap, f.currency)}, net debt ${m$(s.netDebt, f.currency)}, P/E ${xf(s.trailingPE)}, EV/EBIT ${xf(s.evToEbit)}, P/B ${xf(s.priceToBook)}, FCF yield ${pf(s.fcfYield)}.`,
+    `FINANCIALS (${f.source}, ${yrs.length} FY ${span}${f.industry ? `; industry: ${f.industry}` : ""}; statement currency ${f.currency ?? "n/a"}):`,
+    f.currencyMismatch
+      ? `CURRENCY WARNING: statements are reported in ${f.currency} but the listing trades in ${tc}. Statement figures below are ${f.currency}; market cap/EV are ${tc}. Never mix the two, and never convert with an assumed FX rate.`
+      : "",
+    `Cost to own now: EV ${m$(s.enterpriseValue, tc)}, mkt cap ${m$(s.marketCap, tc)}, net debt ${m$(s.netDebt, f.currency)}, P/E ${xf(s.trailingPE)}, EV/EBIT ${xf(s.evToEbit)}, P/B ${xf(s.priceToBook)}, FCF yield ${pf(s.fcfYield)}.`,
     `Returns/health (latest FY): ROIC ${pf(s.roic)}, ROE ${pf(s.roe)}; margins gross ${pf(s.grossMargin)}/op ${pf(s.operatingMargin)}/net ${pf(s.netMargin)}; debt/equity ${s.debtToEquity != null ? s.debtToEquity.toFixed(2) : "n/a"}, interest cover ${xf(s.interestCoverage)}, current ratio ${s.currentRatio != null ? s.currentRatio.toFixed(2) : "n/a"}.`,
     `Trajectory over ${yrs.length}y: revenue ${m$(first(rev), f.currency)}→${m$(last(rev), f.currency)}, net income ${m$(first(ni), f.currency)}→${m$(last(ni), f.currency)}, latest FCF ${m$(last(fcf), f.currency)}, diluted shares ${nfmt(first(sh))}→${nfmt(last(sh))}.`,
     `DCF inputs (normalized): median rev growth ${pf(d.medianRevenueGrowth)}, median op margin ${pf(d.medianOperatingMargin)}, median ROIC ${pf(d.medianRoic)}, median reinvestment ${pf(d.medianReinvestmentRate)}; beta ${d.beta != null ? d.beta.toFixed(2) : "n/a"}, cost of debt ${pf(d.costOfDebt)}, eff. tax ${pf(d.effectiveTaxRate)}, equity/debt weights ${pf(d.equityWeight)}/${pf(d.debtWeight)}; bridge: net debt ${m$(d.netDebt, f.currency)}, shares ${nfmt(d.sharesOutstanding)}.`,
@@ -666,13 +718,21 @@ export async function peekFinancials(symbol: string): Promise<TickerFinancials |
 
 /**
  * Parse a cached financials blob, rejecting entries written before the current
- * schema (missing dcfInputs / source) — a deploy that adds fields must never
- * serve an older shape the UI would choke on; those simply refetch.
+ * schema (missing dcfInputs / source, or the pre-currency-fix shape whose
+ * `currency` was the QUOTE currency and whose ratios mixed currency pairs) —
+ * a deploy that changes semantics must never serve the older shape; those
+ * simply refetch.
  */
 function parseFinancials(json: string): TickerFinancials | null {
   try {
     const f = JSON.parse(json) as TickerFinancials;
-    return f && f.dcfInputs && f.source && Array.isArray(f.metrics) ? f : null;
+    return f &&
+      f.dcfInputs &&
+      f.source &&
+      Array.isArray(f.metrics) &&
+      typeof f.currencyMismatch === "boolean"
+      ? f
+      : null;
   } catch {
     return null;
   }

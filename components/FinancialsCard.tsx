@@ -158,6 +158,21 @@ export function FinancialsSection({
         <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
           {t("financials.title")}
         </h2>
+        {/* The statement currency, always visible — deltas and the table live in it. */}
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+            data.currencyMismatch
+              ? "bg-warn/15 text-warn"
+              : "bg-ink/6 text-muted"
+          }`}
+        >
+          {data.currencyMismatch && data.tradingCurrency
+            ? t("financials.currencyChipMismatch", {
+                fin: c,
+                trade: data.tradingCurrency,
+              })
+            : t("financials.currencyChip", { c })}
+        </span>
         <span className="text-[11px] text-muted/80">
           {t("financials.subtitle", { n: years.length })}
         </span>
@@ -247,9 +262,13 @@ function Snapshot({
   t: ReturnType<typeof useT>["t"];
 }) {
   const s = data.snapshot;
+  // Market-side figures (EV, market cap) are quoted in the TRADING currency;
+  // statement-side figures (net debt) in the statement currency — never blur
+  // the two on an ADR (PDD trades USD, reports CNY).
+  const tc = data.tradingCurrency ?? c;
   const cells: { key: string; value: string; tip?: string }[] = [
-    { key: "enterpriseValue", value: fmtMoney(s.enterpriseValue, c), tip: t("financials.desc_enterpriseValue") },
-    { key: "marketCap", value: fmtMoney(s.marketCap, c) },
+    { key: "enterpriseValue", value: fmtMoney(s.enterpriseValue, tc), tip: t("financials.desc_enterpriseValue") },
+    { key: "marketCap", value: fmtMoney(s.marketCap, tc) },
     { key: "netDebt", value: fmtMoney(s.netDebt, c) },
     { key: "roic", value: fmtMetric(s.roic, "pct", c), tip: t("financials.desc_roic") },
     { key: "roe", value: fmtMetric(s.roe, "pct", c) },

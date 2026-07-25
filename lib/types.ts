@@ -383,7 +383,21 @@ export interface PeerComparison {
 /** The full per-ticker financials payload served by /api/tickers/[symbol]/financials. */
 export interface TickerFinancials {
   symbol: string;
+  /**
+   * The STATEMENT (reporting) currency — the currency every fiscal-year
+   * metric row, DCF input and cleansing-adjustment delta is denominated in.
+   * For ADRs this is the home currency (PDD → CNY), NOT the quote currency.
+   */
   currency: string | null;
+  /** Currency the listing trades in (ADR quote currency); may differ from `currency`. */
+  tradingCurrency: string | null;
+  /**
+   * True when statements and the listing use different currencies (the ADR
+   * trap). Cross-currency ratios (derived EV, EV/EBIT, FCF yield, capital-
+   * structure weights) are OMITTED rather than computed across currencies,
+   * and the UI + agents state the statement currency explicitly.
+   */
+  currencyMismatch: boolean;
   sector: string | null;
   industry: string | null;
   /** Fiscal-year labels oldest → newest, e.g. "2016" … "2025". */

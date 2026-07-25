@@ -44,6 +44,7 @@ const en = {
   copied: "Copied ✓",
   accuracyNote: "Verify against your own data before relying on it for a DCF.",
   beta: "Beta",
+  effectiveTaxRate: "Effective tax rate",
   costOfDebt: "Cost of debt",
   equityWeight: "Equity weight",
   debtWeight: "Debt weight",
@@ -118,6 +119,13 @@ const en = {
   cleanseLoading: "Opening the bench…",
   cleanseUnavailable:
     "Financials aren’t available for this ticker, so there is nothing to cleanse yet. The rest of the desk keeps working without them.",
+
+  // Currency discipline — the statement currency drives the table and every
+  // adjustment delta; ADRs (trade USD, report CNY/…) get a loud warning.
+  currencyChip: "Statements in {c}",
+  currencyChipMismatch: "Statements in {fin} · trades in {trade}",
+  currencyMismatchWarn:
+    "Currency warning: {name} reports its financial statements in {fin}, while the listing trades in {trade}. Every figure in the table below — and every cleansing adjustment — is in {fin}, never {trade}. Ratios that would mix the two currencies (derived EV, EV/EBIT, FCF yield, equity/debt weights) are omitted rather than computed across currencies.",
 
   // Raw ↔ cleansed view toggle
   viewCleansed: "Cleansed",
@@ -224,6 +232,7 @@ const zh: Record<keyof typeof en, string> = {
   copied: "已复制 ✓",
   accuracyNote: "用于 DCF 前请与你自己的数据核对。",
   beta: "贝塔",
+  effectiveTaxRate: "有效税率",
   costOfDebt: "债务成本",
   equityWeight: "股权权重",
   debtWeight: "债务权重",
@@ -292,6 +301,11 @@ const zh: Record<keyof typeof en, string> = {
   cleansePageSubtitle: "你对 {name} 公开财报的自定义视图——剔除噪音与一次性暴利，每处改动皆可追溯。",
   cleanseLoading: "正在打开清洗工作台……",
   cleanseUnavailable: "该股票暂无财务数据，因此还没有可清洗的内容。研究台的其他部分不受影响。",
+
+  currencyChip: "报表货币 {c}",
+  currencyChipMismatch: "报表货币 {fin} · 交易货币 {trade}",
+  currencyMismatchWarn:
+    "货币警告：{name} 的财务报表以 {fin} 列报，而该上市证券以 {trade} 交易。下表中的每一个数字——以及每一项清洗调整——都以 {fin} 计，绝非 {trade}。会混合两种货币的比率（推算 EV、EV/EBIT、自由现金流收益率、股债权重）已被省略，而不是跨货币硬算。",
 
   viewCleansed: "清洗后",
   viewReported: "按披露",

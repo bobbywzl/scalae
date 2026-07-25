@@ -311,13 +311,23 @@ export function describeAdjustment(
 /**
  * The reported table as plain text for the cleansing agents — exact raw
  * values (no display rounding) so proposed deltas reconcile with what was
- * actually reported. Bounded: ~33 rows × 10 FYs of numerics.
+ * actually reported. Bounded: ~33 rows × 10 FYs of numerics. The currency
+ * discipline is stated up front: deltas live in the STATEMENT currency, and
+ * an ADR's trading currency is called out as a trap, never a unit.
  */
 export function reportedTableText(fin: TickerFinancials): string {
+  const cur = fin.currency ?? "USD";
   const lines = [
-    `Reporting currency: ${fin.currency ?? "USD"}. Fiscal years: ${fin.fiscalYears.join(", ")}.`,
-    `Each row: metricKey = FY:value pairs (money in raw currency units, not millions; pct as decimals; null = not reported).`,
+    `STATEMENT CURRENCY: ${cur} — every money value below, and EVERY delta you propose, is in raw ${cur} units (never millions/billions shorthand, never any other currency). Fiscal years: ${fin.fiscalYears.join(", ")}.`,
   ];
+  if (fin.currencyMismatch && fin.tradingCurrency) {
+    lines.push(
+      `⚠ CURRENCY TRAP: the listing trades in ${fin.tradingCurrency}, but the statements are reported in ${cur}. Filings, ADR press coverage and data providers will quote some amounts in ${fin.tradingCurrency} — those are NOT usable as deltas. Only propose an adjustment when the ${cur} amount is disclosed (or the disclosure is natively ${cur}); NEVER convert with an assumed FX rate, and say in the rationale which currency the disclosure used.`
+    );
+  }
+  lines.push(
+    `Each row: metricKey = FY:value pairs (money in raw ${cur} units; pct as decimals; null = not reported).`
+  );
   for (const m of fin.metrics) {
     const cells = m.values
       .map((v, i) => `${fin.fiscalYears[i]}:${v == null ? "null" : String(v)}`)

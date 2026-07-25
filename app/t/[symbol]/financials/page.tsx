@@ -235,7 +235,7 @@ export default function FinanceCleansingPage() {
   const archived = adjustments.filter((a) => a.status === "dismissed" || a.status === "reverted");
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-8 flex-1">
+    <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link
           href="/"
@@ -270,131 +270,155 @@ export default function FinanceCleansingPage() {
         </div>
       </header>
 
-      {/* Suggestion-pass state: running note / failure / the last pass's summary. */}
-      {suggesting && (
-        <div className="mt-4 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3">
-          <p className="text-xs text-accent pulse-soft">{t("financials.suggestRunningNote")}</p>
-        </div>
-      )}
-      {!suggesting && suggestRun?.status === "error" && (
-        <div className="mt-4 rounded-xl border border-loss/25 bg-loss/8 px-4 py-3 flex items-center gap-3 flex-wrap">
-          <p className="text-xs text-loss flex-1 min-w-48">
-            {t("financials.suggestFailed", { error: localizeError(suggestRun.error, t) || "—" })}
+      {/* Currency discipline — the ADR trap stated loudly, above everything:
+          statements in one currency, the listing in another. Every table
+          figure and every adjustment delta is the STATEMENT currency. */}
+      {financials?.currencyMismatch && financials.tradingCurrency && (
+        <div className="mt-4 rounded-xl border border-warn/35 bg-warn/10 px-4 py-3">
+          <p className="text-xs text-warn">
+            ⚠{" "}
+            {t("financials.currencyMismatchWarn", {
+              name: ticker.name,
+              fin: financials.currency ?? "?",
+              trade: financials.tradingCurrency,
+            })}
           </p>
-          <button
-            onClick={startSuggest}
-            className="shrink-0 rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
-          >
-            {t("dd.tryAgain")}
-          </button>
         </div>
       )}
-      {!suggesting && suggestRun?.status === "done" && suggestRun.note && (
-        <div className="mt-4 rounded-xl border border-hairline bg-card px-4 py-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-            {t("financials.suggestNoteTitle")}
-            <span className="normal-case tracking-normal font-normal text-muted/70">
-              {" "}
-              · {timeAgo(suggestRun.finishedAt ?? suggestRun.createdAt, t)} ·{" "}
-              {suggestRun.proposalCount > 0
-                ? t("financials.suggestFoundN", { n: suggestRun.proposalCount })
-                : t("financials.suggestFoundNone")}
-            </span>
-          </p>
-          <p className="text-xs text-emph mt-1">{suggestRun.note}</p>
-        </div>
-      )}
-      {suggestError && <p className="mt-2 text-[11px] text-loss">{suggestError}</p>}
 
-      {/* The finance breakdown, moved to this screen — raw or cleansed view. */}
-      <div className="mt-5">
-        {financials ? (
-          <FinancialsSection
-            symbol={symbol}
-            data={financials}
-            cleansed={cleansed}
-            adjustments={adjustments}
+      {/* Side-by-side, the signals-page idiom: the numbers and the gate on
+          the left, the financial analyst desk sticky on the right. */}
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        {/* left column */}
+        <div className="space-y-5 min-w-0">
+          {/* Suggestion-pass state: running note / failure / the last pass's summary. */}
+          {suggesting && (
+            <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3">
+              <p className="text-xs text-accent pulse-soft">{t("financials.suggestRunningNote")}</p>
+            </div>
+          )}
+          {!suggesting && suggestRun?.status === "error" && (
+            <div className="rounded-xl border border-loss/25 bg-loss/8 px-4 py-3 flex items-center gap-3 flex-wrap">
+              <p className="text-xs text-loss flex-1 min-w-48">
+                {t("financials.suggestFailed", { error: localizeError(suggestRun.error, t) || "—" })}
+              </p>
+              <button
+                onClick={startSuggest}
+                className="shrink-0 rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
+              >
+                {t("dd.tryAgain")}
+              </button>
+            </div>
+          )}
+          {!suggesting && suggestRun?.status === "done" && suggestRun.note && (
+            <div className="rounded-xl border border-hairline bg-card px-4 py-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                {t("financials.suggestNoteTitle")}
+                <span className="normal-case tracking-normal font-normal text-muted/70">
+                  {" "}
+                  · {timeAgo(suggestRun.finishedAt ?? suggestRun.createdAt, t)} ·{" "}
+                  {suggestRun.proposalCount > 0
+                    ? t("financials.suggestFoundN", { n: suggestRun.proposalCount })
+                    : t("financials.suggestFoundNone")}
+                </span>
+              </p>
+              <p className="text-xs text-emph mt-1">{suggestRun.note}</p>
+            </div>
+          )}
+          {suggestError && <p className="text-[11px] text-loss">{suggestError}</p>}
+
+          {/* The finance breakdown, moved to this screen — raw or cleansed view. */}
+          {financials ? (
+            <FinancialsSection
+              symbol={symbol}
+              data={financials}
+              cleansed={cleansed}
+              adjustments={adjustments}
+            />
+          ) : (
+            <section className="rounded-2xl bg-card border border-hairline p-5">
+              <p className="text-muted text-sm">{t("financials.cleanseUnavailable")}</p>
+            </section>
+          )}
+
+          {/* Pending proposals — the human gate. */}
+          {pending.length > 0 && (
+            <section>
+              <SectionTitle>
+                {t("financials.adjPendingTitle")}{" "}
+                <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                  {t("financials.adjPendingBadge", { n: pending.length })}
+                </span>
+              </SectionTitle>
+              <p className="text-[11px] text-muted mt-1">{t("financials.adjPendingExplainer")}</p>
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                {pending.map((a) => (
+                  <AdjustmentCard
+                    key={a.id}
+                    adj={a}
+                    currency={currency}
+                    busy={actingId === a.id}
+                    onAct={act}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Applied adjustments — reversible, never silently permanent. */}
+          {applied.length > 0 && (
+            <section>
+              <SectionTitle>{t("financials.adjAppliedTitle")}</SectionTitle>
+              <div className="mt-2 space-y-2">
+                {applied.map((a) => (
+                  <AppliedRow
+                    key={a.id}
+                    adj={a}
+                    currency={currency}
+                    busy={actingId === a.id}
+                    onRevert={() => act(a.id, "revert")}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {adjustments.length === 0 && (
+            <p className="text-muted text-xs italic">{t("financials.adjNone")}</p>
+          )}
+
+          {/* The raw → cleansed history: current differences + the audit log. */}
+          <HistoryPanel
+            cells={cleansed?.cells ?? []}
+            adjById={adjById}
+            formatByKey={formatByKey}
+            currency={currency}
+            events={events}
           />
-        ) : (
-          <section className="rounded-2xl bg-card border border-hairline p-5">
-            <p className="text-muted text-sm">{t("financials.cleanseUnavailable")}</p>
-          </section>
-        )}
+
+          {/* Nothing on this bench is deleted — dismissed and reverted stay auditable. */}
+          {archived.length > 0 && <ArchivePanel archived={archived} currency={currency} />}
+        </div>
+
+        {/* right column: the financial analyst desk, sticky beside the
+            numbers — the signals page's chat-column idiom. */}
+        <div className="lg:sticky lg:top-6 h-[82vh] min-h-[480px]">
+          <AnalystDesk
+            messages={payload.messages}
+            adjById={adjById}
+            currency={currency}
+            sending={sending}
+            remoteBusy={remoteBusy}
+            error={chatError ?? bgChatError}
+            disabled={!financials}
+            actingId={actingId}
+            onSend={sendChat}
+            onRetry={retryChat}
+            onPause={pauseChat}
+            onAct={act}
+          />
+        </div>
       </div>
-
-      {/* Pending proposals — the human gate. */}
-      {pending.length > 0 && (
-        <section className="mt-6">
-          <SectionTitle>
-            {t("financials.adjPendingTitle")}{" "}
-            <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
-              {t("financials.adjPendingBadge", { n: pending.length })}
-            </span>
-          </SectionTitle>
-          <p className="text-[11px] text-muted mt-1">{t("financials.adjPendingExplainer")}</p>
-          <div className="grid sm:grid-cols-2 gap-3 mt-2">
-            {pending.map((a) => (
-              <AdjustmentCard
-                key={a.id}
-                adj={a}
-                currency={currency}
-                busy={actingId === a.id}
-                onAct={act}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Applied adjustments — reversible, never silently permanent. */}
-      {applied.length > 0 && (
-        <section className="mt-6">
-          <SectionTitle>{t("financials.adjAppliedTitle")}</SectionTitle>
-          <div className="mt-2 space-y-2">
-            {applied.map((a) => (
-              <AppliedRow
-                key={a.id}
-                adj={a}
-                currency={currency}
-                busy={actingId === a.id}
-                onRevert={() => act(a.id, "revert")}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {adjustments.length === 0 && (
-        <p className="text-muted text-xs italic mt-6">{t("financials.adjNone")}</p>
-      )}
-
-      {/* The financial analyst desk — implements customization asks precisely. */}
-      <AnalystDesk
-        messages={payload.messages}
-        adjById={adjById}
-        currency={currency}
-        sending={sending}
-        remoteBusy={remoteBusy}
-        error={chatError ?? bgChatError}
-        disabled={!financials}
-        actingId={actingId}
-        onSend={sendChat}
-        onRetry={retryChat}
-        onPause={pauseChat}
-        onAct={act}
-      />
-
-      {/* The raw → cleansed history: current differences + the audit log. */}
-      <HistoryPanel
-        cells={cleansed?.cells ?? []}
-        adjById={adjById}
-        formatByKey={formatByKey}
-        currency={currency}
-        events={events}
-      />
-
-      {/* Nothing on this bench is deleted — dismissed and reverted stay auditable. */}
-      {archived.length > 0 && <ArchivePanel archived={archived} currency={currency} />}
     </main>
   );
 }
@@ -542,7 +566,7 @@ function ArchivePanel({
   const d = archived.filter((a) => a.status === "dismissed").length;
   const r = archived.length - d;
   return (
-    <section className="mt-6">
+    <section>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 text-left w-full group">
         <SectionTitle>
           {t("financials.adjArchive")}{" "}
@@ -631,11 +655,11 @@ function AnalystDesk({
   }
 
   return (
-    <section className="mt-6 rounded-2xl bg-card border border-accent/20 p-4">
+    <section className="h-full flex flex-col rounded-2xl bg-card border border-accent/20 p-4">
       <SectionTitle>{t("financials.deskTitle")}</SectionTitle>
       <p className="text-[11px] text-muted mt-1">{t("financials.deskExplainer")}</p>
 
-      <div className="mt-3 max-h-[420px] overflow-y-auto space-y-3 pr-1">
+      <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
         {messages.length === 0 && (
           <p className="text-muted/70 text-[11px] italic">{t("financials.deskEmpty")}</p>
         )}
@@ -731,7 +755,7 @@ function AnalystDesk({
       </div>
 
       <form
-        className="mt-3 flex items-center gap-2"
+        className="mt-3 flex items-center gap-2 shrink-0"
         onSubmit={(e) => {
           e.preventDefault();
           submit();
@@ -776,7 +800,7 @@ function HistoryPanel({
   const { t } = useT();
   const c = currency ?? "USD";
   return (
-    <section className="mt-6">
+    <section>
       <SectionTitle>{t("financials.historyTitle")}</SectionTitle>
       <p className="text-[11px] text-muted mt-1">{t("financials.historyExplainer")}</p>
 
