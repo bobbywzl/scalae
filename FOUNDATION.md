@@ -230,6 +230,12 @@ the numbers themselves: owner earnings made visible.
   "one-time" charges are flagged as a culture datum, not cleansed away.
 - **Every delta traces** to a named disclosure with the disclosed amount, and the
   raw provider data is never modified — cleansing is a deterministic overlay.
+- **The statement currency is the only legal unit.** A foreign listing's quote
+  currency (an ADR trading in USD while the company reports in CNY) is a trap,
+  not a unit: every table figure and every adjustment delta lives in the
+  statement currency, stated visibly on the bench; amounts are never converted
+  with an assumed FX rate, and any ratio that would mix the two currencies is
+  omitted rather than computed — an honest gap beats a confident wrong number.
 - **Human approval gates everything.** The desk's moderation pass and the financial
   analyst desk only *propose* adjustments; an explicit instruction from the investor
   is the one thing that applies a change in the same gesture, and every apply is
