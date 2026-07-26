@@ -238,8 +238,11 @@ the numbers themselves: owner earnings made visible.
   omitted rather than computed — an honest gap beats a confident wrong number.
 - **Human approval gates everything.** The desk's moderation pass and the financial
   analyst desk only *propose* adjustments; an explicit instruction from the investor
-  is the one thing that applies a change in the same gesture, and every apply is
-  reversible.
+  is the one thing that applies a change in the same gesture — and only when its
+  amounts are already on the bench. When the analyst has to research the record for
+  the disclosed figures, it returns the specific plan and parks every change for
+  approval, exactly like a proposed signal: the investor approves the numbers, not
+  the idea. Every apply is reversible.
 - **The history is the point.** An append-only log records every difference between
   the raw public record and the customized view — proposal, application, dismissal,
   revert — dated and per line-item. A cleansed view that cannot show its audit

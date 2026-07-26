@@ -63,7 +63,13 @@ const ADJUSTABLE = new Set<string>(ADJUSTABLE_METRIC_KEYS);
 // the route's 300s maxDuration, the synthesis gets the larger remainder.
 const SWEEP_LIMIT_MS = 120_000;
 const SUGGEST_SYNTHESIS_LIMIT_MS = 150_000;
-const ANALYST_DEADLINE_MS = 210_000;
+// The analyst turn may run TWO analyst calls with a research round between
+// them (phase 1 → grounded sweeps → post-research plan), all inside the
+// route's 300s: phase 1 capped, sweeps parallel and capped, the plan pass
+// gets whatever remains of the total budget (floored to a real window).
+const ANALYST_PHASE1_LIMIT_MS = 150_000;
+const ANALYST_SWEEP_LIMIT_MS = 80_000;
+const ANALYST_TOTAL_BUDGET_MS = 285_000;
 
 interface SuggestOutput {
   note: string;
@@ -72,6 +78,8 @@ interface SuggestOutput {
 
 interface AnalystOutput {
   reply: string;
+  /** Non-empty = the analyst needs the desk to research disclosed figures first. */
+  researchQueries: string[];
   proposals: (FinAdjustmentProposal & { citationIndexes: number[]; applyNow: boolean })[];
   applyAdjustmentIds: string[];
   revertAdjustmentIds: string[];
@@ -170,6 +178,26 @@ function windfallSweepPrompt(name: string, symbol: string, years: string): strin
   return `You are a forensic-accounting research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
 
 Find the WINDFALL AND MARK-TO-MARKET GAINS flattering ${name}'s reported results for fiscal years ${years}: unrealized/mark-to-market gains or losses on investment stakes and securities, revaluation gains when a held company's valuation jumped (an IPO of a portfolio company, a private stake marked up after a funding round), equity-method one-offs, bargain-purchase gains, gains on sale of investments, one-off government subsidies or credits. For each: the disclosed amount, the fiscal year, the reported line it sits in (many sit in net income but not operating income or operating cash flow), whether it is realized or unrealized, and any disclosed tax effect. ${SWEEP_RULES}`;
+}
+
+/** One focused sweep for a query the FINANCIAL ANALYST raised mid-conversation. */
+function chatResearchPrompt(
+  name: string,
+  symbol: string,
+  fin: TickerFinancials,
+  query: string
+): string {
+  const cur = fin.currency ?? "USD";
+  const currencyNote =
+    fin.currencyMismatch && fin.tradingCurrency
+      ? ` Note: ${symbol}'s statements are reported in ${cur} while the listing trades in ${fin.tradingCurrency} — report each amount in the currency the disclosure itself uses and SAY which it is; never convert.`
+      : "";
+  return `You are a forensic-accounting research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+RESEARCH QUERY FROM THE DESK'S FINANCIAL ANALYST:
+${query}
+
+Find the DISCLOSED figures that answer it, from primary sources first — securities filings (10-K/10-Q/20-F and their statement notes), earnings releases, call transcripts, regulator documents — then serious trade press. For each figure: the exact amount with its currency, the fiscal period it belongs to, which reported line it sits in (revenue, operating income, net income, operating cash flow), pre-tax vs after-tax where stated, and the exact disclosure it appears in.${currencyNote} ${SWEEP_RULES}`;
 }
 
 /**
@@ -429,40 +457,130 @@ ${benchContext}${languageDirective}`,
     content: m.content || "…",
   }));
   const chatModel = await resolveModel("chat");
+  const analystCall = (
+    msgs: { role: "user" | "assistant"; content: string }[],
+    label: string,
+    limitMs: number
+  ) =>
+    withDeadline(
+      label,
+      (signal) =>
+        claudeJSON<AnalystOutput>({
+          model: chatModel,
+          signal,
+          system,
+          messages: msgs,
+          schema: FIN_ANALYST_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 8000,
+          effort: effortFromEnv("CLAUDE_FIN_ANALYST_EFFORT", "medium"),
+          meta: { userId, feature: "cleansing" },
+          fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
+        }),
+      limitMs
+    );
 
-  const out = await withDeadline(
-    "Financial analyst reply",
-    (signal) =>
-      claudeJSON<AnalystOutput>({
-        model: chatModel,
-        signal,
-        system,
-        messages,
-        schema: FIN_ANALYST_SCHEMA as unknown as Record<string, unknown>,
-        maxTokens: 8000,
-        effort: effortFromEnv("CLAUDE_FIN_ANALYST_EFFORT", "medium"),
-        meta: { userId, feature: "cleansing" },
-        fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
-      }),
-    ANALYST_DEADLINE_MS
-  );
+  const turnStart = Date.now();
+  let out = await analystCall(messages, "Financial analyst reply", ANALYST_PHASE1_LIMIT_MS);
+
+  // --- the research round: the analyst asked the desk to pull the record ---
+  // Phase 1 may request grounded web research when the bench lacks disclosed
+  // amounts. The desk runs the queries and re-asks the analyst IN THE SAME
+  // TURN for the specific plan; every plan proposal parks for review (the
+  // signal-proposal gate) — researched numbers are approved, never assumed.
+  const queries = (out.researchQueries ?? [])
+    .map((q) => (typeof q === "string" ? q.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 3);
+  const researched = queries.length > 0;
+  let citationPool = sources;
+  if (researched) {
+    if (await pausedByInvestor()) {
+      await clearBusy();
+      return { message: null, paused: true };
+    }
+    const deepModel = await resolveModel("scoutDeep");
+    const settled = await Promise.allSettled(
+      queries.map((q) =>
+        withDeadline(
+          "fin-chat-research",
+          (signal) =>
+            geminiGroundedSearch(chatResearchPrompt(ticker.name, symbol, fin, q), {
+              model: deepModel,
+              meta: { userId, feature: "cleansing" },
+              signal,
+            }),
+          ANALYST_SWEEP_LIMIT_MS
+        ).then((r) => ({ query: q, text: r.text, sources: r.sources }))
+      )
+    );
+    const sweeps = settled
+      .filter(
+        (s): s is PromiseFulfilledResult<{ query: string; text: string; sources: Citation[] }> =>
+          s.status === "fulfilled"
+      )
+      .map((s) => s.value);
+
+    // New sources continue the numbering the system context already uses.
+    const researchSources: Citation[] = [];
+    for (const s of sweeps) {
+      for (const src of s.sources) {
+        if (
+          src?.url &&
+          !sources.some((x) => x.url === src.url) &&
+          !researchSources.some((x) => x.url === src.url)
+        ) {
+          researchSources.push(withDomain({ ...src, foundBy: ["Analyst desk research"] }));
+        }
+      }
+    }
+    citationPool = [...sources, ...researchSources];
+
+    const findings = sweeps.length
+      ? sweeps.map((s) => `=== Query: ${s.query} ===\n${s.text}`).join("\n\n")
+      : "(every research sweep failed — say so plainly, name the figure still missing, and propose nothing)";
+    const researchBlock = `[DESK RESEARCH RESULTS — a system payload, not the investor speaking. You asked the desk to research; the findings are below. Now deliver the SPECIFIC PLAN: state each intended adjustment in your reply (line, fiscal year, signed delta in raw ${fin.currency ?? "statement-currency"} units, the disclosure it traces to, cited [n]) and emit the matching proposals with applyNow=false — research-derived amounts always park for the investor's review. Where no usable disclosed figure came back, say so instead of estimating. researchQueries must be empty on this pass.]
+
+${findings}
+
+ADDITIONAL NUMBERED SOURCES (continuing your context's numbering):
+${researchSources.map((s, i) => `[${sources.length + i}] ${s.title} — ${s.url}`).join("\n") || "(none)"}`;
+
+    if (await pausedByInvestor()) {
+      await clearBusy();
+      return { message: null, paused: true };
+    }
+    out = await analystCall(
+      [
+        ...messages,
+        { role: "assistant", content: out.reply?.trim() || "(pulling the filings…)" },
+        { role: "user", content: researchBlock },
+      ],
+      "Financial analyst reply (post-research)",
+      Math.max(55_000, ANALYST_TOTAL_BUDGET_MS - (Date.now() - turnStart))
+    );
+  }
 
   if (await pausedByInvestor()) {
     await clearBusy();
     return { message: null, paused: true };
   }
 
-  // --- new adjustments from this turn (parked, or applied on explicit command) ---
+  // --- new adjustments from this turn ---
+  // Parked by default; applied in the same gesture ONLY for an explicit
+  // command whose amounts were already on the bench. A turn that needed
+  // research always parks — the investor approves the specific numbers the
+  // desk found, exactly like a proposed signal.
   const created: string[] = [];
   const proposals = validProposals(out.proposals, fin, adjustments, 8);
   for (const p of proposals) {
+    const parked = researched || p.applyNow !== true;
     const adj = await insertFinAdjustment(
       userId,
       symbol,
       p,
       "analyst",
-      citationsFor(p.citationIndexes, sources),
-      p.applyNow === true ? "applied" : "suggested"
+      citationsFor(p.citationIndexes, citationPool),
+      parked ? "suggested" : "applied"
     );
     created.push(adj.id);
     await insertFinCleansingEvent(
@@ -472,7 +590,7 @@ ${benchContext}${languageDirective}`,
       "suggested",
       describeAdjustment(adj, fin.currency)
     ).catch(() => {});
-    if (p.applyNow === true) {
+    if (!parked) {
       await insertFinCleansingEvent(
         userId,
         symbol,

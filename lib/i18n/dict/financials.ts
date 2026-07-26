@@ -167,7 +167,7 @@ const en = {
   // The financial analyst desk (the cleansing chat)
   deskTitle: "Financial analyst desk",
   deskExplainer:
-    "Ask for the customization you want — “remove the 2025 IPO windfall from net income”, “strip last year’s impairment” — and the analyst implements it precisely. Explicit commands apply at once; explorations park for your review.",
+    "Ask for the customization you want — “remove the 2025 IPO windfall from net income”, “strip last year’s impairment” — and the analyst implements it precisely. When the bench lacks the disclosed amounts, it researches the filings, lays out the specific plan, and parks each change here for your approval — like a proposed signal. Explicit commands with amounts already on the bench apply at once.",
   deskPlaceholder: "e.g. Remove the unrealized valuation gain from FY2025 net income",
   deskSend: "Send",
   deskThinking: "The analyst is working…",
@@ -341,7 +341,7 @@ const zh: Record<keyof typeof en, string> = {
 
   deskTitle: "财务分析台",
   deskExplainer:
-    "说出你想要的自定义——“把 2025 年 IPO 暴利从净利润中剔除”、“剔除去年的减值”——分析师会精确执行。明确的指令立即生效；探讨性的问题会先提交待你审阅。",
+    "说出你想要的自定义——“把 2025 年 IPO 暴利从净利润中剔除”、“剔除去年的减值”——分析师会精确执行。当工作台缺少披露金额时，分析师会检索申报文件、给出具体的调整方案，并将每项改动在此提交待你批准——如同提议一个新信号。金额已在台面上的明确指令则立即生效。",
   deskPlaceholder: "例如：把 2025 财年净利润中的未实现估值收益剔除",
   deskSend: "发送",
   deskThinking: "分析师处理中……",
