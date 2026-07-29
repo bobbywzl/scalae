@@ -337,6 +337,139 @@ export function reportedTableText(fin: TickerFinancials): string {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic table diagnostics — computed in code, no model anywhere.
+// The self-inspection pass's raw material: where the extracted table's
+// arithmetic moved, so the inspecting analyst judges flags instead of
+// re-deriving them (and can never hallucinate a delta that isn't there).
+// ---------------------------------------------------------------------------
+
+/** Money rows worth step-change scanning (adjustable base rows). */
+const DIAG_MONEY_KEYS = [
+  "revenue",
+  "operatingIncome",
+  "netIncome",
+  "ocf",
+  "fcf",
+  "da",
+  "capex",
+  "buybacks",
+  "dividendsPaid",
+  "equity",
+  "totalDebt",
+  "cash",
+] as const;
+/** Rows whose sign should be stable across years — a flip is itself a flag. */
+const SIGN_STABLE_KEYS = new Set(["revenue", "equity", "cash", "da"]);
+/** YoY move that counts as a step-change. */
+const DIAG_STEP_PCT = 0.4;
+/** Margin swing (percentage points) that counts. */
+const DIAG_MARGIN_PT = 0.08;
+const DIAG_MAX_LINES = 28;
+
+function fmtCompact(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e12) return `${(v / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  return String(Math.round(v));
+}
+
+/**
+ * The extracted table's deterministic diagnostics: YoY step-changes and sign
+ * flips per base row, margin swings, earnings-vs-cash divergence, capex/D&A
+ * extremes, and extraction gaps (null cells with reported neighbors). Purely
+ * arithmetic — every number in it comes from the table itself.
+ */
+export function tableDiagnosticsText(fin: TickerFinancials): string {
+  const by = new Map(fin.metrics.map((m) => [m.key, m.values]));
+  const years = fin.fiscalYears;
+  const row = (key: string): (number | null)[] => by.get(key) ?? [];
+  const lines: string[] = [];
+
+  // 1) Step-changes and sign flips on the base money rows.
+  for (const key of DIAG_MONEY_KEYS) {
+    const vs = row(key);
+    for (let i = 1; i < vs.length; i++) {
+      const a = vs[i - 1];
+      const b = vs[i];
+      if (a == null || b == null || a === 0) continue;
+      const pct = (b - a) / Math.abs(a);
+      const flip = SIGN_STABLE_KEYS.has(key) && a > 0 !== b > 0;
+      if (Math.abs(pct) >= DIAG_STEP_PCT || flip) {
+        lines.push(
+          `${key} ${years[i - 1]}→${years[i]}: ${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(0)}% (${fmtCompact(a)} → ${fmtCompact(b)})${flip ? " — SIGN FLIP" : ""}`
+        );
+      }
+    }
+  }
+
+  // 2) Margin swings (operating and net), in percentage points.
+  const rev = row("revenue");
+  for (const key of ["operatingIncome", "netIncome"] as const) {
+    const vs = row(key);
+    let prev: number | null = null;
+    for (let i = 0; i < vs.length; i++) {
+      const v = vs[i];
+      const r = rev[i];
+      const margin = v != null && r != null && r !== 0 ? v / r : null;
+      if (margin != null && prev != null && Math.abs(margin - prev) >= DIAG_MARGIN_PT) {
+        lines.push(
+          `${key}/revenue margin ${years[i - 1]}→${years[i]}: ${(prev * 100).toFixed(1)}% → ${(margin * 100).toFixed(1)}%`
+        );
+      }
+      if (margin != null) prev = margin;
+      else prev = null;
+    }
+  }
+
+  // 3) Earnings running ahead of cash (netIncome positive, OCF far below it).
+  {
+    const ni = row("netIncome");
+    const ocf = row("ocf");
+    for (let i = 0; i < ni.length; i++) {
+      const n = ni[i];
+      const c = ocf[i];
+      if (n != null && c != null && n > 0 && (c - n) / n <= -DIAG_STEP_PCT) {
+        lines.push(
+          `netIncome vs ocf ${years[i]}: earnings ${fmtCompact(n)} but operating cash ${fmtCompact(c)} — earnings ahead of cash`
+        );
+      }
+    }
+  }
+
+  // 4) capex vs D&A extremes (both magnitudes; capex often stored negative).
+  {
+    const capex = row("capex");
+    const da = row("da");
+    for (let i = 0; i < capex.length; i++) {
+      const c = capex[i];
+      const d = da[i];
+      if (c != null && d != null && d !== 0) {
+        const ratio = Math.abs(c) / Math.abs(d);
+        if (ratio >= 3 || ratio <= 0.35) {
+          lines.push(`capex/D&A ${years[i]}: ${ratio.toFixed(2)}× (capex ${fmtCompact(c)}, D&A ${fmtCompact(d)})`);
+        }
+      }
+    }
+  }
+
+  // 5) Extraction gaps: a null cell with reported values on both sides.
+  for (const key of DIAG_MONEY_KEYS) {
+    const vs = row(key);
+    for (let i = 1; i < vs.length - 1; i++) {
+      if (vs[i] == null && vs[i - 1] != null && vs[i + 1] != null) {
+        lines.push(`${key} ${years[i]}: null between reported neighbors — possible extraction gap`);
+      }
+    }
+  }
+
+  const shown = lines.slice(0, DIAG_MAX_LINES);
+  const dropped = lines.length - shown.length;
+  return `DETERMINISTIC TABLE DIAGNOSTICS (computed by the desk in code from the table above — every figure is the table's own; flags are arithmetic, not judgment):
+${shown.map((l) => `- ${l}`).join("\n") || "- (no arithmetic flags — the series read smooth at the desk's thresholds)"}${dropped > 0 ? `\n- …and ${dropped} more flags truncated (the table is unusually noisy — say so).` : ""}`;
+}
+
 /** Existing adjustments as prompt lines (dedupe context + the analyst's working set). */
 export function adjustmentLines(adjustments: FinAdjustment[], currency: string | null): string {
   if (adjustments.length === 0) return "(none)";

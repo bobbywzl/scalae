@@ -5,12 +5,14 @@ import { researchSignalBackstory } from "./history";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
+  ANALYST_QUESTIONS_DOCTRINE,
   AUDIT_DOCTRINE,
   AUDIT_SCHEMA,
   DESK_DOCTRINE,
   deskIdentity,
   EXPERT_LOOP_GUIDANCE,
   GAP_SCHEMA,
+  investorQuestionsBlock,
   PROMISE_DOCTRINE,
   promiseLedgerBlock,
   QUESTION_METHOD,
@@ -35,11 +37,13 @@ import {
   getSignal,
   getTicker,
   harvestRunSources,
+  insertDeskQuestion,
   insertDigestItem,
   insertPromise,
   insertProposal,
   insertReading,
   lastCompletedRun,
+  listDeskQuestions,
   listDeskSources,
   listDiligenceEvidence,
   listDiligenceResearch,
@@ -113,6 +117,7 @@ interface SynthesisOutput {
     resolution: string;
     sourceIndex: number | null;
   }[];
+  questions: { signalKey: string; question: string; why: string }[];
 }
 
 interface AuditOutput {
@@ -470,8 +475,9 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     // standing orders bind every stage's conduct; the source map steers the
     // scouts only when the investor has steering ON (cooperative research —
     // their explicit choice); the promise ledger is maintained by synthesis;
+    // the analyst-questions channel carries the investor's answers back in;
     // and the previous run's unanchored audit questions seed today's framing.
-    const [activeLessons, activeSources, steeringSetting, openPromises, pendingPromises, resolvedPromises, prevRun] =
+    const [activeLessons, activeSources, steeringSetting, openPromises, pendingPromises, resolvedPromises, prevRun, deskQuestions] =
       await Promise.all([
         listLessons(userId, symbol, "active").catch(() => []),
         listDeskSources(userId, symbol, "active").catch(() => []),
@@ -480,6 +486,7 @@ export async function executeRun(userId: string, runId: string, symbol: string):
         listPromises(userId, symbol, ["suggested"]).catch(() => []),
         listPromises(userId, symbol, ["kept", "missed", "dropped"]).catch(() => []),
         lastCompletedRun(userId, symbol).catch(() => undefined),
+        listDeskQuestions(userId, symbol).catch(() => []),
       ]);
     const ordersBlock = standingOrdersBlock(activeLessons);
     const ordersSteer = activeLessons.length
@@ -488,6 +495,11 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     const steeringOn = steeringSetting !== "off";
     const steerText = steeringOn ? sourceSteeringText(activeSources) : "";
     const ledgerBlock = promiseLedgerBlock(openPromises, pendingPromises, resolvedPromises.slice(0, 5));
+    const askedBlock = investorQuestionsBlock(
+      deskQuestions.filter((q) => q.status === "open"),
+      deskQuestions.filter((q) => q.status === "answered").slice(0, 6),
+      deskQuestions.filter((q) => q.status === "dismissed").slice(0, 6)
+    );
     const unverifiedBlock = prevRun?.audit?.openQuestions?.length
       ? `\nUNVERIFIED FROM THE LAST RUN (the audit could not anchor these claims in quantitative data — close them today if the record allows):\n${prevRun.audit.openQuestions.map((s) => `- ${s}`).join("\n")}`
       : "";
@@ -537,10 +549,10 @@ ${boardBlock}
 INVESTOR FOCUS AREAS:
 ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
 
-${ordersBlock ? `${ordersBlock}\n\n` : ""}RECENT INVESTOR GUIDANCE (newest last):
+${ordersBlock ? `${ordersBlock}\n\n` : ""}${askedBlock ? `${askedBlock}\n\n` : ""}RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 ${unverifiedBlock}
-${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
+${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens. The investor's ANSWERED analyst questions above are their stated priorities and firsthand testimony — let them steer.`,
             },
           ],
           schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
@@ -755,7 +767,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 
 ACTIVE SIGNAL BOARD:
 ${boardBlock}
-${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}${ledgerBlock ? `\n${ledgerBlock}\n` : ""}
+${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}${ledgerBlock ? `\n${ledgerBlock}\n` : ""}${askedBlock ? `\n${askedBlock}\n` : ""}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
@@ -775,6 +787,7 @@ TASK — produce today's desk output:
 3b. dossier: the STANDING view of the business, 150-300 words in markdown — not today's news. Paragraph 1: how this company makes money right now (segments, the earnings engine, moat trajectory) as evidenced by the board's current readings. Paragraph 2: the culture/trust verdict. Update only what today's evidence moved; keep the rest stable so the investor sees a consistent thesis evolving, not a rewrite. Cite [n] source indexes on every load-bearing claim, and when a claim reads off a board signal, add that signal's key in double braces right after it — e.g. "the toll booth is repricing {{S1}} [4]" — so the investor can jump from claim to signal. Refer to signals by name in the prose (the {{Sk}} markers render as links, never as raw keys).
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Propose as the industry expert of the circle-of-competence loop: where the investor's due-diligence record (above, when present) leaves a load-bearing business-model or culture thread unexamined and unwatched, or where a signal's long-run trend would strengthen or test a section's written analysis, prefer THAT proposal and name the gap or section in its thesis. Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
 5. promises: maintain the promise ledger per the promise doctrine — 0-3 actions, only from today's field research (adds from primary-source commitments; resolves only for OPEN ledger entries whose outcome today's evidence directly shows). Empty when the ledger block is absent or nothing in today's evidence bears on it — the common case.
+6. questions: 0-2 clarification questions TO THE INVESTOR per the analyst-questions doctrine — only where today's evidence raised something the open web cannot settle (their firsthand experience, their judgment call, a document only they hold, a genuine fork needing their steer), never re-asking anything in the analyst-questions block above. signalKey names the signal that raised it ("" for board-level). Empty is the healthy norm.
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
@@ -799,7 +812,7 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       system: [
         { text: DESK_DOCTRINE, cache: true },
         {
-          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${PROMISE_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}`,
+          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${PROMISE_DOCTRINE}\n\n${ANALYST_QUESTIONS_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}`,
         },
       ],
       messages: [{ role: "user", content: task }],
@@ -1039,6 +1052,20 @@ TASK: Audit per the audit doctrine.${extra ? " This is the FINALIZE pass — the
       }
     }
 
+    // Analyst questions to the investor (0-2): recorded open, deduped against
+    // everything ever asked, capped desk-wide — the ask itself needs no gate
+    // (answer/dismiss IS the gate), and answers return as testimony context.
+    for (const qn of (out.questions ?? []).slice(0, 2)) {
+      if (!qn.question?.trim()) continue;
+      const sig = byKey.get((qn.signalKey ?? "").toUpperCase().trim());
+      await insertDeskQuestion(userId, symbol, {
+        signalId: sig?.id ?? null,
+        question: qn.question,
+        why: qn.why ?? "",
+        origin: "research",
+      }).catch(() => null);
+    }
+
     // The audit summary rides the run row (the UI shows it under the brief,
     // and tomorrow's question framing reads openQuestions from here).
     if (audit && (audit.note || audit.openQuestions.length > 0)) {
@@ -1132,6 +1159,7 @@ interface SignalCheckOutput {
   note: string;
   readings: SynthesisOutput["readings"];
   digestItems: SynthesisOutput["digestItems"];
+  questions: SynthesisOutput["questions"];
 }
 
 const MAX_SCOPED_FOLLOW_UPS = 2;
@@ -1196,15 +1224,22 @@ export async function executeSignalRun(
       .join("\n");
 
     // Desk memory for the check: standing orders bind conduct, the source map
-    // steers scouts when the investor has steering ON, and a FRESH board run's
+    // steers scouts when the investor has steering ON, a FRESH board run's
     // field file (this morning's persisted sweeps) is reused as context so the
-    // check builds on the day's field work instead of re-searching all of it.
-    const [activeLessons, activeSources, steeringSetting, lastBoardRun] = await Promise.all([
+    // check builds on the day's field work instead of re-searching all of it,
+    // and the analyst-questions channel carries the investor's answers back in.
+    const [activeLessons, activeSources, steeringSetting, lastBoardRun, deskQuestions] = await Promise.all([
       listLessons(userId, symbol, "active").catch(() => []),
       listDeskSources(userId, symbol, "active").catch(() => []),
       getSetting(userId, `sourceSteering:${symbol}`).catch(() => null),
       lastCompletedRun(userId, symbol).catch(() => undefined),
+      listDeskQuestions(userId, symbol).catch(() => []),
     ]);
+    const askedBlock = investorQuestionsBlock(
+      deskQuestions.filter((q) => q.status === "open"),
+      deskQuestions.filter((q) => q.status === "answered").slice(0, 6),
+      deskQuestions.filter((q) => q.status === "dismissed").slice(0, 6)
+    );
     const ordersBlock = standingOrdersBlock(activeLessons);
     const ordersSteer = activeLessons.length
       ? `\n\nDESK STANDING ORDERS (investor-approved conduct for this desk; honor them while searching):\n${activeLessons.map((l) => `- ${l.text}`).join("\n")}`
@@ -1436,7 +1471,7 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
 
 THE ONE SIGNAL THIS CHECK COVERS (with its previous reading):
 ${boardBlock}
-${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}
+${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}${askedBlock ? `\n${askedBlock}\n` : ""}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
@@ -1446,7 +1481,7 @@ ${researchBlock}
 NUMBERED SOURCES:
 ${sourceList || "(none)"}
 
-TASK — produce this check's output per the single-signal-check doctrine: exactly one reading for [S1] (signalKey "S1"; same newEvidence/citation discipline as a full run, judged against the previous reading and the history base rate), 0-3 digestItems bearing on this signal only (signalNames ["${signal.name}"]; skip anything the previous reading already cited), and the 40-120 word note. No proposals exist in this schema — a scoped check never expands the board.
+TASK — produce this check's output per the single-signal-check doctrine: exactly one reading for [S1] (signalKey "S1"; same newEvidence/citation discipline as a full run, judged against the previous reading and the history base rate), 0-3 digestItems bearing on this signal only (signalNames ["${signal.name}"]; skip anything the previous reading already cited), the 40-120 word note, and questions per the analyst-questions doctrine (0-2, signalKey "S1", only what this check surfaced that the open web cannot settle; never re-ask the analyst-questions block above; empty is the norm).
 
 LANGUAGE: Write EVERY output field in English — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
@@ -1460,7 +1495,7 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
           system: [
             { text: DESK_DOCTRINE, cache: true },
             {
-              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
+              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${ANALYST_QUESTIONS_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
             },
           ],
           messages: [{ role: "user", content: task }],
@@ -1518,6 +1553,17 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
             : null,
         sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
       });
+    }
+
+    // Analyst questions raised by this check (0-2, scoped to the signal).
+    for (const qn of (out.questions ?? []).slice(0, 2)) {
+      if (!qn.question?.trim()) continue;
+      await insertDeskQuestion(userId, symbol, {
+        signalId,
+        question: qn.question,
+        why: qn.why ?? "",
+        origin: "check",
+      }).catch(() => null);
     }
 
     // The note rides the run's brief column; board surfaces never read

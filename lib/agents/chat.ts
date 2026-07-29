@@ -10,6 +10,7 @@ import {
   deskIdentity,
   EXPERT_LOOP_GUIDANCE,
   INTAKE_STAGES_DOCTRINE,
+  investorQuestionsBlock,
   OPENING_FILE_DOCTRINE,
   QUESTION_METHOD,
   QUICK_CHAT_DOCTRINE,
@@ -28,6 +29,7 @@ import {
   insertMessage,
   insertProposal,
   latestRun,
+  listDeskQuestions,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
@@ -294,6 +296,7 @@ export async function handleChatTurn(
     pendingLessons,
     openPromises,
     resolvedPromises,
+    deskQuestions,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -315,6 +318,7 @@ export async function handleChatTurn(
     listLessons(userId, symbol, "suggested").catch(() => []),
     listPromises(userId, symbol, ["open"]).catch(() => []),
     listPromises(userId, symbol, ["kept", "missed", "dropped"]).catch(() => []),
+    listDeskQuestions(userId, symbol).catch(() => []),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -347,6 +351,14 @@ export async function handleChatTurn(
 
   const positionLine = involvementLine(involvement);
   const ordersBlock = standingOrdersBlock(activeLessons, pendingLessons);
+  // The analyst-questions channel: what the desk has asked the investor, and
+  // their answers (first-class testimony). The chat may discuss open ones
+  // naturally, but marking answered/dismissed happens on the questions card.
+  const askedBlock = investorQuestionsBlock(
+    deskQuestions.filter((q) => q.status === "open"),
+    deskQuestions.filter((q) => q.status === "answered").slice(0, 6),
+    deskQuestions.filter((q) => q.status === "dismissed").slice(0, 4)
+  );
   // The promise ledger, compact: candor context for management questions.
   const promiseTally = (["kept", "missed", "dropped"] as const)
     .map((s) => ({ s, n: resolvedPromises.filter((p) => p.status === s).length }))
@@ -374,7 +386,7 @@ ${boardLines || "(empty)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
-${ordersBlock ? `${ordersBlock}\n` : ""}${promiseBlock ? `${promiseBlock}\n` : ""}${financials ? financialsSummary(financials) : ""}
+${ordersBlock ? `${ordersBlock}\n` : ""}${askedBlock ? `${askedBlock}\n` : ""}${promiseBlock ? `${promiseBlock}\n` : ""}${financials ? financialsSummary(financials) : ""}
 ${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 

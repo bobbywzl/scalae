@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AnalystQuestions } from "@/components/AnalystQuestions";
 import { ChatPanel } from "@/components/ChatPanel";
 import { PromiseLedger, SourceMap, StandingOrders } from "@/components/DeskMemory";
 import { DeskTabs } from "@/components/DeskTabs";
@@ -882,6 +883,16 @@ export default function DeskPage() {
                 the evidence chain, verbatim, on demand. */}
             {latestRun?.status === "done" && <FieldFile symbol={symbol} runId={latestRun.id} />}
           </section>
+
+          {/* The analyst asks: research questions only the investor can answer
+              (firsthand experience, judgment, documents) — answers feed every
+              later run and chat turn as first-class testimony. */}
+          <AnalystQuestions
+            symbol={symbol}
+            refreshKey={`${latestRun?.finishedAt ?? ""}:${signalRun?.finishedAt ?? ""}`}
+            signalsById={signalsById}
+            onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}
+          />
 
           {suggested.length > 0 && (
             <section>

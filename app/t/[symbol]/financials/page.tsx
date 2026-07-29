@@ -14,9 +14,18 @@ import type {
   CleansingPayload,
   FinAdjustment,
   FinCleansingEvent,
+  FinInspectionFinding,
   FinMessage,
   MetricFormat,
 } from "@/lib/types";
+
+// The inspection's finding kinds, rendered as chips on the pass summary.
+const INSPECT_KIND_CHIP: Record<FinInspectionFinding["kind"], { key: TKey; cls: string }> = {
+  anomaly: { key: "memory.finKindAnomaly", cls: "bg-warn/15 text-warn" },
+  data_quality: { key: "memory.finKindDataQuality", cls: "bg-loss/12 text-loss" },
+  trend: { key: "memory.finKindTrend", cls: "bg-accent/12 text-accent" },
+  pattern: { key: "memory.finKindPattern", cls: "bg-ink/8 text-muted" },
+};
 
 /**
  * The ticker's FINANCE CLEANSING screen — the third segment of the desk pill.
@@ -334,6 +343,44 @@ export default function FinanceCleansingPage() {
                 </span>
               </p>
               <p className="text-[13px] text-emph mt-1.5 leading-relaxed">{suggestRun.note}</p>
+              {/* The self-inspection report: the pass double-checked the
+                  extracted table (deterministic diagnostics + judgment)
+                  before hunting disclosures. */}
+              {suggestRun.inspection && (
+                <div className="mt-2.5 border-t border-hairline pt-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                    ⚖ {t("memory.finInspectTitle")}
+                  </p>
+                  {suggestRun.inspection.note && (
+                    <p className="text-xs text-emph mt-1 leading-relaxed">{suggestRun.inspection.note}</p>
+                  )}
+                  {suggestRun.inspection.findings.length > 0 ? (
+                    <ul className="mt-1.5 space-y-1.5">
+                      {suggestRun.inspection.findings.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[11px]">
+                          <span
+                            className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ${INSPECT_KIND_CHIP[f.kind]?.cls ?? "bg-ink/8 text-muted"}`}
+                          >
+                            {t(INSPECT_KIND_CHIP[f.kind]?.key ?? "memory.finKindAnomaly")}
+                          </span>
+                          <span className="min-w-0 leading-relaxed">
+                            {(f.metricKey || f.fiscalYear) && (
+                              <span className="text-emph font-medium">
+                                {f.metricKey ? t(`financials.${f.metricKey}` as TKey) : ""}
+                                {f.fiscalYear ? ` ${f.fiscalYear}` : ""}
+                                {" — "}
+                              </span>
+                            )}
+                            <span className="text-muted">{f.note}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted italic">{t("memory.finInspectClean")}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {suggestError && <p className="text-[11px] text-loss">{suggestError}</p>}

@@ -9,6 +9,8 @@ import type {
   ChatMessage,
   Citation,
   DeskLesson,
+  DeskQuestion,
+  DeskQuestionStatus,
   DeskSource,
   DeskSourceKind,
   DeskSourceStatus,
@@ -27,6 +29,7 @@ import type {
   FinAdjustmentProposal,
   FinAdjustmentStatus,
   FinCleansingEvent,
+  FinInspection,
   FinMessage,
   FinSuggestRun,
   FocusArea,
@@ -576,6 +579,29 @@ export const SCHEMA_STATEMENTS: string[] = [
     "finishedAt" TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_rhymes_user ON rhymes("userId", symbol, "createdAt")`,
+  // ---- analyst questions: the research desk's clarification questions TO the
+  // investor — what the open web can't settle (their firsthand knowledge,
+  // judgment, documents). Answers are kept as first-class investor testimony
+  // and fed to later runs and chat. Nothing is deleted — dismissed rows stay
+  // as gate memory so the desk never re-asks. ----
+  `CREATE TABLE IF NOT EXISTS desk_questions (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "signalId" TEXT,
+    question TEXT NOT NULL,
+    why TEXT NOT NULL DEFAULT '',
+    origin TEXT NOT NULL DEFAULT 'research',
+    status TEXT NOT NULL DEFAULT 'open',
+    answer TEXT NOT NULL DEFAULT '',
+    "createdAt" TEXT NOT NULL,
+    "answeredAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_deskq_user ON desk_questions("userId", symbol, status)`,
+  // ---- the bench's table self-inspection report (JSON), stored on the
+  // suggestion pass's run row — the pass double-checks the extracted table
+  // before suggesting. ----
+  `ALTER TABLE fin_suggest_runs ADD COLUMN IF NOT EXISTS inspection TEXT`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -1543,6 +1569,70 @@ export async function reopenPromise(id: string): Promise<void> {
   await q`UPDATE promises SET status = 'open', resolution = '', "resolvedAt" = NULL WHERE id = ${id}`;
 }
 
+// ---------- analyst questions (the desk asking the investor) ----------
+
+export async function listDeskQuestions(
+  userId: string,
+  symbol: string,
+  status?: DeskQuestionStatus
+): Promise<DeskQuestion[]> {
+  if (status) {
+    return q<DeskQuestion>`SELECT * FROM desk_questions WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ${status} ORDER BY "createdAt" DESC`;
+  }
+  return q<DeskQuestion>`SELECT * FROM desk_questions WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" DESC`;
+}
+
+export async function getDeskQuestion(id: string): Promise<DeskQuestion | undefined> {
+  const rows = await q<DeskQuestion>`SELECT * FROM desk_questions WHERE id = ${id}`;
+  return rows[0];
+}
+
+/** How many questions may sit open per desk — a queue, never a backlog. */
+const MAX_OPEN_QUESTIONS = 8;
+
+/**
+ * Record a question the desk asks the investor. Skipped when an identical
+ * question exists in ANY status (dismissed rows are gate memory — the desk
+ * never re-asks) or when the desk already has MAX_OPEN_QUESTIONS open —
+ * a queue the investor can't keep up with is manufactured work, not
+ * diligence. Returns id or null.
+ */
+export async function insertDeskQuestion(
+  userId: string,
+  symbol: string,
+  question: { signalId: string | null; question: string; why?: string; origin: "research" | "check" }
+): Promise<string | null> {
+  const text = question.question.trim();
+  if (!text) return null;
+  const dupe = await q<{ id: string }>`
+    SELECT id FROM desk_questions
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND lower(question) = lower(${text})`;
+  if (dupe.length > 0) return null;
+  const open = await q<{ n: string }>`
+    SELECT count(*) AS n FROM desk_questions
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'open'`;
+  if (Number(open[0]?.n ?? 0) >= MAX_OPEN_QUESTIONS) return null;
+  const id = uid();
+  await q`INSERT INTO desk_questions (id, "userId", symbol, "signalId", question, why, origin, status, "createdAt")
+          VALUES (${id}, ${userId}, ${symbol}, ${question.signalId}, ${text.slice(0, 500)},
+                  ${question.why?.trim().slice(0, 300) ?? ""}, ${question.origin}, 'open', ${now()})`;
+  return id;
+}
+
+/** The investor's answer — their own words, kept verbatim (re-answering updates). */
+export async function answerDeskQuestion(id: string, answer: string): Promise<void> {
+  await q`UPDATE desk_questions SET status = 'answered', answer = ${answer.trim().slice(0, 2000)},
+          "answeredAt" = ${now()} WHERE id = ${id}`;
+}
+
+/** dismiss an open question, or reopen a dismissed/answered one (answer kept). */
+export async function setDeskQuestionStatus(
+  id: string,
+  status: "open" | "dismissed"
+): Promise<void> {
+  await q`UPDATE desk_questions SET status = ${status} WHERE id = ${id}`;
+}
+
 // ---------- translation cache (display-language layer) ----------
 
 /** Cached translations for a batch of source-text hashes: hash → translated text. */
@@ -2186,6 +2276,7 @@ export async function createFinSuggestRun(userId: string, symbol: string): Promi
     status: "running",
     note: null,
     proposalCount: 0,
+    inspection: null,
     error: null,
     createdAt: now(),
     finishedAt: null,
@@ -2196,8 +2287,14 @@ export async function createFinSuggestRun(userId: string, symbol: string): Promi
 }
 
 /** Complete a pass (running-only guard — a stopped pass can't resurrect). */
-export async function finishFinSuggestRun(id: string, note: string, proposalCount: number): Promise<void> {
+export async function finishFinSuggestRun(
+  id: string,
+  note: string,
+  proposalCount: number,
+  inspection: FinInspection | null = null
+): Promise<void> {
   await q`UPDATE fin_suggest_runs SET status = 'done', note = ${note}, "proposalCount" = ${proposalCount},
+          inspection = ${inspection ? JSON.stringify(inspection) : null},
           "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
 }
 
@@ -2226,11 +2323,19 @@ export async function latestFinSuggestRun(
   userId: string,
   symbol: string
 ): Promise<FinSuggestRun | undefined> {
-  const rows = await q<FinSuggestRun>`
-    SELECT id, symbol, status, note, "proposalCount", error, "createdAt", "finishedAt"
+  const rows = await q<Omit<FinSuggestRun, "inspection"> & { inspection: string | null }>`
+    SELECT id, symbol, status, note, "proposalCount", inspection, error, "createdAt", "finishedAt"
     FROM fin_suggest_runs WHERE "userId" = ${userId} AND symbol = ${symbol}
     ORDER BY "createdAt" DESC LIMIT 1`;
-  return rows[0];
+  const r = rows[0];
+  if (!r) return undefined;
+  let inspection: FinInspection | null = null;
+  try {
+    inspection = r.inspection ? (JSON.parse(r.inspection) as FinInspection) : null;
+  } catch {
+    /* legacy/malformed row — the pass renders without its inspection report */
+  }
+  return { ...r, inspection };
 }
 
 /** Mark passes stuck in 'running' for over 15 minutes as failed (instance died mid-pass). */

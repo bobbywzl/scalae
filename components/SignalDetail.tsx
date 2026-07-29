@@ -12,6 +12,7 @@ import type {
   Signal,
   SignalWithReadings,
 } from "@/lib/types";
+import { AnalystQuestions } from "./AnalystQuestions";
 import { Annotatable } from "./Annotations";
 import { ChatPanel } from "./ChatPanel";
 import { ClipDialog, type ClipPayload } from "./ClipDialog";
@@ -497,6 +498,16 @@ export function SignalDetail({
               <p className="text-xs text-muted italic mt-2">{t("signals.awaitingFirstRun")}</p>
             )}
           </section>
+
+          {/* This signal's analyst questions — the check may come back asking
+              for what the open web can't settle; answers feed later research. */}
+          {!readOnly && (
+            <AnalystQuestions
+              symbol={signal.symbol}
+              signalId={signal.id}
+              refreshKey={`${signal.history.length}:${signal.history[0]?.date ?? ""}`}
+            />
+          )}
 
           {lineage && (
             <button

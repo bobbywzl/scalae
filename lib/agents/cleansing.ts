@@ -8,6 +8,7 @@ import {
   applyCleansing,
   describeAdjustment,
   reportedTableText,
+  tableDiagnosticsText,
 } from "../cleansing";
 import { withDomain } from "../citations";
 import { withDeadline } from "./research";
@@ -18,6 +19,8 @@ import {
   deskIdentity,
   FIN_ANALYST_DOCTRINE,
   FIN_ANALYST_SCHEMA,
+  FIN_INSPECTION_DOCTRINE,
+  FIN_INSPECTION_SCHEMA,
 } from "./framework";
 import {
   failFinSuggestRun,
@@ -40,6 +43,8 @@ import type {
   Citation,
   FinAdjustment,
   FinAdjustmentProposal,
+  FinInspection,
+  FinInspectionFinding,
   FinMessage,
   TickerFinancials,
 } from "../types";
@@ -75,6 +80,15 @@ interface SuggestOutput {
   note: string;
   proposals: (FinAdjustmentProposal & { citationIndexes: number[] })[];
 }
+
+interface InspectionOutput {
+  inspectionNote: string;
+  findings: (FinInspectionFinding & { chase: string })[];
+}
+
+// The inspection stage's own cap (comes out of the pass's front, before the
+// sweeps); graceful degrade — a timed-out inspection never blocks the pass.
+const INSPECT_LIMIT_MS = 60_000;
 
 interface AnalystOutput {
   reply: string;
@@ -220,15 +234,97 @@ export async function executeCleansingSuggest(
     }
     const existing = await listFinAdjustments(userId, symbol);
 
-    const [deepModel, synthModel] = await Promise.all([
+    const [deepModel, synthModel, triageModel] = await Promise.all([
       resolveModel("scoutDeep"),
       resolveModel("diligence"),
+      resolveModel("triage"),
     ]);
+
+    // ---- Stage 0: the table inspection (self-inspection before suggesting) ----
+    // The junior-analyst double-check: deterministic diagnostics computed in
+    // code, judged by a model into findings — anomalies to chase, extraction
+    // artifacts to distrust, unsustainable trends to watch, recurring
+    // "one-time" patterns to flag as culture data. Graceful degrade: a failed
+    // inspection never blocks the pass.
+    let inspection: FinInspection | null = null;
+    let chaseList: string[] = [];
+    const dataQualityCells = new Set<string>();
+    try {
+      const inspectTask = `THE REPORTED FINANCIALS (${fin.source}; the extracted table under inspection):
+${reportedTableText(fin)}
+
+${tableDiagnosticsText(fin)}
+
+EXISTING ADJUSTMENTS ON THIS BENCH (context for the pattern check):
+${adjustmentLines(existing, fin.currency)}
+
+TASK: Inspect per the table-inspection doctrine — judge the diagnostics and anything else the table shows into findings, and write the 1-3 sentence inspectionNote.`;
+      const ins = await withDeadline(
+        "fin-inspect",
+        (signal) =>
+          claudeJSON<InspectionOutput>({
+            model: triageModel,
+            signal,
+            system: [
+              { text: DESK_DOCTRINE, cache: true },
+              { text: `${deskIdentity(symbol, ticker.name)}\n\n${CLEANSING_DOCTRINE}\n\n${FIN_INSPECTION_DOCTRINE}` },
+            ],
+            messages: [{ role: "user", content: inspectTask }],
+            schema: FIN_INSPECTION_SCHEMA as unknown as Record<string, unknown>,
+            maxTokens: 3000,
+            effort: "low",
+            meta: { userId, feature: "cleansing" },
+          }),
+        INSPECT_LIMIT_MS
+      );
+      const findings = (ins.findings ?? [])
+        .filter((f) => f?.note?.trim())
+        .slice(0, 8)
+        .map((f) => ({
+          metricKey: (f.metricKey ?? "").trim(),
+          fiscalYear: (f.fiscalYear ?? "").trim(),
+          kind: f.kind,
+          note: f.note.trim().slice(0, 300),
+          chase: (f.chase ?? "").trim(),
+        }));
+      inspection = {
+        note: (ins.inspectionNote ?? "").trim().slice(0, 500),
+        // chase lines steer the sweeps below; the stored report keeps the rest.
+        findings: findings.map((f) => ({
+          metricKey: f.metricKey,
+          fiscalYear: f.fiscalYear,
+          kind: f.kind,
+          note: f.note,
+        })),
+      };
+      chaseList = findings.filter((f) => f.kind === "anomaly" && f.chase).map((f) => f.chase);
+      // Bounded determinism: cells the inspection distrusts are barred from
+      // proposals IN CODE — "" year bars the whole row.
+      for (const f of findings) {
+        if (f.kind === "data_quality" && f.metricKey) {
+          dataQualityCells.add(`${f.metricKey}|${f.fiscalYear}`);
+        }
+      }
+    } catch (e) {
+      console.error(
+        `[scalae] table inspection failed (pass continues without it):`,
+        e instanceof Error ? e.message : e
+      );
+    }
+    const chaseSteer = chaseList.length
+      ? `\n\nTHE INSPECTION'S HUNTING LIST (the desk double-checked the extracted table first; find the disclosures that explain each):\n${chaseList.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+      : "";
 
     const yearsSpan = `${fin.fiscalYears[0]}–${fin.fiscalYears[fin.fiscalYears.length - 1]}`;
     const jobs = [
-      { label: "One-time & non-operating items", prompt: noiseSweepPrompt(ticker.name, symbol, yearsSpan) },
-      { label: "Windfall & mark-to-market gains", prompt: windfallSweepPrompt(ticker.name, symbol, yearsSpan) },
+      {
+        label: "One-time & non-operating items",
+        prompt: noiseSweepPrompt(ticker.name, symbol, yearsSpan) + chaseSteer,
+      },
+      {
+        label: "Windfall & mark-to-market gains",
+        prompt: windfallSweepPrompt(ticker.name, symbol, yearsSpan) + chaseSteer,
+      },
     ];
     const settled = await Promise.allSettled(
       jobs.map((j) =>
@@ -279,11 +375,25 @@ export async function executeCleansingSuggest(
       .join("\n\n");
     const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
 
+    const inspectionBlock = inspection
+      ? `\nTHE TABLE INSPECTION (the pass's self-check of the extracted table, done BEFORE the sweeps):
+${inspection.note ? `${inspection.note}\n` : ""}${
+          inspection.findings.length
+            ? inspection.findings
+                .map(
+                  (f) =>
+                    `- [${f.kind}] ${f.metricKey || "table-wide"}${f.fiscalYear ? ` ${f.fiscalYear}` : ""}: ${f.note}`
+                )
+                .join("\n")
+            : "(no findings — the table read clean)"
+        }\n`
+      : "";
+
     const task = `Today is ${new Date().toDateString()}.
 
 THE REPORTED FINANCIALS (${fin.source}; the table the investor's cleansed view overlays):
 ${reportedTableText(fin)}
-
+${inspectionBlock}
 EXISTING ADJUSTMENTS ON THIS BENCH (never duplicate; dismissed items stay dismissed absent materially new evidence):
 ${adjustmentLines(existing, fin.currency)}
 
@@ -293,7 +403,7 @@ ${researchBlock}
 NUMBERED SOURCES:
 ${sourceList || "(none)"}
 
-TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Skip anything the sweeps could not pin to a disclosed amount. Then write the pass note (what you examined, what you found in each direction, what you deliberately did not propose and why).
+TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Where the inspection flagged an [anomaly], say in the pass note whether the sweeps found its disclosure — a diagnosed anomaly the record could not explain is stated plainly, never bridged with an estimate. NEVER propose an adjustment on a cell the inspection flagged [data_quality] — a distrusted extraction can anchor nothing. Skip anything the sweeps could not pin to a disclosed amount. Then write the pass note (what you examined, what you found in each direction, what you deliberately did not propose and why).
 
 LANGUAGE: Write every output field in English — the bench's stored form is canonical English; the app translates for display.`;
 
@@ -322,7 +432,13 @@ LANGUAGE: Write every output field in English — the bench's stored form is can
       return;
     }
 
-    const proposals = validProposals(out.proposals, fin, existing, 12);
+    // Bounded determinism: cells the inspection distrusts are barred in code,
+    // whatever the synthesis emitted ("" fiscal year bars the whole row).
+    const proposals = validProposals(out.proposals, fin, existing, 12).filter(
+      (p) =>
+        !dataQualityCells.has(`${p.metricKey}|${p.fiscalYear}`) &&
+        !dataQualityCells.has(`${p.metricKey}|`)
+    );
     for (const p of proposals) {
       const adj = await insertFinAdjustment(
         userId,
@@ -340,7 +456,7 @@ LANGUAGE: Write every output field in English — the bench's stored form is can
       ).catch(() => {});
     }
     const note = (out.note ?? "").trim().slice(0, 1000);
-    await finishFinSuggestRun(runId, note, proposals.length);
+    await finishFinSuggestRun(runId, note, proposals.length, inspection);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[scalae] cleansing suggest ${runId} failed:`, msg);

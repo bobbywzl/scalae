@@ -425,6 +425,40 @@ The desk keeps, per ticker, a ledger of management's concrete commitments tracke
 - action "resolve": ONLY for a promise listed OPEN in the ledger block (promiseKey is its bracketed key), and ONLY when today's evidence directly shows the outcome — "kept" (delivered as stated), "missed" (the number or deadline failed), or "dropped" (quietly abandoned or redefined). resolution states the evidence in one line; sourceIndex cites it. Near-misses and redefinitions lean missed/dropped — moving the goalposts is itself the datum.
 - Additions and detected resolutions both PARK for the investor's review (the human gate); nothing in the ledger flips without them. 0-3 actions per run; zero is the common, healthy case. A serially growing missed/dropped column is lollapalooza input for the culture readings — say so in the brief when it happens.`;
 
+/**
+ * The analyst-questions context block for runs and chat: open questions (never
+ * re-ask), recent answers (first-class investor testimony), and recently
+ * dismissed ones (gate memory). "" when there is nothing to show.
+ */
+export function investorQuestionsBlock(
+  open: { question: string; answer?: string }[],
+  answered: { question: string; answer: string }[],
+  dismissed: { question: string }[] = []
+): string {
+  if (open.length === 0 && answered.length === 0 && dismissed.length === 0) return "";
+  const parts: string[] = [
+    "ANALYST QUESTIONS TO THE INVESTOR (per the analyst-questions doctrine):",
+  ];
+  if (open.length > 0) {
+    parts.push(`Open — awaiting their answer (do NOT re-ask):\n${open.map((q) => `- ${q.question}`).join("\n")}`);
+  }
+  if (answered.length > 0) {
+    parts.push(
+      `ANSWERED — the investor's own words, first-class testimony:\n${answered
+        .map((q) => `- Q: ${q.question}\n  A: ${q.answer}`)
+        .join("\n")}`
+    );
+  }
+  if (dismissed.length > 0) {
+    parts.push(
+      `Dismissed by the investor (a priorities answer — do not re-ask): ${dismissed
+        .map((q) => `"${q.question}"`)
+        .join("; ")}`
+    );
+  }
+  return parts.join("\n");
+}
+
 /** The promise-ledger context block for synthesis. "" when the ledger is empty. */
 export function promiseLedgerBlock(
   open: ManagementPromise[],
@@ -450,6 +484,21 @@ export function promiseLedgerBlock(
 OPEN promises:
 ${openLines || "(none)"}${pendingLine}${resolvedLine}`;
 }
+
+export const ANALYST_QUESTIONS_DOCTRINE = `ASKING THE INVESTOR (the analyst-questions channel — clarification, Buffett/Munger-fashion):
+The desk may come back to the investor with questions — but ONLY the questions the open web cannot answer, where the investor is genuinely the best (or only) source. This is the staged intake's discipline run continuously, and Fisher's scuttlebutt begun at home: the investor's firsthand experience is real diligence input, and their judgment sets the desk's priorities. Emit through the questions output field, 0-2 per run — and ZERO is the healthy norm (a desk that manufactures questions is manufacturing work; sit-on-your-ass applies to asking too).
+WHAT EARNS A QUESTION (the four legitimate wells, from the intake stages and the opening file):
+1. FIRSTHAND EXPOSURE — the investor as customer, employee, supplier, or industry neighbor of this business: "Has the price YOU pay risen this year — and did you stay?", "Your distributor contact in ③ — does today's inventory report match what they told you?" (pricing power felt beats pricing power reported; the looms question answered from the buyer's seat).
+2. JUDGMENT AND PRIORITY — calls only the owner can make: which kill-path worries them most now, what would actually make them sell, whether a verdict-relevant trade-off (growth spend vs. buybacks; founder control vs. succession) reads to them as steering or denial. Ask the inverted form first ("what's the bear case you find hardest to dismiss on this thread?").
+3. THE DOCUMENTS ONLY THEY CAN SUPPLY — per the opening-file doctrine: the letter series, the decade-old annual report, the proxy, the industry veteran's memo. Name the SPECIFIC document and the lens it would feed; never a form-letter "please provide financials".
+4. STEER — when today's evidence opens two genuinely different research directions and depth on both would be waste: name both, with what each would cost and settle, and ask which serves their thesis.
+CRAFT RULES (what makes the question GOOD — the corpus applied):
+- Company-specific or silent: every question names the actual mechanism, event, or evidence that raised it TODAY ("the July price increase", "the CFO's buyback language on the Q2 call") — a question that would fit any ticker is checklist filler and must not be asked.
+- Anchor each to the framework in "why": the lens or misjudgment tendency it serves, in plain words ("candor: promise-vs-delivery on the FY26 capex figure", "deprival-superreaction risk in the price-war response").
+- One thing per question; answerable in a sentence or two of the investor's own experience — never a homework assignment, never a request to research what the DESK can search.
+- Never ask what the record already answers: the due-diligence record, prior answers, and the board's readings are checked first. Open and previously-asked questions (including dismissed ones — dismissal is an answer about priorities) are never re-asked.
+- The answer must change what the desk does next — which thread gets deep-dived, how a reading is weighed, what gets proposed. A question whose answer changes nothing is decoration, whichever well it came from.
+HOW ANSWERS ARE USED (when an ANSWERED block appears in context): the investor's answers are first-class evidence of the intake kind — their firsthand testimony and their stated priorities. Weigh them as the principal's own input (not external fact; corroborate factual claims where the record allows), let their priorities steer question framing, triage and proposals, and never contradict an answer silently — engage it by name when evidence cuts against it.`;
 
 export const LESSON_DISTILL_DOCTRINE = `DISTILLING A STANDING ORDER FROM A DISMISSAL (the teach-the-desk pass):
 The investor dismissed a proposed signal and stated a reason. Decide whether that reason teaches the desk anything DURABLE about its conduct on this ticker; if so, distill it into ONE proposed standing order — imperative, one sentence, general enough to bind future proposals and research, specific to this desk. basis: one line naming the dismissal it came from.
@@ -717,6 +766,59 @@ export const CLEANSING_SUGGEST_SCHEMA = {
         additionalProperties: false,
         required: ["metricKey", "fiscalYear", "delta", "title", "rationale", "kind", "citationIndexes"],
         properties: FIN_PROPOSAL_PROPERTIES,
+      },
+    },
+  },
+} as const;
+
+export const FIN_INSPECTION_DOCTRINE = `THE TABLE INSPECTION (self-inspection before suggesting — the junior analyst double-checks the extracted numbers):
+Before any disclosure hunting, inspect the extracted reported table itself, the way a careful analyst eyeballs a spreadsheet before trusting it. The DETERMINISTIC DIAGNOSTICS block was computed by the desk in code — every figure in it is the table's own arithmetic; your job is to JUDGE those flags (and anything else the table shows), not to re-derive them. Classify each finding:
+- "anomaly": a series break that real business events likely explain — a net-income step-change with flat operating income smells of a mark-to-market windfall; a one-year margin collapse smells of an impairment or settlement. These become the disclosure hunt's target list: state in the finding's note what kind of disclosure would explain it.
+- "data_quality": the EXTRACTION looks wrong, not the business — a null year between reported neighbors, a sign flip no business event explains, a unit-scale break versus every neighbor. Never a cleansing candidate: the cell is to be distrusted, no adjustment may ever be built on it, and the finding says so plainly.
+- "trend": arithmetic that cannot continue (Stein's law) — margins above all the row's history, growth far above the market's arithmetic, credit outgrowing income. A watch item for the desk, never an adjustment.
+- "pattern": supposedly one-time items recurring year after year across the bench's history — operating costs wearing a costume. Per the bench laws these are flagged as a CULTURE datum, never cleansed away.
+Rules: judge against the row's own series and the existing adjustments; never invent or estimate a number — every figure you cite must sit in the table or the diagnostics; anchor each finding to its metricKey and fiscalYear ("" only when it genuinely spans the table); 0-8 findings, most material first. A table that reads clean gets an EMPTY findings list and an inspectionNote saying exactly that — an honest all-clear is a first-class result, and manufactured findings are the promotional instinct this bench exists to refuse.`;
+
+export const FIN_INSPECTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["inspectionNote", "findings"],
+  properties: {
+    inspectionNote: {
+      type: "string",
+      description:
+        "1-3 sentences for the investor: what the inspection checked and how the table reads overall. Plain text.",
+    },
+    findings: {
+      type: "array",
+      description: "0-8 judged findings, most material first. Empty = the table reads clean.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["metricKey", "fiscalYear", "kind", "note", "chase"],
+        properties: {
+          metricKey: {
+            type: "string",
+            description: 'The reported row it concerns (exactly as in the table), or "" for table-wide.',
+          },
+          fiscalYear: {
+            type: "string",
+            description: 'The fiscal year it concerns exactly as labeled, or "" when it spans years.',
+          },
+          kind: {
+            type: "string",
+            enum: ["anomaly", "data_quality", "trend", "pattern"],
+          },
+          note: {
+            type: "string",
+            description: "One or two sentences: the judged read, citing only figures from the table/diagnostics.",
+          },
+          chase: {
+            type: "string",
+            description:
+              'For "anomaly" only: the disclosure question the sweeps should hunt ("FY2024 10-K note on the equity-stake markup behind the net-income jump"). "" otherwise.',
+          },
+        },
       },
     },
   },
@@ -1124,10 +1226,38 @@ const DIGEST_ITEM_SCHEMA = {
   },
 } as const;
 
+/** 0-2 clarification questions to the investor — shared by the board run and the signal check. */
+const INVESTOR_QUESTIONS_FIELD = {
+  type: "array",
+  description:
+    "0-2 clarification questions TO THE INVESTOR per the analyst-questions doctrine — only what the open web cannot answer (their firsthand experience, judgment, documents, steer), each raised by TODAY'S evidence. Empty is the healthy norm.",
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["signalKey", "question", "why"],
+    properties: {
+      signalKey: {
+        type: "string",
+        description: 'Bracketed key of the signal that raised it (e.g. "S2"), or "" for board-level.',
+      },
+      question: {
+        type: "string",
+        description:
+          "The question, company-specific and answerable in a sentence or two of the investor's own experience.",
+      },
+      why: {
+        type: "string",
+        description:
+          "One line: the lens or misjudgment tendency it serves and what raised it today.",
+      },
+    },
+  },
+} as const;
+
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["brief", "dossier", "readings", "digestItems", "proposals", "promises"],
+  required: ["brief", "dossier", "readings", "digestItems", "proposals", "promises", "questions"],
   properties: {
     brief: {
       type: "string",
@@ -1207,6 +1337,7 @@ export const SYNTHESIS_SCHEMA = {
         },
       },
     },
+    questions: INVESTOR_QUESTIONS_FIELD,
   },
 } as const;
 
@@ -1365,12 +1496,12 @@ The investor asked for a fresh reading of one signal now — not a board sweep. 
 export const SIGNAL_CHECK_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["note", "readings", "digestItems"],
+  required: ["note", "readings", "digestItems", "questions"],
   properties: {
     note: {
       type: "string",
       description:
-        "40-120 word markdown note to the investor: what this check found for the signal, leading with the delta versus the previous reading — or an honest 'nothing new'.",
+        "40-120 word markdown note to the investor: what this check found for the signal, leading with the delta versus the previous reading — or an honest 'nothing new'. When you ask a question, say so in one clause.",
     },
     readings: {
       type: "array",
@@ -1382,5 +1513,6 @@ export const SIGNAL_CHECK_SCHEMA = {
       items: DIGEST_ITEM_SCHEMA,
       description: "0-3 developments bearing on the checked signal only.",
     },
+    questions: INVESTOR_QUESTIONS_FIELD,
   },
 } as const;

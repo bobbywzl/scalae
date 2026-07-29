@@ -262,6 +262,33 @@ export interface RhymeAnalysis {
   userId?: string;
 }
 
+export type DeskQuestionStatus = "open" | "answered" | "dismissed";
+
+/**
+ * A clarification question the research desk asks THE INVESTOR — the things
+ * the open web cannot settle: their firsthand experience of the business,
+ * their judgment priorities, the documents only they can supply, their steer.
+ * Asked Buffett/Munger-fashion (the intake's question style, run continuously)
+ * and only when the answer would change what the desk does next. Answers are
+ * kept and fed to later runs and chat as first-class investor testimony.
+ */
+export interface DeskQuestion {
+  id: string;
+  symbol: string;
+  /** The signal whose research raised it, or null for a board-level question. */
+  signalId: string | null;
+  question: string;
+  /** One line: the lens/tendency it serves and what raised it today. */
+  why: string;
+  origin: "research" | "check";
+  status: DeskQuestionStatus;
+  /** The investor's answer (their own words — first-class evidence). */
+  answer: string;
+  createdAt: string;
+  answeredAt: string | null;
+  userId?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Desk memory — the compounding, human-gated stores that let the desk learn
 // from every interaction (FOUNDATION: human sovereignty; self-reinforcing
@@ -680,6 +707,34 @@ export interface FinCleansingEvent {
 }
 
 /** One "suggest moderations" pass (the finance bench's research-run analogue). */
+/**
+ * One finding of the bench's table inspection (the self-inspection pass):
+ * a judged read on something the extracted table shows, anchored to the cell
+ * or row it concerns.
+ */
+export interface FinInspectionFinding {
+  /** The reported row it concerns ("" for a table-wide observation). */
+  metricKey: string;
+  /** The fiscal year it concerns ("" when it spans years). */
+  fiscalYear: string;
+  /**
+   * anomaly = a series break real business events likely explain (the sweeps
+   * chase its disclosure); data_quality = the extraction itself looks wrong —
+   * never a cleansing candidate, the cell is to be distrusted; trend =
+   * arithmetic that cannot continue (Stein's law), a watch item; pattern =
+   * serially recurring "one-time" items — a culture datum, never cleansed.
+   */
+  kind: "anomaly" | "data_quality" | "trend" | "pattern";
+  note: string;
+}
+
+/** The table inspection's stored result (rides the suggestion pass's run row). */
+export interface FinInspection {
+  /** 1-3 sentences: what was checked and how the table reads overall. */
+  note: string;
+  findings: FinInspectionFinding[];
+}
+
 export interface FinSuggestRun {
   id: string;
   symbol: string;
@@ -688,6 +743,12 @@ export interface FinSuggestRun {
   note: string | null;
   /** How many proposals the pass parked for review. */
   proposalCount: number;
+  /**
+   * The self-inspection report: the pass double-checks the extracted table
+   * (deterministic diagnostics + analyst judgment) before suggesting. Null on
+   * legacy passes or when inspection gracefully degraded.
+   */
+  inspection: FinInspection | null;
   error: string | null;
   createdAt: string;
   finishedAt: string | null;

@@ -99,6 +99,20 @@ const en = {
   whyPlaceholder: "Why? (optional — teaches the desk)",
   whyHint: "A stated reason becomes gate memory and may be distilled into a standing order for your approval.",
 
+  // Analyst questions (the desk asking the investor)
+  qTitle: "The analyst asks",
+  qExplainer:
+    "Questions the open web cannot answer — your firsthand experience, your judgment, the documents only you hold. Your answers become first-class evidence for every later run.",
+  qOpenBadge: "{n} awaiting you",
+  qWhyPrefix: "Why the desk asks",
+  qAnswerPlaceholder: "Your answer — firsthand and specific beats polished…",
+  qAnswer: "Answer",
+  qAnswered: "{n} answered",
+  qYourAnswer: "You",
+  qAnsweredOn: "answered {date}",
+  qDismissTitle: "Dismiss — the desk won't ask again",
+  qReopenTitle: "Reopen for a fresh answer (your current answer is kept until you resend)",
+
   // Deep-research plan gate
   planFirst: "✎ Plan first",
   planFirstTitle: "The desk drafts the research plan for your edit and approval before any searching",
@@ -108,6 +122,14 @@ const en = {
     "Edit the plan freely; your edits are binding on the pass. Nothing runs until you start it.",
   startResearch: "Start research",
   discardPlan: "Discard",
+
+  // Finance table self-inspection (the cleansing bench)
+  finInspectTitle: "Table inspection",
+  finInspectClean: "The extracted table read clean — no findings.",
+  finKindAnomaly: "anomaly",
+  finKindDataQuality: "data quality",
+  finKindTrend: "trend",
+  finKindPattern: "pattern",
 
   // Episode-rhyme analysis
   rhymeButton: "History rhyme",
@@ -199,6 +221,18 @@ const zh: Record<keyof typeof en, string> = {
   whyPlaceholder: "原因？（可选——教研究台学习）",
   whyHint: "写下的原因会成为审批记忆，并可能被提炼为一条常设指令供您批准。",
 
+  qTitle: "分析师提问",
+  qExplainer: "开放网络无法回答的问题——您的一手体验、您的判断、只有您持有的文件。您的回答将成为此后每次研究的一手证据。",
+  qOpenBadge: "{n} 条待您回答",
+  qWhyPrefix: "提问缘由",
+  qAnswerPlaceholder: "您的回答——一手且具体，胜过面面俱到…",
+  qAnswer: "回答",
+  qAnswered: "{n} 条已回答",
+  qYourAnswer: "您",
+  qAnsweredOn: "回答于 {date}",
+  qDismissTitle: "忽略——研究台不会再问",
+  qReopenTitle: "重新打开以更新回答（重新提交前保留现有回答）",
+
   planFirst: "✎ 先拟计划",
   planFirstTitle: "研究台先起草研究计划，经您修改批准后再开始检索",
   planDrafting: "正在起草研究计划…",
@@ -206,6 +240,13 @@ const zh: Record<keyof typeof en, string> = {
   planExplainer: "可自由修改计划；您的修改对本次研究具有约束力。未经您启动，不会开始检索。",
   startResearch: "开始研究",
   discardPlan: "放弃",
+
+  finInspectTitle: "报表体检",
+  finInspectClean: "提取的报表读数正常——无发现。",
+  finKindAnomaly: "异常",
+  finKindDataQuality: "数据质量",
+  finKindTrend: "趋势",
+  finKindPattern: "惯犯",
 
   rhymeButton: "历史押韵",
   rhymeButtonTitle: "将这一进展与公司及行业的历史记录对照衡量",
