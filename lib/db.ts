@@ -245,6 +245,8 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceClass" TEXT`,
   `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceNote" TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS questions TEXT`,
+  // ---- single-signal checks: a run scoped to one signal (null = board run) ----
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "signalId" TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE trades ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -382,6 +384,8 @@ export const SCHEMA_STATEMENTS: string[] = [
     "updatedAt" TEXT NOT NULL,
     PRIMARY KEY ("userId", symbol)
   )`,
+  // Who last wrote the synthesis: the desk's refresh or the investor's edit.
+  `ALTER TABLE dd_synthesis ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'desk'`,
   // ---- due-diligence evidence lockers: any file type, captioned, per section.
   // data is base64 (or raw text for kind='text'); listings never select it. ----
   `CREATE TABLE IF NOT EXISTS dd_evidence (
@@ -831,7 +835,11 @@ function parseRun(r: RunRow | undefined): Run | undefined {
   return { ...r, sources, questions };
 }
 
-export async function createRun(userId: string, symbol: string): Promise<Run> {
+export async function createRun(
+  userId: string,
+  symbol: string,
+  signalId: string | null = null
+): Promise<Run> {
   const run: Run = {
     id: uid(),
     symbol,
@@ -839,15 +847,16 @@ export async function createRun(userId: string, symbol: string): Promise<Run> {
     finishedAt: null,
     status: "running",
     stage: "queued",
-    stageDetail: "Preparing the desk…",
+    stageDetail: signalId ? "Preparing the signal check…" : "Preparing the desk…",
     brief: null,
     dossier: null,
     sources: [],
     questions: [],
     error: null,
+    signalId,
   };
-  await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail")
-          VALUES (${run.id}, ${userId}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail})`;
+  await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail", "signalId")
+          VALUES (${run.id}, ${userId}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail}, ${signalId})`;
   return run;
 }
 
@@ -860,7 +869,7 @@ export async function setRunQuestions(id: string, questions: string[]): Promise<
   await q`UPDATE runs SET questions = ${JSON.stringify(questions)} WHERE id = ${id}`;
 }
 
-/** Recent finished runs (newest first) — enough to compute dossier provenance. */
+/** Recent finished BOARD runs (newest first) — enough to compute dossier provenance. */
 export async function recentRuns(
   userId: string,
   symbol: string,
@@ -868,7 +877,7 @@ export async function recentRuns(
 ): Promise<{ id: string; startedAt: string; dossier: string | null }[]> {
   return q<{ id: string; startedAt: string; dossier: string | null }>`
     SELECT id, "startedAt", dossier FROM runs
-    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'done'
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'done' AND "signalId" IS NULL
     ORDER BY "startedAt" DESC LIMIT ${limit}`;
 }
 
@@ -917,8 +926,19 @@ export async function getRun(id: string): Promise<Run | undefined> {
   return parseRun(rows[0]);
 }
 
+/** The newest BOARD run — signal-scoped checks never drive the desk's brief/dossier/banner. */
 export async function latestRun(userId: string, symbol: string): Promise<Run | undefined> {
-  const rows = await q<RunRow>`SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "startedAt" DESC LIMIT 1`;
+  const rows = await q<RunRow>`
+    SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
+    ORDER BY "startedAt" DESC LIMIT 1`;
+  return parseRun(rows[0]);
+}
+
+/** The newest single-signal check for a symbol (any status), if one exists. */
+export async function latestSignalRun(userId: string, symbol: string): Promise<Run | undefined> {
+  const rows = await q<RunRow>`
+    SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NOT NULL
+    ORDER BY "startedAt" DESC LIMIT 1`;
   return parseRun(rows[0]);
 }
 
@@ -1034,6 +1054,31 @@ export async function listMessagesWithAttachments(
       ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
   }
   return rows.map(parseMessage);
+}
+
+/**
+ * The NEWEST chat messages across every thread of a symbol, attachment
+ * payloads stripped (desk search: the recent record matters, not the oldest —
+ * an ASC LIMIT keeps the first rows and silently drops yesterday's chat).
+ */
+export async function recentMessages(
+  userId: string,
+  symbol: string,
+  limit = 400
+): Promise<ChatMessage[]> {
+  const rows = await q<MessageRow>`
+    SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
+    FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" DESC, seq DESC LIMIT ${limit}`;
+  return rows.map(parseMessage).map((m) => ({
+    ...m,
+    attachments: m.attachments.map((a) => ({
+      kind: a.kind,
+      name: a.name,
+      mediaType: a.mediaType,
+      size: a.size,
+    })),
+  }));
 }
 
 // ---------- settings ----------
@@ -1331,7 +1376,7 @@ export async function getDiligenceSynthesis(
   symbol: string
 ): Promise<DiligenceSynthesis | undefined> {
   const rows = await q<DiligenceSynthesis>`
-    SELECT symbol, content, "updatedAt" FROM dd_synthesis
+    SELECT symbol, content, "updatedAt", origin FROM dd_synthesis
     WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   return rows[0];
 }
@@ -1339,12 +1384,14 @@ export async function getDiligenceSynthesis(
 export async function saveDiligenceSynthesis(
   userId: string,
   symbol: string,
-  content: string
+  content: string,
+  origin: "desk" | "investor" = "desk"
 ): Promise<DiligenceSynthesis> {
-  const row: DiligenceSynthesis = { symbol, content, updatedAt: now() };
-  await q`INSERT INTO dd_synthesis ("userId", symbol, content, "updatedAt")
-          VALUES (${userId}, ${symbol}, ${row.content}, ${row.updatedAt})
-          ON CONFLICT ("userId", symbol) DO UPDATE SET content = EXCLUDED.content, "updatedAt" = EXCLUDED."updatedAt"`;
+  const row: DiligenceSynthesis = { symbol, content, updatedAt: now(), origin };
+  await q`INSERT INTO dd_synthesis ("userId", symbol, content, "updatedAt", origin)
+          VALUES (${userId}, ${symbol}, ${row.content}, ${row.updatedAt}, ${origin})
+          ON CONFLICT ("userId", symbol) DO UPDATE SET content = EXCLUDED.content,
+            "updatedAt" = EXCLUDED."updatedAt", origin = EXCLUDED.origin`;
   return row;
 }
 
@@ -1674,6 +1721,19 @@ export async function listFinMessages(
     SELECT id, symbol, role, content, "adjustmentIds", "createdAt"
     FROM fin_messages WHERE "userId" = ${userId} AND symbol = ${symbol}
     ORDER BY seq ASC LIMIT ${limit}`;
+  return rows.map((r) => ({ ...r, adjustmentIds: JSON.parse(r.adjustmentIds) as string[] }));
+}
+
+/** The NEWEST analyst-desk messages (desk search — see recentMessages). */
+export async function recentFinMessages(
+  userId: string,
+  symbol: string,
+  limit = 400
+): Promise<FinMessage[]> {
+  const rows = await q<FinMessageRow>`
+    SELECT id, symbol, role, content, "adjustmentIds", "createdAt"
+    FROM fin_messages WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY seq DESC LIMIT ${limit}`;
   return rows.map((r) => ({ ...r, adjustmentIds: JSON.parse(r.adjustmentIds) as string[] }));
 }
 

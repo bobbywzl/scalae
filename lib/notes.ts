@@ -95,6 +95,24 @@ export function appendClip(contentJson: string, clip: Clip): string {
   return JSON.stringify(doc);
 }
 
+/**
+ * Structural emptiness: true only when the document holds nothing at all —
+ * no text AND no non-paragraph nodes. A doc that is just a horizontal rule or
+ * empty list still COUNTS as content (its read-mode render must show it).
+ */
+export function docIsEmpty(contentJson: string): boolean {
+  let doc: PMNode;
+  try {
+    doc = JSON.parse(contentJson) as PMNode;
+  } catch {
+    return true;
+  }
+  const blocks = doc?.content ?? [];
+  return blocks.every(
+    (b) => b.type === "paragraph" && (!b.content || b.content.length === 0)
+  );
+}
+
 /** Flatten a stored document to plain text (for the analyst's context). */
 export function docToPlainText(contentJson: string): string {
   let doc: PMNode;

@@ -907,6 +907,72 @@ export const GAP_SCHEMA = {
   },
 } as const;
 
+/** One signal reading — shared by the board run and the single-signal check. */
+const READING_ITEM_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "signalKey",
+    "newEvidence",
+    "value",
+    "valueUnit",
+    "level",
+    "delta",
+    "confidence",
+    "rationale",
+    "citationIndexes",
+  ],
+  properties: {
+    signalKey: {
+      type: "string",
+      description: 'The bracketed key of the signal this reading is for, e.g. "S1".',
+    },
+    newEvidence: {
+      type: "boolean",
+      description:
+        "True only if TODAY'S research added information for this signal that the previous reading did not already reflect. False = pure carry-forward.",
+    },
+    value: { anyOf: [{ type: "number" }, { type: "null" }] },
+    valueUnit: { anyOf: [{ type: "string" }, { type: "null" }] },
+    level: {
+      type: "string",
+      enum: ["strong", "improving", "neutral", "deteriorating", "weak", "unclear"],
+    },
+    delta: { type: "string", enum: ["up", "down", "flat"] },
+    confidence: { type: "number" },
+    rationale: { type: "string" },
+    citationIndexes: { type: "array", items: { type: "integer" } },
+  },
+} as const;
+
+/** One evidence-feed item — shared by the board run and the single-signal check. */
+const DIGEST_ITEM_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["headline", "summary", "sourceIndex", "impact", "signalNames", "sourceClass", "sourceNote"],
+  properties: {
+    headline: { type: "string" },
+    summary: { type: "string" },
+    sourceIndex: {
+      anyOf: [{ type: "integer" }, { type: "null" }],
+      description: "Index into the numbered source list, or null if none fits.",
+    },
+    impact: { type: "string", enum: ["positive", "negative", "mixed", "neutral"] },
+    signalNames: { type: "array", items: { type: "string" } },
+    sourceClass: {
+      type: "string",
+      enum: ["primary", "trade", "narrative"],
+      description:
+        'Evidence class of the cited source, per the weighing doctrine: "primary" = the company\'s or a regulator\'s own document or statement (filings, transcripts, orders — mechanism-level); "trade" = specialist/industry press or data provider with original reporting; "narrative" = general media or aggregator retelling. Use "narrative" when sourceIndex is null.',
+    },
+    sourceNote: {
+      type: "string",
+      description:
+        'The desk\'s source recommendation for this item, one line (max ~140 chars): why THIS source is — or is not — the one to open, relative to what the item claims (e.g. "the 8-K itself: exact covenant terms", "aggregator retelling; the underlying proxy is the source to read"). "" when sourceIndex is null.',
+    },
+  },
+} as const;
+
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -923,75 +989,50 @@ export const SYNTHESIS_SCHEMA = {
     },
     readings: {
       type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "signalKey",
-          "newEvidence",
-          "value",
-          "valueUnit",
-          "level",
-          "delta",
-          "confidence",
-          "rationale",
-          "citationIndexes",
-        ],
-        properties: {
-          signalKey: {
-            type: "string",
-            description: 'The bracketed key of the signal this reading is for, e.g. "S1".',
-          },
-          newEvidence: {
-            type: "boolean",
-            description:
-              "True only if TODAY'S research added information for this signal that the previous reading did not already reflect. False = pure carry-forward.",
-          },
-          value: { anyOf: [{ type: "number" }, { type: "null" }] },
-          valueUnit: { anyOf: [{ type: "string" }, { type: "null" }] },
-          level: {
-            type: "string",
-            enum: ["strong", "improving", "neutral", "deteriorating", "weak", "unclear"],
-          },
-          delta: { type: "string", enum: ["up", "down", "flat"] },
-          confidence: { type: "number" },
-          rationale: { type: "string" },
-          citationIndexes: { type: "array", items: { type: "integer" } },
-        },
-      },
+      items: READING_ITEM_SCHEMA,
     },
     digestItems: {
       type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["headline", "summary", "sourceIndex", "impact", "signalNames", "sourceClass", "sourceNote"],
-        properties: {
-          headline: { type: "string" },
-          summary: { type: "string" },
-          sourceIndex: {
-            anyOf: [{ type: "integer" }, { type: "null" }],
-            description: "Index into the numbered source list, or null if none fits.",
-          },
-          impact: { type: "string", enum: ["positive", "negative", "mixed", "neutral"] },
-          signalNames: { type: "array", items: { type: "string" } },
-          sourceClass: {
-            type: "string",
-            enum: ["primary", "trade", "narrative"],
-            description:
-              'Evidence class of the cited source, per the weighing doctrine: "primary" = the company\'s or a regulator\'s own document or statement (filings, transcripts, orders — mechanism-level); "trade" = specialist/industry press or data provider with original reporting; "narrative" = general media or aggregator retelling. Use "narrative" when sourceIndex is null.',
-          },
-          sourceNote: {
-            type: "string",
-            description:
-              'The desk\'s source recommendation for this item, one line (max ~140 chars): why THIS source is — or is not — the one to open, relative to what the item claims (e.g. "the 8-K itself: exact covenant terms", "aggregator retelling; the underlying proxy is the source to read"). "" when sourceIndex is null.',
-          },
-        },
-      },
+      items: DIGEST_ITEM_SCHEMA,
     },
     proposals: {
       type: "array",
       items: SIGNAL_PROPOSAL_SCHEMA,
+    },
+  },
+} as const;
+
+/**
+ * The single-signal check — the per-signal "Run signal research" pipeline.
+ * Same doctrine and evidence discipline as the board run, narrowed to one
+ * signal's named gap. It is a reading refresh, never a board expansion.
+ */
+export const SIGNAL_CHECK_DOCTRINE = `THE SINGLE-SIGNAL CHECK (investor-initiated, scoped to ONE signal):
+The investor asked for a fresh reading of one signal now — not a board sweep. Everything in the desk doctrine applies, narrowed to that signal's named gap:
+- Exactly ONE reading, for the checked signal, judged against its previous reading and its deep-history base rate exactly as on a full run. The newEvidence discipline is unchanged: an honest carry-forward ("checked, nothing new") is a first-class result — never manufacture movement to justify the check.
+- digestItems: only developments that bear on THIS signal (0-3, deduplicated against what the previous reading already cited), each tagged with the signal's name.
+- note: 40-120 words in markdown to the investor on what the check found — or honestly didn't. Lead with the delta versus the previous reading; no board narration.
+- A scoped check NEVER proposes new signals and never touches the desk's standing dossier — refining the board belongs to full runs and the chat, behind the same human gate as always.`;
+
+export const SIGNAL_CHECK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["note", "readings", "digestItems"],
+  properties: {
+    note: {
+      type: "string",
+      description:
+        "40-120 word markdown note to the investor: what this check found for the signal, leading with the delta versus the previous reading — or an honest 'nothing new'.",
+    },
+    readings: {
+      type: "array",
+      items: READING_ITEM_SCHEMA,
+      description: "Exactly one reading, for the checked signal (signalKey S1).",
+    },
+    digestItems: {
+      type: "array",
+      items: DIGEST_ITEM_SCHEMA,
+      description: "0-3 developments bearing on the checked signal only.",
     },
   },
 } as const;

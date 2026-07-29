@@ -33,10 +33,16 @@ export async function POST(_req: Request, { params }: Params) {
   }
 }
 
+/** Same row-size guard as the notes route — one oversized write must not degrade the desk. */
+const MAX_CONTENT_BYTES = 400_000;
+
 /**
  * Save the investor's own edit of the standing synthesis. The record is
  * theirs — the desk regenerates it only on their ask, and an edit here is
- * simply the record's owner writing in it.
+ * simply the record's owner writing in it (origin 'investor', so the page
+ * says "edited", never a desk refresh that didn't happen). The editor works
+ * on the CANONICAL English text (see the diligence payload), so a display
+ * translation is never written back over the stored record.
  */
 export async function PATCH(req: Request, { params }: Params) {
   const user = await requireUser();
@@ -50,6 +56,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.content !== "string" || !body.content.trim()) {
     return NextResponse.json({ error: "content is required" }, { status: 400 });
   }
-  const synthesis = await saveDiligenceSynthesis(user.id, symbol, body.content.trim());
+  if (body.content.length > MAX_CONTENT_BYTES) {
+    return NextResponse.json({ error: "content too large" }, { status: 413 });
+  }
+  const synthesis = await saveDiligenceSynthesis(user.id, symbol, body.content.trim(), "investor");
   return NextResponse.json({ synthesis });
 }

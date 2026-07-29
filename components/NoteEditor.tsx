@@ -24,6 +24,9 @@ const HIGHLIGHTS: { name: string; swatch: string; value: string }[] = [
   { name: "purple", swatch: "#A78BFA", value: "rgba(167,139,250,0.35)" },
 ];
 
+/** CSSOM round-trips colors with spaces ("rgba(1, 2, 3, 0.35)") — compare space-free. */
+const normColor = (v: string | undefined) => (v ?? "").replace(/\s+/g, "");
+
 /**
  * The notepad schema — shared by the live editor and the read-mode renderer
  * (generateHTML), so a document always renders identically in both.
@@ -160,14 +163,16 @@ export function NoteEditor({
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() =>
-              s?.highlight === h.value
+              normColor(s?.highlight) === normColor(h.value)
                 ? chain().unsetBackgroundColor().run()
                 : chain().setBackgroundColor(h.value).run()
             }
             title={t("notes.tbHighlight")}
             style={{ backgroundColor: h.swatch }}
             className={`w-4 h-4 rounded-full border-2 transition-colors ${
-              s?.highlight === h.value ? "border-foreground" : "border-transparent hover:border-muted"
+              normColor(s?.highlight) === normColor(h.value)
+                ? "border-foreground"
+                : "border-transparent hover:border-muted"
             }`}
           />
         ))}

@@ -3,6 +3,7 @@ import {
   autoResearchEnabled,
   getTicker,
   latestRun,
+  latestSignalRun,
   listFocusAreas,
   listMessages,
   listSignals,
@@ -18,7 +19,7 @@ import { getQuote } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
 import { computeInvolvement } from "@/lib/portfolio";
 import { requestLang } from "@/lib/i18n/server";
-import { localizeDeskPayload } from "@/lib/i18n/translate";
+import { localizeDeskPayload, localizeRun } from "@/lib/i18n/translate";
 import type { DeskPayload, Signal, SignalWithReadings } from "@/lib/types";
 
 type Params = { params: Promise<{ symbol: string }> };
@@ -40,6 +41,7 @@ export async function GET(_req: Request, { params }: Params) {
     retiredSignals,
     dismissed,
     run,
+    signalRun,
     runsForProvenance,
     digest,
     messages,
@@ -53,6 +55,7 @@ export async function GET(_req: Request, { params }: Params) {
     listSignals(user.id, symbol, "retired"),
     listSignals(user.id, symbol, "dismissed"),
     latestRun(user.id, symbol),
+    latestSignalRun(user.id, symbol),
     recentRuns(user.id, symbol, 15),
     recentDigest(user.id, symbol),
     listMessages(user.id, symbol, 200, { signalId: null }), // desk-level thread only
@@ -115,6 +118,7 @@ export async function GET(_req: Request, { params }: Params) {
     retired,
     dismissed,
     latestRun: run ?? null,
+    signalRun: signalRun ?? null,
     dossierRevisedAt,
     dossierHeldRuns,
     digest,
@@ -126,8 +130,14 @@ export async function GET(_req: Request, { params }: Params) {
   };
   // Serve research content in the investor's display language (cached,
   // canonical English stays in the db; chat messages are never translated).
+  // The signal-scoped check localizes separately — localizeDeskPayload only
+  // walks board surfaces.
   const lang = await requestLang(user.id);
-  return NextResponse.json(await localizeDeskPayload(payload, lang, { userId: user.id }));
+  const [localized, localizedSignalRun] = await Promise.all([
+    localizeDeskPayload(payload, lang, { userId: user.id }),
+    signalRun ? localizeRun(signalRun, lang, { userId: user.id }) : Promise.resolve(null),
+  ]);
+  return NextResponse.json({ ...localized, signalRun: localizedSignalRun });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

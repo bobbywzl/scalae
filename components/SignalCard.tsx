@@ -128,11 +128,14 @@ export function SignalCard({
   signal,
   onOpen,
   overlapsWith = null,
+  check = null,
 }: {
   signal: SignalWithReadings;
   onOpen: (signal: SignalWithReadings) => void;
   /** Keep-both pair: the other active signal this one overlaps with. */
   overlapsWith?: { name: string; onOpen: () => void } | null;
+  /** Single-signal check control: run this one signal's research now. */
+  check?: { checking: boolean; disabled: boolean; run: () => void } | null;
 }) {
   const { t, locale } = useT();
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -218,6 +221,27 @@ export function SignalCard({
           <p className="mt-2 text-xs text-muted italic">{t("signals.awaitingFirstRun")}</p>
         )}
       </button>
+
+      {/* Per-signal research: check just this named gap, now. */}
+      {check && (
+        <div className="px-4 pb-2.5 -mt-1">
+          {check.checking ? (
+            <span className="text-[11px] text-accent pulse-soft">{t("desk.signalCheckingShort")}</span>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                check.run();
+              }}
+              disabled={check.disabled}
+              title={check.disabled ? t("desk.signalCheckBusy") : undefined}
+              className="rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-2 py-0.5 text-[11px] font-medium text-accent transition-colors"
+            >
+              {t("desk.runSignal")}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Keep-both overlap: the pair stays visibly linked after the one-time choice. */}
       {overlapsWith && (

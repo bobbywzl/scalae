@@ -12,6 +12,8 @@ import {
   QUESTION_METHOD,
   RUN_QUESTIONS_DOCTRINE,
   RUN_QUESTIONS_SCHEMA,
+  SIGNAL_CHECK_DOCTRINE,
+  SIGNAL_CHECK_SCHEMA,
   SIGNAL_GUIDANCE,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
@@ -22,6 +24,7 @@ import {
   failRun,
   finishRun,
   getDiligenceSynthesis,
+  getSignal,
   getTicker,
   insertDigestItem,
   insertProposal,
@@ -36,6 +39,7 @@ import {
   listSignals,
   readingsForSignal,
   reapStuckRuns,
+  resetQuietRuns,
   runStatus,
   runningRun,
   setRunQuestions,
@@ -171,6 +175,22 @@ export async function startRun(userId: string, symbol: string): Promise<{ run: R
   const existing = await runningRun(userId, symbol);
   if (existing) return { run: existing, started: false };
   const run = await createRun(userId, symbol);
+  return { run, started: true };
+}
+
+/**
+ * Start a single-signal check unless any run (board or scoped) is already
+ * going — one research process per desk at a time, same stop button.
+ */
+export async function startSignalRun(
+  userId: string,
+  symbol: string,
+  signalId: string
+): Promise<{ run: Run; started: boolean }> {
+  await reapStuckRuns(userId, symbol);
+  const existing = await runningRun(userId, symbol);
+  if (existing) return { run: existing, started: false };
+  const run = await createRun(userId, symbol, signalId);
   return { run, started: true };
 }
 
@@ -761,6 +781,386 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       return;
     }
     console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);
+    await failRun(runId, msg).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The single-signal check — the board run's structure, scoped to one signal
+// ---------------------------------------------------------------------------
+
+interface SignalCheckOutput {
+  note: string;
+  readings: SynthesisOutput["readings"];
+  digestItems: SynthesisOutput["digestItems"];
+}
+
+const MAX_SCOPED_FOLLOW_UPS = 2;
+
+/** Research window for one signal: since its last reading, else 7 days. */
+async function signalWindowDays(signalId: string): Promise<number> {
+  const prev = (await readingsForSignal(signalId, 1))[0];
+  if (!prev) return 7;
+  const days = Math.ceil((Date.now() - Date.parse(prev.date)) / 86_400_000);
+  return Math.min(14, Math.max(2, days + 1));
+}
+
+/**
+ * Execute a single-signal check created by startSignalRun() — the same
+ * stage structure as executeRun, narrowed to one signal's named gap:
+ *   0) Question framing scoped to the signal (2-4 questions)
+ *   1) Wave-1 sweeps (parallel): focus questions, the signal's own sweep,
+ *      and a primary-source hunt steered to its measurement plan
+ *   2) Gap triage commissioning at most 2 deep dives
+ *   3) Wave-2 deep dives
+ *   4) Scoped synthesis: ONE reading + 0-3 digest items + a short note —
+ *      no brief, no dossier, and NO new-signal proposals (a check never
+ *      expands the board; FOUNDATION's no-sprawl discipline).
+ */
+export async function executeSignalRun(
+  userId: string,
+  runId: string,
+  symbol: string,
+  signalId: string
+): Promise<void> {
+  const runStart = Date.now();
+  try {
+    const ticker = await getTicker(userId, symbol);
+    if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
+    const signal = await getSignal(signalId);
+    if (!signal || signal.symbol !== symbol || (signal.userId && signal.userId !== userId)) {
+      throw new Error("Unknown signal for this desk.");
+    }
+    if (signal.status !== "active") throw new Error("Only active signals can be checked.");
+
+    const [breadthModel, deepModel, triageModel, synthModel] = await Promise.all([
+      resolveModel("scoutBreadth"),
+      resolveModel("scoutDeep"),
+      resolveModel("triage"),
+      resolveModel("synthesis"),
+    ]);
+
+    const days = await signalWindowDays(signalId);
+
+    // The one-signal board block — same shape the full run feeds the analyst.
+    const prev = (await readingsForSignal(signalId, 1))[0];
+    const prevLine = prev
+      ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
+      : " No previous reading.";
+    const historyLine = signal.backstoryBrief ? ` History base rate: ${signal.backstoryBrief}` : "";
+    const boardBlock = `- [S1] "${signal.name}" (${signal.type}, focus: ${signal.focusArea}). Plan: ${signal.measurementPlan} Scale: ${signal.scale}.${prevLine}${historyLine}`;
+
+    const guidance = (await listMessages(userId, symbol))
+      .filter((m) => m.role === "user")
+      .slice(-6)
+      .map((m) => `- ${m.content.slice(0, 300)}`)
+      .join("\n");
+
+    // ---- Stage 0: frame what THIS check must answer (scoped questions) ----
+    await throwIfStopped(runId);
+    await setRunStage(
+      runId,
+      "questions",
+      `Question suggestor (${triageModel}) framing what this check of “${signal.name}” must answer…`
+    );
+    let questions: { question: string; why: string }[] = [];
+    try {
+      const framed = await withDeadline("questions", (signal_) =>
+        claudeJSON<QuestionsOutput>({
+          model: triageModel,
+          signal: signal_,
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+          ],
+          messages: [
+            {
+              role: "user",
+              content: `DESK STATE (today: ${new Date().toDateString()}):
+
+THE ONE SIGNAL THIS CHECK COVERS (with its previous reading):
+${boardBlock}
+
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions strictly about this signal's measurement plan and its kill-path — what must be answered TODAY to move or honestly re-confirm its reading. Every question's signalKeys is ["S1"].`,
+            },
+          ],
+          schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 1500,
+          effort: "low",
+          meta: { userId, feature: "questions" },
+        })
+      );
+      questions = (framed.questions ?? [])
+        .filter((q) => q.question?.trim())
+        .slice(0, 4)
+        .map((q) => ({ question: q.question.trim(), why: q.why ?? "" }));
+      if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
+    } catch (e) {
+      console.error(
+        `[scalae] signal-check question framing failed (continuing without):`,
+        e instanceof Error ? e.message : e
+      );
+    }
+    const questionsBlock = questions.length
+      ? `\nTHIS CHECK'S FOCUS QUESTIONS (framed before the sweeps):\n${questions
+          .map((q, i) => `Q${i + 1}. ${q.question} — ${q.why}`)
+          .join("\n")}\n`
+      : "";
+
+    // ---- Stage 1: wave-1 sweeps, scoped to the signal ----
+    await throwIfStopped(runId);
+    const signalSteer = `\n\nSCOPE: This check serves ONE tracked signal: "${signal.name}" — ${signal.measurementPlan} Prioritize evidence bearing on it; ignore unrelated company news.`;
+    await setRunStage(
+      runId,
+      "sweeping",
+      `Scouts (${breadthModel}) sweeping the open web for “${signal.name}” — ${questions.length > 0 ? "focus questions, " : ""}the signal's sweep and a primary-source hunt (${days}-day window)…`
+    );
+    const waveOneJobs: { label: string; prompt: string }[] = [
+      ...(questions.length > 0
+        ? [
+            {
+              label: "Focus-question sweep",
+              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+            },
+          ]
+        : []),
+      {
+        label: `Signal sweep: ${signal.name}`,
+        prompt: signalSweepPrompt(symbol, ticker.name, days, [signal]),
+      },
+      {
+        label: "Primary-source sweep",
+        prompt: primarySourcePrompt(symbol, ticker.name, days) + signalSteer,
+      },
+    ];
+    const waveOneSettled = await Promise.allSettled(
+      waveOneJobs.map((j) =>
+        withDeadline(`sweep:${j.label}`, (signal_) =>
+          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal: signal_ })
+        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
+      )
+    );
+    const sweeps: Sweep[] = waveOneSettled
+      .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
+      .map((s) => s.value);
+    if (sweeps.length === 0) {
+      const firstErr = waveOneSettled.find((s) => s.status === "rejected") as PromiseRejectedResult;
+      throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
+    }
+
+    // ---- Stage 2: triage for gaps worth a deep dive (at most 2) ----
+    await throwIfStopped(runId);
+    await setRunStage(
+      runId,
+      "probing",
+      `Analyst (${triageModel}) triaging the field research on “${signal.name}” for gaps worth a deep dive…`
+    );
+    let followUps: GapOutput["followUps"] = [];
+    try {
+      const waveOneBlock = sweeps.map((s) => `=== ${s.label} ===\n${s.text}`).join("\n\n");
+      const gap = await withDeadline("triage", (signal_) =>
+        claudeJSON<GapOutput>({
+          model: triageModel,
+          signal: signal_,
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            { text: `${deskIdentity(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}` },
+          ],
+          messages: [
+            {
+              role: "user",
+              content: `THE ONE SIGNAL THIS CHECK COVERS:\n${boardBlock}\n${questionsBlock}\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: This is a SINGLE-SIGNAL check. Commission at most ${MAX_SCOPED_FOLLOW_UPS} targeted deep-dive probes, only where it changes THIS signal's reading today: a focus question left open, numbers that conflict between sources, or a red flag needing primary-source verification. Invert first — prefer a probe that could REFUTE the current level or catch a kill-path symptom. Return an empty list if wave 1 already answers the check; do not invent work.`,
+            },
+          ],
+          schema: GAP_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 2000,
+          effort: "medium",
+          meta: { userId, feature: "triage" },
+        })
+      );
+      followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_SCOPED_FOLLOW_UPS);
+    } catch (e) {
+      console.error(`[scalae] signal-check triage failed (continuing without wave 2):`, e);
+    }
+
+    // ---- Stage 3: wave-2 deep dives ----
+    if (followUps.length > 0) {
+      await setRunStage(
+        runId,
+        "probing",
+        `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"} on “${signal.name}”…`
+      );
+      const waveTwoSettled = await Promise.allSettled(
+        followUps.map((f) =>
+          withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal_) =>
+            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+              model: deepModel,
+              meta: { userId, feature: "scoutDeep" },
+              signal: signal_,
+            })
+          ).then(
+            (r): Sweep => ({ label: `Deep dive: ${f.query}`, wave: 2, text: r.text, sources: r.sources })
+          )
+        )
+      );
+      for (const s of waveTwoSettled) {
+        if (s.status === "fulfilled") sweeps.push(s.value);
+      }
+    }
+
+    // Number the de-duplicated sources across sweeps (same as the board run).
+    const allSources: Citation[] = [];
+    const indexOf = new Map<string, number>();
+    for (const s of sweeps) {
+      for (const src of s.sources) {
+        const existing = indexOf.get(src.url);
+        if (existing == null) {
+          indexOf.set(src.url, allSources.length);
+          allSources.push(withDomain({ ...src, foundBy: [s.label] }));
+        } else {
+          const foundBy = allSources[existing].foundBy;
+          if (foundBy && !foundBy.includes(s.label)) foundBy.push(s.label);
+        }
+      }
+    }
+
+    // ---- Stage 4: scoped synthesis — one reading, a few digest items, a note ----
+    await throwIfStopped(runId);
+    await setRunStage(
+      runId,
+      "synthesizing",
+      `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into a fresh reading of “${signal.name}”…`
+    );
+    const researchBlock = sweeps
+      .map(
+        (s) =>
+          `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
+            s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
+          }`
+      )
+      .join("\n\n");
+    const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
+
+    const task = `Today is ${new Date().toDateString()}.
+
+THE ONE SIGNAL THIS CHECK COVERS (with its previous reading):
+${boardBlock}
+${questionsBlock}
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+FIELD RESEARCH (grounded web sweeps scoped to this signal; numbered sources listed at the end):
+${researchBlock}
+
+NUMBERED SOURCES:
+${sourceList || "(none)"}
+
+TASK — produce this check's output per the single-signal-check doctrine: exactly one reading for [S1] (signalKey "S1"; same newEvidence/citation discipline as a full run, judged against the previous reading and the history base rate), 0-3 digestItems bearing on this signal only (signalNames ["${signal.name}"]; skip anything the previous reading already cited), and the 40-120 word note. No proposals exist in this schema — a scoped check never expands the board.
+
+LANGUAGE: Write EVERY output field in English — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
+
+    const synthMs = Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
+    const out = await withDeadline(
+      "synthesis",
+      (signal_) =>
+        claudeJSON<SignalCheckOutput>({
+          model: synthModel,
+          signal: signal_,
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            {
+              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
+            },
+          ],
+          messages: [{ role: "user", content: task }],
+          schema: SIGNAL_CHECK_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 6000,
+          effort: synthesisEffort(),
+          meta: { userId, feature: "synthesis" },
+        }),
+      synthMs
+    );
+
+    await throwIfStopped(runId);
+    await setRunStage(runId, "recording", "Recording the reading and evidence…");
+
+    const date = new Date().toISOString();
+    // Exactly one reading, for the checked signal — stray extras are dropped.
+    const r = (out.readings ?? [])[0];
+    if (r) {
+      const citations = (r.citationIndexes ?? [])
+        .filter((i) => i >= 0 && i < allSources.length)
+        .map((i) => allSources[i]);
+      await insertReading({
+        signalId,
+        runId,
+        date,
+        value: typeof r.value === "number" ? r.value : null,
+        valueUnit: r.valueUnit ?? null,
+        level: r.level ?? "unclear",
+        delta: r.delta ?? "flat",
+        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)),
+        rationale: r.rationale ?? "",
+        newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
+        citations,
+      });
+    }
+
+    for (const d of (out.digestItems ?? []).slice(0, 3)) {
+      const src =
+        d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
+          ? allSources[d.sourceIndex]
+          : null;
+      await insertDigestItem(userId, {
+        symbol,
+        runId,
+        date,
+        headline: d.headline,
+        summary: d.summary,
+        url: src?.url ?? null,
+        source: src?.title ?? null,
+        impact: d.impact ?? "neutral",
+        signalNames: d.signalNames?.length ? d.signalNames : [signal.name],
+        sourceClass:
+          src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
+            ? d.sourceClass
+            : null,
+        sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
+      });
+    }
+
+    // The note rides the run's brief column; board surfaces never read
+    // signal-scoped runs (latestRun/recentRuns filter them out), so it shows
+    // only where the check is surfaced. No dossier, no proposals, no
+    // lastRunAt stamp — a check is not a desk sweep.
+    await finishRun(runId, out.note ?? "", allSources, null);
+    // Fresh evidence on a named gap snaps the desk out of dormancy backoff;
+    // a quiet check never deepens it (it looked at one signal, not the desk).
+    if (r?.newEvidence === true) await resetQuietRuns(userId, symbol).catch(() => {});
+
+    // Backfill this signal's deep-history base rate if it's missing.
+    if (!signal.backstory) {
+      try {
+        await withDeadline(`backstory:${signal.name}`, (signal_) =>
+          researchSignalBackstory(userId, signalId, signal_)
+        );
+      } catch (e) {
+        console.error(
+          `[scalae] backstory for "${signal.name}" (${symbol}) timed out or failed:`,
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === RUN_STOPPED) {
+      console.log(`[scalae] signal check ${runId} (${symbol}) stopped by the investor.`);
+      return;
+    }
+    console.error(`[scalae] signal check ${runId} (${symbol}) failed:`, msg);
     await failRun(runId, msg).catch(() => {});
   }
 }

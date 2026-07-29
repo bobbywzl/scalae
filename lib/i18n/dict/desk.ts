@@ -14,6 +14,13 @@ const en = {
   stopResearch: "Stop research",
   stopHint: "Stop the run in progress so you can start a fresh one.",
 
+  // Single-signal checks (the per-signal "Run signal research" pipeline)
+  runSignal: "✦ Run signal research",
+  signalCheckingShort: "Checking…",
+  signalCheckBusy: "Another research run is in flight on this desk — one at a time.",
+  signalCheckFailed: "Signal research failed: {error}",
+  signalCheckNote: "Last check",
+
   // Onboarding
   setupTitle: "Desk setup.",
   setupBody:
@@ -136,6 +143,12 @@ const zh: Record<keyof typeof en, string> = {
   runNow: "立即运行研究",
   stopResearch: "停止研究",
   stopHint: "停止正在进行的研究，以便重新开始一次新的研究。",
+
+  runSignal: "✦ 运行信号研究",
+  signalCheckingShort: "核查中……",
+  signalCheckBusy: "该工作台已有一项研究正在进行——一次只能运行一项。",
+  signalCheckFailed: "信号研究失败：{error}",
+  signalCheckNote: "上次核查",
 
   setupTitle: "研究台设置。",
   setupBody:

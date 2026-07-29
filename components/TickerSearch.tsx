@@ -162,6 +162,10 @@ export function TickerSearch({ symbol }: { symbol: string }) {
   );
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
+  // Raw `sel` can go stale when results shrink under it (debounce races) —
+  // consume only this clamped derivation, mirroring effTypeFilter above.
+  const effSel = flat.length === 0 ? -1 : Math.min(Math.max(sel, 0), flat.length - 1);
+
   const go = useCallback(
     (hit: DeskSearchHit) => {
       setOpen(false);
@@ -173,22 +177,23 @@ export function TickerSearch({ symbol }: { symbol: string }) {
   function onInputKey(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSel((s) => Math.min(s + 1, flat.length - 1));
+      if (flat.length > 0) setSel(Math.min(effSel + 1, flat.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSel((s) => Math.max(s - 1, 0));
-    } else if (e.key === "Enter" && flat[sel]) {
+      if (flat.length > 0) setSel(Math.max(effSel - 1, 0));
+    } else if (e.key === "Enter" && effSel >= 0 && flat[effSel]) {
       e.preventDefault();
-      go(flat[sel]);
+      go(flat[effSel]);
     }
   }
 
   // Keep the keyboard selection in view.
   useEffect(() => {
+    if (effSel < 0) return;
     listRef.current
-      ?.querySelector(`[data-hit-idx="${sel}"]`)
+      ?.querySelector(`[data-hit-idx="${effSel}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [sel]);
+  }, [effSel]);
 
   const showEmpty = !busy && active && flat.length === 0;
 
@@ -312,7 +317,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
                         key={hit.id}
                         hit={hit}
                         idx={offset + i}
-                        selected={offset + i === sel}
+                        selected={offset + i === effSel}
                         tokens={tokens}
                         onHover={() => setSel(offset + i)}
                         onOpen={() => go(hit)}

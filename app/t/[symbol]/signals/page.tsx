@@ -96,6 +96,10 @@ export default function DeskPage() {
   }, [load]);
 
   const running = desk?.latestRun?.status === "running";
+  // The newest single-signal check (never surfaces on the board's banner/brief).
+  const signalRun = desk?.signalRun ?? null;
+  const signalChecking = signalRun?.status === "running";
+  const anyRunning = running || signalChecking;
 
   // Background chat state: a turn started earlier (another tab, or before a
   // reload) may still be running server-side — the analyst keeps thinking in
@@ -108,9 +112,9 @@ export default function DeskPage() {
 
   // Poll fast while the agents are working, slowly otherwise.
   useEffect(() => {
-    const timer = setInterval(load, running || sending || remoteBusy ? 2500 : 30_000);
+    const timer = setInterval(load, anyRunning || sending || remoteBusy ? 2500 : 30_000);
     return () => clearInterval(timer);
-  }, [load, running, sending, remoteBusy]);
+  }, [load, anyRunning, sending, remoteBusy]);
 
   const startRun = useCallback(async () => {
     try {
@@ -123,7 +127,8 @@ export default function DeskPage() {
     }
   }, [symbol, load, t]);
 
-  // Stop research: cancel the in-flight run so a fresh one can be started.
+  // Stop research: cancel the in-flight run (board or signal check) so a
+  // fresh one can be started.
   const stopRun = useCallback(async () => {
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/run`, { method: "DELETE" });
@@ -133,6 +138,19 @@ export default function DeskPage() {
     load();
   }, [symbol, load]);
 
+  // Check one signal now — the board pipeline's structure scoped to one signal.
+  const startSignalCheck = useCallback(
+    async (id: string) => {
+      try {
+        await api(`/api/signals/${id}/research`, { method: "POST" });
+      } catch (e) {
+        setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+      }
+      load();
+    },
+    [load, t]
+  );
+
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
@@ -140,7 +158,13 @@ export default function DeskPage() {
     if (!desk.autoResearch) return;
     const { ticker, active, latestRun } = desk;
     const stale = !ticker.lastRunAt || Date.now() - Date.parse(ticker.lastRunAt) > STALE_MS;
-    if (ticker.onboarded && active.length > 0 && latestRun?.status !== "running" && stale) {
+    if (
+      ticker.onboarded &&
+      active.length > 0 &&
+      latestRun?.status !== "running" &&
+      desk.signalRun?.status !== "running" &&
+      stale
+    ) {
       autoRan.current = true;
       startRun();
     }
@@ -559,7 +583,7 @@ export default function DeskPage() {
         )}
         {!onboarding && (
           <>
-            {running && (
+            {anyRunning && (
               <button
                 onClick={stopRun}
                 title={t("desk.stopHint")}
@@ -570,7 +594,8 @@ export default function DeskPage() {
             )}
             <button
               onClick={startRun}
-              disabled={running}
+              disabled={anyRunning}
+              title={signalChecking ? t("desk.signalCheckBusy") : undefined}
               className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
             >
               {running ? t("desk.researching") : t("desk.runNow")}
@@ -674,6 +699,16 @@ export default function DeskPage() {
         <div className="space-y-5 min-w-0">
           {latestRun && (latestRun.status === "running" || latestRun.status === "error") && (
             <RunBanner run={latestRun} onRetry={startRun} />
+          )}
+
+          {/* A failed single-signal check surfaces here too — its progress
+              lives on the signal's own card/detail, but a failure must not
+              hide behind an unopened detail view. */}
+          {signalRun && signalRun.status === "error" && (
+            <RunBanner
+              run={signalRun}
+              onRetry={() => signalRun.signalId && startSignalCheck(signalRun.signalId)}
+            />
           )}
 
           {desk.position &&
@@ -966,6 +1001,11 @@ export default function DeskPage() {
                       overlapsWith={
                         pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
                       }
+                      check={{
+                        checking: signalChecking && signalRun?.signalId === s.id,
+                        disabled: anyRunning,
+                        run: () => startSignalCheck(s.id),
+                      }}
                     />
                   );
                 })}
@@ -993,6 +1033,11 @@ export default function DeskPage() {
                             overlapsWith={
                               pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
                             }
+                            check={{
+                              checking: signalChecking && signalRun?.signalId === s.id,
+                              disabled: anyRunning,
+                              run: () => startSignalCheck(s.id),
+                            }}
                           />
                         );
                       })}
@@ -1132,6 +1177,33 @@ export default function DeskPage() {
               : null
           }
           companyDomains={companyDomains}
+          check={
+            retiredDetail
+              ? null
+              : {
+                  checking: signalChecking && signalRun?.signalId === detailSignal.id,
+                  stage:
+                    signalChecking && signalRun?.signalId === detailSignal.id
+                      ? (signalRun?.stageDetail ?? null)
+                      : null,
+                  error:
+                    signalRun?.signalId === detailSignal.id && signalRun?.status === "error"
+                      ? (signalRun?.error ?? null)
+                      : null,
+                  note:
+                    signalRun?.signalId === detailSignal.id &&
+                    signalRun?.status === "done" &&
+                    signalRun.brief
+                      ? {
+                          text: signalRun.brief,
+                          at: signalRun.finishedAt ?? signalRun.startedAt,
+                        }
+                      : null,
+                  disabled: anyRunning,
+                  run: () => startSignalCheck(detailSignal.id),
+                  stop: stopRun,
+                }
+          }
         />
       )}
 

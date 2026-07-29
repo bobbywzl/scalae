@@ -13,7 +13,7 @@ import { useT } from "@/components/PrefsProvider";
 import { fmtBytes, processEvidenceFile } from "@/components/attach";
 import { api, localizeError, timeAgo } from "@/components/util";
 import { linkCitations } from "@/lib/citations";
-import { docToPlainText } from "@/lib/notes";
+import { docIsEmpty, docToPlainText } from "@/lib/notes";
 import type {
   DiligenceEvidence,
   DiligencePayload,
@@ -48,6 +48,9 @@ export default function DiligencePage() {
   const [synthEditing, setSynthEditing] = useState(false);
   const [synthDraft, setSynthDraft] = useState("");
   const [synthSaving, setSynthSaving] = useState(false);
+  // What the editor was prefilled with — an unchanged Save is a no-op, so a
+  // round-tripped display translation can never overwrite the stored record.
+  const synthPrefill = useRef("");
   const [suggestions, setSuggestions] = useState<SectionSuggestion[] | null>(null);
   const [suggestState, setSuggestState] = useState<"idle" | "busy" | "empty" | "error">("idle");
 
@@ -114,6 +117,12 @@ export default function DiligencePage() {
 
   async function saveSynthesis() {
     if (synthSaving || !synthDraft.trim()) return;
+    // Nothing changed — close the editor without writing (the prefill may be
+    // canonical English while the page displays a translation; see the route).
+    if (synthDraft.trim() === synthPrefill.current.trim()) {
+      setSynthEditing(false);
+      return;
+    }
     setSynthSaving(true);
     setSynthError(null);
     try {
@@ -195,7 +204,9 @@ export default function DiligencePage() {
           <SectionTitle>{t("dd.synthesisTitle")}</SectionTitle>
           {synthesis && (
             <span className="text-[11px] text-muted normal-case tracking-normal">
-              {t("dd.synthesisRefreshedAgo", { when: timeAgo(synthesis.updatedAt, t) })}
+              {t(synthesis.origin === "investor" ? "dd.synthesisEditedAgo" : "dd.synthesisRefreshedAgo", {
+                when: timeAgo(synthesis.updatedAt, t),
+              })}
             </span>
           )}
           {synthesisStale && (
@@ -207,10 +218,14 @@ export default function DiligencePage() {
             {synthesis && !synthEditing && (
               <button
                 onClick={() => {
-                  setSynthDraft(synthesis.content);
+                  // Edit the CANONICAL English text, never the display translation.
+                  const base = synthesis.canonical ?? synthesis.content;
+                  synthPrefill.current = base;
+                  setSynthDraft(base);
                   setSynthEditing(true);
                 }}
-                className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
+                disabled={synthBusy}
+                className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
               >
                 {t("dd.synthesisEdit")}
               </button>
@@ -867,26 +882,37 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
   const { t } = useT();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
-  const [editing, setEditing] = useState(() => docToPlainText(note.content).trim() === "");
+  const [editing, setEditing] = useState(() => docIsEmpty(note.content));
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
   const [savedAt, setSavedAt] = useState(note.updatedAt);
   const pending = useRef<{ title?: string; content?: string }>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Saves are serialized on this chain: at most one PATCH in flight, and the
+  // newest snapshot always lands last (a Done-click racing the 1200ms timer
+  // must never let an older body commit after a newer one).
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
 
-  const flush = useCallback(async () => {
-    const patch = pending.current;
-    pending.current = {};
-    if (patch.title === undefined && patch.content === undefined) return;
-    setSaveState("saving");
-    try {
-      await api(`/api/notes/${note.id}`, { method: "PATCH", body: JSON.stringify(patch) });
-      setSavedAt(new Date().toISOString());
-      setSaveState(pending.current.title !== undefined || pending.current.content !== undefined ? "dirty" : "saved");
-    } catch {
-      // Keep the edits queued; the next change retriggers the save.
-      pending.current = { ...patch, ...pending.current };
-      setSaveState("dirty");
-    }
+  const flush = useCallback(() => {
+    saveChain.current = saveChain.current.then(async () => {
+      const patch = pending.current;
+      pending.current = {};
+      if (patch.title === undefined && patch.content === undefined) return;
+      setSaveState("saving");
+      try {
+        await api(`/api/notes/${note.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+        setSavedAt(new Date().toISOString());
+        setSaveState(
+          pending.current.title !== undefined || pending.current.content !== undefined
+            ? "dirty"
+            : "saved"
+        );
+      } catch {
+        // Keep the edits queued; the next change retriggers the save.
+        pending.current = { ...patch, ...pending.current };
+        setSaveState("dirty");
+      }
+    });
+    return saveChain.current;
   }, [note.id]);
 
   const queue = useCallback(
@@ -925,15 +951,22 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
   // editor, as static HTML the annotation painter can safely mark up.
   // generateHTML needs a DOM, and the record only exists after the page's
   // own fetch — so this is browser-only by construction, and guarded to
-  // stay that way if the loading gate above ever changes.
-  const readHtml = useMemo(
-    () =>
-      editing || typeof window === "undefined"
-        ? ""
-        : generateHTML(parseNoteDoc(content), NOTE_EXTENSIONS),
-    [content, editing]
-  );
-  const isEmpty = !editing && docToPlainText(content).trim() === "";
+  // stay that way if the loading gate above ever changes. A doc outside the
+  // editor schema (older rows, direct API writes) must degrade to the
+  // investor's words as plain text, never crash the whole record.
+  const readHtml = useMemo(() => {
+    if (editing || typeof window === "undefined") return "";
+    try {
+      return generateHTML(parseNoteDoc(content), NOTE_EXTENSIONS);
+    } catch {
+      const text = docToPlainText(content)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return text ? `<p>${text.replace(/\n/g, "<br>")}</p>` : "";
+    }
+  }, [content, editing]);
+  const isEmpty = !editing && docIsEmpty(content);
 
   return (
     <div className="rounded-2xl bg-card border border-hairline p-5">

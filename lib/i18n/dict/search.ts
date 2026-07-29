@@ -6,7 +6,7 @@
 const en = {
   open: "Search this desk",
   placeholder: "Search notes, memos, signals, evidence…",
-  hint: "Everything on this ticker — all three pills, every block.",
+  hint: "Across all three pills — notes, memos, signals, evidence, chats and recent briefs. Desk research is matched in its canonical English.",
   minChars: "Keep typing — two characters starts the search.",
   searching: "Searching…",
   empty: "No matches for “{q}”.",
@@ -37,7 +37,7 @@ const en = {
 const zh: Record<keyof typeof en, string> = {
   open: "搜索这个工作台",
   placeholder: "搜索笔记、备忘录、信号、证据……",
-  hint: "该股票的一切内容——三个标签页、每一种文本块。",
+  hint: "跨三个标签页搜索——笔记、备忘录、信号、证据、对话与近期晨报。工作台研究内容以英文原文记录并匹配；你自己写下的内容按原文匹配。",
   minChars: "继续输入——两个字符即开始搜索。",
   searching: "搜索中……",
   empty: "没有与“{q}”匹配的结果。",

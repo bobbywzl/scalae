@@ -170,6 +170,12 @@ export interface Run {
    */
   questions: string[];
   error: string | null;
+  /**
+   * Set when this run is a single-signal check (the per-signal "Run signal
+   * research" pipeline). Null/absent = a full board run. Signal-scoped runs
+   * never carry the desk's brief/dossier surfaces.
+   */
+  signalId?: string | null;
 }
 
 export type AttachmentKind = "image" | "pdf" | "text";
@@ -651,6 +657,14 @@ export interface DiligenceSynthesis {
   symbol: string;
   content: string;
   updatedAt: string;
+  /** Who last wrote it: the desk's refresh or the investor's own edit. */
+  origin?: "desk" | "investor";
+  /**
+   * Canonical English content, attached by the API when the display language
+   * differs — edits work on THIS text so the stored record never forks into a
+   * round-tripped machine translation.
+   */
+  canonical?: string;
 }
 
 /**
@@ -737,6 +751,8 @@ export interface DeskPayload {
   retired: SignalWithReadings[];
   dismissed: Signal[];
   latestRun: Run | null;
+  /** The newest single-signal check (running, done or error) — board runs excluded. */
+  signalRun: Run | null;
   /** When the standing dossier last actually changed (run startedAt), if known. */
   dossierRevisedAt: string | null;
   /** How many consecutive runs (incl. latest) have held the dossier unchanged. */

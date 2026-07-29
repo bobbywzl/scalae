@@ -59,6 +59,7 @@ export function SignalDetail({
   lineage = null,
   overlapsWith = null,
   companyDomains = [],
+  check = null,
 }: {
   signal: SignalWithReadings;
   signalsById: Map<string, Signal>;
@@ -78,6 +79,16 @@ export function SignalDetail({
   overlapsWith?: { name: string; onOpen: () => void } | null;
   /** The ticker's learned company-controlled domains (exact source classing). */
   companyDomains?: string[];
+  /** Single-signal check: run/stop this signal's own research, with live state. */
+  check?: {
+    checking: boolean;
+    stage: string | null;
+    error: string | null;
+    note: { text: string; at: string } | null;
+    disabled: boolean;
+    run: () => void;
+    stop: () => void;
+  } | null;
 }) {
   const { t, locale } = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -292,6 +303,31 @@ export function SignalDetail({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {/* Run research on just this signal — the board pipeline, scoped. */}
+          {check &&
+            (check.checking ? (
+              <span className="flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/8 px-2.5 py-1.5 min-w-0">
+                <span className="text-[11px] text-accent pulse-soft truncate max-w-[280px]">
+                  {check.stage || t("desk.signalCheckingShort")}
+                </span>
+                <button
+                  onClick={check.stop}
+                  title={t("desk.stopHint")}
+                  className="shrink-0 rounded-md bg-loss/15 hover:bg-loss/25 text-loss text-[10px] font-medium px-2 py-0.5 transition-colors"
+                >
+                  {t("desk.stopResearch")}
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={check.run}
+                disabled={check.disabled}
+                title={check.disabled ? t("desk.signalCheckBusy") : undefined}
+                className="rounded-lg border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 text-accent text-[11px] font-semibold px-2.5 py-1.5 transition-colors"
+              >
+                {t("desk.runSignal")}
+              </button>
+            ))}
           {readOnly ? (
             <span className="rounded-lg border border-hairline bg-ink/4 px-2.5 py-1.5 text-[11px] text-muted">
               {t("signals.retiredBadge")}
@@ -342,6 +378,34 @@ export function SignalDetail({
         }`}
       >
         <div className="overflow-y-auto rounded-2xl bg-card border border-hairline p-5 space-y-5">
+          {/* Single-signal check: last failure (with retry) and the last check's note. */}
+          {check?.error && (
+            <p className="text-xs text-loss">
+              {t("desk.signalCheckFailed", { error: localizeError(check.error, t) || "—" })}{" "}
+              <button
+                onClick={check.run}
+                disabled={check.disabled}
+                className="underline decoration-dotted hover:text-emph disabled:opacity-50 transition-colors"
+              >
+                {t("dd.tryAgain")}
+              </button>
+            </p>
+          )}
+          {check?.note && (
+            <div className="rounded-xl border border-accent/20 bg-accent/6 px-3.5 py-2.5">
+              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                {t("desk.signalCheckNote")}
+                <span className="normal-case tracking-normal font-normal text-muted/70">
+                  {" "}
+                  · {timeAgo(check.note.at, t)}
+                </span>
+              </p>
+              <div className="mt-1">
+                <Markdown>{check.note.text}</Markdown>
+              </div>
+            </div>
+          )}
+
           {/* Latest reading hero */}
           <section>
             <p className={sectionTitle}>{t("signals.latestReading")}</p>

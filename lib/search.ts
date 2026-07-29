@@ -9,12 +9,13 @@ import {
   listFinCleansingEvents,
   listFinMessages,
   listFocusAreas,
-  listMessages,
   listNoteSections,
   listNotes,
   listSignals,
   readingsForSymbol,
   recentDigest,
+  recentFinMessages,
+  recentMessages,
   recentRuns,
 } from "./db";
 import { docToPlainText } from "./notes";
@@ -113,10 +114,24 @@ function countOccurrences(haystack: string, needle: string, cap: number): number
   return n;
 }
 
+/**
+ * Length-preserving case fold: per code point, keep the original character
+ * whenever lowercasing would change its length (e.g. 'İ' → 'i̇' gains a
+ * combining mark) so indexes computed on the fold stay valid in the source.
+ */
+function foldForIndexing(source: string): string {
+  let out = "";
+  for (const ch of source) {
+    const l = ch.toLowerCase();
+    out += l.length === ch.length ? l : ch;
+  }
+  return out;
+}
+
 /** Excerpt around the earliest token match, expanded to word boundaries. */
 function makeSnippet(body: string, title: string, tokens: string[]): string {
   const source = body || title;
-  const lower = source.toLowerCase();
+  const lower = foldForIndexing(source);
   let first = -1;
   for (const tok of tokens) {
     const i = lower.indexOf(tok);
@@ -195,11 +210,11 @@ export async function searchDesk(
     listFocusAreas(userId, symbol),
     readingsForSymbol(userId, symbol),
     recentDigest(userId, symbol, 300),
-    recentRuns(userId, symbol, 15),
-    listMessages(userId, symbol, 400),
+    recentRuns(userId, symbol, 5),
+    recentMessages(userId, symbol, 400),
     listFinAdjustments(userId, symbol),
     listFinCleansingEvents(userId, symbol, 300),
-    listFinMessages(userId, symbol, 400),
+    recentFinMessages(userId, symbol, 400),
     latestFinSuggestRun(userId, symbol),
   ]);
 
@@ -365,31 +380,38 @@ export async function searchDesk(
       body: clean([d.summary, d.sourceNote ?? ""].join(" ")),
     });
   }
-  // recentRuns returns finished runs newest-first; the newest one's brief and
-  // dossier are exactly what the signals page renders.
-  const briefRun = runs.length > 0 ? await getRun(runs[0].id) : null;
-  if (briefRun?.brief) {
-    blocks.push({
-      id: `brief:${briefRun.id}`,
-      pill: "signals",
-      type: "brief",
-      path: [],
-      date: briefRun.startedAt,
-      title: "",
-      body: stripMd(briefRun.brief),
-    });
-  }
-  if (briefRun?.dossier) {
-    blocks.push({
-      id: `dossier:${briefRun.id}`,
-      pill: "signals",
-      type: "dossier",
-      path: [],
-      date: briefRun.startedAt,
-      title: "",
-      body: stripMd(briefRun.dossier),
-    });
-  }
+  // recentRuns returns finished board runs newest-first. The newest one's
+  // brief/dossier are what the page renders; earlier ones are still part of
+  // the desk's record, so recent briefs stay findable too.
+  const fullRuns = (await Promise.all(runs.map((r) => getRun(r.id)))).filter(
+    (r): r is NonNullable<typeof r> => r != null
+  );
+  fullRuns.forEach((run, i) => {
+    if (run.brief) {
+      blocks.push({
+        id: `brief:${run.id}`,
+        pill: "signals",
+        type: "brief",
+        path: [run.startedAt.slice(0, 10)],
+        date: run.startedAt,
+        title: "",
+        body: stripMd(run.brief),
+      });
+    }
+    // Only the newest dossier: it is a STANDING view that carries forward
+    // run to run — older copies are near-duplicates, not distinct records.
+    if (i === 0 && run.dossier) {
+      blocks.push({
+        id: `dossier:${run.id}`,
+        pill: "signals",
+        type: "dossier",
+        path: [],
+        date: run.startedAt,
+        title: "",
+        body: stripMd(run.dossier),
+      });
+    }
+  });
   for (const m of messages) {
     const signalName = m.signalId ? signalById.get(m.signalId)?.name : undefined;
     blocks.push({

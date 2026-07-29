@@ -27,6 +27,7 @@ const en = {
   synthesisNone:
     "No synthesis yet. Once sections hold notes or accepted research, refresh to distill the record's core insights.",
   synthesisRefreshedAgo: "refreshed {when}",
+  synthesisEditedAgo: "edited by you {when}",
   synthesisEdit: "✎ Edit",
   synthesisSave: "Save",
   synthesisCancel: "Cancel",
@@ -92,6 +93,7 @@ const zh: Record<keyof typeof en, string> = {
   synthesisStale: "记录在此综合之后已有变化",
   synthesisNone: "还没有综合。板块中有了笔记或已接受的研究后，点击刷新即可提炼记录的核心洞见。",
   synthesisRefreshedAgo: "刷新于 {when}",
+  synthesisEditedAgo: "由你编辑于 {when}",
   synthesisEdit: "✎ 编辑",
   synthesisSave: "保存",
   synthesisCancel: "取消",

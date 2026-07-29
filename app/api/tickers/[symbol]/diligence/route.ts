@@ -74,5 +74,11 @@ export async function GET(_req: Request, { params }: Params) {
     activeSignals: activeSignals.map((s) => ({ id: s.id, name: s.name, focusArea: s.focusArea })),
   };
   const lang = await requestLang(user.id);
-  return NextResponse.json(await localizeDiligencePayload(payload, lang, { userId: user.id }));
+  const localized = await localizeDiligencePayload(payload, lang, { userId: user.id });
+  // The synthesis editor must work on the CANONICAL English text — editing a
+  // display translation and saving it back would fork the stored record.
+  if (localized.synthesis && synthesis) {
+    localized.synthesis = { ...localized.synthesis, canonical: synthesis.content };
+  }
+  return NextResponse.json(localized);
 }

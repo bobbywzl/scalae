@@ -64,10 +64,16 @@ export function AnnotationRecords({
     }
     if (surfaceId.startsWith("signal:")) {
       const [, id, part] = surfaceId.split(":");
-      const name = signalsById.get(id)?.name ?? "?";
+      const sig = signalsById.get(id);
+      if (!sig) {
+        // Other pages (the DD record) render this log without the board loaded.
+        return part === "backstory"
+          ? t("notes.annSurfBackstoryGeneric")
+          : t("notes.annSurfThesisGeneric");
+      }
       return part === "backstory"
-        ? t("notes.annSurfBackstory", { name })
-        : t("notes.annSurfThesis", { name });
+        ? t("notes.annSurfBackstory", { name: sig.name })
+        : t("notes.annSurfThesis", { name: sig.name });
     }
     if (surfaceId.startsWith("msg:")) return t("notes.annSurfChat");
     if (surfaceId === "synthesis") return t("notes.annSurfSynthesis");
