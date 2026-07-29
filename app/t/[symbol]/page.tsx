@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { generateHTML } from "@tiptap/core";
+import { AnnotationRecords } from "@/components/AnnotationRecords";
+import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { DeskTabs } from "@/components/DeskTabs";
 import { Markdown } from "@/components/Markdown";
-import { NoteEditor } from "@/components/NoteEditor";
+import { NOTE_EXTENSIONS, NoteEditor, parseNoteDoc } from "@/components/NoteEditor";
 import { useT } from "@/components/PrefsProvider";
 import { fmtBytes, processEvidenceFile } from "@/components/attach";
 import { api, localizeError, timeAgo } from "@/components/util";
 import { linkCitations } from "@/lib/citations";
+import { docToPlainText } from "@/lib/notes";
 import type {
   DiligenceEvidence,
   DiligencePayload,
@@ -41,6 +45,9 @@ export default function DiligencePage() {
   const [busy, setBusy] = useState(false);
   const [synthBusy, setSynthBusy] = useState(false);
   const [synthError, setSynthError] = useState<string | null>(null);
+  const [synthEditing, setSynthEditing] = useState(false);
+  const [synthDraft, setSynthDraft] = useState("");
+  const [synthSaving, setSynthSaving] = useState(false);
   const [suggestions, setSuggestions] = useState<SectionSuggestion[] | null>(null);
   const [suggestState, setSuggestState] = useState<"idle" | "busy" | "empty" | "error">("idle");
 
@@ -105,6 +112,24 @@ export default function DiligencePage() {
     }
   }
 
+  async function saveSynthesis() {
+    if (synthSaving || !synthDraft.trim()) return;
+    setSynthSaving(true);
+    setSynthError(null);
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/synthesis`, {
+        method: "PATCH",
+        body: JSON.stringify({ content: synthDraft }),
+      });
+      setSynthEditing(false);
+      await load();
+    } catch (e) {
+      setSynthError(e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" }));
+    } finally {
+      setSynthSaving(false);
+    }
+  }
+
   async function suggestTopics() {
     if (suggestState === "busy") return;
     setSuggestState("busy");
@@ -141,6 +166,7 @@ export default function DiligencePage() {
   const { ticker, synthesis, synthesisStale, activeSignals } = payload;
 
   return (
+    <AnnotationsProvider symbol={symbol}>
     <main className="mx-auto w-full max-w-4xl px-5 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link
@@ -151,22 +177,24 @@ export default function DiligencePage() {
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
-          <p className="text-muted text-xs">{t("dd.pageSubtitle", { name: ticker.name })}</p>
+          <p className="text-muted text-[13px] mt-0.5">{t("dd.pageSubtitle", { name: ticker.name })}</p>
         </div>
         <DeskTabs symbol={symbol} active="dd" />
         <div className="flex items-center gap-2 ml-auto">
           {researching && (
-            <span className="text-[11px] text-accent pulse-soft">{t("desk.researching")}</span>
+            <span className="text-xs text-accent pulse-soft">{t("desk.researching")}</span>
           )}
         </div>
       </header>
 
-      {/* The standing synthesis of core insights across the whole record. */}
-      <section className="mt-6 rounded-2xl bg-card border border-accent/20 p-5">
+      {/* The standing synthesis of core insights across the whole record —
+          highlightable, annotatable, and editable (the record is the
+          investor's; refresh regenerates on their ask). */}
+      <section className="mt-6 rounded-2xl bg-card border border-accent/20 p-6">
         <div className="flex items-center gap-2 flex-wrap">
           <SectionTitle>{t("dd.synthesisTitle")}</SectionTitle>
           {synthesis && (
-            <span className="text-[10px] text-muted normal-case tracking-normal">
+            <span className="text-[11px] text-muted normal-case tracking-normal">
               {t("dd.synthesisRefreshedAgo", { when: timeAgo(synthesis.updatedAt, t) })}
             </span>
           )}
@@ -175,23 +203,63 @@ export default function DiligencePage() {
               {t("dd.synthesisStale")}
             </span>
           )}
-          <button
-            onClick={refreshSynthesis}
-            disabled={synthBusy}
-            className="ml-auto rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
-          >
-            {synthBusy ? t("dd.synthesisRefreshing") : t("dd.synthesisRefresh")}
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            {synthesis && !synthEditing && (
+              <button
+                onClick={() => {
+                  setSynthDraft(synthesis.content);
+                  setSynthEditing(true);
+                }}
+                className="rounded-lg bg-ink/8 hover:bg-ink/12 text-xs font-medium px-3 py-1.5 transition-colors"
+              >
+                {t("dd.synthesisEdit")}
+              </button>
+            )}
+            <button
+              onClick={refreshSynthesis}
+              disabled={synthBusy || synthEditing}
+              className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
+            >
+              {synthBusy ? t("dd.synthesisRefreshing") : t("dd.synthesisRefresh")}
+            </button>
+          </div>
         </div>
-        {synthError && <p className="mt-2 text-[11px] text-loss">{synthError}</p>}
-        {synthesis ? (
-          <div className="mt-2">
-            <Markdown>{synthesis.content}</Markdown>
+        {synthError && <p className="mt-2 text-xs text-loss">{synthError}</p>}
+        {synthEditing ? (
+          <div className="mt-3">
+            <textarea
+              value={synthDraft}
+              onChange={(e) => setSynthDraft(e.target.value)}
+              rows={Math.min(24, Math.max(8, synthDraft.split("\n").length + 2))}
+              className="w-full rounded-xl border border-hairline bg-ink/4 px-3.5 py-3 text-sm leading-relaxed focus:outline-none focus:border-accent/50"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                onClick={saveSynthesis}
+                disabled={synthSaving || !synthDraft.trim()}
+                className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+              >
+                {synthSaving ? t("dd.deciding") : t("dd.synthesisSave")}
+              </button>
+              <button
+                onClick={() => setSynthEditing(false)}
+                disabled={synthSaving}
+                className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-foreground text-xs font-medium px-3 py-1.5 transition-colors"
+              >
+                {t("dd.synthesisCancel")}
+              </button>
+            </div>
+          </div>
+        ) : synthesis ? (
+          <div className="mt-3">
+            <Annotatable surfaceId="synthesis">
+              <Markdown>{synthesis.content}</Markdown>
+            </Annotatable>
           </div>
         ) : (
-          <p className="text-muted text-xs italic mt-2">{t("dd.synthesisNone")}</p>
+          <p className="text-muted text-[13px] italic mt-3">{t("dd.synthesisNone")}</p>
         )}
-        <p className="mt-3 text-[10px] text-muted/70">{t("dd.synthesisExplainer")}</p>
+        <p className="mt-4 text-xs text-muted/70">{t("dd.synthesisExplainer")}</p>
       </section>
 
       {/* Add a section: free text, focus areas, and the board's suggestions. */}
@@ -226,7 +294,7 @@ export default function DiligencePage() {
           </button>
         </form>
         {payload.focusAreaTitles.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-[11px]">
+          <div className="mt-3 flex items-center gap-1.5 flex-wrap text-xs">
             <span className="text-muted">{t("notes.fromFocusAreas")}</span>
             {payload.focusAreaTitles.map((title) => (
               <button
@@ -240,26 +308,28 @@ export default function DiligencePage() {
           </div>
         )}
         {suggestState === "empty" && (
-          <p className="mt-2.5 text-[11px] text-muted">{t("dd.suggestNone")}</p>
+          <p className="mt-3 text-xs text-muted">{t("dd.suggestNone")}</p>
         )}
         {suggestState === "error" && (
-          <p className="mt-2.5 text-[11px] text-loss">{t("notes.clipFailed")}</p>
+          <p className="mt-3 text-xs text-loss">{t("notes.clipFailed")}</p>
         )}
         {suggestions && suggestions.length > 0 && (
-          <div className="mt-2.5">
-            <p className="text-[11px] text-muted">{t("dd.suggestExplainer")}</p>
-            <div className="mt-1.5 grid sm:grid-cols-2 gap-2">
+          <div className="mt-3">
+            <p className="text-xs text-muted">{t("dd.suggestExplainer")}</p>
+            <div className="mt-2 grid sm:grid-cols-2 gap-2">
               {suggestions.map((s) => (
                 <button
                   key={s.title}
                   onClick={() => addSection(s.title)}
                   disabled={busy}
-                  className="text-left rounded-xl border border-hairline bg-ink/4 hover:bg-ink/8 disabled:opacity-50 px-3 py-2 transition-colors"
+                  className="text-left rounded-xl border border-hairline bg-ink/4 hover:bg-ink/8 disabled:opacity-50 px-3.5 py-2.5 transition-colors"
                 >
-                  <span className="text-[12px] font-semibold text-emph">+ {s.title}</span>
-                  {s.rationale && <p className="text-[11px] text-muted mt-0.5">{s.rationale}</p>}
+                  <span className="text-[13px] font-semibold text-emph">+ {s.title}</span>
+                  {s.rationale && (
+                    <p className="text-xs text-muted mt-1 leading-relaxed">{s.rationale}</p>
+                  )}
                   {s.signalNames.length > 0 && (
-                    <p className="text-[10px] text-accent/80 mt-0.5">
+                    <p className="text-[11px] text-accent/80 mt-1">
                       {t("dd.suggestDeepens", { names: s.signalNames.map((n) => `“${n}”`).join(", ") })}
                     </p>
                   )}
@@ -268,7 +338,7 @@ export default function DiligencePage() {
             </div>
           </div>
         )}
-        <p className="mt-2.5 text-[10px] text-muted/70">
+        <p className="mt-3 text-xs text-muted/70">
           {activeSignals.length > 0
             ? t("dd.boardLine", { n: activeSignals.length })
             : t("dd.boardLineNone")}
@@ -279,12 +349,25 @@ export default function DiligencePage() {
         <p className="text-muted text-sm mt-8 text-center">{t("notes.noSections")}</p>
       )}
 
-      <div className="mt-5 space-y-6">
+      <div className="mt-6 space-y-8">
         {payload.sections.map((s) => (
           <SectionBlock key={s.id} symbol={symbol} section={s} onChanged={load} />
         ))}
       </div>
+
+      {/* Every highlight on this record, reviewable in one place. */}
+      <div className="mt-8">
+        <AnnotationRecords
+          notes={payload.sections.flatMap((s) =>
+            s.notes.map((n) => ({ id: n.id, title: n.title, sectionTitle: s.title }))
+          )}
+          memos={payload.sections.flatMap((s) =>
+            s.research.map((r) => ({ id: r.id, sectionTitle: s.title }))
+          )}
+        />
+      </div>
     </main>
+    </AnnotationsProvider>
   );
 }
 
@@ -345,7 +428,7 @@ function SectionBlock({
           />
         ) : (
           <h2
-            className="text-[12px] uppercase tracking-widest text-muted font-semibold cursor-pointer hover:text-emph transition-colors"
+            className="text-[13px] uppercase tracking-widest text-muted font-semibold cursor-pointer hover:text-emph transition-colors"
             title={t("notes.renameSection")}
             onClick={() => setRenaming(true)}
           >
@@ -376,9 +459,9 @@ function SectionBlock({
       <EvidenceStrip symbol={symbol} section={section} onChanged={onChanged} />
 
       {section.notes.length === 0 ? (
-        <p className="text-muted/70 text-[11px] italic mt-2">{t("notes.emptySection")}</p>
+        <p className="text-muted/70 text-xs italic mt-2.5">{t("notes.emptySection")}</p>
       ) : (
-        <div className="mt-2 space-y-3">
+        <div className="mt-3 space-y-4">
           {section.notes.map((n) => (
             <NotepadCard key={n.id} note={n} onDeleted={onChanged} />
           ))}
@@ -478,7 +561,7 @@ function EvidenceStrip({
           fileMany([...e.dataTransfer.files]);
         }}
         role="button"
-        className={`rounded-xl border border-dashed px-3 py-2 text-[11px] cursor-pointer transition-colors ${
+        className={`rounded-xl border border-dashed px-3.5 py-2.5 text-xs cursor-pointer transition-colors ${
           dragOver
             ? "border-accent/60 bg-accent/10 text-accent"
             : "border-hairline bg-ink/3 text-muted hover:bg-ink/6 hover:text-emph"
@@ -499,18 +582,18 @@ function EvidenceStrip({
         />
       </div>
       {errors.map((err) => (
-        <p key={err} className="mt-1 text-[11px] text-loss">
+        <p key={err} className="mt-1 text-xs text-loss">
           {err}
         </p>
       ))}
       {section.evidence.length > 0 && (
         <>
-          <div className="mt-2 grid sm:grid-cols-2 gap-2">
+          <div className="mt-2 grid sm:grid-cols-2 gap-2.5">
             {section.evidence.map((e) => (
               <EvidenceCard key={e.id} evidence={e} onChanged={onChanged} />
             ))}
           </div>
-          <p className="mt-1.5 text-[10px] text-muted/60">{t("dd.evidenceReadNote")}</p>
+          <p className="mt-2 text-[11px] text-muted/60">{t("dd.evidenceReadNote")}</p>
         </>
       )}
     </div>
@@ -587,11 +670,11 @@ function EvidenceCard({
             target="_blank"
             rel="noreferrer"
             title={t("dd.evidenceOpen")}
-            className="text-[11px] font-medium text-emph hover:text-accent truncate transition-colors"
+            className="text-xs font-medium text-emph hover:text-accent truncate transition-colors"
           >
             {evidence.name}
           </a>
-          <span className="shrink-0 text-[9px] text-muted/70 tabular-nums">
+          <span className="shrink-0 text-[10px] text-muted/70 tabular-nums">
             {fmtBytes(evidence.size)}
           </span>
           <button
@@ -607,9 +690,9 @@ function EvidenceCard({
           value={caption}
           onChange={(e) => queueCaption(e.target.value)}
           placeholder={t("dd.evidenceCaptionPlaceholder")}
-          className="mt-1 w-full rounded-md border border-hairline bg-ink/4 px-2 py-1 text-[11px] focus:outline-none focus:border-accent/50 placeholder:text-muted/50"
+          className="mt-1.5 w-full rounded-md border border-hairline bg-ink/4 px-2 py-1 text-xs focus:outline-none focus:border-accent/50 placeholder:text-muted/50"
         />
-        <p className="mt-0.5 text-[9px] text-muted/60">{evidence.createdAt.slice(0, 10)}</p>
+        <p className="mt-1 text-[10px] text-muted/60">{evidence.createdAt.slice(0, 10)}</p>
       </div>
     </div>
   );
@@ -710,16 +793,20 @@ function ResearchPanel({
           </span>
           <span className="text-[10px] text-muted">{pending.createdAt.slice(0, 10)}</span>
         </div>
-        {pending.insights && (
-          <p className="mt-2 text-[12px] text-emph">
-            <span className="font-semibold">{t("dd.briefLabel")}:</span> {pending.insights}
-          </p>
-        )}
-        <div className="mt-2 border-t border-hairline pt-2">
-          <Markdown>{linkCitations(pending.memo ?? "", pending.sources)}</Markdown>
-        </div>
-        {error && <p className="mt-2 text-[11px] text-loss">{error}</p>}
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
+        {/* The memo is highlightable/annotatable while it waits at the gate;
+            it becomes fully editable the moment it's accepted into a notepad. */}
+        <Annotatable surfaceId={`memo:${pending.id}`}>
+          {pending.insights && (
+            <p className="mt-2.5 text-sm leading-relaxed text-emph">
+              <span className="font-semibold">{t("dd.briefLabel")}:</span> {pending.insights}
+            </p>
+          )}
+          <div className="mt-2.5 border-t border-hairline pt-2.5">
+            <Markdown>{linkCitations(pending.memo ?? "", pending.sources)}</Markdown>
+          </div>
+        </Annotatable>
+        {error && <p className="mt-2 text-xs text-loss">{error}</p>}
+        <div className="mt-3.5 flex items-center gap-2 flex-wrap">
           <button
             onClick={() => decide("accept")}
             disabled={deciding}
@@ -734,7 +821,7 @@ function ResearchPanel({
           >
             {t("dd.dismiss")}
           </button>
-          <span className="text-[10px] text-muted/70">{t("dd.reviewExplainer")}</span>
+          <span className="text-xs text-muted/70">{t("dd.reviewExplainer")}</span>
         </div>
       </div>
     );
@@ -769,9 +856,18 @@ function ResearchPanel({
   );
 }
 
+/**
+ * One notepad, in two modes. READ (default): the document rendered statically
+ * through the editor schema, so selecting text highlights/annotates it exactly
+ * like the desk's other surfaces. EDIT: the TipTap editor (annotation marks
+ * can't be painted into a live ProseMirror view). A brand-new empty notepad
+ * opens straight into edit mode.
+ */
 function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise<unknown> }) {
   const { t } = useT();
   const [title, setTitle] = useState(note.title);
+  const [content, setContent] = useState(note.content);
+  const [editing, setEditing] = useState(() => docToPlainText(note.content).trim() === "");
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
   const [savedAt, setSavedAt] = useState(note.updatedAt);
   const pending = useRef<{ title?: string; content?: string }>({});
@@ -819,8 +915,22 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
     onDeleted();
   }
 
+  function finishEditing() {
+    if (timer.current) clearTimeout(timer.current);
+    flush();
+    setEditing(false);
+  }
+
+  // Read-mode render: the stored document through the SAME schema as the
+  // editor, as static HTML the annotation painter can safely mark up.
+  const readHtml = useMemo(
+    () => (editing ? "" : generateHTML(parseNoteDoc(content), NOTE_EXTENSIONS)),
+    [content, editing]
+  );
+  const isEmpty = !editing && docToPlainText(content).trim() === "";
+
   return (
-    <div className="rounded-2xl bg-card border border-hairline p-4">
+    <div className="rounded-2xl bg-card border border-hairline p-5">
       <div className="flex items-center gap-2">
         <input
           value={title}
@@ -829,7 +939,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
             queue({ title: e.target.value });
           }}
           placeholder={t("notes.notepadTitlePlaceholder")}
-          className="flex-1 min-w-0 bg-transparent text-sm font-semibold focus:outline-none placeholder:text-muted/50"
+          className="flex-1 min-w-0 bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted/50"
         />
         <span className="shrink-0 text-[10px] text-muted/70 tabular-nums">
           {saveState === "saving"
@@ -839,6 +949,16 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
               : t("notes.savedAgo", { when: timeAgo(savedAt, t) })}
         </span>
         <button
+          onClick={editing ? finishEditing : () => setEditing(true)}
+          className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+            editing
+              ? "bg-accent/12 text-accent hover:bg-accent/20"
+              : "bg-ink/6 text-muted hover:bg-ink/10 hover:text-emph"
+          }`}
+        >
+          {editing ? t("notes.doneEditing") : t("notes.editNote")}
+        </button>
+        <button
           onClick={remove}
           title={t("notes.deleteNotepad")}
           className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors"
@@ -846,8 +966,31 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
           ✕
         </button>
       </div>
-      <div className="mt-2">
-        <NoteEditor initialContent={note.content} onChange={(json) => queue({ content: json })} />
+      <div className="mt-2.5">
+        {editing ? (
+          <NoteEditor
+            initialContent={content}
+            onChange={(json) => {
+              setContent(json);
+              queue({ content: json });
+            }}
+          />
+        ) : isEmpty ? (
+          <p
+            className="text-muted/70 text-[13px] italic cursor-text"
+            onClick={() => setEditing(true)}
+          >
+            {t("notes.emptyNotepad")}
+          </p>
+        ) : (
+          <Annotatable surfaceId={`note:${note.id}`}>
+            <div
+              onDoubleClick={() => setEditing(true)}
+              className="note-prose text-[15px] leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: readHtml }}
+            />
+          </Annotatable>
+        )}
       </div>
     </div>
   );
@@ -855,7 +998,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
+    <h2 className="text-xs uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
       {children}
     </h2>
   );

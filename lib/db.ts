@@ -701,6 +701,20 @@ export async function readingsForSignal(signalId: string, limit = 30): Promise<R
   return rows.map(parseReading);
 }
 
+/** Recent readings across EVERY signal of a symbol, tagged with the signal's name (desk search). */
+export async function readingsForSymbol(
+  userId: string,
+  symbol: string,
+  limit = 500
+): Promise<(Reading & { signalName: string })[]> {
+  const rows = await q<ReadingRow & { signalName: string }>`
+    SELECT r.*, s.name AS "signalName"
+    FROM readings r JOIN signals s ON s.id = r."signalId"
+    WHERE s."userId" = ${userId} AND s.symbol = ${symbol}
+    ORDER BY r.date DESC LIMIT ${limit}`;
+  return rows.map((r) => ({ ...parseReading(r), signalName: r.signalName }));
+}
+
 /**
  * The accumulated source catalog for every active signal of a symbol, in a
  * single query: every citation from every reading, deduped by URL per signal,

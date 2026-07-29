@@ -53,9 +53,16 @@ const en = {
   tbFontSerif: "Serif",
   tbFontMono: "Mono",
   tbSize: "Size",
+  tbHighlight: "Highlight",
+  tbHighlightOff: "Remove highlight",
   tbClear: "Clear formatting",
   tbUndo: "Undo",
   tbRedo: "Redo",
+
+  // Notepad read/edit modes (read mode is the annotatable surface)
+  editNote: "✎ Edit",
+  doneEditing: "Done",
+  emptyNotepad: "Empty notepad — start writing.",
 
   // Clip-to-notes (from the evidence feed)
   clipAction: "Clip to notes",
@@ -84,6 +91,11 @@ const en = {
   annSurfThesis: "“{name}” — thesis",
   annSurfBackstory: "“{name}” — deep history",
   annSurfChat: "Analyst reply",
+  annSurfSynthesis: "Core insights",
+  annSurfNote: "Notepad “{title}”",
+  annSurfNoteGeneric: "Notepad",
+  annSurfMemo: "Research memo — {section}",
+  annSurfMemoGeneric: "Research memo",
 } as const;
 
 const zh: Record<keyof typeof en, string> = {
@@ -132,9 +144,15 @@ const zh: Record<keyof typeof en, string> = {
   tbFontSerif: "衬线",
   tbFontMono: "等宽",
   tbSize: "字号",
+  tbHighlight: "高亮",
+  tbHighlightOff: "移除高亮",
   tbClear: "清除格式",
   tbUndo: "撤销",
   tbRedo: "重做",
+
+  editNote: "✎ 编辑",
+  doneEditing: "完成",
+  emptyNotepad: "空记事本——开始书写。",
 
   clipAction: "收藏到笔记",
   clipTitle: "收藏到记事本",
@@ -160,6 +178,11 @@ const zh: Record<keyof typeof en, string> = {
   annSurfThesis: "“{name}”——论点",
   annSurfBackstory: "“{name}”——深度历史",
   annSurfChat: "分析师回复",
+  annSurfSynthesis: "核心洞见",
+  annSurfNote: "记事本“{title}”",
+  annSurfNoteGeneric: "记事本",
+  annSurfMemo: "研究备忘录——{section}",
+  annSurfMemoGeneric: "研究备忘录",
 };
 
 export const notes = { en, zh };

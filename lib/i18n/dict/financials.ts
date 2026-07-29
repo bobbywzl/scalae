@@ -116,6 +116,20 @@ const en = {
   // ---- Finance cleansing (the /t/[symbol]/financials screen) ----
   cleansePageSubtitle:
     "Your customized view of {name}’s reported record — noise and windfalls stripped, every change traced.",
+
+  // The bench's brief — what the financial analyst can do here.
+  benchAboutTitle: "What the analyst does here",
+  benchAboutLead:
+    "Beside the reported record, the financial analyst keeps your customized view of {name}’s numbers. Ask in plain language, or run a suggestion pass — nothing changes until you approve it. Its functions:",
+  benchAboutCleanseLabel: "Cleansing",
+  benchAboutCleanseBody:
+    "strips genuine distortions from the reported figures — one-time impairments and write-downs, settlements, disposals, unstable income with no forward claim, and windfall gains such as unrealized revaluation jumps. Gains are stripped as readily as charges; real recurring costs (depreciation, stock comp, maintenance capex) are never removed.",
+  benchAboutOrganizeLabel: "Organizing",
+  benchAboutOrganizeBody:
+    "keeps the as-reported and cleansed views side by side, with every difference accounted for: each adjustment names its disclosure and amount, waits at your approval gate, lands in the dated audit log, and stays reversible. When the amounts aren’t on the bench yet, the analyst researches the filings and parks the specific plan for your review. Nothing is ever deleted.",
+  benchAboutEmphasizeLabel: "Emphasis",
+  benchAboutEmphasizeBody:
+    "bolds the financial points an owner should look at first: cells your adjustments move are highlighted in the table, owner earnings are made visible under the promotional metrics, and serially recurring “one-time” charges are flagged as a culture datum rather than cleansed away.",
   cleanseLoading: "Opening the bench…",
   cleanseUnavailable:
     "Financials aren’t available for this ticker, so there is nothing to cleanse yet. The rest of the desk keeps working without them.",
@@ -299,6 +313,19 @@ const zh: Record<keyof typeof en, string> = {
   thisCompany: "本公司",
 
   cleansePageSubtitle: "你对 {name} 公开财报的自定义视图——剔除噪音与一次性暴利，每处改动皆可追溯。",
+
+  benchAboutTitle: "分析师在这里能做什么",
+  benchAboutLead:
+    "在公开财报之外，财务分析师为你维护一份 {name} 数字的自定义视图。用平常的语言提出要求，或运行一次建议扫描——未经你批准，任何数字都不会改变。它的职能：",
+  benchAboutCleanseLabel: "清洗",
+  benchAboutCleanseBody:
+    "剔除报告数字中的真实失真——一次性减值与核销、和解金、资产处置、无前瞻意义的不稳定收益，以及未实现重估跳升等暴利收益。收益与费用同样对待；真实的经常性成本（折旧、股权激励、维护性资本开支）绝不剔除。",
+  benchAboutOrganizeLabel: "整理",
+  benchAboutOrganizeBody:
+    "让披露原值与清洗后视图并列呈现，每处差异皆有来处：每项调整注明其披露来源与金额，停在你的审批关口，记入带日期的审计日志，且可随时撤销。当金额尚未在台面上时，分析师会检索申报文件，并将具体方案提交待你审阅。任何记录都不会被删除。",
+  benchAboutEmphasizeLabel: "加粗聚焦",
+  benchAboutEmphasizeBody:
+    "把股东最应先看的财务要点加粗突出：被你的调整改动的单元格会在表格中高亮，所有者盈余在宣传性指标之下清晰可见，连年重复出现的“一次性”费用会被标记为企业文化信号，而非被清洗掉。",
   cleanseLoading: "正在打开清洗工作台……",
   cleanseUnavailable: "该股票暂无财务数据，因此还没有可清洗的内容。研究台的其他部分不受影响。",
 

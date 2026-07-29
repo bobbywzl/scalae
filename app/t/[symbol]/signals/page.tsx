@@ -710,7 +710,7 @@ export default function DeskPage() {
                       )}
                     </Markdown>
                   </Annotatable>
-                  <p className="mt-3 text-[10px] text-muted/70">
+                  <p className="mt-3 text-xs text-muted/70 leading-relaxed">
                     {t("desk.dossierProvenance")}
                     {desk.dossierRevisedAt && (
                       <span className="text-muted">
@@ -783,7 +783,7 @@ export default function DeskPage() {
                 {t("desk.analystProposals")}{" "}
                 <Badge>{t("desk.awaitingYourApproval", { n: suggested.length })}</Badge>
               </SectionTitle>
-              <p className="text-[11px] text-muted mt-1">{t("desk.proposalsExplainer")}</p>
+              <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("desk.proposalsExplainer")}</p>
               <BulkBar
                 suggested={suggested}
                 selected={selected}

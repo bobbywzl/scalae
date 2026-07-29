@@ -286,6 +286,37 @@ export default function FinanceCleansingPage() {
         </div>
       )}
 
+      {/* The bench's brief — the analyst's functions in cleansing, organizing,
+          and bolding the financial points that matter (FOUNDATION: the
+          finance-cleansing bench). */}
+      <section className="mt-5 rounded-2xl border border-hairline bg-card px-5 py-4">
+        <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+          {t("financials.benchAboutTitle")}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {t("financials.benchAboutLead", { name: ticker.name })}
+        </p>
+        <ul className="mt-2.5 space-y-2 text-sm leading-relaxed text-muted">
+          {(
+            [
+              ["benchAboutCleanseLabel", "benchAboutCleanseBody"],
+              ["benchAboutOrganizeLabel", "benchAboutOrganizeBody"],
+              ["benchAboutEmphasizeLabel", "benchAboutEmphasizeBody"],
+            ] as const
+          ).map(([label, body]) => (
+            <li key={label} className="flex gap-2.5">
+              <span aria-hidden className="text-accent/70 select-none">
+                ◆
+              </span>
+              <span>
+                <strong className="font-semibold text-emph">{t(`financials.${label}` as TKey)}</strong> —{" "}
+                {t(`financials.${body}` as TKey)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* Side-by-side, the signals-page idiom: the numbers and the gate on
           the left, the financial analyst desk sticky on the right. */}
       <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
@@ -322,7 +353,7 @@ export default function FinanceCleansingPage() {
                     : t("financials.suggestFoundNone")}
                 </span>
               </p>
-              <p className="text-xs text-emph mt-1">{suggestRun.note}</p>
+              <p className="text-[13px] text-emph mt-1.5 leading-relaxed">{suggestRun.note}</p>
             </div>
           )}
           {suggestError && <p className="text-[11px] text-loss">{suggestError}</p>}
@@ -350,7 +381,7 @@ export default function FinanceCleansingPage() {
                   {t("financials.adjPendingBadge", { n: pending.length })}
                 </span>
               </SectionTitle>
-              <p className="text-[11px] text-muted mt-1">{t("financials.adjPendingExplainer")}</p>
+              <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("financials.adjPendingExplainer")}</p>
               <div className="grid sm:grid-cols-2 gap-3 mt-2">
                 {pending.map((a) => (
                   <AdjustmentCard
@@ -497,7 +528,7 @@ function AdjustmentCard({
       <div className="mt-1">
         <AdjLine adj={adj} currency={currency} />
       </div>
-      {adj.rationale && <p className="text-[11px] text-muted mt-1">{adj.rationale}</p>}
+      {adj.rationale && <p className="text-xs text-muted mt-1.5 leading-relaxed">{adj.rationale}</p>}
       <SourceChips adj={adj} />
       <div className="mt-2.5 flex items-center gap-2">
         <button
@@ -657,19 +688,19 @@ function AnalystDesk({
   return (
     <section className="h-full flex flex-col rounded-2xl bg-card border border-accent/20 p-4">
       <SectionTitle>{t("financials.deskTitle")}</SectionTitle>
-      <p className="text-[11px] text-muted mt-1">{t("financials.deskExplainer")}</p>
+      <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("financials.deskExplainer")}</p>
 
       <div className="mt-3 flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
         {messages.length === 0 && (
-          <p className="text-muted/70 text-[11px] italic">{t("financials.deskEmpty")}</p>
+          <p className="text-muted/70 text-xs italic leading-relaxed">{t("financials.deskEmpty")}</p>
         )}
         {messages.map((m) => (
           <div key={m.id}>
             <div
               className={
                 m.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-accent/12 px-3.5 py-2 text-[13px] whitespace-pre-wrap"
-                  : "mr-auto max-w-[92%] rounded-2xl rounded-bl-md bg-ink/5 border border-hairline px-3.5 py-2 text-[13px]"
+                  ? "ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-accent/12 px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap"
+                  : "mr-auto max-w-[92%] rounded-2xl rounded-bl-md bg-ink/5 border border-hairline px-3.5 py-2 text-sm leading-relaxed"
               }
             >
               {m.role === "user" ? m.content : <Markdown>{m.content}</Markdown>}
@@ -766,7 +797,7 @@ function AnalystDesk({
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t("financials.deskPlaceholder")}
           disabled={disabled}
-          className="flex-1 min-w-0 rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-[13px] focus:outline-none focus:border-accent/50 disabled:opacity-50"
+          className="flex-1 min-w-0 rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm focus:outline-none focus:border-accent/50 disabled:opacity-50"
         />
         <button
           type="submit"
@@ -802,7 +833,7 @@ function HistoryPanel({
   return (
     <section>
       <SectionTitle>{t("financials.historyTitle")}</SectionTitle>
-      <p className="text-[11px] text-muted mt-1">{t("financials.historyExplainer")}</p>
+      <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("financials.historyExplainer")}</p>
 
       <div className="mt-2 rounded-2xl bg-card border border-hairline p-4">
         <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">

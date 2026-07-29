@@ -110,13 +110,14 @@ body {
   background: transparent;
 }
 
-/* Markdown rendered by the analyst (briefs + chat) */
+/* Markdown rendered by the analyst (briefs + chat) — sized for sustained
+   reading: a real body size and open leading, never squeezed. */
 .md {
-  line-height: 1.55;
-  font-size: 0.875rem;
+  line-height: 1.7;
+  font-size: 0.9375rem;
 }
 .md p {
-  margin: 0.45em 0;
+  margin: 0.6em 0;
 }
 .md p:first-child {
   margin-top: 0;
@@ -140,8 +141,8 @@ body {
 }
 .md ul,
 .md ol {
-  margin: 0.45em 0;
-  padding-left: 1.2em;
+  margin: 0.6em 0;
+  padding-left: 1.3em;
 }
 .md ul {
   list-style: disc;
@@ -150,15 +151,15 @@ body {
   list-style: decimal;
 }
 .md li {
-  margin: 0.2em 0;
+  margin: 0.3em 0;
 }
 .md h1,
 .md h2,
 .md h3,
 .md h4 {
   font-weight: 600;
-  margin: 0.7em 0 0.3em;
-  font-size: 0.95rem;
+  margin: 0.9em 0 0.35em;
+  font-size: 1rem;
   color: var(--foreground);
 }
 .md code {
@@ -177,7 +178,7 @@ body {
 .md table {
   border-collapse: collapse;
   margin: 0.6em 0;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 .md th,
 .md td {
@@ -229,9 +230,18 @@ body {
   animation: bubble-in 0.35s ease-out both;
 }
 
-/* Notes: ProseMirror document styling inside a notepad (schema-rendered only). */
+/* Notes: ProseMirror document styling inside a notepad (schema-rendered only —
+   the live editor and the annotatable read view share these rules). */
+.note-prose {
+  line-height: 1.65;
+}
 .note-prose p {
-  margin: 0.35em 0;
+  margin: 0.45em 0;
+}
+.note-prose mark {
+  border-radius: 3px;
+  padding: 0 1px;
+  color: inherit;
 }
 .note-prose h1 {
   font-size: 1.35em;

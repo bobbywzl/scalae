@@ -7,6 +7,7 @@ import { financials } from "./dict/financials";
 import { notes } from "./dict/notes";
 import { onboarding } from "./dict/onboarding";
 import { portfolio } from "./dict/portfolio";
+import { search } from "./dict/search";
 import { settings } from "./dict/settings";
 import { signals } from "./dict/signals";
 import { support } from "./dict/support";
@@ -30,6 +31,7 @@ const NAMESPACES = {
   financials,
   notes,
   signals,
+  search,
   chat,
   portfolio,
   trade,

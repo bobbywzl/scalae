@@ -13,14 +13,20 @@ import type { DigestItem, Signal, SignalWithReadings } from "@/lib/types";
  * and deletable from here. Hidden entirely until the first highlight exists.
  */
 export function AnnotationRecords({
-  digest,
-  signals,
-  signalsById,
+  digest = [],
+  signals = [],
+  signalsById = new Map(),
+  notes = [],
+  memos = [],
 }: {
-  digest: DigestItem[];
+  digest?: DigestItem[];
   /** Active + retired signals with reading history (for reading anchors). */
-  signals: SignalWithReadings[];
-  signalsById: Map<string, Signal>;
+  signals?: SignalWithReadings[];
+  signalsById?: Map<string, Signal>;
+  /** Due-diligence page: notepad anchors ("note:<id>" surfaces). */
+  notes?: { id: string; title: string; sectionTitle: string }[];
+  /** Due-diligence page: research-memo anchors ("memo:<id>" surfaces). */
+  memos?: { id: string; sectionTitle: string }[];
 }) {
   const ctx = useAnnotations();
   const { t } = useT();
@@ -36,6 +42,8 @@ export function AnnotationRecords({
     return m;
   }, [signals]);
   const digestIndex = useMemo(() => new Map(digest.map((d) => [d.id, d.headline])), [digest]);
+  const noteIndex = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
+  const memoIndex = useMemo(() => new Map(memos.map((m) => [m.id, m])), [memos]);
 
   if (!ctx || ctx.annotations.length === 0) return null;
 
@@ -62,6 +70,19 @@ export function AnnotationRecords({
         : t("notes.annSurfThesis", { name });
     }
     if (surfaceId.startsWith("msg:")) return t("notes.annSurfChat");
+    if (surfaceId === "synthesis") return t("notes.annSurfSynthesis");
+    if (surfaceId.startsWith("note:")) {
+      const n = noteIndex.get(surfaceId.slice(5));
+      return n
+        ? t("notes.annSurfNote", { title: n.title || n.sectionTitle })
+        : t("notes.annSurfNoteGeneric");
+    }
+    if (surfaceId.startsWith("memo:")) {
+      const m = memoIndex.get(surfaceId.slice(5));
+      return m
+        ? t("notes.annSurfMemo", { section: m.sectionTitle })
+        : t("notes.annSurfMemoGeneric");
+    }
     return surfaceId;
   }
 

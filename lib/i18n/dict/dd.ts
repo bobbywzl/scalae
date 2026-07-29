@@ -14,7 +14,7 @@ const en = {
   openSignals: "Signals desk",
   tabDiligence: "Due diligence",
   tabSignals: "Signals",
-  tabFinCleansing: "Finance cleansing",
+  tabFinance: "Finance",
   loading: "Loading the record…",
 
   // Standing synthesis of core insights
@@ -27,6 +27,9 @@ const en = {
   synthesisNone:
     "No synthesis yet. Once sections hold notes or accepted research, refresh to distill the record's core insights.",
   synthesisRefreshedAgo: "refreshed {when}",
+  synthesisEdit: "✎ Edit",
+  synthesisSave: "Save",
+  synthesisCancel: "Cancel",
 
   // Section research
   runResearch: "Deep research",
@@ -78,7 +81,7 @@ const zh: Record<keyof typeof en, string> = {
   openSignals: "信号工作台",
   tabDiligence: "尽职调查",
   tabSignals: "信号",
-  tabFinCleansing: "财务清洗",
+  tabFinance: "财务",
   loading: "正在加载记录……",
 
   synthesisTitle: "核心洞见",
@@ -89,6 +92,9 @@ const zh: Record<keyof typeof en, string> = {
   synthesisStale: "记录在此综合之后已有变化",
   synthesisNone: "还没有综合。板块中有了笔记或已接受的研究后，点击刷新即可提炼记录的核心洞见。",
   synthesisRefreshedAgo: "刷新于 {when}",
+  synthesisEdit: "✎ 编辑",
+  synthesisSave: "保存",
+  synthesisCancel: "取消",
 
   runResearch: "深度研究",
   researchSteerPlaceholder: "可选指引——这次研究应聚焦什么？",

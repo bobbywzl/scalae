@@ -16,6 +16,23 @@ const FONT_SERIF = "Georgia, 'Times New Roman', serif";
 const FONT_MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const SIZES = ["12px", "14px", "16px", "18px", "24px"];
 
+/** Translucent highlighter inks — legible over both themes. */
+const HIGHLIGHTS: { name: string; swatch: string; value: string }[] = [
+  { name: "amber", swatch: "#FBBF24", value: "rgba(251,191,36,0.35)" },
+  { name: "blue", swatch: "#60A5FA", value: "rgba(96,165,250,0.35)" },
+  { name: "green", swatch: "#34D399", value: "rgba(52,211,153,0.35)" },
+  { name: "purple", swatch: "#A78BFA", value: "rgba(167,139,250,0.35)" },
+];
+
+/**
+ * The notepad schema — shared by the live editor and the read-mode renderer
+ * (generateHTML), so a document always renders identically in both.
+ */
+export const NOTE_EXTENSIONS = [
+  StarterKit.configure({ link: { openOnClick: false } }),
+  TextStyleKit,
+];
+
 export function NoteEditor({
   initialContent,
   onChange,
@@ -27,14 +44,13 @@ export function NoteEditor({
 }) {
   const { t } = useT();
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
-      TextStyleKit,
-    ],
-    content: safeParse(initialContent),
+    extensions: NOTE_EXTENSIONS,
+    content: parseNoteDoc(initialContent),
     immediatelyRender: false,
     editorProps: {
-      attributes: { class: "note-prose focus:outline-none min-h-[120px] text-[13px]" },
+      attributes: {
+        class: "note-prose focus:outline-none min-h-[140px] text-[15px] leading-relaxed",
+      },
     },
     onUpdate: ({ editor: e }) => onChange(JSON.stringify(e.getJSON())),
   });
@@ -60,6 +76,8 @@ export function NoteEditor({
                   : "p",
             font: (e.getAttributes("textStyle").fontFamily as string | undefined) ?? "",
             size: (e.getAttributes("textStyle").fontSize as string | undefined) ?? "",
+            highlight:
+              (e.getAttributes("textStyle").backgroundColor as string | undefined) ?? "",
             canUndo: e.can().undo(),
             canRedo: e.can().redo(),
           }
@@ -136,6 +154,27 @@ export function NoteEditor({
           <s>S</s>
         </Btn>
         <span className="w-px h-4 bg-hairline mx-1" />
+        {HIGHLIGHTS.map((h) => (
+          <button
+            key={h.name}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() =>
+              s?.highlight === h.value
+                ? chain().unsetBackgroundColor().run()
+                : chain().setBackgroundColor(h.value).run()
+            }
+            title={t("notes.tbHighlight")}
+            style={{ backgroundColor: h.swatch }}
+            className={`w-4 h-4 rounded-full border-2 transition-colors ${
+              s?.highlight === h.value ? "border-foreground" : "border-transparent hover:border-muted"
+            }`}
+          />
+        ))}
+        <Btn title={t("notes.tbHighlightOff")} onClick={() => chain().unsetBackgroundColor().run()}>
+          ⃠
+        </Btn>
+        <span className="w-px h-4 bg-hairline mx-1" />
         <Btn
           active={s?.bullets}
           title={t("notes.tbBullets")}
@@ -203,7 +242,8 @@ function Btn({
   );
 }
 
-function safeParse(json: string): object {
+/** Parse a stored notepad document, falling back to an empty doc (shared with read mode). */
+export function parseNoteDoc(json: string): object {
   try {
     const doc = JSON.parse(json) as { type?: string };
     if (doc?.type === "doc") return doc;
