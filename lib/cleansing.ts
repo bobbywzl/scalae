@@ -337,6 +337,103 @@ export function reportedTableText(fin: TickerFinancials): string {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Delta-anomaly scan: which reported line-years moved FAR outside that line's
+// own typical period-over-period variation? Deterministic (no model), run
+// before the moderation sweeps so the research targets the outliers — the
+// places a one-time or abnormal addition most likely hides. A flagged move is
+// a QUESTION, never a verdict: a genuine collapse in earnings must stand.
+// ---------------------------------------------------------------------------
+
+/** One abnormal period-over-period move in the reported table. */
+export interface DeltaAnomaly {
+  metricKey: string;
+  /** Fiscal year the move landed in, and the prior period it's measured against. */
+  year: string;
+  prevYear: string;
+  prev: number;
+  value: number;
+  change: number;
+  /** change / |prev| (null when the prior value is 0). */
+  pct: number | null;
+  /** |change| as a multiple of this line's median absolute period-over-period move. */
+  vsTypical: number;
+}
+
+/**
+ * Scan the ADJUSTABLE base lines for abnormal period-over-period moves.
+ * "Abnormal" = several times the line's own median absolute change AND a
+ * material relative move — so a steadily compounding line never flags its own
+ * growth, and a line that always swings never flags at all. Needs 3+
+ * consecutive-period changes of history; capped, largest outliers first.
+ */
+export function deltaAnomalies(fin: TickerFinancials, cap = 10): DeltaAnomaly[] {
+  const out: DeltaAnomaly[] = [];
+  for (const m of fin.metrics) {
+    if (!ADJUSTABLE.has(m.key)) continue;
+    const changes: { i: number; change: number; prev: number; value: number }[] = [];
+    for (let i = 1; i < m.values.length; i++) {
+      const prev = m.values[i - 1];
+      const v = m.values[i];
+      if (prev == null || v == null) continue; // only consecutive reported pairs
+      changes.push({ i, change: v - prev, prev, value: v });
+    }
+    if (changes.length < 3) continue;
+    const median = (xs: number[]) => {
+      const s = [...xs].sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+    };
+    const medAbs = median(changes.map((c) => Math.abs(c.change)));
+    if (!(medAbs > 0)) continue;
+    // Typical RELATIVE move too: a steady compounder's absolute changes grow
+    // every year, so the multiple-of-median test alone would flag plain
+    // growth — the percentage move must also stand out against the line's own
+    // typical percentage move.
+    const pcts = changes
+      .filter((c) => c.prev !== 0)
+      .map((c) => Math.abs(c.change / Math.abs(c.prev)));
+    const medPct = pcts.length >= 3 ? median(pcts) : 0;
+    for (const c of changes) {
+      const vsTypical = Math.abs(c.change) / medAbs;
+      const pct = c.prev !== 0 ? c.change / Math.abs(c.prev) : null;
+      if (
+        vsTypical >= 2.5 &&
+        (pct == null || Math.abs(pct) >= Math.max(0.25, 2 * medPct))
+      ) {
+        out.push({
+          metricKey: m.key,
+          year: fin.fiscalYears[c.i],
+          prevYear: fin.fiscalYears[c.i - 1],
+          prev: c.prev,
+          value: c.value,
+          change: c.change,
+          pct,
+          vsTypical,
+        });
+      }
+    }
+  }
+  out.sort((a, b) => b.vsTypical - a.vsTypical);
+  return out.slice(0, cap);
+}
+
+/** The anomaly scan as prompt lines (raw statement-currency units, the table's idiom). */
+export function deltaAnomalyLines(anomalies: DeltaAnomaly[], currency: string | null): string {
+  if (anomalies.length === 0) {
+    return "(none — no reported line moved far outside its own typical period-over-period variation)";
+  }
+  const cur = currency ?? "USD";
+  return anomalies
+    .map(
+      (a) =>
+        `- ${a.metricKey} FY${a.prevYear}→FY${a.year}: ${a.prev} → ${a.value} (change ${a.change} raw ${cur} units${
+          a.pct != null ? `, ${(a.pct * 100).toFixed(0)}%` : ""
+        }; ~${a.vsTypical.toFixed(1)}× this line's typical move)`
+    )
+    .join("\n");
+}
+
 /** Existing adjustments as prompt lines (dedupe context + the analyst's working set). */
 export function adjustmentLines(adjustments: FinAdjustment[], currency: string | null): string {
   if (adjustments.length === 0) return "(none)";

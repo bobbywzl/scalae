@@ -144,7 +144,7 @@ const en = {
   suggestRunning: "Scanning the record…",
   suggestStop: "Stop pass",
   suggestRunningNote:
-    "Scanning the company’s disclosures for one-time items and windfall gains — both directions. A few minutes.",
+    "Scanning the reported table for abnormal period-over-period moves, then the company’s disclosures for the one-time items and windfall gains behind them — both directions. A few minutes.",
   suggestFailed: "Pass failed: {error}",
   suggestNoteTitle: "Last pass",
   suggestFoundN: "{n} proposal(s) parked for your review.",
@@ -325,7 +325,8 @@ const zh: Record<keyof typeof en, string> = {
   suggestBtn: "✦ 建议调整项",
   suggestRunning: "正在扫描记录……",
   suggestStop: "停止扫描",
-  suggestRunningNote: "正在扫描公司披露文件中的一次性项目与暴利收益——双向清查。约需几分钟。",
+  suggestRunningNote:
+    "正在扫描披露数据表中异常的期间环比变动，并在公司披露文件中检索这些变动背后的一次性项目与暴利收益——双向清查。约需几分钟。",
   suggestFailed: "扫描失败：{error}",
   suggestNoteTitle: "上次扫描",
   suggestFoundN: "{n} 条提议已提交待你审阅。",

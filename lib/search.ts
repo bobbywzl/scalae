@@ -1,5 +1,4 @@
 import {
-  getDiligenceSynthesis,
   getRun,
   latestFinSuggestRun,
   listAnnotations,
@@ -7,7 +6,6 @@ import {
   listDiligenceResearch,
   listFinAdjustments,
   listFinCleansingEvents,
-  listFinMessages,
   listFocusAreas,
   listNoteSections,
   listNotes,
@@ -22,7 +20,7 @@ import { docToPlainText } from "./notes";
 
 /**
  * Desk-wide text search: one query across every text block a ticker's three
- * surfaces hold — Due diligence (sections, notepads, memos, synthesis,
+ * surfaces hold — Due diligence (sections, notepads,
  * evidence captions, highlights), Signals (signals, backstories, readings,
  * evidence feed, brief, dossier, chat, focus areas) and Finance (adjustments,
  * analyst chat, audit log, moderation passes). A desk is one investor's record
@@ -186,7 +184,6 @@ export async function searchDesk(
     sections,
     notes,
     research,
-    synthesis,
     evidence,
     annotations,
     signals,
@@ -203,7 +200,6 @@ export async function searchDesk(
     listNoteSections(userId, symbol),
     listNotes(userId, symbol),
     listDiligenceResearch(userId, symbol),
-    getDiligenceSynthesis(userId, symbol),
     listDiligenceEvidence(userId, symbol),
     listAnnotations(userId, symbol),
     listSignals(userId, symbol),
@@ -250,30 +246,10 @@ export async function searchDesk(
       body: clean(docToPlainText(n.content)),
     });
   }
-  for (const r of research) {
-    if (r.status === "running" || r.status === "stopped") continue;
-    blocks.push({
-      id: `memo:${r.id}`,
-      pill: "dd",
-      type: "memo",
-      path: [sectionTitle.get(r.sectionId) ?? ""].filter(Boolean),
-      meta: r.status,
-      date: r.createdAt,
-      title: clean(r.question),
-      body: stripMd([r.insights ?? "", r.memo ?? ""].join(" ")),
-    });
-  }
-  if (synthesis) {
-    blocks.push({
-      id: `synthesis:${symbol}`,
-      pill: "dd",
-      type: "synthesis",
-      path: [],
-      date: synthesis.updatedAt,
-      title: "",
-      body: stripMd(synthesis.content),
-    });
-  }
+  // Research memos and the standing synthesis no longer render on the DD
+  // page, so they are not searchable surfaces — accepted memos live on as
+  // ordinary notepads (indexed above), and the rows are still fetched for
+  // labeling any old highlights made on them.
   for (const e of evidence) {
     blocks.push({
       id: `evidence:${e.id}`,

@@ -7,17 +7,14 @@ import { generateHTML } from "@tiptap/core";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { DeskTabs } from "@/components/DeskTabs";
-import { Markdown } from "@/components/Markdown";
 import { NOTE_EXTENSIONS, NoteEditor, parseNoteDoc } from "@/components/NoteEditor";
 import { useT } from "@/components/PrefsProvider";
 import { fmtBytes, processEvidenceFile } from "@/components/attach";
 import { api, localizeError, timeAgo } from "@/components/util";
-import { linkCitations } from "@/lib/citations";
 import { docIsEmpty, docToPlainText } from "@/lib/notes";
 import type {
   DiligenceEvidence,
   DiligencePayload,
-  DiligenceResearch,
   Note,
   SectionSuggestion,
 } from "@/lib/types";
@@ -25,10 +22,9 @@ import type {
 /**
  * The ticker's MAIN page: the due-diligence workspace (FOUNDATION: "The
  * due-diligence record is the desk's centre"). Sections are large qualitative
- * topics specific to this company, each holding freely-editable notepads. The
- * desk contributes on-demand deep research that parks for review and enters
- * the record only on the investor's accept, plus an on-demand standing
- * synthesis of core insights. The signal board lives at /t/[symbol]/signals.
+ * topics specific to this company, each holding freely-editable notepads and
+ * a captioned evidence locker — the investor's own record, in their own
+ * hands. The signal board lives at /t/[symbol]/signals.
  */
 
 type Section = DiligencePayload["sections"][number];
@@ -43,14 +39,6 @@ export default function DiligencePage() {
   const [notFound, setNotFound] = useState(false);
   const [newSection, setNewSection] = useState("");
   const [busy, setBusy] = useState(false);
-  const [synthBusy, setSynthBusy] = useState(false);
-  const [synthError, setSynthError] = useState<string | null>(null);
-  const [synthEditing, setSynthEditing] = useState(false);
-  const [synthDraft, setSynthDraft] = useState("");
-  const [synthSaving, setSynthSaving] = useState(false);
-  // What the editor was prefilled with — an unchanged Save is a no-op, so a
-  // round-tripped display translation can never overwrite the stored record.
-  const synthPrefill = useRef("");
   const [suggestions, setSuggestions] = useState<SectionSuggestion[] | null>(null);
   const [suggestState, setSuggestState] = useState<"idle" | "busy" | "empty" | "error">("idle");
 
@@ -73,15 +61,11 @@ export default function DiligencePage() {
     }
   }, [payload, router, symbol]);
 
-  // Poll fast while a research pass is running, slowly otherwise.
-  const researching = useMemo(
-    () => (payload?.sections ?? []).some((s) => s.research[0]?.status === "running"),
-    [payload]
-  );
+  // A quiet page: the record only changes under the investor's own hands.
   useEffect(() => {
-    const timer = setInterval(load, researching ? 2500 : 30_000);
+    const timer = setInterval(load, 30_000);
     return () => clearInterval(timer);
-  }, [load, researching]);
+  }, [load]);
 
   async function addSection(title: string) {
     if (!title.trim() || busy) return;
@@ -96,46 +80,6 @@ export default function DiligencePage() {
       await load();
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function refreshSynthesis() {
-    if (synthBusy) return;
-    setSynthBusy(true);
-    setSynthError(null);
-    try {
-      await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/synthesis`, {
-        method: "POST",
-      });
-      await load();
-    } catch (e) {
-      setSynthError(e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" }));
-    } finally {
-      setSynthBusy(false);
-    }
-  }
-
-  async function saveSynthesis() {
-    if (synthSaving || !synthDraft.trim()) return;
-    // Nothing changed — close the editor without writing (the prefill may be
-    // canonical English while the page displays a translation; see the route).
-    if (synthDraft.trim() === synthPrefill.current.trim()) {
-      setSynthEditing(false);
-      return;
-    }
-    setSynthSaving(true);
-    setSynthError(null);
-    try {
-      await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/synthesis`, {
-        method: "PATCH",
-        body: JSON.stringify({ content: synthDraft }),
-      });
-      setSynthEditing(false);
-      await load();
-    } catch (e) {
-      setSynthError(e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" }));
-    } finally {
-      setSynthSaving(false);
     }
   }
 
@@ -172,7 +116,7 @@ export default function DiligencePage() {
     );
   }
 
-  const { ticker, synthesis, synthesisStale, activeSignals } = payload;
+  const { ticker, activeSignals } = payload;
 
   return (
     <AnnotationsProvider symbol={symbol}>
@@ -189,96 +133,10 @@ export default function DiligencePage() {
           <p className="text-muted text-[13px] mt-0.5">{t("dd.pageSubtitle", { name: ticker.name })}</p>
         </div>
         <DeskTabs symbol={symbol} active="dd" />
-        <div className="flex items-center gap-2 ml-auto">
-          {researching && (
-            <span className="text-xs text-accent pulse-soft">{t("desk.researching")}</span>
-          )}
-        </div>
       </header>
 
-      {/* The standing synthesis of core insights across the whole record —
-          highlightable, annotatable, and editable (the record is the
-          investor's; refresh regenerates on their ask). */}
-      <section className="mt-6 rounded-2xl bg-card border border-accent/20 p-6">
-        <div className="flex items-center gap-2 flex-wrap">
-          <SectionTitle>{t("dd.synthesisTitle")}</SectionTitle>
-          {synthesis && (
-            <span className="text-[11px] text-muted normal-case tracking-normal">
-              {t(synthesis.origin === "investor" ? "dd.synthesisEditedAgo" : "dd.synthesisRefreshedAgo", {
-                when: timeAgo(synthesis.updatedAt, t),
-              })}
-            </span>
-          )}
-          {synthesisStale && (
-            <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold">
-              {t("dd.synthesisStale")}
-            </span>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            {synthesis && !synthEditing && (
-              <button
-                onClick={() => {
-                  // Edit the CANONICAL English text, never the display translation.
-                  const base = synthesis.canonical ?? synthesis.content;
-                  synthPrefill.current = base;
-                  setSynthDraft(base);
-                  setSynthEditing(true);
-                }}
-                disabled={synthBusy}
-                className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
-              >
-                {t("dd.synthesisEdit")}
-              </button>
-            )}
-            <button
-              onClick={refreshSynthesis}
-              disabled={synthBusy || synthEditing}
-              className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
-            >
-              {synthBusy ? t("dd.synthesisRefreshing") : t("dd.synthesisRefresh")}
-            </button>
-          </div>
-        </div>
-        {synthError && <p className="mt-2 text-xs text-loss">{synthError}</p>}
-        {synthEditing ? (
-          <div className="mt-3">
-            <textarea
-              value={synthDraft}
-              onChange={(e) => setSynthDraft(e.target.value)}
-              rows={Math.min(24, Math.max(8, synthDraft.split("\n").length + 2))}
-              className="w-full rounded-xl border border-hairline bg-ink/4 px-3.5 py-3 text-sm leading-relaxed focus:outline-none focus:border-accent/50"
-            />
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                onClick={saveSynthesis}
-                disabled={synthSaving || !synthDraft.trim()}
-                className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
-              >
-                {synthSaving ? t("dd.deciding") : t("dd.synthesisSave")}
-              </button>
-              <button
-                onClick={() => setSynthEditing(false)}
-                disabled={synthSaving}
-                className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-foreground text-xs font-medium px-3 py-1.5 transition-colors"
-              >
-                {t("dd.synthesisCancel")}
-              </button>
-            </div>
-          </div>
-        ) : synthesis ? (
-          <div className="mt-3">
-            <Annotatable surfaceId="synthesis">
-              <Markdown>{synthesis.content}</Markdown>
-            </Annotatable>
-          </div>
-        ) : (
-          <p className="text-muted text-[13px] italic mt-3">{t("dd.synthesisNone")}</p>
-        )}
-        <p className="mt-4 text-xs text-muted/70">{t("dd.synthesisExplainer")}</p>
-      </section>
-
       {/* Add a section: free text, focus areas, and the board's suggestions. */}
-      <div className="mt-5 rounded-2xl bg-card border border-hairline p-4">
+      <div className="mt-6 rounded-2xl bg-card border border-hairline p-4">
         <form
           className="flex items-center gap-2 flex-wrap"
           onSubmit={(e) => {
@@ -468,8 +326,6 @@ function SectionBlock({
           🗑 {t("notes.deleteSection")}
         </button>
       </div>
-
-      <ResearchPanel symbol={symbol} section={section} onChanged={onChanged} />
 
       <EvidenceStrip symbol={symbol} section={section} onChanged={onChanged} />
 
@@ -714,164 +570,6 @@ function EvidenceCard({
 }
 
 /**
- * One section's deep-research surface: kick off a pass (with an optional
- * steer), watch it run, and review the resulting memo — accept appends it to
- * the section as a dated editable notepad; dismiss leaves the record untouched.
- */
-function ResearchPanel({
-  symbol,
-  section,
-  onChanged,
-}: {
-  symbol: string;
-  section: Section;
-  onChanged: () => Promise<unknown>;
-}) {
-  const { t } = useT();
-  const [steer, setSteer] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [deciding, setDeciding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const latest: DiligenceResearch | undefined = section.research[0];
-  const running = latest?.status === "running" ? latest : null;
-  const pending = latest?.status === "pending" ? latest : null;
-  const failed = latest?.status === "error" ? latest : null;
-  const [stopping, setStopping] = useState(false);
-
-  async function stop() {
-    if (!running || stopping) return;
-    setStopping(true);
-    // Best-effort — the next poll reconciles the state either way.
-    await api(`/api/diligence/research/${running.id}`, { method: "DELETE" }).catch(() => {});
-    await onChanged();
-    setStopping(false);
-  }
-
-  async function run() {
-    if (busy || running) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/research`, {
-        method: "POST",
-        body: JSON.stringify({ sectionId: section.id, question: steer }),
-      });
-      setSteer("");
-      await onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function decide(action: "accept" | "dismiss") {
-    if (!pending || deciding) return;
-    setDeciding(true);
-    setError(null);
-    try {
-      await api(`/api/diligence/research/${pending.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
-      });
-      await onChanged();
-    } catch (e) {
-      setError(e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" }));
-    } finally {
-      setDeciding(false);
-    }
-  }
-
-  if (running) {
-    return (
-      <div className="mt-2 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 flex items-center gap-3 flex-wrap">
-        <p className="text-xs text-accent pulse-soft flex-1 min-w-48">{t("dd.researchRunning")}</p>
-        <button
-          onClick={stop}
-          disabled={stopping}
-          title={t("desk.stopHint")}
-          className="shrink-0 rounded-lg bg-loss/15 hover:bg-loss/25 disabled:opacity-50 text-loss text-xs font-medium px-3 py-1.5 transition-colors"
-        >
-          {stopping ? t("dd.deciding") : t("desk.stopResearch")}
-        </button>
-      </div>
-    );
-  }
-
-  if (pending) {
-    return (
-      <div className="mt-2 rounded-2xl border border-warn/30 bg-card p-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
-            {t("dd.reviewTitle")}
-          </span>
-          <span className="text-[10px] text-muted">{pending.createdAt.slice(0, 10)}</span>
-        </div>
-        {/* The memo is highlightable/annotatable while it waits at the gate;
-            it becomes fully editable the moment it's accepted into a notepad. */}
-        <Annotatable surfaceId={`memo:${pending.id}`}>
-          {pending.insights && (
-            <p className="mt-2.5 text-sm leading-relaxed text-emph">
-              <span className="font-semibold">{t("dd.briefLabel")}:</span> {pending.insights}
-            </p>
-          )}
-          <div className="mt-2.5 border-t border-hairline pt-2.5">
-            <Markdown>{linkCitations(pending.memo ?? "", pending.sources)}</Markdown>
-          </div>
-        </Annotatable>
-        {error && <p className="mt-2 text-xs text-loss">{error}</p>}
-        <div className="mt-3.5 flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => decide("accept")}
-            disabled={deciding}
-            className="rounded-lg bg-gain/15 text-gain font-semibold text-xs px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
-          >
-            {deciding ? t("dd.deciding") : t("dd.accept")}
-          </button>
-          <button
-            onClick={() => decide("dismiss")}
-            disabled={deciding}
-            className="rounded-lg bg-ink/6 text-muted font-medium text-xs px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
-          >
-            {t("dd.dismiss")}
-          </button>
-          <span className="text-xs text-muted/70">{t("dd.reviewExplainer")}</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-2 flex items-center gap-2 flex-wrap">
-      <input
-        value={steer}
-        onChange={(e) => setSteer(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && run()}
-        placeholder={t("dd.researchSteerPlaceholder")}
-        className="flex-1 min-w-56 rounded-lg border border-hairline bg-ink/4 px-3 py-1.5 text-xs focus:outline-none focus:border-accent/50"
-      />
-      <button
-        onClick={run}
-        disabled={busy}
-        className="rounded-lg bg-accent/12 hover:bg-accent/20 disabled:opacity-50 text-accent text-xs font-semibold px-3 py-1.5 transition-colors"
-      >
-        {busy ? t("dd.suggesting") : `✦ ${t("dd.runResearch")}`}
-      </button>
-      {failed && (
-        <span className="text-[11px] text-loss">
-          {t("dd.researchFailed", { error: localizeError(failed.error, t) || "—" })}{" "}
-          <button onClick={run} className="underline decoration-dotted hover:text-emph transition-colors">
-            {t("dd.tryAgain")}
-          </button>
-        </span>
-      )}
-      {error && <span className="text-[11px] text-loss">{error}</span>}
-    </div>
-  );
-}
-
-/**
  * One notepad, in two modes. READ (default): the document rendered statically
  * through the editor schema, so selecting text highlights/annotates it exactly
  * like the desk's other surfaces. EDIT: the TipTap editor (annotation marks
@@ -1032,13 +730,5 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
         )}
       </div>
     </div>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-xs uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
-      {children}
-    </h2>
   );
 }

@@ -6,8 +6,11 @@ import {
   ADJUSTABLE_METRIC_KEYS,
   adjustmentLines,
   applyCleansing,
+  deltaAnomalies,
+  deltaAnomalyLines,
   describeAdjustment,
   reportedTableText,
+  type DeltaAnomaly,
 } from "../cleansing";
 import { withDomain } from "../citations";
 import { withDeadline } from "./research";
@@ -180,6 +183,25 @@ function windfallSweepPrompt(name: string, symbol: string, years: string): strin
 Find the WINDFALL AND MARK-TO-MARKET GAINS flattering ${name}'s reported results for fiscal years ${years}: unrealized/mark-to-market gains or losses on investment stakes and securities, revaluation gains when a held company's valuation jumped (an IPO of a portfolio company, a private stake marked up after a funding round), equity-method one-offs, bargain-purchase gains, gains on sale of investments, one-off government subsidies or credits. For each: the disclosed amount, the fiscal year, the reported line it sits in (many sit in net income but not operating income or operating cash flow), whether it is realized or unrealized, and any disclosed tax effect. ${SWEEP_RULES}`;
 }
 
+/**
+ * The delta-anomaly sweep: the deterministic scan flagged reported line-years
+ * that moved far outside their own history — hunt the disclosure behind each.
+ */
+function anomalySweepPrompt(
+  name: string,
+  symbol: string,
+  anomalies: DeltaAnomaly[],
+  currency: string | null
+): string {
+  return `You are a forensic-accounting research scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+The desk ran a deterministic scan of ${name}'s reported table and flagged these ABNORMAL PERIOD-OVER-PERIOD MOVES — each far outside that line's own typical variation across the reported fiscal years:
+
+${deltaAnomalyLines(anomalies, currency)}
+
+For EACH flagged move, hunt the disclosures that explain it. Was a one-time or abnormal item added to (or charged against) that line — an impairment or write-down, a settlement or fine, a disposal or divestiture gain, an unrealized mark-to-market swing, a revaluation when a held stake's paper value jumped, a one-off tax or subsidy item, an accounting-policy change, an acquisition folding a business in? Name the specific item, the DISCLOSED amount with its currency, the exact filing/statement/note it appears in, and which reported line and fiscal year it affects. Where the move is genuine operating performance — real price/volume, a true step-change in the business, an honest collapse in earnings — SAY SO plainly: genuine performance must never be cleansed away, and an honest "this move is real" is a first-class finding. ${SWEEP_RULES}`;
+}
+
 /** One focused sweep for a query the FINANCIAL ANALYST raised mid-conversation. */
 function chatResearchPrompt(
   name: string,
@@ -226,9 +248,21 @@ export async function executeCleansingSuggest(
     ]);
 
     const yearsSpan = `${fin.fiscalYears[0]}–${fin.fiscalYears[fin.fiscalYears.length - 1]}`;
+    // Deterministic first: which reported line-years moved far outside their
+    // own typical period-over-period variation? Those outliers get their own
+    // dedicated sweep — the likeliest hiding places of one-time items.
+    const anomalies = deltaAnomalies(fin);
     const jobs = [
       { label: "One-time & non-operating items", prompt: noiseSweepPrompt(ticker.name, symbol, yearsSpan) },
       { label: "Windfall & mark-to-market gains", prompt: windfallSweepPrompt(ticker.name, symbol, yearsSpan) },
+      ...(anomalies.length > 0
+        ? [
+            {
+              label: "Delta-anomaly investigation",
+              prompt: anomalySweepPrompt(ticker.name, symbol, anomalies, fin.currency),
+            },
+          ]
+        : []),
     ];
     const settled = await Promise.allSettled(
       jobs.map((j) =>
@@ -287,13 +321,16 @@ ${reportedTableText(fin)}
 EXISTING ADJUSTMENTS ON THIS BENCH (never duplicate; dismissed items stay dismissed absent materially new evidence):
 ${adjustmentLines(existing, fin.currency)}
 
-FIELD RESEARCH (two grounded sweeps over ${ticker.name}'s disclosures; numbered sources at the end):
+DELTA ANOMALIES (deterministic scan of the reported table — line-years whose period-over-period move is far outside that line's own typical variation; the dedicated sweep investigated each):
+${deltaAnomalyLines(anomalies, fin.currency)}
+
+FIELD RESEARCH (grounded sweeps over ${ticker.name}'s disclosures; numbered sources at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
 ${sourceList || "(none)"}
 
-TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Skip anything the sweeps could not pin to a disclosed amount. Then write the pass note (what you examined, what you found in each direction, what you deliberately did not propose and why).
+TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Skip anything the sweeps could not pin to a disclosed amount. Work the DELTA ANOMALIES explicitly: for each flagged line-year, either propose the disclosed one-time or abnormal item(s) behind the move, or account for it in the pass note as genuine business performance that must stand — no flagged anomaly goes unaddressed, and a real move is never cleansed away. Then write the pass note (what you examined, each anomaly's verdict, what you found in each direction, what you deliberately did not propose and why).
 
 LANGUAGE: Write every output field in English — the bench's stored form is canonical English; the app translates for display.`;
 
