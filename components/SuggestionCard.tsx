@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useT } from "@/components/PrefsProvider";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Signal } from "@/lib/types";
@@ -29,7 +30,8 @@ export function SuggestionCard({
 }: {
   signal: Signal;
   busy: boolean;
-  onAct: (id: string, action: "approve" | "dismiss") => void;
+  /** Dismissals may carry the investor's reason (teach-the-desk). */
+  onAct: (id: string, action: "approve" | "dismiss", reason?: string) => void;
   compact?: boolean;
   /** Name of the active signal this proposal replaces on approval (if any). */
   replacesName?: string | null;
@@ -40,6 +42,10 @@ export function SuggestionCard({
   previouslyDismissedAt?: string | null;
 }) {
   const { t, locale } = useT();
+  // Ignoring opens a one-line "why?" — optional, but a stated reason becomes
+  // gate memory and may be distilled into a standing order (teach-the-desk).
+  const [ignoring, setIgnoring] = useState(false);
+  const [reason, setReason] = useState("");
   return (
     <div
       className={`rounded-xl bg-card border px-4 py-3 transition-colors ${
@@ -89,22 +95,51 @@ export function SuggestionCard({
           {signal.scale ? ` (${signal.scale})` : ""}
         </p>
       )}
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          onClick={() => onAct(signal.id, "approve")}
-          disabled={busy}
-          className="rounded-lg bg-gain/15 text-gain text-xs font-semibold px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
-        >
-          {replacesName ? t("signals.approveSwap") : t("signals.approve")}
-        </button>
-        <button
-          onClick={() => onAct(signal.id, "dismiss")}
-          disabled={busy}
-          className="rounded-lg bg-ink/6 text-muted text-xs font-medium px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
-        >
-          {t("signals.ignore")}
-        </button>
-      </div>
+      {ignoring ? (
+        <div className="mt-3 flex items-center gap-2 flex-wrap" title={t("memory.whyHint")}>
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onAct(signal.id, "dismiss", reason)}
+            placeholder={t("memory.whyPlaceholder")}
+            autoFocus
+            className="flex-1 min-w-40 rounded-lg border border-hairline bg-ink/4 px-2.5 py-1.5 text-xs focus:outline-none focus:border-accent/50 placeholder:text-muted/50"
+          />
+          <button
+            onClick={() => onAct(signal.id, "dismiss", reason)}
+            disabled={busy}
+            className="rounded-lg bg-ink/6 text-muted text-xs font-medium px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
+          >
+            {t("signals.ignore")}
+          </button>
+          <button
+            onClick={() => {
+              setIgnoring(false);
+              setReason("");
+            }}
+            className="text-muted hover:text-emph text-xs transition-colors"
+          >
+            {t("common.cancel")}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => onAct(signal.id, "approve")}
+            disabled={busy}
+            className="rounded-lg bg-gain/15 text-gain text-xs font-semibold px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+          >
+            {replacesName ? t("signals.approveSwap") : t("signals.approve")}
+          </button>
+          <button
+            onClick={() => setIgnoring(true)}
+            disabled={busy}
+            className="rounded-lg bg-ink/6 text-muted text-xs font-medium px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
+          >
+            {t("signals.ignore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

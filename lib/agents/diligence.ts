@@ -12,21 +12,30 @@ import {
   DILIGENCE_MEMO_SCHEMA,
   DILIGENCE_SYNTHESIS_DOCTRINE,
   DILIGENCE_SYNTHESIS_SCHEMA,
+  RESEARCH_PLAN_DOCTRINE,
+  RESEARCH_PLAN_SCHEMA,
   SECTION_SUGGESTIONS_SCHEMA,
+  sourceSteeringText,
+  STANDING_ORDERS_DOCTRINE,
+  standingOrdersBlock,
 } from "./framework";
 import {
   diligenceResearchStatus,
   evidenceDataForSection,
   failDiligenceResearch,
+  finishDiligencePlan,
   finishDiligenceResearch,
   getDiligenceResearch,
   getDiligenceSynthesis,
   getNoteSection,
+  getSetting,
   getTicker,
   latestRun,
+  listDeskSources,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
+  listLessons,
   listNoteSections,
   listNotes,
   listSignals,
@@ -179,14 +188,99 @@ Establish the AUTHENTIC CURRENT STATE of this topic from roughly the last 12-18 
 }
 
 // ---------------------------------------------------------------------------
+// The plan gate: on the investor's choice, the desk drafts a research plan
+// first — sub-questions, hunting grounds, the finish line — parks it for
+// their edit/approval, and only their start command begins the sweeps. "The
+// plan is the analysis": the approved text steers the sweeps and the memo.
+// ---------------------------------------------------------------------------
+
+/**
+ * Draft the plan for a pass created at status 'planning' (kicked off by the
+ * route via after()). Parks the plan at status 'planned' for the investor's
+ * review; failures land at 'error' like any pass.
+ */
+export async function executeSectionPlan(userId: string, researchId: string): Promise<void> {
+  try {
+    const research = await getDiligenceResearch(userId, researchId);
+    if (!research || research.status !== "planning") return;
+    const ticker = await getTicker(userId, research.symbol);
+    if (!ticker) throw new Error(`Unknown ticker ${research.symbol}`);
+    const rec = await loadSectionRecord(userId, research.symbol, research.sectionId);
+    if (!rec) throw new Error("Unknown section for this desk.");
+    const [evidence, signals, activeLessons, activeSources, steeringSetting] = await Promise.all([
+      listDiligenceEvidence(userId, research.symbol).catch(() => []),
+      listSignals(userId, research.symbol, "active").catch(() => []),
+      listLessons(userId, research.symbol, "active").catch(() => []),
+      listDeskSources(userId, research.symbol, "active").catch(() => []),
+      getSetting(userId, `sourceSteering:${research.symbol}`).catch(() => null),
+    ]);
+    const filedLines = evidence
+      .filter((e) => e.sectionId === research.sectionId)
+      .map(evidenceLine)
+      .join("\n");
+    const ordersBlock = standingOrdersBlock(activeLessons);
+    const steerText = steeringSetting !== "off" ? sourceSteeringText(activeSources) : "";
+
+    const task = `THE DUE-DILIGENCE SECTION THIS PLAN SERVES:
+"${rec.section.title}" for ${ticker.name} (${ticker.symbol})${research.question.trim() ? `\nThe investor's steer: ${research.question.trim()}` : ""}
+
+THE INVESTOR'S OWN NOTES IN THIS SECTION:
+${rec.notesText || "(nothing written yet)"}
+
+EARLIER ACCEPTED RESEARCH ON THIS SECTION (plan to EXTEND the record, never re-research it):
+${rec.priorInsights.join("\n") || "(none)"}
+
+FILED EVIDENCE IN THIS SECTION (by caption):
+${filedLines || "(none filed)"}
+
+THE DESK'S ACTIVE SIGNALS (for reference):
+${signals.map((s) => `- "${s.name}" (${s.focusArea})`).join("\n") || "(none)"}
+${ordersBlock ? `\n${ordersBlock}\n` : ""}${steerText}
+
+TASK: Draft the research plan for this pass per the plan doctrine — the four numbered parts, ready for the investor to edit in place.`;
+
+    const planModel = await resolveModel("diligence");
+    const out = await withDeadline(
+      "dd-plan",
+      (signal) =>
+        claudeJSON<{ plan: string }>({
+          model: planModel,
+          signal,
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            {
+              text: `${deskIdentity(research.symbol, ticker.name)}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${RESEARCH_PLAN_DOCTRINE}`,
+            },
+          ],
+          messages: [{ role: "user", content: task }],
+          schema: RESEARCH_PLAN_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 2500,
+          effort: "low",
+          meta: { userId, feature: "diligence" },
+        }),
+      60_000
+    );
+    const plan = out.plan?.trim();
+    if (!plan) throw new Error("Plan drafting came back empty — try again.");
+    await finishDiligencePlan(researchId, plan.slice(0, 4000));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[scalae] due-diligence plan ${researchId} failed:`, msg);
+    await failDiligenceResearch(researchId, msg).catch(() => {});
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The deep-research pass (kicked off by the route via after()).
 // ---------------------------------------------------------------------------
 
 /**
  * Execute a deep-research pass created by the route: three parallel grounded
  * sweeps on the section's topic, then one memo synthesis against the
- * investor's existing record. Finishes at status 'pending' (the review gate) —
- * never writes into the record itself. Failures land at status 'error'.
+ * investor's existing record. When the pass went through the plan gate, the
+ * investor-approved plan steers both the sweeps and the memo. Finishes at
+ * status 'pending' (the review gate) — never writes into the record itself.
+ * Failures land at status 'error'.
  */
 export async function executeSectionResearch(
   userId: string,
@@ -200,6 +294,16 @@ export async function executeSectionResearch(
     const rec = await loadSectionRecord(userId, research.symbol, research.sectionId);
     if (!rec) throw new Error("Unknown section for this desk.");
     const filed = await loadSectionEvidence(userId, research.sectionId);
+    const [activeLessons, activeSources, steeringSetting] = await Promise.all([
+      listLessons(userId, research.symbol, "active").catch(() => []),
+      listDeskSources(userId, research.symbol, "active").catch(() => []),
+      getSetting(userId, `sourceSteering:${research.symbol}`).catch(() => null),
+    ]);
+    const ordersBlock = standingOrdersBlock(activeLessons);
+    const steerText = steeringSetting !== "off" ? sourceSteeringText(activeSources) : "";
+    const planSteer = research.plan?.trim()
+      ? `\n\nTHE APPROVED RESEARCH PLAN (the investor reviewed and approved this plan — its sub-questions and hunting grounds steer this pass; their edits are binding):\n${research.plan.trim()}`
+      : "";
 
     const [deepModel, memoModel] = await Promise.all([
       resolveModel("scoutDeep"),
@@ -207,9 +311,18 @@ export async function executeSectionResearch(
     ]);
 
     const jobs = [
-      { label: "Company record", prompt: topicHistoryPrompt(ticker, rec, research.question) },
-      { label: "Outside view", prompt: topicOutsidePrompt(ticker, rec, research.question) },
-      { label: "Authentic current state", prompt: topicCurrentPrompt(ticker, rec, research.question) },
+      {
+        label: "Company record",
+        prompt: topicHistoryPrompt(ticker, rec, research.question) + planSteer + steerText,
+      },
+      {
+        label: "Outside view",
+        prompt: topicOutsidePrompt(ticker, rec, research.question) + planSteer + steerText,
+      },
+      {
+        label: "Authentic current state",
+        prompt: topicCurrentPrompt(ticker, rec, research.question) + planSteer + steerText,
+      },
     ];
     const settled = await Promise.allSettled(
       jobs.map((j) =>
@@ -279,7 +392,8 @@ export async function executeSectionResearch(
     const task = `Today is ${new Date().toDateString()}.
 
 THE DUE-DILIGENCE SECTION THIS MEMO SERVES:
-"${rec.section.title}"${research.question.trim() ? `\nThe investor's steer for this pass: ${research.question.trim()}` : ""}
+"${rec.section.title}"${research.question.trim() ? `\nThe investor's steer for this pass: ${research.question.trim()}` : ""}${planSteer}
+${ordersBlock ? `\n${ordersBlock}\n` : ""}
 
 THE INVESTOR'S OWN NOTES IN THIS SECTION (verbatim; engage with them by name, never contradict silently):
 ${rec.notesText || "(nothing written yet)"}
@@ -311,7 +425,9 @@ LANGUAGE: Write every output field in English — the record's stored form is ca
           signal,
           system: [
             { text: DESK_DOCTRINE, cache: true },
-            { text: `${deskIdentity(research.symbol, ticker.name)}\n\n${DILIGENCE_MEMO_DOCTRINE}` },
+            {
+              text: `${deskIdentity(research.symbol, ticker.name)}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${DILIGENCE_MEMO_DOCTRINE}`,
+            },
           ],
           // Filed evidence rides first (each file preceded by its caption),
           // the research task last — same reading order the prompt describes.

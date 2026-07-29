@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Annotatable } from "@/components/Annotations";
+import { Markdown } from "@/components/Markdown";
 import { useT } from "@/components/PrefsProvider";
+import { linkCitations } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
-import type { DigestItem, Signal, SourceClass } from "@/lib/types";
+import type { DigestItem, RhymeAnalysis, Signal, SourceClass } from "@/lib/types";
 import { IMPACT_DOT, impactLabel, timeAgo } from "./util";
 
 // Evidence-class chips, per the desk's weighing doctrine: primary documents
@@ -31,6 +34,8 @@ export function DigestFeed({
   onTrackStory,
   onClip,
   onDelete,
+  rhymes,
+  onRhyme,
 }: {
   items: DigestItem[];
   /** Board signals of any status, used to resolve tag names. */
@@ -42,12 +47,29 @@ export function DigestFeed({
   onClip?: (item: DigestItem) => void;
   /** Remove this item from the feed (curation — readings keep their citations). */
   onDelete?: (item: DigestItem) => void;
+  /** Episode-rhyme analyses by digestId ("history is the base rate", on the investor's ask). */
+  rhymes?: Map<string, RhymeAnalysis>;
+  onRhyme?: (item: DigestItem) => void;
 }) {
   const { t } = useT();
+  const [rhymeOpen, setRhymeOpen] = useState<Set<string>>(new Set());
   if (items.length === 0) {
     return <p className="text-muted text-xs italic">{t("signals.noDigest")}</p>;
   }
   const byName = new Map(signals.map((s) => [s.name, s]));
+  const toggleRhyme = (id: string) =>
+    setRhymeOpen((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const verdictChip = (r: RhymeAnalysis) =>
+    r.verdict === "rhyme"
+      ? { label: t("memory.rhymeVerdict_rhyme", { episode: r.episode || "—" }), cls: "bg-warn/15 text-warn" }
+      : r.verdict === "break"
+        ? { label: t("memory.rhymeVerdict_break"), cls: "bg-loss/12 text-loss" }
+        : { label: t("memory.rhymeVerdict_normal"), cls: "bg-gain/15 text-gain" };
   return (
     <ul className="space-y-3.5">
       {items.map((d) => (
@@ -120,6 +142,15 @@ export function DigestFeed({
                   {t("signals.trackThis")}
                 </button>
               )}
+              {onRhyme && !rhymes?.get(d.id) && (
+                <button
+                  onClick={() => onRhyme(d)}
+                  title={t("memory.rhymeButtonTitle")}
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                >
+                  ⌛ {t("memory.rhymeButton")}
+                </button>
+              )}
               {onDelete && (
                 <button
                   onClick={() => onDelete(d)}
@@ -172,6 +203,56 @@ export function DigestFeed({
                 </span>
               )}
             </p>
+            {/* Episode-rhyme verdict: today's development judged against the
+                company's and industry's record, on the investor's ask. */}
+            {(() => {
+              const r = rhymes?.get(d.id);
+              if (!r) return null;
+              if (r.status === "running") {
+                return (
+                  <p className="mt-1.5 text-[11px] text-accent pulse-soft">⌛ {t("memory.rhymeRunning")}</p>
+                );
+              }
+              if (r.status === "error") {
+                return (
+                  <p className="mt-1.5 text-[11px] text-loss">
+                    {t("memory.rhymeFailed")}
+                    {onRhyme && (
+                      <button
+                        onClick={() => onRhyme(d)}
+                        className="ml-1.5 underline decoration-dotted hover:text-emph transition-colors"
+                      >
+                        {t("memory.rhymeTryAgain")}
+                      </button>
+                    )}
+                  </p>
+                );
+              }
+              const chip = verdictChip(r);
+              return (
+                <div className="mt-1.5">
+                  <button onClick={() => toggleRhyme(d.id)} className="flex items-center gap-1.5 text-left">
+                    <span
+                      className={`rounded-full px-2 py-px text-[10px] font-semibold ${chip.cls}`}
+                      title={t("memory.rhymeButtonTitle")}
+                    >
+                      ⌛ {chip.label}
+                    </span>
+                    <span className="text-[10px] text-muted">{rhymeOpen.has(d.id) ? "▾" : "▸"}</span>
+                  </button>
+                  {!rhymeOpen.has(d.id) && r.brief && (
+                    <p className="mt-1 text-[11px] text-muted leading-relaxed">{r.brief}</p>
+                  )}
+                  {rhymeOpen.has(d.id) && r.analysis && (
+                    <div className="mt-1.5 rounded-xl bg-ink/4 border border-hairline px-3 py-2.5">
+                      <Annotatable surfaceId={`rhyme:${r.id}`}>
+                        <Markdown>{linkCitations(r.analysis, r.sources)}</Markdown>
+                      </Annotatable>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </li>
       ))}

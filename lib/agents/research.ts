@@ -5,16 +5,23 @@ import { researchSignalBackstory } from "./history";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
+  AUDIT_DOCTRINE,
+  AUDIT_SCHEMA,
   DESK_DOCTRINE,
   deskIdentity,
   EXPERT_LOOP_GUIDANCE,
   GAP_SCHEMA,
+  PROMISE_DOCTRINE,
+  promiseLedgerBlock,
   QUESTION_METHOD,
   RUN_QUESTIONS_DOCTRINE,
   RUN_QUESTIONS_SCHEMA,
   SIGNAL_CHECK_DOCTRINE,
   SIGNAL_CHECK_SCHEMA,
   SIGNAL_GUIDANCE,
+  sourceSteeringText,
+  STANDING_ORDERS_DOCTRINE,
+  standingOrdersBlock,
   SYNTHESIS_DOCTRINE,
   SYNTHESIS_SCHEMA,
 } from "./framework";
@@ -24,31 +31,52 @@ import {
   failRun,
   finishRun,
   getDiligenceSynthesis,
+  getSetting,
   getSignal,
   getTicker,
+  harvestRunSources,
   insertDigestItem,
+  insertPromise,
   insertProposal,
   insertReading,
-  latestRun,
+  lastCompletedRun,
+  listDeskSources,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
+  listLessons,
   listMessages,
   listNoteSections,
   listNotes,
+  listPromises,
+  listRunSweeps,
   listSignals,
+  proposePromiseResolution,
   readingsForSignal,
   reapStuckRuns,
   resetQuietRuns,
   runStatus,
   runningRun,
+  saveRunSweeps,
+  setRunAudit,
   setRunQuestions,
   setRunStage,
   touchLastRun,
 } from "../db";
 import { diligenceContext } from "../notes";
+import { financialsSummary, peekFinancials } from "../financials";
 import { getQuote, quoteLine } from "../market";
-import type { Citation, Delta, ReadingLevel, Run, Signal, SignalProposal } from "../types";
+import type {
+  Citation,
+  Delta,
+  PromiseOutcome,
+  ReadingLevel,
+  Run,
+  RunAudit,
+  Signal,
+  SignalProposal,
+  SourceClass,
+} from "../types";
 
 interface SynthesisOutput {
   brief: string;
@@ -74,6 +102,29 @@ interface SynthesisOutput {
     sourceNote: string;
   }[];
   proposals: SignalProposal[];
+  promises: {
+    action: "add" | "resolve";
+    promiseKey: string;
+    text: string;
+    madeBy: string;
+    madeAt: string;
+    due: string;
+    status: "" | PromiseOutcome;
+    resolution: string;
+    sourceIndex: number | null;
+  }[];
+}
+
+interface AuditOutput {
+  verifications: {
+    signalKey: string;
+    verdict: "corroborated" | "contradicted" | "unanchored";
+    note: string;
+    confidenceDelta: number;
+  }[];
+  quantQueries: string[];
+  openQuestions: string[];
+  auditNote: string;
 }
 
 interface GapOutput {
@@ -86,7 +137,8 @@ interface QuestionsOutput {
 
 interface Sweep {
   label: string;
-  wave: 1 | 2;
+  /** 0 = reused field-file report (same-day checks), 1 = breadth, 2 = deep dive. */
+  wave: number;
   text: string;
   sources: Citation[];
 }
@@ -112,6 +164,19 @@ const STAGE_LIMIT_MS = 110_000;
  */
 const ROUTE_BUDGET_MS = 285_000; // 300s maxDuration minus platform margin
 const RECORDING_RESERVE_MS = 15_000; // reserved after synthesis for the writes
+
+/**
+ * Reserved for the post-synthesis audit (triangulation): one verification call,
+ * optionally one bundled quant-hunting search + a short finalize. The reserve
+ * comes out of the synthesis window; when the run is running late the audit
+ * shrinks and then skips entirely (graceful degrade) rather than risking the
+ * run — recording always comes first.
+ */
+const AUDIT_RESERVE_MS = 60_000;
+/** Below this remaining budget the audit is skipped outright. */
+const AUDIT_MIN_MS = 20_000;
+/** A board run younger than this hands its field file to same-day signal checks. */
+const FIELD_FILE_FRESH_MS = 12 * 3_600_000;
 
 /**
  * Synthesis reasoning effort. Default "low" to minimize synthesis wall-clock so
@@ -194,9 +259,13 @@ export async function startSignalRun(
   return { run, started: true };
 }
 
-/** How fresh a window to research: since the last completed run, else 7 days. */
+/**
+ * How fresh a window to research: since the last COMPLETED run, else 7 days.
+ * (lastCompletedRun, not latestRun — the latter returns the row of the run
+ * currently executing, whose finishedAt is still null.)
+ */
 async function windowDays(userId: string, symbol: string): Promise<number> {
-  const last = await latestRun(userId, symbol);
+  const last = await lastCompletedRun(userId, symbol);
   if (!last?.finishedAt) return 7;
   const days = Math.ceil((Date.now() - Date.parse(last.finishedAt)) / 86_400_000);
   return Math.min(14, Math.max(2, days + 1));
@@ -272,6 +341,16 @@ Before any searching, the desk's analyst framed TODAY'S FOCUS QUESTIONS — the 
 ${qs.map((q, i) => `Q${i + 1}. ${q.question} (why the desk asks: ${q.why})`).join("\n")}
 
 Search each question from multiple angles and prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators. Favor evidence from roughly the last ${days} days — but for these questions an older primary source the desk likely hasn't seen is fair game when it actually answers the question (label it with its date). Open every finding with 'Q<n>:' naming the question it informs, and state plainly which questions found NO evidence — an honest "nothing found" is valuable. ${SCOUT_RULES}`;
+}
+
+function quantHuntPrompt(symbol: string, name: string, queries: string[]): string {
+  return `You are a verification scout for a Buffett-style value-investing desk covering ${name} (${symbol}). Today is ${new Date().toDateString()}.
+
+The desk's auditor is triangulating today's qualitative evidence and needs SPECIFIC QUANTITATIVE DATA. Hunt each item below and report the figure with its unit, period and source — prefer primary sources (filings, company statements and disclosures, regulator data) over press retellings:
+
+${queries.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+Report ONLY what the record actually states — never estimate, interpolate, or convert. For each numbered item: the figure(s) found with date and source, or 'NOT FOUND: <what specifically is missing>' — an honest NOT FOUND is valuable. ${SCOUT_RULES}`;
 }
 
 function followUpPrompt(
@@ -386,6 +465,32 @@ export async function executeRun(userId: string, runId: string, symbol: string):
       .slice(-6)
       .map((m) => `- ${m.content.slice(0, 300)}`)
       .join("\n");
+
+    // Desk memory (all best-effort — a desk without any runs as before):
+    // standing orders bind every stage's conduct; the source map steers the
+    // scouts only when the investor has steering ON (cooperative research —
+    // their explicit choice); the promise ledger is maintained by synthesis;
+    // and the previous run's unanchored audit questions seed today's framing.
+    const [activeLessons, activeSources, steeringSetting, openPromises, pendingPromises, resolvedPromises, prevRun] =
+      await Promise.all([
+        listLessons(userId, symbol, "active").catch(() => []),
+        listDeskSources(userId, symbol, "active").catch(() => []),
+        getSetting(userId, `sourceSteering:${symbol}`).catch(() => null),
+        listPromises(userId, symbol, ["open"]).catch(() => []),
+        listPromises(userId, symbol, ["suggested"]).catch(() => []),
+        listPromises(userId, symbol, ["kept", "missed", "dropped"]).catch(() => []),
+        lastCompletedRun(userId, symbol).catch(() => undefined),
+      ]);
+    const ordersBlock = standingOrdersBlock(activeLessons);
+    const ordersSteer = activeLessons.length
+      ? `\n\nDESK STANDING ORDERS (investor-approved conduct for this desk; honor them while searching):\n${activeLessons.map((l) => `- ${l.text}`).join("\n")}`
+      : "";
+    const steeringOn = steeringSetting !== "off";
+    const steerText = steeringOn ? sourceSteeringText(activeSources) : "";
+    const ledgerBlock = promiseLedgerBlock(openPromises, pendingPromises, resolvedPromises.slice(0, 5));
+    const unverifiedBlock = prevRun?.audit?.openQuestions?.length
+      ? `\nUNVERIFIED FROM THE LAST RUN (the audit could not anchor these claims in quantitative data — close them today if the record allows):\n${prevRun.audit.openQuestions.map((s) => `- ${s}`).join("\n")}`
+      : "";
     // The due-diligence record: the map of what the investor currently
     // understands, which the circle-of-competence loop steers proposals by
     // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
@@ -417,7 +522,9 @@ export async function executeRun(userId: string, runId: string, symbol: string):
           // re-reads it at ~0.1× input cost for every desk it sweeps.
           system: [
             { text: DESK_DOCTRINE, cache: true },
-            { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+            {
+              text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${RUN_QUESTIONS_DOCTRINE}`,
+            },
           ],
           messages: [
             {
@@ -430,9 +537,9 @@ ${boardBlock}
 INVESTOR FOCUS AREAS:
 ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
 
-RECENT INVESTOR GUIDANCE (newest last):
+${ordersBlock ? `${ordersBlock}\n\n` : ""}RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
-
+${unverifiedBlock}
 ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
             },
           ],
@@ -469,28 +576,36 @@ ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the qu
 
     const waveOneCount = bundles.length + 3 + (questions.length > 0 ? 1 : 0);
     await throwIfStopped(runId);
+    const steeredNote =
+      steerText.length > 0
+        ? ` — steered by your source map (${activeSources.filter((s) => s.kind !== "narrative").length} entries)`
+        : "";
     await setRunStage(
       runId,
       "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: ${questions.length > 0 ? `${questions.length} focus questions, ` : ""}signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
+      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: ${questions.length > 0 ? `${questions.length} focus questions, ` : ""}signals, broad news, primary sources, scuttlebutt (${days}-day window)${steeredNote}…`
     );
 
+    // Every scout carries the same appended steering: today's focus questions,
+    // the investor's source map (only when steering is ON — their choice), and
+    // the standing orders that bear on searching.
+    const scoutSteer = questionSteer + steerText + ordersSteer;
     const waveOneJobs: { label: string; prompt: string }[] = [
       ...(questions.length > 0
         ? [
             {
               label: "Focus-question sweep",
-              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+              prompt: questionSweepPrompt(symbol, ticker.name, days, questions) + steerText + ordersSteer,
             },
           ]
         : []),
       ...bundles.map((b, i) => ({
         label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, b) + questionSteer,
+        prompt: signalSweepPrompt(symbol, ticker.name, days, b) + scoutSteer,
       })),
-      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) + questionSteer },
-      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) + questionSteer },
-      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) + questionSteer },
+      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) + scoutSteer },
+      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) + scoutSteer },
+      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) + scoutSteer },
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
@@ -557,7 +672,7 @@ ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the qu
       const waveTwoSettled = await Promise.allSettled(
         followUps.map((f) =>
           withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal) =>
-            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f) + steerText + ordersSteer, {
               model: deepModel,
               meta: { userId, feature: "scoutDeep" },
               signal,
@@ -576,6 +691,14 @@ ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the qu
         if (s.status === "fulfilled") sweeps.push(s.value);
       }
     }
+
+    // The field file: persist every scout report verbatim, so the evidence
+    // chain (brief claim → reading → sweep → source) stays auditable and
+    // same-day signal checks can reuse this morning's field work. Best-effort:
+    // a failed write never risks the run.
+    await saveRunSweeps(userId, runId, symbol, sweeps).catch((e) =>
+      console.error(`[scalae] field-file persist failed for ${symbol}:`, e instanceof Error ? e.message : e)
+    );
 
     // Number the de-duplicated sources across all sweeps so the analyst cites
     // by index — and record which sweep(s) surfaced each source (provenance).
@@ -632,7 +755,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 
 ACTIVE SIGNAL BOARD:
 ${boardBlock}
-${questionsBlock}
+${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}${ledgerBlock ? `\n${ledgerBlock}\n` : ""}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
@@ -651,6 +774,7 @@ TASK — produce today's desk output:
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Where today's evidence moved a focus question, say so; focus questions that found no evidence get one honest collective line, never manufactured movement. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
 3b. dossier: the STANDING view of the business, 150-300 words in markdown — not today's news. Paragraph 1: how this company makes money right now (segments, the earnings engine, moat trajectory) as evidenced by the board's current readings. Paragraph 2: the culture/trust verdict. Update only what today's evidence moved; keep the rest stable so the investor sees a consistent thesis evolving, not a rewrite. Cite [n] source indexes on every load-bearing claim, and when a claim reads off a board signal, add that signal's key in double braces right after it — e.g. "the toll booth is repricing {{S1}} [4]" — so the investor can jump from claim to signal. Refer to signals by name in the prose (the {{Sk}} markers render as links, never as raw keys).
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Propose as the industry expert of the circle-of-competence loop: where the investor's due-diligence record (above, when present) leaves a load-bearing business-model or culture thread unexamined and unwatched, or where a signal's long-run trend would strengthen or test a section's written analysis, prefer THAT proposal and name the gap or section in its thesis. Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
+5. promises: maintain the promise ledger per the promise doctrine — 0-3 actions, only from today's field research (adds from primary-source commitments; resolves only for OPEN ledger entries whose outcome today's evidence directly shows). Empty when the ledger block is absent or nothing in today's evidence bears on it — the common case.
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
@@ -660,7 +784,13 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     // it lands comfortably inside the run rather than being cut off at 110s.
     // The deadline is still a strict backstop: on timeout the run fails cleanly
     // (and the cron retries it) rather than the platform killing the function.
-    const synthMs = Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
+    // The audit reserve comes out of the synthesis window (never the other way
+    // round): synthesis is the run's core output and still keeps the lion's
+    // share; the audit gets what's left and degrades gracefully to nothing.
+    const synthMs = Math.max(
+      0,
+      ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS - AUDIT_RESERVE_MS
+    );
     const out = await withDeadline("synthesis", (signal) => claudeJSON<SynthesisOutput>({
       model: synthModel,
       signal,
@@ -669,7 +799,7 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       system: [
         { text: DESK_DOCTRINE, cache: true },
         {
-          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
+          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${PROMISE_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}`,
         },
       ],
       messages: [{ role: "user", content: task }],
@@ -679,6 +809,149 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       meta: { userId, feature: "synthesis" },
     }), synthMs);
 
+    // ---- Post-synthesis audit: triangulate fresh readings before recording ----
+    // Qualitative claims resting on narrative get checked against the
+    // quantitative record available to the desk — figures inside today's
+    // sweeps, the reported statements (cache-only, never a fresh Yahoo fetch
+    // on the run path), and the board's previous values — with one bounded
+    // quant-hunting search for load-bearing claims that lack an anchor.
+    // Everything here degrades gracefully: on timeout or failure the run
+    // records unaudited, exactly as before.
+    await throwIfStopped(runId);
+    const verifyByKey = new Map<
+      string,
+      { verdict: "corroborated" | "contradicted" | "unanchored"; note: string; confidenceDelta: number }
+    >();
+    let audit: RunAudit | null = null;
+    const freshReadings = (out.readings ?? []).filter((r) => r.newEvidence === true);
+    const auditMsLeft = () =>
+      Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
+    if (freshReadings.length > 0 && auditMsLeft() >= AUDIT_MIN_MS) {
+      try {
+        await setRunStage(
+          runId,
+          "auditing",
+          `Auditor (${triageModel}) triangulating ${freshReadings.length} fresh ${freshReadings.length === 1 ? "reading" : "readings"} against the quantitative record…`
+        );
+        const financials = await peekFinancials(symbol).catch(() => null);
+        const finBlock = financials ? financialsSummary(financials) : "";
+        const readingLines = freshReadings
+          .map((r) => {
+            const s = byKey.get((r.signalKey ?? "").toUpperCase().trim());
+            if (!s) return "";
+            return `- [${r.signalKey}] "${s.name}" (${s.type}): level=${r.level}, delta=${r.delta}${r.value != null ? `, value=${r.value} ${r.valueUnit ?? ""}` : ""}, confidence=${r.confidence} — ${r.rationale}`;
+          })
+          .filter(Boolean)
+          .join("\n");
+        const auditTask = (extra: string) => `TODAY'S FRESH READINGS (drafts to audit):
+${readingLines}
+
+THE BOARD WITH ITS PREVIOUS READINGS (the desk's own prior values):
+${boardBlock}
+
+${finBlock ? `REPORTED FINANCIAL STATEMENTS (the deterministic prior):\n${finBlock}\n\n` : ""}FIELD RESEARCH (today's sweeps — the figures inside them are the primary triangulation source):
+${researchBlock}
+
+NUMBERED SOURCES:
+${sourceList || "(none)"}${extra}
+
+TASK: Audit per the audit doctrine.${extra ? " This is the FINALIZE pass — the quant-hunt results are appended above; settle every verdict and leave quantQueries empty." : " First pass: settle verdicts where the available record allows; quantQueries (0-3) only for load-bearing unanchored claims."}`;
+
+        const firstMs = Math.min(45_000, auditMsLeft() - 5_000);
+        let auditOut = await withDeadline(
+          "audit",
+          (signal) =>
+            claudeJSON<AuditOutput>({
+              model: triageModel,
+              signal,
+              system: [
+                { text: DESK_DOCTRINE, cache: true },
+                { text: `${deskIdentity(symbol, ticker.name)}\n\n${AUDIT_DOCTRINE}` },
+              ],
+              messages: [{ role: "user", content: auditTask("") }],
+              schema: AUDIT_SCHEMA as unknown as Record<string, unknown>,
+              maxTokens: 3000,
+              effort: "low",
+              meta: { userId, feature: "audit" },
+            }),
+          firstMs
+        );
+
+        // One bundled quant hunt + a short finalize — only with real time left.
+        const queries = (auditOut.quantQueries ?? []).filter((s) => s?.trim()).slice(0, 3);
+        if (queries.length > 0 && auditMsLeft() >= 45_000) {
+          try {
+            const hunt = await withDeadline(
+              "audit-hunt",
+              (signal) =>
+                geminiGroundedSearch(quantHuntPrompt(symbol, ticker.name, queries) + steerText, {
+                  model: breadthModel,
+                  meta: { userId, feature: "audit" },
+                  signal,
+                }),
+              Math.min(60_000, auditMsLeft() - 25_000)
+            );
+            const startIdx = allSources.length;
+            for (const src of hunt.sources) {
+              if (!indexOf.has(src.url)) {
+                indexOf.set(src.url, allSources.length);
+                allSources.push(withDomain({ ...src, foundBy: ["Audit quant hunt"] }));
+              }
+            }
+            const huntBlock = `\n\nQUANT-HUNT RESULTS (targeted search for the missing anchors; new sources numbered from [${startIdx}]):\n${hunt.text}\nSources used: ${
+              hunt.sources.map((s) => `[${indexOf.get(s.url)}] ${s.title}`).join(", ") || "(none)"
+            }`;
+            auditOut = await withDeadline(
+              "audit-finalize",
+              (signal) =>
+                claudeJSON<AuditOutput>({
+                  model: triageModel,
+                  signal,
+                  system: [
+                    { text: DESK_DOCTRINE, cache: true },
+                    { text: `${deskIdentity(symbol, ticker.name)}\n\n${AUDIT_DOCTRINE}` },
+                  ],
+                  messages: [{ role: "user", content: auditTask(huntBlock) }],
+                  schema: AUDIT_SCHEMA as unknown as Record<string, unknown>,
+                  maxTokens: 3000,
+                  effort: "low",
+                  meta: { userId, feature: "audit" },
+                }),
+              Math.max(15_000, Math.min(30_000, auditMsLeft() - 5_000))
+            );
+          } catch (e) {
+            console.error(
+              `[scalae] audit quant hunt failed (keeping first-pass verdicts):`,
+              e instanceof Error ? e.message : e
+            );
+          }
+        }
+
+        for (const v of auditOut.verifications ?? []) {
+          const key = (v.signalKey ?? "").toUpperCase().trim();
+          if (!byKey.has(key) || !v.verdict) continue;
+          verifyByKey.set(key, {
+            verdict: v.verdict,
+            note: (v.note ?? "").trim().slice(0, 240),
+            // Bounded by doctrine AND by code: triangulation tempers, never flips.
+            confidenceDelta: Math.max(-0.3, Math.min(0.1, v.confidenceDelta ?? 0)),
+          });
+        }
+        audit = {
+          note: (auditOut.auditNote ?? "").trim().slice(0, 500),
+          openQuestions: (auditOut.openQuestions ?? [])
+            .filter((s) => s?.trim())
+            .slice(0, 3)
+            .map((s) => s.trim()),
+        };
+      } catch (e) {
+        console.error(
+          `[scalae] post-synthesis audit timed out or failed (recording unaudited):`,
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
+
     // Last checkpoint before we write: a run stopped during synthesis must not
     // record stale readings over whatever fresh run the investor started.
     await throwIfStopped(runId);
@@ -686,11 +959,14 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
 
     const date = new Date().toISOString();
     for (const r of out.readings ?? []) {
-      const signal = byKey.get((r.signalKey ?? "").toUpperCase().trim());
+      const key = (r.signalKey ?? "").toUpperCase().trim();
+      const signal = byKey.get(key);
       if (!signal) continue;
       const citations = (r.citationIndexes ?? [])
         .filter((i) => i >= 0 && i < allSources.length)
         .map((i) => allSources[i]);
+      const v = verifyByKey.get(key);
+      const baseConfidence = Math.max(0, Math.min(1, r.confidence ?? 0.3));
       await insertReading({
         signalId: signal.id,
         runId,
@@ -699,10 +975,11 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
         valueUnit: r.valueUnit ?? null,
         level: r.level ?? "unclear",
         delta: r.delta ?? "flat",
-        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)),
+        confidence: v ? Math.max(0, Math.min(1, baseConfidence + v.confidenceDelta)) : baseConfidence,
         rationale: r.rationale ?? "",
         newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
         citations,
+        verification: v ? { verdict: v.verdict, note: v.note } : null,
       });
     }
 
@@ -733,6 +1010,41 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       if (p.name?.trim()) await insertProposal(userId, symbol, p, "research");
     }
 
+    // Promise-ledger maintenance — all investor-gated: adds park as suggested
+    // entries, and detected resolutions park ON the open row awaiting the
+    // investor's confirm (a promise's status never flips without them).
+    const openByKey = new Map(openPromises.map((p, i) => [`P${i + 1}`, p]));
+    for (const a of (out.promises ?? []).slice(0, 3)) {
+      const src =
+        a.sourceIndex != null && a.sourceIndex >= 0 && a.sourceIndex < allSources.length
+          ? allSources[a.sourceIndex]
+          : null;
+      if (a.action === "add" && a.text?.trim()) {
+        await insertPromise(userId, symbol, {
+          text: a.text,
+          madeBy: a.madeBy ?? "",
+          madeAt: a.madeAt ?? "",
+          due: a.due ?? "",
+          sourceTitle: src?.title ?? "",
+          sourceUrl: src?.url ?? "",
+        }).catch(() => null);
+      } else if (a.action === "resolve") {
+        const target = openByKey.get((a.promiseKey ?? "").toUpperCase().trim());
+        const outcome =
+          a.status === "kept" || a.status === "missed" || a.status === "dropped" ? a.status : null;
+        if (target && outcome && !target.proposedStatus) {
+          const note = `${(a.resolution ?? "").trim()}${src ? ` (${src.title})` : ""}`.trim();
+          await proposePromiseResolution(target.id, outcome, note).catch(() => {});
+        }
+      }
+    }
+
+    // The audit summary rides the run row (the UI shows it under the brief,
+    // and tomorrow's question framing reads openQuestions from here).
+    if (audit && (audit.note || audit.openQuestions.length > 0)) {
+      await setRunAudit(runId, audit).catch(() => {});
+    }
+
     // Resolve the dossier's {{Sk}} signal markers to durable signal ids
     // ([[sig:<id>]]) so the UI can link claims to signals even after the
     // board's key numbering changes; unresolvable keys drop silently.
@@ -753,6 +1065,33 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     // Any new evidence resets the counter and snaps cadence back to daily.
     const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
     await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
+
+    // Deterministic source-map harvest (no LLM): tally today's cited domains,
+    // upgrade kinds from the synthesis's own evidence classing, and let
+    // recurring primary/trade domains surface as suggestions for the
+    // investor's review (lib/db.ts harvestRunSources).
+    const KIND_RANK: Record<SourceClass, number> = { narrative: 0, trade: 1, primary: 2 };
+    const classByDomain = new Map<string, SourceClass>();
+    for (const d of out.digestItems ?? []) {
+      const src =
+        d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
+          ? allSources[d.sourceIndex]
+          : null;
+      const dom = src?.domain?.toLowerCase();
+      const cls = d.sourceClass;
+      if (dom && (cls === "primary" || cls === "trade" || cls === "narrative")) {
+        const prev = classByDomain.get(dom);
+        if (!prev || KIND_RANK[cls] > KIND_RANK[prev]) classByDomain.set(dom, cls);
+      }
+    }
+    await harvestRunSources(
+      userId,
+      symbol,
+      allSources.map((s) => ({ domain: s.domain ?? "", title: s.title })).filter((s) => s.domain),
+      classByDomain
+    ).catch((e) =>
+      console.error(`[scalae] source-map harvest failed for ${symbol}:`, e instanceof Error ? e.message : e)
+    );
 
     // ---- Backfill deep-history backstories (bounded: 2 per run, best-effort) ----
     // Every signal should carry its decades-scale base rate; new boards fill in
@@ -856,6 +1195,35 @@ export async function executeSignalRun(
       .map((m) => `- ${m.content.slice(0, 300)}`)
       .join("\n");
 
+    // Desk memory for the check: standing orders bind conduct, the source map
+    // steers scouts when the investor has steering ON, and a FRESH board run's
+    // field file (this morning's persisted sweeps) is reused as context so the
+    // check builds on the day's field work instead of re-searching all of it.
+    const [activeLessons, activeSources, steeringSetting, lastBoardRun] = await Promise.all([
+      listLessons(userId, symbol, "active").catch(() => []),
+      listDeskSources(userId, symbol, "active").catch(() => []),
+      getSetting(userId, `sourceSteering:${symbol}`).catch(() => null),
+      lastCompletedRun(userId, symbol).catch(() => undefined),
+    ]);
+    const ordersBlock = standingOrdersBlock(activeLessons);
+    const ordersSteer = activeLessons.length
+      ? `\n\nDESK STANDING ORDERS (investor-approved conduct for this desk; honor them while searching):\n${activeLessons.map((l) => `- ${l.text}`).join("\n")}`
+      : "";
+    const steerText = steeringSetting !== "off" ? sourceSteeringText(activeSources) : "";
+    let fieldSweeps: Sweep[] = [];
+    if (
+      lastBoardRun?.finishedAt &&
+      Date.now() - Date.parse(lastBoardRun.finishedAt) < FIELD_FILE_FRESH_MS
+    ) {
+      const stored = await listRunSweeps(userId, lastBoardRun.id).catch(() => []);
+      fieldSweeps = stored.slice(0, 8).map((s) => ({
+        label: `Field file · ${s.label}`,
+        wave: 0,
+        text: s.text.slice(0, 6000),
+        sources: s.sources,
+      }));
+    }
+
     // ---- Stage 0: frame what THIS check must answer (scoped questions) ----
     await throwIfStopped(runId);
     await setRunStage(
@@ -911,30 +1279,39 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
       : "";
 
     // ---- Stage 1: wave-1 sweeps, scoped to the signal ----
+    // With a fresh field file on hand, the check runs LEANER: the primary-source
+    // hunt is skipped (this morning's is in context) and the fresh sweeps focus
+    // on the signal itself — reuse over re-search, honestly bounded at 12h.
     await throwIfStopped(runId);
     const signalSteer = `\n\nSCOPE: This check serves ONE tracked signal: "${signal.name}" — ${signal.measurementPlan} Prioritize evidence bearing on it; ignore unrelated company news.`;
     await setRunStage(
       runId,
       "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web for “${signal.name}” — ${questions.length > 0 ? "focus questions, " : ""}the signal's sweep and a primary-source hunt (${days}-day window)…`
+      fieldSweeps.length > 0
+        ? `Reusing this morning's field file (${fieldSweeps.length} reports) — scouts (${breadthModel}) running ${questions.length > 0 ? "the focus questions and " : ""}a fresh sweep scoped to “${signal.name}”…`
+        : `Scouts (${breadthModel}) sweeping the open web for “${signal.name}” — ${questions.length > 0 ? "focus questions, " : ""}the signal's sweep and a primary-source hunt (${days}-day window)…`
     );
     const waveOneJobs: { label: string; prompt: string }[] = [
       ...(questions.length > 0
         ? [
             {
               label: "Focus-question sweep",
-              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+              prompt: questionSweepPrompt(symbol, ticker.name, days, questions) + steerText + ordersSteer,
             },
           ]
         : []),
       {
         label: `Signal sweep: ${signal.name}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, [signal]),
+        prompt: signalSweepPrompt(symbol, ticker.name, days, [signal]) + steerText + ordersSteer,
       },
-      {
-        label: "Primary-source sweep",
-        prompt: primarySourcePrompt(symbol, ticker.name, days) + signalSteer,
-      },
+      ...(fieldSweeps.length > 0
+        ? []
+        : [
+            {
+              label: "Primary-source sweep",
+              prompt: primarySourcePrompt(symbol, ticker.name, days) + signalSteer + steerText + ordersSteer,
+            },
+          ]),
     ];
     const waveOneSettled = await Promise.allSettled(
       waveOneJobs.map((j) =>
@@ -960,6 +1337,9 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
     );
     let followUps: GapOutput["followUps"] = [];
     try {
+      const fieldBlock = fieldSweeps.length
+        ? `\nTHIS MORNING'S FIELD FILE (already-gathered evidence from today's board run — do NOT commission probes it already answers):\n${fieldSweeps.map((s) => `=== ${s.label} ===\n${s.text}`).join("\n\n")}\n`
+        : "";
       const waveOneBlock = sweeps.map((s) => `=== ${s.label} ===\n${s.text}`).join("\n\n");
       const gap = await withDeadline("triage", (signal_) =>
         claudeJSON<GapOutput>({
@@ -972,7 +1352,7 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
           messages: [
             {
               role: "user",
-              content: `THE ONE SIGNAL THIS CHECK COVERS:\n${boardBlock}\n${questionsBlock}\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: This is a SINGLE-SIGNAL check. Commission at most ${MAX_SCOPED_FOLLOW_UPS} targeted deep-dive probes, only where it changes THIS signal's reading today: a focus question left open, numbers that conflict between sources, or a red flag needing primary-source verification. Invert first — prefer a probe that could REFUTE the current level or catch a kill-path symptom. Return an empty list if wave 1 already answers the check; do not invent work.`,
+              content: `THE ONE SIGNAL THIS CHECK COVERS:\n${boardBlock}\n${questionsBlock}${fieldBlock}\nFIELD RESEARCH — WAVE 1 (fresh breadth sweeps):\n${waveOneBlock}\n\nTASK: This is a SINGLE-SIGNAL check. Commission at most ${MAX_SCOPED_FOLLOW_UPS} targeted deep-dive probes, only where it changes THIS signal's reading today: a focus question left open, numbers that conflict between sources, or a red flag needing primary-source verification. Invert first — prefer a probe that could REFUTE the current level or catch a kill-path symptom. Return an empty list if the evidence on hand already answers the check; do not invent work.`,
             },
           ],
           schema: GAP_SCHEMA as unknown as Record<string, unknown>,
@@ -996,7 +1376,7 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
       const waveTwoSettled = await Promise.allSettled(
         followUps.map((f) =>
           withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal_) =>
-            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
+            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f) + steerText + ordersSteer, {
               model: deepModel,
               meta: { userId, feature: "scoutDeep" },
               signal: signal_,
@@ -1011,10 +1391,18 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
       }
     }
 
-    // Number the de-duplicated sources across sweeps (same as the board run).
+    // Persist the check's own fresh sweeps to the field file (the reused
+    // morning reports already live under their board run — never duplicated).
+    await saveRunSweeps(userId, runId, symbol, sweeps).catch((e) =>
+      console.error(`[scalae] field-file persist failed for ${symbol} check:`, e instanceof Error ? e.message : e)
+    );
+
+    // Number the de-duplicated sources across the field file AND the fresh
+    // sweeps (field file first), so readings can cite this morning's sources.
+    const contextSweeps: Sweep[] = [...fieldSweeps, ...sweeps];
     const allSources: Citation[] = [];
     const indexOf = new Map<string, number>();
-    for (const s of sweeps) {
+    for (const s of contextSweeps) {
       for (const src of s.sources) {
         const existing = indexOf.get(src.url);
         if (existing == null) {
@@ -1032,12 +1420,12 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
     await setRunStage(
       runId,
       "synthesizing",
-      `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into a fresh reading of “${signal.name}”…`
+      `Analyst (${synthModel}) weighing ${contextSweeps.length} ${contextSweeps.length === 1 ? "report" : "reports"}${fieldSweeps.length > 0 ? ` (${fieldSweeps.length} reused from this morning)` : ""} and ${allSources.length} sources into a fresh reading of “${signal.name}”…`
     );
-    const researchBlock = sweeps
+    const researchBlock = contextSweeps
       .map(
         (s) =>
-          `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
+          `=== ${s.wave === 0 ? "[This morning's field file]" : `[Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}]`} ${s.label} ===\n${s.text}\nSources used by this sweep: ${
             s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
           }`
       )
@@ -1048,11 +1436,11 @@ TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions 
 
 THE ONE SIGNAL THIS CHECK COVERS (with its previous reading):
 ${boardBlock}
-${questionsBlock}
+${questionsBlock}${ordersBlock ? `\n${ordersBlock}\n` : ""}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-FIELD RESEARCH (grounded web sweeps scoped to this signal; numbered sources listed at the end):
+FIELD RESEARCH (grounded evidence scoped to this signal — field-file reports are this morning's board sweeps, reused; the rest is fresh; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -1072,7 +1460,7 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
           system: [
             { text: DESK_DOCTRINE, cache: true },
             {
-              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
+              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${STANDING_ORDERS_DOCTRINE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
             },
           ],
           messages: [{ role: "user", content: task }],

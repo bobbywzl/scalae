@@ -1,34 +1,68 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { executeSectionResearch } from "@/lib/agents/diligence";
 import {
   createNote,
   decideDiligenceResearch,
   deleteNote,
+  dismissPlannedResearch,
   getDiligenceResearch,
   getNoteSection,
+  startPlannedDiligenceResearch,
   stopDiligenceResearch,
 } from "@/lib/db";
 import { researchNoteDoc } from "@/lib/notes";
 import { requireUser } from "@/lib/auth";
 
+// "start" launches the sweeps + memo synthesis via after() — same budget as
+// the kickoff route. 300s is the Vercel Hobby ceiling.
+export const maxDuration = 300;
+
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * The investor's review decision on a pending research memo — the approval
- * gate that admits desk research into the record. Body: { action }.
- *   accept  → the memo becomes a dated, fully-editable notepad in its section
- *   dismiss → the record stays untouched
+ * The investor's review decisions on a research pass. Body: { action, plan? }.
+ *   accept       → the pending memo becomes a dated notepad in its section
+ *   dismiss      → the record stays untouched
+ *   start        → run a 'planned' pass now; body.plan (their edited text, if
+ *                  any) is binding — the plan gate's approval gesture
+ *   discard_plan → drop a drafted plan without running it
  */
 export async function PATCH(req: Request, { params }: Params) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { action } = (await req.json().catch(() => ({}))) as { action?: string };
-  if (action !== "accept" && action !== "dismiss") {
-    return NextResponse.json({ error: "action must be accept or dismiss" }, { status: 400 });
+  const { action, plan } = (await req.json().catch(() => ({}))) as {
+    action?: string;
+    plan?: string;
+  };
+  if (action !== "accept" && action !== "dismiss" && action !== "start" && action !== "discard_plan") {
+    return NextResponse.json(
+      { error: "action must be accept | dismiss | start | discard_plan" },
+      { status: 400 }
+    );
   }
 
   const research = await getDiligenceResearch(user.id, id);
   if (!research) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  // The plan gate's two decisions (only a 'planned' row accepts them).
+  if (action === "start") {
+    const finalPlan = typeof plan === "string" && plan.trim() ? plan : (research.plan ?? "");
+    const started = await startPlannedDiligenceResearch(user.id, id, finalPlan);
+    if (!started) {
+      return NextResponse.json({ error: "This pass is not awaiting a start." }, { status: 409 });
+    }
+    after(() => executeSectionResearch(user.id, id));
+    return NextResponse.json({ research: started });
+  }
+  if (action === "discard_plan") {
+    const dismissed = await dismissPlannedResearch(user.id, id);
+    if (!dismissed) {
+      return NextResponse.json({ error: "This pass is not awaiting a start." }, { status: 409 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (research.status !== "pending" || !research.memo) {
     return NextResponse.json({ error: "This memo has already been decided." }, { status: 409 });
   }

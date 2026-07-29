@@ -458,6 +458,24 @@ export function SignalDetail({
                     {r.rationale}
                   </p>
                 </Annotatable>
+                {/* Triangulation verdict from the post-synthesis audit:
+                    qualitative claims checked against the quantitative record. */}
+                {r.verification && (
+                  <p className="mt-1.5 text-[11px] leading-snug" title={t("memory.verifTitle", { note: r.verification.note })}>
+                    <span
+                      className={`mr-1.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide align-middle ${
+                        r.verification.verdict === "corroborated"
+                          ? "bg-gain/15 text-gain"
+                          : r.verification.verdict === "contradicted"
+                            ? "bg-loss/12 text-loss"
+                            : "bg-ink/8 text-muted"
+                      }`}
+                    >
+                      {t(`memory.verif_${r.verification.verdict}`)}
+                    </span>
+                    <span className="text-muted">{r.verification.note}</span>
+                  </p>
+                )}
                 {r.citations.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {r.citations.map((c, i) => (
@@ -764,6 +782,22 @@ export function SignalDetail({
                         {h.rationale}
                       </p>
                     </Annotatable>
+                    {h.verification && (
+                      <p className="mt-0.5 text-[10px] leading-snug" title={t("memory.verifTitle", { note: h.verification.note })}>
+                        <span
+                          className={`mr-1 inline-block rounded-full px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide align-middle ${
+                            h.verification.verdict === "corroborated"
+                              ? "bg-gain/15 text-gain"
+                              : h.verification.verdict === "contradicted"
+                                ? "bg-loss/12 text-loss"
+                                : "bg-ink/8 text-muted"
+                          }`}
+                        >
+                          {t(`memory.verif_${h.verification.verdict}`)}
+                        </span>
+                        <span className="text-muted/80">{h.verification.note}</span>
+                      </p>
+                    )}
                     {h.citations.length > 0 && (
                       <p className="mt-0.5 space-x-2">
                         {h.citations.map((c, i) => (

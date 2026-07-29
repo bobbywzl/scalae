@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
+import { PromiseLedger, SourceMap, StandingOrders } from "@/components/DeskMemory";
 import { DeskTabs } from "@/components/DeskTabs";
 import { DigestFeed } from "@/components/DigestFeed";
+import { FieldFile } from "@/components/FieldFile";
 import { Markdown } from "@/components/Markdown";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
@@ -26,7 +28,7 @@ import {
   type SourceClass,
 } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
-import type { Attachment, DeskPayload, DigestItem, Run, Signal } from "@/lib/types";
+import type { Attachment, DeskPayload, DigestItem, RhymeAnalysis, Run, Signal } from "@/lib/types";
 
 /** Localized sourceClassLabel (same keys SignalDetail uses). */
 const SRC_CLASS_KEY: Record<SourceClass, TKey> = {
@@ -94,6 +96,50 @@ export default function DeskPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Episode-rhyme analyses ("history is the base rate", on your ask): loaded
+  // beside the desk, polled fast only while one is running.
+  const [rhymes, setRhymes] = useState<RhymeAnalysis[]>([]);
+  const loadRhymes = useCallback(async () => {
+    try {
+      const r = await api<{ rhymes: RhymeAnalysis[] }>(
+        `/api/tickers/${encodeURIComponent(symbol)}/rhymes`
+      );
+      setRhymes(r.rhymes);
+    } catch {
+      /* best-effort — the feed simply shows no verdicts */
+    }
+  }, [symbol]);
+  useEffect(() => {
+    loadRhymes();
+  }, [loadRhymes]);
+  const rhymeRunning = rhymes.some((r) => r.status === "running");
+  useEffect(() => {
+    if (!rhymeRunning) return;
+    const timer = setInterval(loadRhymes, 3000);
+    return () => clearInterval(timer);
+  }, [rhymeRunning, loadRhymes]);
+  const rhymesByDigest = useMemo(() => {
+    const m = new Map<string, RhymeAnalysis>();
+    for (const r of rhymes) {
+      if (r.digestId && !m.has(r.digestId)) m.set(r.digestId, r); // newest first
+    }
+    return m;
+  }, [rhymes]);
+  const startRhyme = useCallback(
+    async (d: DigestItem) => {
+      try {
+        await api(`/api/tickers/${encodeURIComponent(symbol)}/rhymes`, {
+          method: "POST",
+          body: JSON.stringify({ digestId: d.id }),
+        });
+      } catch (e) {
+        setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+      }
+      loadRhymes();
+    },
+    [symbol, loadRhymes, t]
+  );
 
   const running = desk?.latestRun?.status === "running";
   // The newest single-signal check (never surfaces on the board's banner/brief).
@@ -278,14 +324,16 @@ export default function DeskPage() {
 
   async function act(
     id: string,
-    action: "approve" | "dismiss" | "retire" | "reactivate" | "swap_back"
+    action: "approve" | "dismiss" | "retire" | "reactivate" | "swap_back",
+    reason?: string
   ) {
     const signal = signalsById.get(id);
     setActingId(id);
     try {
       const res = await api<{ onboardedNow?: boolean }>(`/api/signals/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ action }),
+        // A dismissal may carry the investor's stated reason (teach-the-desk).
+        body: JSON.stringify(reason?.trim() ? { action, reason: reason.trim() } : { action }),
       });
       setSelected((s) => {
         if (!s.has(id)) return s;
@@ -786,6 +834,24 @@ export default function DeskPage() {
                 {running ? t("desk.briefPreparing") : t("desk.briefNone")}
               </p>
             )}
+            {/* The triangulation audit's summary: what held against the
+                quantitative record, and what's still unanchored (those seed
+                tomorrow's question framing). */}
+            {latestRun?.audit && (latestRun.audit.note || latestRun.audit.openQuestions.length > 0) && (
+              <div className="mt-2.5 rounded-xl bg-ink/4 border border-hairline px-3 py-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
+                  ⚖ {t("memory.auditLabel")}
+                </p>
+                {latestRun.audit.note && (
+                  <p className="mt-1 text-[11px] text-emph leading-relaxed">{latestRun.audit.note}</p>
+                )}
+                {latestRun.audit.openQuestions.length > 0 && (
+                  <p className="mt-1 text-[11px] text-muted leading-relaxed">
+                    {t("memory.auditOpenQuestions")} {latestRun.audit.openQuestions.join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
             {desk.digest.length > 0 && (
               <>
                 <div className="border-t border-hairline my-4" />
@@ -806,10 +872,15 @@ export default function DeskPage() {
                         })
                       )
                     }
+                    rhymes={rhymesByDigest}
+                    onRhyme={startRhyme}
                   />
                 </div>
               </>
             )}
+            {/* The field file: the scouts' raw reports behind this brief —
+                the evidence chain, verbatim, on demand. */}
+            {latestRun?.status === "done" && <FieldFile symbol={symbol} runId={latestRun.id} />}
           </section>
 
           {suggested.length > 0 && (
@@ -1047,6 +1118,21 @@ export default function DeskPage() {
               })}
             </div>
           </section>
+
+          {/* Desk memory (FOUNDATION: the desk learns from every interaction,
+              always through the human gate): the promise ledger, the standing
+              orders, and the source map with its cooperative-steering choice.
+              Refetched after each run and each chat turn. */}
+          {(() => {
+            const memoryKey = `${latestRun?.finishedAt ?? ""}:${desk.messages.length}`;
+            return (
+              <>
+                <PromiseLedger symbol={symbol} refreshKey={memoryKey} />
+                <StandingOrders symbol={symbol} refreshKey={memoryKey} />
+                <SourceMap symbol={symbol} refreshKey={memoryKey} />
+              </>
+            );
+          })()}
 
           {/* Every highlight made anywhere on this ticker, in one reviewable log. */}
           <AnnotationRecords

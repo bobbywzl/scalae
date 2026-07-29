@@ -4,6 +4,7 @@ import { compare } from "./dict/compare";
 import { dd } from "./dict/dd";
 import { desk } from "./dict/desk";
 import { financials } from "./dict/financials";
+import { memory } from "./dict/memory";
 import { notes } from "./dict/notes";
 import { onboarding } from "./dict/onboarding";
 import { portfolio } from "./dict/portfolio";
@@ -29,6 +30,7 @@ const NAMESPACES = {
   dd,
   desk,
   financials,
+  memory,
   notes,
   signals,
   search,

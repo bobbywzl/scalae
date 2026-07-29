@@ -8,6 +8,10 @@ import type {
   Attachment,
   ChatMessage,
   Citation,
+  DeskLesson,
+  DeskSource,
+  DeskSourceKind,
+  DeskSourceStatus,
   DigestItem,
   DiligenceEvidence,
   DiligenceResearch,
@@ -26,16 +30,27 @@ import type {
   FinMessage,
   FinSuggestRun,
   FocusArea,
+  LessonOrigin,
+  LessonStatus,
+  ManagementPromise,
   Note,
   NoteSection,
   Order,
   OrderStatus,
+  PromiseOutcome,
+  PromiseStatus,
   Reading,
+  ReadingVerification,
+  RhymeAnalysis,
+  RhymeVerdict,
   Run,
+  RunAudit,
+  RunSweep,
   Signal,
   SignalProposal,
   SignalSource,
   SignalStatus,
+  SourceClass,
   Ticker,
   Trade,
   User,
@@ -463,6 +478,104 @@ export const SCHEMA_STATEMENTS: string[] = [
     seq BIGINT GENERATED ALWAYS AS IDENTITY
   )`,
   `CREATE INDEX IF NOT EXISTS idx_finmsg_user ON fin_messages("userId", symbol, seq)`,
+  // ---- desk memory (FOUNDATION: human sovereignty; the desk learns from
+  // every interaction). Standing orders: durable, investor-gated conduct
+  // instructions injected into every run/chat/memo. Source map: where this
+  // company's authentic record lives, harvested deterministically from run
+  // citations, steering scouts only when the investor turns steering on.
+  // Promise ledger: management commitments tracked to their outcome (candor
+  // as a time series). Nothing here is deleted — dismissed rows stay. ----
+  `ALTER TABLE signals ADD COLUMN IF NOT EXISTS "dismissReason" TEXT`,
+  `CREATE TABLE IF NOT EXISTS desk_lessons (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    text TEXT NOT NULL,
+    basis TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'suggested',
+    origin TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    "decidedAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_lessons_user ON desk_lessons("userId", symbol, status)`,
+  `CREATE TABLE IF NOT EXISTS desk_sources (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'narrative',
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'observed',
+    origin TEXT NOT NULL DEFAULT 'desk',
+    "seenCount" INTEGER NOT NULL DEFAULT 0,
+    "lastSeenAt" TEXT,
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uq_desksrc_user_symbol_domain ON desk_sources("userId", symbol, domain)`,
+  `CREATE TABLE IF NOT EXISTS promises (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    text TEXT NOT NULL,
+    "madeBy" TEXT NOT NULL DEFAULT '',
+    "madeAt" TEXT NOT NULL DEFAULT '',
+    due TEXT NOT NULL DEFAULT '',
+    "sourceTitle" TEXT NOT NULL DEFAULT '',
+    "sourceUrl" TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'suggested',
+    "proposedStatus" TEXT,
+    "proposedResolution" TEXT NOT NULL DEFAULT '',
+    "proposedAt" TEXT,
+    resolution TEXT NOT NULL DEFAULT '',
+    "resolvedAt" TEXT,
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_promises_user ON promises("userId", symbol, status)`,
+  // ---- the field file: every run's scout reports persisted verbatim, so the
+  // evidence chain (brief claim → reading → sweep → source) stays auditable
+  // and same-day checks can reuse this morning's field work instead of
+  // re-searching. ----
+  `CREATE TABLE IF NOT EXISTS run_sweeps (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "runId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    label TEXT NOT NULL,
+    wave INTEGER NOT NULL DEFAULT 1,
+    text TEXT NOT NULL,
+    sources TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_runsweeps_run ON run_sweeps("runId")`,
+  `CREATE INDEX IF NOT EXISTS idx_runsweeps_user ON run_sweeps("userId", symbol, "createdAt")`,
+  // ---- post-synthesis audit: triangulation verdict per reading (JSON) and
+  // the run-level audit summary + open verification questions (JSON). ----
+  `ALTER TABLE readings ADD COLUMN IF NOT EXISTS verification TEXT`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS audit TEXT`,
+  // ---- deep-research plan gate: the plan drafted at status 'planning',
+  // parked at 'planned' for the investor's edit, steering the pass on start. ----
+  `ALTER TABLE dd_research ADD COLUMN IF NOT EXISTS plan TEXT`,
+  // ---- episode-rhyme analyses: a development weighed against the company's
+  // and industry's record — normal variation / rhyme with a named episode /
+  // genuine break — launched from the evidence feed on the investor's ask. ----
+  `CREATE TABLE IF NOT EXISTS rhymes (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "digestId" TEXT,
+    "eventText" TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    verdict TEXT,
+    episode TEXT NOT NULL DEFAULT '',
+    analysis TEXT,
+    brief TEXT,
+    sources TEXT NOT NULL DEFAULT '[]',
+    error TEXT,
+    "createdAt" TEXT NOT NULL,
+    "finishedAt" TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_rhymes_user ON rhymes("userId", symbol, "createdAt")`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -641,13 +754,20 @@ export async function setSignalBackstory(
           WHERE id = ${id}`;
 }
 
-export async function setSignalStatus(id: string, status: SignalStatus): Promise<void> {
+export async function setSignalStatus(
+  id: string,
+  status: SignalStatus,
+  dismissReason?: string
+): Promise<void> {
   if (status === "active") {
     await q`UPDATE signals SET status = 'active', "approvedAt" = ${now()} WHERE id = ${id}`;
   } else if (status === "dismissed") {
     // Stamp the dismissal so re-proposals and restored proposals can say
     // "previously dismissed on <date>" — institutional memory for the gate.
-    await q`UPDATE signals SET status = 'dismissed', "dismissedAt" = ${now()} WHERE id = ${id}`;
+    // The stated reason (teach-the-desk) rides along; a fresh dismissal with
+    // no reason honestly clears any older one.
+    await q`UPDATE signals SET status = 'dismissed', "dismissedAt" = ${now()},
+            "dismissReason" = ${dismissReason?.trim() || null} WHERE id = ${id}`;
   } else {
     await q`UPDATE signals SET status = ${status} WHERE id = ${id}`;
   }
@@ -677,25 +797,34 @@ export async function approveSignal(id: string): Promise<{ retiredId: string | n
 
 // ---------- readings ----------
 
-interface ReadingRow extends Omit<Reading, "citations" | "newEvidence"> {
+interface ReadingRow extends Omit<Reading, "citations" | "newEvidence" | "verification"> {
   citations: string;
   newEvidence: number | null;
+  verification: string | null;
 }
 
 function parseReading(r: ReadingRow): Reading {
+  let verification: ReadingVerification | null = null;
+  try {
+    verification = r.verification ? (JSON.parse(r.verification) as ReadingVerification) : null;
+  } catch {
+    /* legacy/malformed row — reading renders unaudited */
+  }
   return {
     ...r,
     newEvidence: r.newEvidence == null ? null : r.newEvidence === 1,
     citations: JSON.parse(r.citations) as Citation[],
+    verification,
   };
 }
 
 export async function insertReading(r: Omit<Reading, "id">): Promise<Reading> {
   const id = uid();
-  await q`INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, "newEvidence", citations)
+  await q`INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, "newEvidence", citations, verification)
           VALUES (${id}, ${r.signalId}, ${r.runId}, ${r.date}, ${r.value}, ${r.valueUnit},
                   ${r.level}, ${r.delta}, ${r.confidence}, ${r.rationale},
-                  ${r.newEvidence == null ? null : r.newEvidence ? 1 : 0}, ${JSON.stringify(r.citations)})`;
+                  ${r.newEvidence == null ? null : r.newEvidence ? 1 : 0}, ${JSON.stringify(r.citations)},
+                  ${r.verification ? JSON.stringify(r.verification) : null})`;
   return { ...r, id };
 }
 
@@ -813,9 +942,10 @@ export async function recentDigest(userId: string, symbol: string, limit = 24): 
 
 // ---------- runs ----------
 
-interface RunRow extends Omit<Run, "sources" | "questions"> {
+interface RunRow extends Omit<Run, "sources" | "questions" | "audit"> {
   sources: string;
   questions: string | null;
+  audit: string | null;
 }
 
 function parseRun(r: RunRow | undefined): Run | undefined {
@@ -832,7 +962,13 @@ function parseRun(r: RunRow | undefined): Run | undefined {
   } catch {
     /* legacy row */
   }
-  return { ...r, sources, questions };
+  let audit: RunAudit | null = null;
+  try {
+    audit = r.audit ? (JSON.parse(r.audit) as RunAudit) : null;
+  } catch {
+    /* legacy row */
+  }
+  return { ...r, sources, questions, audit };
 }
 
 export async function createRun(
@@ -852,6 +988,7 @@ export async function createRun(
     dossier: null,
     sources: [],
     questions: [],
+    audit: null,
     error: null,
     signalId,
   };
@@ -862,6 +999,11 @@ export async function createRun(
 
 export async function setRunStage(id: string, stage: string, stageDetail: string): Promise<void> {
   await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
+}
+
+/** Store the run's post-synthesis audit summary (note + open verification questions). */
+export async function setRunAudit(id: string, audit: RunAudit): Promise<void> {
+  await q`UPDATE runs SET audit = ${JSON.stringify(audit)} WHERE id = ${id}`;
 }
 
 /** Store the run's framed focus questions (the question suggestor's output). */
@@ -900,6 +1042,44 @@ export async function failRun(id: string, error: string): Promise<void> {
           error = ${error}, "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
 }
 
+// ---------- the field file (persisted scout reports per run) ----------
+
+interface RunSweepRow extends Omit<RunSweep, "sources"> {
+  sources: string;
+}
+
+function parseRunSweep(r: RunSweepRow): RunSweep {
+  let sources: Citation[] = [];
+  try {
+    sources = JSON.parse(r.sources || "[]") as Citation[];
+  } catch {
+    /* malformed row — sweep renders without linked sources */
+  }
+  return { ...r, sources };
+}
+
+/** Persist a run's scout reports verbatim (best-effort; called as sweeps land). */
+export async function saveRunSweeps(
+  userId: string,
+  runId: string,
+  symbol: string,
+  sweeps: { label: string; wave: number; text: string; sources: Citation[] }[]
+): Promise<void> {
+  const at = now();
+  for (const s of sweeps) {
+    await q`INSERT INTO run_sweeps (id, "userId", "runId", symbol, label, wave, text, sources, "createdAt")
+            VALUES (${uid()}, ${userId}, ${runId}, ${symbol}, ${s.label}, ${s.wave}, ${s.text},
+                    ${JSON.stringify(s.sources)}, ${at})`;
+  }
+}
+
+/** A run's field file: its persisted sweeps in insertion order. */
+export async function listRunSweeps(userId: string, runId: string): Promise<RunSweep[]> {
+  const rows = await q<RunSweepRow>`
+    SELECT * FROM run_sweeps WHERE "userId" = ${userId} AND "runId" = ${runId} ORDER BY "createdAt" ASC, wave ASC, label ASC`;
+  return rows.map(parseRunSweep);
+}
+
 /**
  * Stop the desk's in-flight run on the investor's command: mark any running run
  * 'stopped', which frees the desk immediately so a fresh run can start. The
@@ -930,6 +1110,20 @@ export async function getRun(id: string): Promise<Run | undefined> {
 export async function latestRun(userId: string, symbol: string): Promise<Run | undefined> {
   const rows = await q<RunRow>`
     SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
+    ORDER BY "startedAt" DESC LIMIT 1`;
+  return parseRun(rows[0]);
+}
+
+/**
+ * The newest COMPLETED board run. latestRun (above) includes the currently
+ * running row — correct for the UI's banner, wrong for anything that means
+ * "the previous run": the research window, the audit's open-question
+ * carry-forward, and field-file reuse all read from here.
+ */
+export async function lastCompletedRun(userId: string, symbol: string): Promise<Run | undefined> {
+  const rows = await q<RunRow>`
+    SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol}
+      AND "signalId" IS NULL AND status = 'done'
     ORDER BY "startedAt" DESC LIMIT 1`;
   return parseRun(rows[0]);
 }
@@ -1103,6 +1297,252 @@ export async function autoResearchEnabled(userId: string): Promise<boolean> {
   return (await getSetting(userId, "autoResearch")) !== "off";
 }
 
+// ---------- desk memory: standing orders, source map, promise ledger ----------
+
+export async function listLessons(
+  userId: string,
+  symbol: string,
+  status?: LessonStatus
+): Promise<DeskLesson[]> {
+  if (status) {
+    return q<DeskLesson>`SELECT * FROM desk_lessons WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ${status} ORDER BY "createdAt" DESC`;
+  }
+  return q<DeskLesson>`SELECT * FROM desk_lessons WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" DESC`;
+}
+
+export async function getLesson(id: string): Promise<DeskLesson | undefined> {
+  const rows = await q<DeskLesson>`SELECT * FROM desk_lessons WHERE id = ${id}`;
+  return rows[0];
+}
+
+/**
+ * Record a standing order. Near-duplicate texts against live rows (suggested
+ * or active) are skipped — the ledger must not accrete twins. status defaults
+ * to 'suggested' (the human gate); 'active' is for the investor's own
+ * explicitly-commanded orders, where the ask is the approval. Returns id or null.
+ */
+export async function insertLesson(
+  userId: string,
+  symbol: string,
+  lesson: { text: string; basis?: string; origin: LessonOrigin; status?: "suggested" | "active" }
+): Promise<string | null> {
+  const text = lesson.text.trim();
+  if (!text) return null;
+  const dupe = await q<{ id: string }>`
+    SELECT id FROM desk_lessons
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND lower(text) = lower(${text}) AND status IN ('suggested','active')`;
+  if (dupe.length > 0) return null;
+  const id = uid();
+  const status = lesson.status ?? "suggested";
+  await q`INSERT INTO desk_lessons (id, "userId", symbol, text, basis, status, origin, "createdAt", "decidedAt")
+          VALUES (${id}, ${userId}, ${symbol}, ${text}, ${lesson.basis?.trim() ?? ""}, ${status}, ${lesson.origin}, ${now()},
+                  ${status === "active" ? now() : null})`;
+  return id;
+}
+
+export async function setLessonStatus(id: string, status: LessonStatus): Promise<void> {
+  await q`UPDATE desk_lessons SET status = ${status}, "decidedAt" = ${now()} WHERE id = ${id}`;
+}
+
+/** The investor rewording an order — theirs to edit at any status. */
+export async function setLessonText(id: string, text: string): Promise<void> {
+  await q`UPDATE desk_lessons SET text = ${text} WHERE id = ${id}`;
+}
+
+export async function listDeskSources(
+  userId: string,
+  symbol: string,
+  status?: DeskSourceStatus
+): Promise<DeskSource[]> {
+  if (status) {
+    return q<DeskSource>`SELECT * FROM desk_sources WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ${status} ORDER BY "seenCount" DESC, domain ASC`;
+  }
+  return q<DeskSource>`SELECT * FROM desk_sources WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "seenCount" DESC, domain ASC`;
+}
+
+export async function getDeskSource(id: string): Promise<DeskSource | undefined> {
+  const rows = await q<DeskSource>`SELECT * FROM desk_sources WHERE id = ${id}`;
+  return rows[0];
+}
+
+/**
+ * The investor's own source-map entry: goes straight to 'active' (their add is
+ * the approval) with origin 'investor'. If the domain already exists in any
+ * status — including a desk-harvested tally — the row flips to the investor's
+ * kind/note and activates, keeping its citation history. Returns the row id.
+ */
+export async function upsertInvestorSource(
+  userId: string,
+  symbol: string,
+  entry: { domain: string; label?: string; kind: DeskSourceKind; note?: string }
+): Promise<string> {
+  const domain = entry.domain.trim().toLowerCase();
+  const id = uid();
+  const rows = await q<{ id: string }>`
+    INSERT INTO desk_sources (id, "userId", symbol, domain, label, kind, note, status, origin, "seenCount", "createdAt")
+    VALUES (${id}, ${userId}, ${symbol}, ${domain}, ${entry.label?.trim() ?? ""}, ${entry.kind}, ${entry.note?.trim() ?? ""}, 'active', 'investor', 0, ${now()})
+    ON CONFLICT ("userId", symbol, domain) DO UPDATE
+      SET kind = EXCLUDED.kind, note = EXCLUDED.note, status = 'active', origin = 'investor',
+          label = CASE WHEN EXCLUDED.label <> '' THEN EXCLUDED.label ELSE desk_sources.label END
+    RETURNING id`;
+  return rows[0]?.id ?? id;
+}
+
+export async function setDeskSourceStatus(id: string, status: DeskSourceStatus): Promise<void> {
+  await q`UPDATE desk_sources SET status = ${status} WHERE id = ${id}`;
+}
+
+/** Investor edits to an entry's classification and framing. */
+export async function updateDeskSource(
+  id: string,
+  fields: { kind?: DeskSourceKind; note?: string; label?: string }
+): Promise<void> {
+  const cur = await getDeskSource(id);
+  if (!cur) return;
+  await q`UPDATE desk_sources SET kind = ${fields.kind ?? cur.kind}, note = ${fields.note ?? cur.note},
+          label = ${fields.label ?? cur.label} WHERE id = ${id}`;
+}
+
+/** How many citation sightings promote an observed domain to a suggestion. */
+const SOURCE_PROMOTE_AT = 3;
+const KIND_RANK: Record<DeskSourceKind, number> = { avoid: -1, narrative: 0, trade: 1, primary: 2 };
+
+/**
+ * Deterministic post-run source harvest (no LLM): every cited domain's tally
+ * increments; the synthesis's own evidence classing (digest sourceClass)
+ * upgrades a desk-managed row's kind (primary > trade > narrative, never
+ * touching 'avoid' or investor-set rows); and a recurring primary/trade
+ * domain promotes from 'observed' to 'suggested' — parked for the investor's
+ * review, never active by itself. Best-effort by design: callers swallow errors.
+ */
+export async function harvestRunSources(
+  userId: string,
+  symbol: string,
+  cited: { domain: string; title: string }[],
+  classByDomain: Map<string, SourceClass>
+): Promise<void> {
+  // One sighting per domain per run — a run that cites one domain nine times
+  // is one day's evidence, not nine days'.
+  const seen = new Map<string, string>();
+  for (const c of cited) {
+    const d = c.domain.trim().toLowerCase();
+    if (d && !seen.has(d)) seen.set(d, c.title);
+  }
+  const at = now();
+  for (const [domain, title] of seen) {
+    const existing = (
+      await q<DeskSource>`SELECT * FROM desk_sources WHERE "userId" = ${userId} AND symbol = ${symbol} AND domain = ${domain}`
+    )[0];
+    const cls = classByDomain.get(domain);
+    if (!existing) {
+      await q`INSERT INTO desk_sources (id, "userId", symbol, domain, label, kind, note, status, origin, "seenCount", "lastSeenAt", "createdAt")
+              VALUES (${uid()}, ${userId}, ${symbol}, ${domain}, ${title.slice(0, 200)}, ${cls ?? "narrative"}, '', 'observed', 'desk', 1, ${at}, ${at})
+              ON CONFLICT ("userId", symbol, domain) DO NOTHING`;
+      continue;
+    }
+    const count = existing.seenCount + 1;
+    // Kind upgrades follow the desk's own evidence classing, but only on rows
+    // the desk still manages — an investor's classification is never overridden.
+    const canReclass = existing.origin === "desk" && existing.kind !== "avoid";
+    const kind =
+      canReclass && cls && KIND_RANK[cls] > KIND_RANK[existing.kind] ? cls : existing.kind;
+    const promote =
+      existing.status === "observed" && count >= SOURCE_PROMOTE_AT && (kind === "primary" || kind === "trade");
+    await q`UPDATE desk_sources SET "seenCount" = ${count}, "lastSeenAt" = ${at}, kind = ${kind},
+            status = ${promote ? "suggested" : existing.status},
+            label = ${existing.label || title.slice(0, 200)}
+            WHERE id = ${existing.id}`;
+  }
+}
+
+export async function listPromises(
+  userId: string,
+  symbol: string,
+  statuses?: PromiseStatus[]
+): Promise<ManagementPromise[]> {
+  if (statuses && statuses.length > 0) {
+    return q<ManagementPromise>`SELECT * FROM promises WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ANY(${statuses}::text[]) ORDER BY "createdAt" DESC`;
+  }
+  return q<ManagementPromise>`SELECT * FROM promises WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" DESC`;
+}
+
+export async function getPromise(id: string): Promise<ManagementPromise | undefined> {
+  const rows = await q<ManagementPromise>`SELECT * FROM promises WHERE id = ${id}`;
+  return rows[0];
+}
+
+/**
+ * Record a promise-ledger entry. Near-duplicate texts against non-dismissed
+ * rows are skipped. status defaults to 'suggested' (desk proposals park for
+ * review); 'open' is for the investor's own entries. Returns id or null.
+ */
+export async function insertPromise(
+  userId: string,
+  symbol: string,
+  p: {
+    text: string;
+    madeBy?: string;
+    madeAt?: string;
+    due?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
+    status?: "suggested" | "open";
+  }
+): Promise<string | null> {
+  const text = p.text.trim();
+  if (!text) return null;
+  const dupe = await q<{ id: string }>`
+    SELECT id FROM promises
+    WHERE "userId" = ${userId} AND symbol = ${symbol} AND lower(text) = lower(${text}) AND status <> 'dismissed'`;
+  if (dupe.length > 0) return null;
+  const id = uid();
+  await q`INSERT INTO promises (id, "userId", symbol, text, "madeBy", "madeAt", due, "sourceTitle", "sourceUrl", status, "createdAt")
+          VALUES (${id}, ${userId}, ${symbol}, ${text}, ${p.madeBy?.trim() ?? ""}, ${p.madeAt?.trim() ?? ""},
+                  ${p.due?.trim() ?? ""}, ${p.sourceTitle?.trim() ?? ""}, ${p.sourceUrl?.trim() ?? ""},
+                  ${p.status ?? "suggested"}, ${now()})`;
+  return id;
+}
+
+/** Gate actions on unresolved rows: approve (suggested→open) / dismiss / restore. */
+export async function setPromiseStatus(id: string, status: "open" | "suggested" | "dismissed"): Promise<void> {
+  await q`UPDATE promises SET status = ${status} WHERE id = ${id}`;
+}
+
+/**
+ * The desk detected an outcome for an OPEN promise: park it on the row for
+ * the investor's confirm — a promise's status never flips without them.
+ */
+export async function proposePromiseResolution(
+  id: string,
+  outcome: PromiseOutcome,
+  resolution: string
+): Promise<void> {
+  await q`UPDATE promises SET "proposedStatus" = ${outcome}, "proposedResolution" = ${resolution.slice(0, 500)},
+          "proposedAt" = ${now()} WHERE id = ${id} AND status = 'open'`;
+}
+
+/** Clear a parked resolution proposal (the investor rejected it; stays open). */
+export async function clearPromiseProposal(id: string): Promise<void> {
+  await q`UPDATE promises SET "proposedStatus" = NULL, "proposedResolution" = '', "proposedAt" = NULL
+          WHERE id = ${id}`;
+}
+
+/** Resolve a promise (investor-confirmed): kept / missed / dropped, with the evidence line. */
+export async function resolvePromise(
+  id: string,
+  outcome: PromiseOutcome,
+  resolution: string
+): Promise<void> {
+  await q`UPDATE promises SET status = ${outcome}, resolution = ${resolution.slice(0, 500)}, "resolvedAt" = ${now()},
+          "proposedStatus" = NULL, "proposedResolution" = '', "proposedAt" = NULL
+          WHERE id = ${id}`;
+}
+
+/** Undo a resolution — back to open, the verdict cleared (nothing is deleted). */
+export async function reopenPromise(id: string): Promise<void> {
+  await q`UPDATE promises SET status = 'open', resolution = '', "resolvedAt" = NULL WHERE id = ${id}`;
+}
+
 // ---------- translation cache (display-language layer) ----------
 
 /** Cached translations for a batch of source-text hashes: hash → translated text. */
@@ -1260,19 +1700,27 @@ function parseDiligenceResearch(r: DiligenceResearchRow): DiligenceResearch {
   return { ...r, sources };
 }
 
-/** Start a research pass on a section (status 'running'; the pipeline fills it in). */
+/**
+ * Start a research pass on a section. status 'running' = the pass sweeps
+ * immediately; 'planning' = the plan gate — the desk drafts a research plan
+ * first, parks it at 'planned' for the investor's edit/approval, and only
+ * their start command begins the sweeps (cooperative research, the
+ * investor's choice at kickoff).
+ */
 export async function createDiligenceResearch(
   userId: string,
   symbol: string,
   sectionId: string,
-  question: string
+  question: string,
+  status: "running" | "planning" = "running"
 ): Promise<DiligenceResearch> {
   const row: DiligenceResearch = {
     id: uid(),
     sectionId,
     symbol,
-    status: "running",
+    status,
     question: question.trim().slice(0, 500),
+    plan: null,
     memo: null,
     insights: null,
     sources: [],
@@ -1281,8 +1729,40 @@ export async function createDiligenceResearch(
     decidedAt: null,
   };
   await q`INSERT INTO dd_research (id, "userId", symbol, "sectionId", status, question, "createdAt")
-          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.sectionId}, 'running', ${row.question}, ${row.createdAt})`;
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.sectionId}, ${status}, ${row.question}, ${row.createdAt})`;
   return row;
+}
+
+/** The plan is drafted: park it for the investor's edit/approval (planning → planned). */
+export async function finishDiligencePlan(id: string, plan: string): Promise<void> {
+  await q`UPDATE dd_research SET status = 'planned', plan = ${plan}
+          WHERE id = ${id} AND status = 'planning'`;
+}
+
+/**
+ * The investor approved the plan (possibly edited — their edits are binding):
+ * store the final text and move to 'running' for the sweep pipeline. Returns
+ * the row, or undefined if it wasn't awaiting a start.
+ */
+export async function startPlannedDiligenceResearch(
+  userId: string,
+  id: string,
+  plan: string
+): Promise<DiligenceResearch | undefined> {
+  const rows = await q<DiligenceResearchRow>`
+    UPDATE dd_research SET status = 'running', plan = ${plan.trim().slice(0, 4000)}
+    WHERE id = ${id} AND "userId" = ${userId} AND status = 'planned'
+    RETURNING *`;
+  return rows[0] ? parseDiligenceResearch(rows[0]) : undefined;
+}
+
+/** Discard a drafted plan the investor doesn't want to run (planned → dismissed). */
+export async function dismissPlannedResearch(userId: string, id: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    UPDATE dd_research SET status = 'dismissed', "decidedAt" = ${now()}
+    WHERE id = ${id} AND "userId" = ${userId} AND status = 'planned'
+    RETURNING id`;
+  return rows.length > 0;
 }
 
 /**
@@ -1302,7 +1782,7 @@ export async function finishDiligenceResearch(
 
 export async function failDiligenceResearch(id: string, error: string): Promise<void> {
   await q`UPDATE dd_research SET status = 'error', error = ${error}
-          WHERE id = ${id} AND status = 'running'`;
+          WHERE id = ${id} AND status IN ('running', 'planning')`;
 }
 
 /**
@@ -1315,7 +1795,7 @@ export async function failDiligenceResearch(id: string, error: string): Promise<
 export async function stopDiligenceResearch(userId: string, id: string): Promise<boolean> {
   const rows = await q<{ id: string }>`
     UPDATE dd_research SET status = 'stopped', "decidedAt" = ${now()}
-    WHERE id = ${id} AND "userId" = ${userId} AND status = 'running'
+    WHERE id = ${id} AND "userId" = ${userId} AND status IN ('running', 'planning')
     RETURNING id`;
   return rows.length > 0;
 }
@@ -1350,6 +1830,81 @@ export async function getDiligenceResearch(
   const rows = await q<DiligenceResearchRow>`
     SELECT * FROM dd_research WHERE id = ${id} AND "userId" = ${userId}`;
   return rows[0] ? parseDiligenceResearch(rows[0]) : undefined;
+}
+
+// ---------- episode-rhyme analyses ----------
+
+interface RhymeRow extends Omit<RhymeAnalysis, "sources"> {
+  sources: string;
+}
+
+function parseRhyme(r: RhymeRow): RhymeAnalysis {
+  let sources: Citation[] = [];
+  try {
+    sources = JSON.parse(r.sources || "[]") as Citation[];
+  } catch {
+    /* malformed row — analysis renders without linked citations */
+  }
+  return { ...r, sources };
+}
+
+/** Launch an episode-rhyme analysis (status 'running'; the pipeline fills it in). */
+export async function createRhyme(
+  userId: string,
+  symbol: string,
+  digestId: string | null,
+  eventText: string
+): Promise<RhymeAnalysis> {
+  const row: RhymeAnalysis = {
+    id: uid(),
+    symbol,
+    digestId,
+    eventText: eventText.trim().slice(0, 1000),
+    status: "running",
+    verdict: null,
+    episode: "",
+    analysis: null,
+    brief: null,
+    sources: [],
+    error: null,
+    createdAt: now(),
+    finishedAt: null,
+  };
+  await q`INSERT INTO rhymes (id, "userId", symbol, "digestId", "eventText", status, "createdAt")
+          VALUES (${row.id}, ${userId}, ${symbol}, ${digestId}, ${row.eventText}, 'running', ${row.createdAt})`;
+  return row;
+}
+
+/** Complete a rhyme analysis (guarded to a still-running row). */
+export async function finishRhyme(
+  id: string,
+  verdict: RhymeVerdict,
+  episode: string,
+  analysis: string,
+  brief: string,
+  sources: Citation[]
+): Promise<void> {
+  await q`UPDATE rhymes SET status = 'done', verdict = ${verdict}, episode = ${episode},
+          analysis = ${analysis}, brief = ${brief}, sources = ${JSON.stringify(sources)},
+          "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
+}
+
+export async function failRhyme(id: string, error: string): Promise<void> {
+  await q`UPDATE rhymes SET status = 'error', error = ${error}, "finishedAt" = ${now()}
+          WHERE id = ${id} AND status = 'running'`;
+}
+
+export async function getRhyme(userId: string, id: string): Promise<RhymeAnalysis | undefined> {
+  const rows = await q<RhymeRow>`SELECT * FROM rhymes WHERE id = ${id} AND "userId" = ${userId}`;
+  return rows[0] ? parseRhyme(rows[0]) : undefined;
+}
+
+/** A ticker's rhyme analyses, newest first (the evidence feed matches them by digestId). */
+export async function listRhymes(userId: string, symbol: string, limit = 30): Promise<RhymeAnalysis[]> {
+  const rows = await q<RhymeRow>`
+    SELECT * FROM rhymes WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY "createdAt" DESC LIMIT ${limit}`;
+  return rows.map(parseRhyme);
 }
 
 /** Every research pass for a ticker, newest first (the page groups by section). */

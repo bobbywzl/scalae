@@ -18,6 +18,7 @@
  */
 
 import { ADJUSTABLE_METRIC_KEYS } from "../cleansing";
+import type { DeskLesson, DeskSource, ManagementPromise } from "../types";
 
 // ---------------------------------------------------------------------------
 // The ten lenses — each carries Buffett's own screening test and the kinds of
@@ -360,6 +361,130 @@ The investor keeps a due-diligence record for this ticker: sections (large quali
 2. STRENGTHEN OR TEST THE WRITTEN ANALYSIS: when a section's analysis rests on an assumption, propose the signal whose long-run trend would confirm or refute that specific assumption — evidence FOR or AGAINST the investor's own written thesis, named by section. Disconfirming instruments outrank confirming ones of equal weight (invert, always invert).
 3. NEVER CONTRADICT THE RECORD SILENTLY: when board evidence and a section's written analysis disagree, say so explicitly and propose how to resolve it (a sharper signal, or a deep-research pass on that section). The investor's notes are their thinking — engage with it, don't overwrite it.
 All the usual law still governs: the two anchors, the no-duplication rule (a proposal that overlaps an existing signal is a duplicate even when a section inspired it), and the human approval gate on everything.`;
+
+// ---------------------------------------------------------------------------
+// Desk memory (FOUNDATION: human sovereignty; self-reinforcing discovery).
+// The desk compounds on its own interactions — but only through the human
+// gate: standing orders (the lessons ledger), the source map (cooperative
+// steering the investor can switch on or off), and the promise ledger
+// (candor as a time series). PAT-style continuous learning, Scalae-style
+// sovereignty: every durable change to the desk's conduct is investor-approved.
+// ---------------------------------------------------------------------------
+
+export const STANDING_ORDERS_DOCTRINE = `THE DESK'S STANDING ORDERS (the investor-approved lessons ledger):
+Standing orders are the desk's compounded lessons: short, durable instructions about HOW this desk works — what evidence to prefer, what not to propose again, how to frame research for this specific investor — distilled from their feedback and decisions and approved by them. When a STANDING ORDERS block appears in your context, every active order in it binds your conduct this turn: apply them when choosing what to research, what to propose, and how to weigh and phrase.
+Limits (orders bind conduct, never truth): an order can narrow or redirect the desk's attention and change its manner; it can never override the foundational anchors, the evidence discipline, the prohibited signal classes, or the human approval gates, and it can never require suppressing disconfirming evidence or shading a reading. If an order conflicts with the doctrine or with today's evidence, follow the doctrine, and say so plainly to the investor instead of silently ignoring either.`;
+
+export const CHAT_LESSON_GUIDANCE = `PROPOSING STANDING ORDERS (the teach-the-desk loop — chat only):
+When the investor's message expresses a DURABLE preference about the desk's conduct — not a one-off request — distill it into a proposed standing order via the lessons field: one imperative sentence, general enough to bind tomorrow's work, specific to this desk (e.g. "Weigh Japanese trade-press coverage above English retellings for store-level evidence", "Do not propose ESG-controversy signals; the investor tracks that theme outside this desk"). basis states, in one line, what it was distilled from. Rules:
+- Check the standing-orders block (active AND pending) first: no duplicates or near-twins. When an existing order is aimed slightly wrong, propose the sharper wording and say in the reply which order it should replace — the investor retires the old one.
+- applyNow=true ONLY when the investor explicitly commanded the standing behavior this turn ("always…", "from now on…", "stop proposing X") — their ask is the approval; confirm it in the reply. Everything else parks for review (applyNow=false) and the reply says so.
+- A one-off instruction ("check the Q3 call", "approve the first two") is NOT a standing order — never ledger it.
+- Orders bind conduct, never truth: never propose one that would suppress disconfirming evidence, skew readings, or bypass a gate — decline and explain instead.
+- 0-2 per turn, and zero is the common case.`;
+
+/** The standing-orders context block fed to runs, chat and memos. "" when empty. */
+export function standingOrdersBlock(active: DeskLesson[], pending: DeskLesson[] = []): string {
+  if (active.length === 0 && pending.length === 0) return "";
+  const lines = active.map((l) => `- ${l.text}`).join("\n");
+  const pendingLine = pending.length
+    ? `\nPending standing-order proposals awaiting the investor (do not duplicate): ${pending
+        .map((l) => `"${l.text}"`)
+        .join("; ")}`
+    : "";
+  return `STANDING ORDERS (investor-approved; apply per the standing-orders doctrine):\n${lines || "(none active)"}${pendingLine}`;
+}
+
+/**
+ * The scouts' source-map steering block — appended to search prompts ONLY when
+ * the investor has steering switched on (their explicit choice: cooperative
+ * research). Active entries only; steering directs where to look first, never
+ * what is admissible.
+ */
+export function sourceSteeringText(entries: Pick<DeskSource, "domain" | "label" | "kind" | "note">[]): string {
+  const check = entries.filter((e) => e.kind === "primary" || e.kind === "trade");
+  const avoid = entries.filter((e) => e.kind === "avoid");
+  if (check.length === 0 && avoid.length === 0) return "";
+  const line = (e: Pick<DeskSource, "domain" | "label" | "note">) =>
+    `- ${e.domain}${e.label ? ` (${e.label})` : ""}${e.note ? `: ${e.note}` : ""}`;
+  return `\n\nTHE INVESTOR'S SOURCE MAP (cooperative steering — entries the investor approved for this desk):${
+    check.length
+      ? `\nCheck these first — where this company's authentic record lives:\n${check.map(line).join("\n")}`
+      : ""
+  }${
+    avoid.length
+      ? `\nDistrust as evidence (retellings/promotional — verify against primary sources instead):\n${avoid.map(line).join("\n")}`
+      : ""
+  }
+The map steers where you LOOK first; it never bounds what you may find — evidence from beyond the map is always admissible, and the evidence discipline is unchanged.`;
+}
+
+export const PROMISE_DOCTRINE = `THE PROMISE LEDGER (management candor as a time series — the culture anchor's bookkeeping):
+The desk keeps, per ticker, a ledger of management's concrete commitments tracked to their outcomes. Promise-vs-delivery is a time series, not an anecdote (the Management Quality lens), and the ledger is CANDOR evidence, never business evidence: a projection never enters a reading as fact — only its keeping or breaking does. When a PROMISE LEDGER block appears in your context, maintain it through the promises output field:
+- action "add": ONLY a concrete, dated, attributable commitment found in TODAY'S field research from a primary source — guidance with a number, a capital-return or capex commitment, a stated deadline, a remediation promise, an explicit "we will…". Never vague aspiration ("we aim to delight customers"), never an analyst's paraphrase without the company's own words behind it. text carries the commitment with its number/date; madeBy names who made it; madeAt when; due the stated horizon ("" if open-ended); sourceIndex the numbered source it traces to. Check the ledger block first: an entry matching an existing one (open, pending or resolved) is a duplicate — do not add it.
+- action "resolve": ONLY for a promise listed OPEN in the ledger block (promiseKey is its bracketed key), and ONLY when today's evidence directly shows the outcome — "kept" (delivered as stated), "missed" (the number or deadline failed), or "dropped" (quietly abandoned or redefined). resolution states the evidence in one line; sourceIndex cites it. Near-misses and redefinitions lean missed/dropped — moving the goalposts is itself the datum.
+- Additions and detected resolutions both PARK for the investor's review (the human gate); nothing in the ledger flips without them. 0-3 actions per run; zero is the common, healthy case. A serially growing missed/dropped column is lollapalooza input for the culture readings — say so in the brief when it happens.`;
+
+/** The promise-ledger context block for synthesis. "" when the ledger is empty. */
+export function promiseLedgerBlock(
+  open: ManagementPromise[],
+  pending: ManagementPromise[],
+  resolved: ManagementPromise[]
+): string {
+  if (open.length === 0 && pending.length === 0 && resolved.length === 0) return "";
+  const openLines = open
+    .map(
+      (p, i) =>
+        `- [P${i + 1}] "${p.text}" (${p.madeBy || "management"}, ${p.madeAt || "date unstated"}${p.due ? `, due ${p.due}` : ""})${p.proposedStatus ? ` — resolution "${p.proposedStatus}" already proposed, awaiting the investor` : ""}`
+    )
+    .join("\n");
+  const pendingLine = pending.length
+    ? `\nProposed entries awaiting the investor (do not re-add): ${pending.map((p) => `"${p.text}"`).join("; ")}`
+    : "";
+  const resolvedLine = resolved.length
+    ? `\nRecently resolved (the candor record so far): ${resolved
+        .map((p) => `"${p.text}" → ${p.status}`)
+        .join("; ")}`
+    : "";
+  return `PROMISE LEDGER (management commitments this desk tracks; maintain per the promise doctrine):
+OPEN promises:
+${openLines || "(none)"}${pendingLine}${resolvedLine}`;
+}
+
+export const LESSON_DISTILL_DOCTRINE = `DISTILLING A STANDING ORDER FROM A DISMISSAL (the teach-the-desk pass):
+The investor dismissed a proposed signal and stated a reason. Decide whether that reason teaches the desk anything DURABLE about its conduct on this ticker; if so, distill it into ONE proposed standing order — imperative, one sentence, general enough to bind future proposals and research, specific to this desk. basis: one line naming the dismissal it came from.
+When NOT to emit (return an empty list — the common case):
+- The reason is case-specific ("we already track this", "not now", "too close to signal X") — the approval gate already handled it.
+- The reason restates doctrine the desk already follows (the two anchors, no-duplication, the prohibited classes).
+- The reason is unclear, or contradicts the desk's foundations — never guess at a rule the investor didn't state, and never ledger an order that would suppress disconfirming evidence or shade readings (orders bind conduct, never truth).
+When the reason expresses "don't bother with <class of thing>" or "prefer <evidence type / framing / cadence>", that is exactly a standing order.`;
+
+export const LESSON_DISTILL_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["lessons"],
+  properties: {
+    lessons: {
+      type: "array",
+      description: "0 or 1 standing-order proposals distilled from the dismissal reason.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["text", "basis"],
+        properties: {
+          text: {
+            type: "string",
+            description: "The order: one imperative sentence binding the desk's conduct on this ticker.",
+          },
+          basis: {
+            type: "string",
+            description: "One line naming the dismissal and reason it was distilled from.",
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 // ---------------------------------------------------------------------------
 // Doctrine for the daily synthesis (how to weigh the day's evidence).
@@ -716,6 +841,7 @@ export const CHAT_SCHEMA = {
     "reply",
     "focusAreas",
     "proposals",
+    "lessons",
     "approveProposals",
     "dismissProposals",
     "retireSignals",
@@ -744,6 +870,31 @@ export const CHAT_SCHEMA = {
       type: "array",
       description: "New signals proposed for the investor's approval. Empty if none.",
       items: SIGNAL_PROPOSAL_SCHEMA,
+    },
+    lessons: {
+      type: "array",
+      description:
+        "Standing orders distilled from this turn's feedback per the standing-orders guidance (0-2; usually empty).",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["text", "basis", "applyNow"],
+        properties: {
+          text: {
+            type: "string",
+            description: "The order: one imperative sentence binding the desk's conduct on this ticker.",
+          },
+          basis: {
+            type: "string",
+            description: "One line: the feedback it was distilled from.",
+          },
+          applyNow: {
+            type: "boolean",
+            description:
+              "True ONLY when the investor explicitly commanded this standing behavior this turn (their ask is the approval); false parks it for their review.",
+          },
+        },
+      },
     },
     approveProposals: {
       type: "array",
@@ -976,7 +1127,7 @@ const DIGEST_ITEM_SCHEMA = {
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["brief", "dossier", "readings", "digestItems", "proposals"],
+  required: ["brief", "dossier", "readings", "digestItems", "proposals", "promises"],
   properties: {
     brief: {
       type: "string",
@@ -998,6 +1149,203 @@ export const SYNTHESIS_SCHEMA = {
     proposals: {
       type: "array",
       items: SIGNAL_PROPOSAL_SCHEMA,
+    },
+    promises: {
+      type: "array",
+      description:
+        "Promise-ledger maintenance per the promise doctrine (0-3 actions; empty most runs — and always empty when no PROMISE LEDGER block appears in the context).",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "action",
+          "promiseKey",
+          "text",
+          "madeBy",
+          "madeAt",
+          "due",
+          "status",
+          "resolution",
+          "sourceIndex",
+        ],
+        properties: {
+          action: { type: "string", enum: ["add", "resolve"] },
+          promiseKey: {
+            type: "string",
+            description: 'For "resolve": the OPEN ledger entry\'s bracketed key, e.g. "P2". "" for "add".',
+          },
+          text: {
+            type: "string",
+            description:
+              'For "add": the commitment in one sentence with its concrete number/date. "" for "resolve".',
+          },
+          madeBy: {
+            type: "string",
+            description: 'For "add": who made it ("CEO Tadashi Yanai", "the CFO"). "" for "resolve".',
+          },
+          madeAt: {
+            type: "string",
+            description: 'For "add": when it was made, as stated (date or period label). "" for "resolve".',
+          },
+          due: {
+            type: "string",
+            description: 'For "add": the stated horizon ("FY2026", "H2 2025"); "" if open-ended or for "resolve".',
+          },
+          status: {
+            type: "string",
+            enum: ["", "kept", "missed", "dropped"],
+            description: 'For "resolve": the evidenced outcome. "" for "add".',
+          },
+          resolution: {
+            type: "string",
+            description: 'For "resolve": the outcome evidence in one line. "" for "add".',
+          },
+          sourceIndex: {
+            anyOf: [{ type: "integer" }, { type: "null" }],
+            description: "Index into the numbered source list backing this action, or null.",
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// The post-synthesis audit: triangulation before the desk records. Fresh
+// qualitative claims get checked against the quantitative record available to
+// the desk — figures inside today's field research, the reported financial
+// statements, the signal's own previous values — and, for load-bearing claims
+// with no anchor, one bounded quant-hunting search. Verification tempers
+// confidence and annotates readings; it never rewrites the analyst's story
+// (evidence discipline: the audit cites where every figure came from).
+// ---------------------------------------------------------------------------
+
+export const AUDIT_DOCTRINE = `THE POST-SYNTHESIS AUDIT (triangulation — verify before the desk records):
+Fresh readings are drafts until checked. Audit today's NEW-evidence readings by triangulating each load-bearing claim — QUALITATIVE claims resting on narrative first — against the quantitative record available to you: concrete figures inside today's field research, the reported financial statements (the deterministic prior), and the signal's own previous reading values. Audit only where triangulation can actually move trust: a quantitative reading whose value already traces to a primary source needs no audit line, and a pure carry-forward is not audited at all.
+Verdicts (one per audited reading):
+- "corroborated": a matching quantitative datum supports the claim — name the number and where it sits (a field-research source [n], the financials table, or the previous reading).
+- "contradicted": the numbers cut against the claim — name the conflict plainly; confidence must fall.
+- "unanchored": no matching quantitative datum is available today — an honest flag, not a failure. For a LOAD-BEARING unanchored claim, propose the one search query that would anchor it, phrased to return numbers (quantQueries).
+Rules: never invent or estimate a number — every figure in a verification note names its origin. confidenceDelta is bounded (−0.3 … +0.1): triangulation tempers a reading or firms it slightly; it never flips the analyst's story, and level/delta stay untouched. note is one plain sentence the investor can read on the signal (max ~200 chars). openQuestions: the claims the audit could not anchor today, each phrased as a concrete search-answerable question — these seed tomorrow's question framing (the desk compounds instead of forgetting). auditNote: 1-2 investor-facing sentences summarizing what was checked and what held.`;
+
+export const AUDIT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verifications", "quantQueries", "openQuestions", "auditNote"],
+  properties: {
+    verifications: {
+      type: "array",
+      description: "One entry per audited reading (only fresh readings worth auditing; often fewer than the board).",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["signalKey", "verdict", "note", "confidenceDelta"],
+        properties: {
+          signalKey: {
+            type: "string",
+            description: 'The audited reading\'s signal key, e.g. "S2".',
+          },
+          verdict: {
+            type: "string",
+            enum: ["corroborated", "contradicted", "unanchored"],
+          },
+          note: {
+            type: "string",
+            description:
+              "One sentence: the matching (or conflicting) quantitative datum and where it sits — or what anchor is missing. Max ~200 chars.",
+          },
+          confidenceDelta: {
+            type: "number",
+            description:
+              "Bounded adjustment to the reading's confidence (−0.3 … +0.1). 0 when the audit changes nothing.",
+          },
+        },
+      },
+    },
+    quantQueries: {
+      type: "array",
+      description:
+        "0-3 search queries hunting the missing quantitative anchors for load-bearing unanchored claims (phrased to return numbers). Empty on the finalize pass.",
+      items: { type: "string" },
+    },
+    openQuestions: {
+      type: "array",
+      description:
+        "0-3 concrete, search-answerable questions for claims still unanchored — seeds for tomorrow's question framing.",
+      items: { type: "string" },
+    },
+    auditNote: {
+      type: "string",
+      description: "1-2 investor-facing sentences: what the audit checked and what held. Plain text.",
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// The deep-research plan gate: before a section pass runs, the desk can draft
+// the plan for the investor's review — the plan is the analysis, and the
+// investor's edit of it IS the research direction (cooperative research).
+// Whether to plan first or run now is always the investor's choice.
+// ---------------------------------------------------------------------------
+
+export const RESEARCH_PLAN_DOCTRINE = `DRAFTING A DEEP-RESEARCH PLAN (the plan gate — "the plan is the analysis"):
+The investor asked for a plan before this section's deep-research pass. Draft it so their edit of it steers the pass: humans underinvest in planning, and a pass that starts from a sharp, agreed plan produces a memo worth accepting. Format (markdown, 120-250 words):
+1. **The question as understood** — one sentence restating the crux this pass must move for this section.
+2. **Sub-questions** — 3-5 concrete, search-answerable questions, each with one line on why it is load-bearing for this section. Invert at least one: hunt what would REFUTE the section's current thesis, not only what would confirm it.
+3. **Where to hunt** — the specific document classes and sources for THIS company (name them: the filing series, the letter archive, the regulator's docket, the named trade press), honoring the investor's source map where one appears in context.
+4. **What would settle it** — the evidence that would close the question, and what a "couldn't find it" outcome would honestly mean.
+Ground the plan in the section's existing record (the investor's notes, prior memos, filed evidence) — never plan to re-research what the record already answers; extend it. Keep it editable prose the investor can reshape in place: no preamble, no sign-off, exactly the four numbered parts.`;
+
+export const RESEARCH_PLAN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["plan"],
+  properties: {
+    plan: {
+      type: "string",
+      description:
+        "The research plan in markdown per the plan doctrine: the four numbered parts, 120-250 words, directly editable by the investor.",
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Episode-rhyme analysis: "history is the base rate" made explicit, on the
+// investor's ask. One of today's developments is weighed against the
+// company's and industry's actual record — the stored signal backstories plus
+// fresh archival research — and judged normal variation, a rhyme with a named
+// past episode, or a genuine break.
+// ---------------------------------------------------------------------------
+
+export const RHYME_DOCTRINE = `EPISODE-RHYME ANALYSIS (judging today's event against the record):
+The investor asked how one specific development compares with history. Weigh it against the company's and its industry's actual record — the stored signal deep-histories provided plus the archival field research — and deliver exactly ONE of three verdicts:
+- "normal": normal variation for this aspect — the record shows this amplitude routinely. Name the base rate ("supplier disputes of this size recur every few years; none moved share").
+- "rhyme": it rhymes with a NAMED, DATED past episode (company or industry). Lay the rhyme side by side: what matched then, what management did, how long resolution took, what the episode ultimately did to the moat or culture — and where today genuinely differs from the analog. An analog with no stated disanalogies is a story, not analysis.
+- "break": a genuine break — the record shows nothing of this kind or scale. Say precisely what makes it unprecedented and which board signals should be watching the consequences.
+Rules: business history, never price history (price only where the framework sanctions it). Anchor the verdict to the framework: say plainly which anchor (business model or corporate culture) and which lens the episode loads on. Cite [n] source indexes on every load-bearing claim; where the record is thin, say so — a forced rhyme is worse than an honest "the record is thin here". Survivorship discipline: when the analog era had casualties, name who did NOT survive it. Close with 2-3 sentences on what the verdict implies for the desk's current readings — which signals (by name, in quotes) it should move or test, if any; the readings themselves change only through normal runs and their gates.`;
+
+export const RHYME_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verdict", "episode", "analysis", "brief"],
+  properties: {
+    verdict: {
+      type: "string",
+      enum: ["normal", "rhyme", "break"],
+    },
+    episode: {
+      type: "string",
+      description:
+        'For "rhyme": the named, dated analog episode (e.g. "the 2011 Thai-flood supply shock"). "" otherwise.',
+    },
+    analysis: {
+      type: "string",
+      description:
+        "The comparison in markdown per the rhyme doctrine: 250-450 words, [n] citations on load-bearing claims, closing with the implications for the board's signals.",
+    },
+    brief: {
+      type: "string",
+      description: "1-2 sentence verdict summary for the evidence feed (max ~240 chars).",
     },
   },
 } as const;

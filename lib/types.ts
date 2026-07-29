@@ -87,6 +87,12 @@ export interface Signal {
   /** When the investor dismissed it (kept after restore — gate memory). */
   dismissedAt?: string | null;
   /**
+   * The investor's stated reason for dismissing (optional, teach-the-desk):
+   * kept as gate memory and distilled into a standing-order proposal when it
+   * expresses a durable conduct preference.
+   */
+  dismissReason?: string | null;
+  /**
    * Deep-history backstory (markdown with [n] citations): how the aspect this
    * signal measures evolved over years/decades and fared through major events.
    * Researched once per signal (refreshable); null until researched.
@@ -109,6 +115,18 @@ export interface Citation {
   foundBy?: string[];
 }
 
+/**
+ * The post-synthesis audit's triangulation result for one reading: whether a
+ * matching quantitative datum corroborates, contradicts, or is missing for
+ * the reading's claim (verification tempers confidence; it never rewrites
+ * the analyst's story).
+ */
+export interface ReadingVerification {
+  verdict: "corroborated" | "contradicted" | "unanchored";
+  /** One sentence: the matching/conflicting figure and where it sits, or what's missing. */
+  note: string;
+}
+
 export interface Reading {
   id: string;
   signalId: string;
@@ -123,6 +141,8 @@ export interface Reading {
   /** False = pure carry-forward day ("no new information"); null on legacy rows. */
   newEvidence: boolean | null;
   citations: Citation[];
+  /** Triangulation verdict from the post-synthesis audit (null when unaudited). */
+  verification?: ReadingVerification | null;
 }
 
 /**
@@ -169,6 +189,12 @@ export interface Run {
    * gracefully degraded.
    */
   questions: string[];
+  /**
+   * The post-synthesis audit's summary: what triangulation checked and what
+   * held, plus the claims it could not anchor today (these seed the next
+   * run's question framing). Null when the run wasn't audited.
+   */
+  audit: RunAudit | null;
   error: string | null;
   /**
    * Set when this run is a single-signal check (the per-signal "Run signal
@@ -176,6 +202,169 @@ export interface Run {
    * never carry the desk's brief/dossier surfaces.
    */
   signalId?: string | null;
+}
+
+/** The post-synthesis audit's run-level summary (stored on the run row). */
+export interface RunAudit {
+  /** 1-2 investor-facing sentences: what was checked, what held. */
+  note: string;
+  /** Claims triangulation couldn't anchor today — seeds for the next run's questions. */
+  openQuestions: string[];
+}
+
+/**
+ * One scout report from a run, persisted verbatim — the run's field file
+ * (PAT-style diagnosability: brief claim → reading → sweep report → source).
+ * Same-day checks reuse a fresh field file instead of re-searching.
+ */
+export interface RunSweep {
+  id: string;
+  runId: string;
+  symbol: string;
+  /** The sweep's label as shown in the pipeline ("Primary-source sweep", …). */
+  label: string;
+  /** 1 = breadth wave, 2 = commissioned deep dive. */
+  wave: number;
+  /** The scout's full report text, verbatim. */
+  text: string;
+  sources: Citation[];
+  createdAt: string;
+}
+
+export type RhymeVerdict = "normal" | "rhyme" | "break";
+export type RhymeStatus = "running" | "done" | "error";
+
+/**
+ * One episode-rhyme analysis: a specific development weighed against the
+ * company's and industry's actual record ("history is the base rate" made
+ * explicit, on the investor's ask). Verdict: normal variation, a rhyme with
+ * a named past episode, or a genuine break from the record.
+ */
+export interface RhymeAnalysis {
+  id: string;
+  symbol: string;
+  /** The digest item this analysis was launched from (null for ad-hoc events). */
+  digestId: string | null;
+  /** The event as analyzed (headline + summary at launch time). */
+  eventText: string;
+  status: RhymeStatus;
+  verdict: RhymeVerdict | null;
+  /** The named, dated analog episode (only for verdict "rhyme"). */
+  episode: string;
+  /** The comparison memo (markdown, [n] citations into sources). */
+  analysis: string | null;
+  /** 1-2 sentence verdict summary for the evidence feed. */
+  brief: string | null;
+  sources: Citation[];
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+  userId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Desk memory — the compounding, human-gated stores that let the desk learn
+// from every interaction (FOUNDATION: human sovereignty; self-reinforcing
+// discovery): standing orders, the source map, and the promise ledger.
+// ---------------------------------------------------------------------------
+
+/** suggested → active | dismissed; active → retired (reversible, like signals). */
+export type LessonStatus = "suggested" | "active" | "retired" | "dismissed";
+export type LessonOrigin = "chat" | "dismissal" | "investor";
+
+/**
+ * A standing order: one durable instruction about the desk's CONDUCT (what
+ * evidence to prefer, what not to propose, how to frame research for this
+ * ticker), distilled from the investor's chat feedback and dismissal reasons
+ * or written by the investor directly. Active orders are injected into every
+ * run, chat turn and memo — the desk's compounding lessons ledger. Orders
+ * bind conduct, never truth: they cannot override the foundational anchors,
+ * the evidence discipline, or the human approval gates.
+ */
+export interface DeskLesson {
+  id: string;
+  symbol: string;
+  /** The order itself: one imperative sentence the desk follows. */
+  text: string;
+  /** What it was distilled from, in one line ("" when investor-written). */
+  basis: string;
+  status: LessonStatus;
+  origin: LessonOrigin;
+  createdAt: string;
+  /** When the investor last decided on it (approve/dismiss/retire), if ever. */
+  decidedAt: string | null;
+  userId?: string;
+}
+
+export type DeskSourceKind = "primary" | "trade" | "narrative" | "avoid";
+/** observed = harvested tally only; suggested = parked for the investor's review. */
+export type DeskSourceStatus = "observed" | "suggested" | "active" | "dismissed";
+
+/**
+ * One entry of the desk's source map: where this company's authentic record
+ * actually lives (and which outlets to distrust). Rows accrete
+ * deterministically from run citations — observed tallies promote to
+ * suggested once a domain recurs as primary/trade evidence — and the
+ * investor approves, edits, adds and dismisses entries. When source steering
+ * is ON (the investor's explicit choice — cooperative research), active
+ * entries steer where the scouts look first; steering never bounds what
+ * evidence is admissible.
+ */
+export interface DeskSource {
+  id: string;
+  symbol: string;
+  /** Canonical bare domain, e.g. "fastretailing.com" — the row's identity. */
+  domain: string;
+  /** Display label (best-known citation title, or investor-written). */
+  label: string;
+  kind: DeskSourceKind;
+  /** One line: what this source is good for — or why to avoid it. */
+  note: string;
+  status: DeskSourceStatus;
+  origin: "desk" | "investor";
+  /** How many times run research has cited this domain (provenance tally). */
+  seenCount: number;
+  lastSeenAt: string | null;
+  createdAt: string;
+  userId?: string;
+}
+
+/** suggested → open → kept | missed | dropped; dismissed = rejected proposal. */
+export type PromiseStatus = "suggested" | "open" | "kept" | "missed" | "dropped" | "dismissed";
+export type PromiseOutcome = "kept" | "missed" | "dropped";
+
+/**
+ * One entry of the promise ledger: a concrete, dated, attributable management
+ * commitment, tracked to its outcome. Promise-vs-delivery is a time series,
+ * not an anecdote (the Management Quality lens) — the ledger is CANDOR
+ * evidence, never business evidence. New entries are desk-proposed and
+ * investor-gated; desk-detected resolutions park on the row (proposedStatus)
+ * until the investor confirms or overrides.
+ */
+export interface ManagementPromise {
+  id: string;
+  symbol: string;
+  /** The commitment, one sentence, with the concrete number/date where stated. */
+  text: string;
+  /** Who made it ("CEO Tadashi Yanai", "the CFO"). */
+  madeBy: string;
+  /** When it was made, as stated (ISO date or period label like "Q2 FY2025 call"). */
+  madeAt: string;
+  /** The stated horizon it is due by ("FY2026", "H2 2025"; "" if open-ended). */
+  due: string;
+  /** Where it was made — the citation backing the entry. */
+  sourceTitle: string;
+  sourceUrl: string;
+  status: PromiseStatus;
+  /** Desk-proposed resolution awaiting the investor's confirm (open rows only). */
+  proposedStatus: PromiseOutcome | null;
+  proposedResolution: string;
+  proposedAt: string | null;
+  /** The confirmed verdict's evidence, once resolved. */
+  resolution: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  userId?: string;
 }
 
 export type AttachmentKind = "image" | "pdf" | "text";
@@ -625,6 +814,8 @@ export interface NotesPayload {
 // ---------------------------------------------------------------------------
 
 export type DiligenceResearchStatus =
+  | "planning"
+  | "planned"
   | "running"
   | "pending"
   | "accepted"
@@ -640,6 +831,13 @@ export interface DiligenceResearch {
   status: DiligenceResearchStatus;
   /** Optional investor steer ("focus on the 2019 price war") captured at kickoff. */
   question: string;
+  /**
+   * The research plan (markdown) when the investor chose the plan gate:
+   * drafted at status 'planning' → parked at 'planned' for their edit/approval
+   * → the approved (possibly edited) text steers the sweeps and the memo.
+   * Null when the pass ran directly.
+   */
+  plan: string | null;
   /** The research memo (markdown, [n] citations into `sources`); null until done. */
   memo: string | null;
   /** 2-4 sentence core-insights distillation (feeds the synthesis + analyst context). */

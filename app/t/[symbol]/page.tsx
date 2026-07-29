@@ -73,9 +73,12 @@ export default function DiligencePage() {
     }
   }, [payload, router, symbol]);
 
-  // Poll fast while a research pass is running, slowly otherwise.
+  // Poll fast while a research pass is running (or a plan is drafting), slowly otherwise.
   const researching = useMemo(
-    () => (payload?.sections ?? []).some((s) => s.research[0]?.status === "running"),
+    () =>
+      (payload?.sections ?? []).some(
+        (s) => s.research[0]?.status === "running" || s.research[0]?.status === "planning"
+      ),
     [payload]
   );
   useEffect(() => {
@@ -735,27 +738,42 @@ function ResearchPanel({
 
   const latest: DiligenceResearch | undefined = section.research[0];
   const running = latest?.status === "running" ? latest : null;
+  const planning = latest?.status === "planning" ? latest : null;
+  const planned = latest?.status === "planned" ? latest : null;
   const pending = latest?.status === "pending" ? latest : null;
   const failed = latest?.status === "error" ? latest : null;
   const [stopping, setStopping] = useState(false);
+  // The drafted plan, editable in place — the investor's edits are binding.
+  const [planDraft, setPlanDraft] = useState("");
+  const planId = useRef<string | null>(null);
+  useEffect(() => {
+    if (planned && planId.current !== planned.id) {
+      planId.current = planned.id;
+      setPlanDraft(planned.plan ?? "");
+    }
+  }, [planned]);
 
   async function stop() {
-    if (!running || stopping) return;
+    const active = running ?? planning;
+    if (!active || stopping) return;
     setStopping(true);
     // Best-effort — the next poll reconciles the state either way.
-    await api(`/api/diligence/research/${running.id}`, { method: "DELETE" }).catch(() => {});
+    await api(`/api/diligence/research/${active.id}`, { method: "DELETE" }).catch(() => {});
     await onChanged();
     setStopping(false);
   }
 
-  async function run() {
-    if (busy || running) return;
+  // Kick off a pass — mode "run" starts the sweeps immediately; mode "plan"
+  // is the plan gate: the desk drafts the plan first for the investor's
+  // edit/approval (their choice at kickoff — cooperative research).
+  async function run(mode: "run" | "plan" = "run") {
+    if (busy || running || planning) return;
     setBusy(true);
     setError(null);
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/diligence/research`, {
         method: "POST",
-        body: JSON.stringify({ sectionId: section.id, question: steer }),
+        body: JSON.stringify({ sectionId: section.id, question: steer, mode }),
       });
       setSteer("");
       await onChanged();
@@ -763,6 +781,23 @@ function ResearchPanel({
       setError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function decidePlan(action: "start" | "discard_plan") {
+    if (!planned || deciding) return;
+    setDeciding(true);
+    setError(null);
+    try {
+      await api(`/api/diligence/research/${planned.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(action === "start" ? { action, plan: planDraft } : { action }),
+      });
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" }));
+    } finally {
+      setDeciding(false);
     }
   }
 
@@ -783,10 +818,12 @@ function ResearchPanel({
     }
   }
 
-  if (running) {
+  if (running || planning) {
     return (
       <div className="mt-2 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 flex items-center gap-3 flex-wrap">
-        <p className="text-xs text-accent pulse-soft flex-1 min-w-48">{t("dd.researchRunning")}</p>
+        <p className="text-xs text-accent pulse-soft flex-1 min-w-48">
+          {planning ? t("memory.planDrafting") : t("dd.researchRunning")}
+        </p>
         <button
           onClick={stop}
           disabled={stopping}
@@ -795,6 +832,45 @@ function ResearchPanel({
         >
           {stopping ? t("dd.deciding") : t("desk.stopResearch")}
         </button>
+      </div>
+    );
+  }
+
+  // The plan gate: the drafted plan, editable in place — nothing runs until
+  // the investor starts it, and their edited text is what steers the pass.
+  if (planned) {
+    return (
+      <div className="mt-2 rounded-2xl border border-accent/30 bg-card p-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="rounded-full bg-accent/15 text-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+            {t("memory.planReviewTitle")}
+          </span>
+          <span className="text-[10px] text-muted">{planned.createdAt.slice(0, 10)}</span>
+        </div>
+        <p className="mt-1.5 text-[11px] text-muted/80">{t("memory.planExplainer")}</p>
+        <textarea
+          value={planDraft}
+          onChange={(e) => setPlanDraft(e.target.value)}
+          rows={Math.min(18, Math.max(8, planDraft.split("\n").length + 1))}
+          className="mt-2 w-full rounded-xl border border-hairline bg-ink/4 px-3 py-2 text-xs leading-relaxed focus:outline-none focus:border-accent/50 font-mono"
+        />
+        {error && <p className="mt-2 text-xs text-loss">{error}</p>}
+        <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => decidePlan("start")}
+            disabled={deciding || !planDraft.trim()}
+            className="rounded-lg bg-gain/15 text-gain font-semibold text-xs px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+          >
+            {deciding ? t("dd.deciding") : `✦ ${t("memory.startResearch")}`}
+          </button>
+          <button
+            onClick={() => decidePlan("discard_plan")}
+            disabled={deciding}
+            className="rounded-lg bg-ink/6 text-muted font-medium text-xs px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
+          >
+            {t("memory.discardPlan")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -851,8 +927,17 @@ function ResearchPanel({
         placeholder={t("dd.researchSteerPlaceholder")}
         className="flex-1 min-w-56 rounded-lg border border-hairline bg-ink/4 px-3 py-1.5 text-xs focus:outline-none focus:border-accent/50"
       />
+      {/* The kickoff choice (cooperative research): plan first, or run now. */}
       <button
-        onClick={run}
+        onClick={() => run("plan")}
+        disabled={busy}
+        title={t("memory.planFirstTitle")}
+        className="rounded-lg bg-ink/6 hover:bg-ink/10 disabled:opacity-50 text-emph text-xs font-medium px-3 py-1.5 transition-colors"
+      >
+        {t("memory.planFirst")}
+      </button>
+      <button
+        onClick={() => run()}
         disabled={busy}
         className="rounded-lg bg-accent/12 hover:bg-accent/20 disabled:opacity-50 text-accent text-xs font-semibold px-3 py-1.5 transition-colors"
       >
@@ -861,7 +946,7 @@ function ResearchPanel({
       {failed && (
         <span className="text-[11px] text-loss">
           {t("dd.researchFailed", { error: localizeError(failed.error, t) || "—" })}{" "}
-          <button onClick={run} className="underline decoration-dotted hover:text-emph transition-colors">
+          <button onClick={() => run()} className="underline decoration-dotted hover:text-emph transition-colors">
             {t("dd.tryAgain")}
           </button>
         </span>

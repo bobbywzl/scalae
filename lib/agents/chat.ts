@@ -4,9 +4,10 @@ import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import { withDeadline } from "./research";
 import {
+  CHAT_LESSON_GUIDANCE,
+  CHAT_SCHEMA,
   DESK_DOCTRINE,
   deskIdentity,
-  CHAT_SCHEMA,
   EXPERT_LOOP_GUIDANCE,
   INTAKE_STAGES_DOCTRINE,
   OPENING_FILE_DOCTRINE,
@@ -14,6 +15,8 @@ import {
   QUICK_CHAT_DOCTRINE,
   QUICK_CHAT_SCHEMA,
   SIGNAL_GUIDANCE,
+  STANDING_ORDERS_DOCTRINE,
+  standingOrdersBlock,
 } from "./framework";
 import {
   approveSignal,
@@ -21,15 +24,18 @@ import {
   getSetting,
   getSignal,
   getTicker,
+  insertLesson,
   insertMessage,
   insertProposal,
   latestRun,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
+  listLessons,
   listMessagesWithAttachments,
   listNoteSections,
   listNotes,
+  listPromises,
   listSignals,
   markOnboarded,
   readingsForSignal,
@@ -50,6 +56,7 @@ interface ChatOutput {
   reply: string;
   focusAreas: FocusAreaProposal[];
   proposals: SignalProposal[];
+  lessons: { text: string; basis: string; applyNow: boolean }[];
   approveProposals: string[];
   dismissProposals: string[];
   retireSignals: string[];
@@ -283,6 +290,10 @@ export async function handleChatTurn(
     ddResearch,
     ddSynthesis,
     ddEvidence,
+    activeLessons,
+    pendingLessons,
+    openPromises,
+    resolvedPromises,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -300,6 +311,10 @@ export async function handleChatTurn(
     listDiligenceResearch(userId, symbol).catch(() => []),
     getDiligenceSynthesis(userId, symbol).catch(() => null),
     listDiligenceEvidence(userId, symbol).catch(() => []),
+    listLessons(userId, symbol, "active").catch(() => []),
+    listLessons(userId, symbol, "suggested").catch(() => []),
+    listPromises(userId, symbol, ["open"]).catch(() => []),
+    listPromises(userId, symbol, ["kept", "missed", "dropped"]).catch(() => []),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -331,6 +346,25 @@ export async function handleChatTurn(
     .join("\n");
 
   const positionLine = involvementLine(involvement);
+  const ordersBlock = standingOrdersBlock(activeLessons, pendingLessons);
+  // The promise ledger, compact: candor context for management questions.
+  const promiseTally = (["kept", "missed", "dropped"] as const)
+    .map((s) => ({ s, n: resolvedPromises.filter((p) => p.status === s).length }))
+    .filter((t) => t.n > 0)
+    .map((t) => `${t.n} ${t.s}`)
+    .join(", ");
+  const promiseBlock =
+    openPromises.length > 0 || promiseTally
+      ? `Promise ledger (management commitments the desk tracks — candor evidence, never business evidence):\n${
+          openPromises
+            .slice(0, 8)
+            .map(
+              (p) =>
+                `- OPEN: "${p.text}" (${p.madeBy || "management"}, ${p.madeAt || "date unstated"}${p.due ? `, due ${p.due}` : ""})${p.proposedStatus ? ` — desk proposes "${p.proposedStatus}", awaiting the investor` : ""}`
+            )
+            .join("\n") || "(none open)"
+        }${promiseTally ? `\nResolved to date: ${promiseTally}.` : ""}`
+      : "";
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
 Market: ${quoteLine(quote)}
 Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position." : ""}
@@ -340,7 +374,7 @@ ${boardLines || "(empty)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
-${financials ? financialsSummary(financials) : ""}
+${ordersBlock ? `${ordersBlock}\n` : ""}${promiseBlock ? `${promiseBlock}\n` : ""}${financials ? financialsSummary(financials) : ""}
 ${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
@@ -464,6 +498,10 @@ ${QUESTION_METHOD}
 ${!ticker.onboarded && !focusSignal ? `${OPENING_FILE_DOCTRINE}\n\n${INTAKE_STAGES_DOCTRINE}\n\n` : ""}${SIGNAL_GUIDANCE}
 
 ${EXPERT_LOOP_GUIDANCE}
+
+${STANDING_ORDERS_DOCTRINE}
+
+${CHAT_LESSON_GUIDANCE}
 
 ATTACHMENTS: The investor can attach images (charts, product photos, screenshots), PDFs (filings, reports, broker notes) and text files. Treat them as first-class evidence: read them through the desk's lenses, tie what you find to the active board by signal name, and propose new trackable signals when a document reveals a thread the board misses (approval-gated as always). Refer to an attachment by its filename when you rely on it.
 
@@ -611,6 +649,21 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
     }
     const id = await insertProposal(userId, symbol, p, ticker.onboarded ? "chat" : "onboarding");
     if (id) proposalIds.push(id);
+  }
+
+  // --- standing orders (the teach-the-desk loop) ---
+  // applyNow=true only when the investor explicitly commanded the standing
+  // behavior this turn (their ask is the approval — the cleansing-bench
+  // precedent); everything else parks as 'suggested' for their review in the
+  // standing-orders card. Dedup lives in insertLesson.
+  for (const l of (out.lessons ?? []).slice(0, 2)) {
+    if (!l.text?.trim()) continue;
+    await insertLesson(userId, symbol, {
+      text: l.text,
+      basis: l.basis ?? "",
+      origin: "chat",
+      status: l.applyNow === true ? "active" : "suggested",
+    }).catch(() => null);
   }
 
   // --- investor-directed actions (the investor's ask IS the approval) ---
