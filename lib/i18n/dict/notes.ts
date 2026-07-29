@@ -28,6 +28,7 @@ const en = {
 
   // Notepads
   addNotepad: "+ Notepad",
+  addNote: "+ Add a note",
   notepadTitlePlaceholder: "Notepad title…",
   deleteNotepad: "Delete notepad",
   deleteNotepadConfirm: "Delete “{title}”? This cannot be undone.",
@@ -122,6 +123,7 @@ const zh: Record<keyof typeof en, string> = {
   noSections: "还没有板块。可以从关注领域、建议开始，或自行命名。",
 
   addNotepad: "+ 记事本",
+  addNote: "+ 添加笔记",
   notepadTitlePlaceholder: "记事本标题……",
   deleteNotepad: "删除记事本",
   deleteNotepadConfirm: "删除“{title}”？此操作不可撤销。",
