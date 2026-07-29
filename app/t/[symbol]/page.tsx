@@ -923,8 +923,14 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
 
   // Read-mode render: the stored document through the SAME schema as the
   // editor, as static HTML the annotation painter can safely mark up.
+  // generateHTML needs a DOM, and the record only exists after the page's
+  // own fetch — so this is browser-only by construction, and guarded to
+  // stay that way if the loading gate above ever changes.
   const readHtml = useMemo(
-    () => (editing ? "" : generateHTML(parseNoteDoc(content), NOTE_EXTENSIONS)),
+    () =>
+      editing || typeof window === "undefined"
+        ? ""
+        : generateHTML(parseNoteDoc(content), NOTE_EXTENSIONS),
     [content, editing]
   );
   const isEmpty = !editing && docToPlainText(content).trim() === "";
