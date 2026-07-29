@@ -286,35 +286,15 @@ export default function FinanceCleansingPage() {
         </div>
       )}
 
-      {/* The bench's brief — the analyst's functions in cleansing, organizing,
-          and bolding the financial points that matter (FOUNDATION: the
-          finance-cleansing bench). */}
+      {/* The bench's brief — why cleansing exists and what this page gives,
+          in a few sentences (FOUNDATION: the finance-cleansing bench). */}
       <section className="mt-5 rounded-2xl border border-hairline bg-card px-5 py-4">
         <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
           {t("financials.benchAboutTitle")}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          {t("financials.benchAboutLead", { name: ticker.name })}
+          {t("financials.benchAboutBody", { name: ticker.name })}
         </p>
-        <ul className="mt-2.5 space-y-2 text-sm leading-relaxed text-muted">
-          {(
-            [
-              ["benchAboutCleanseLabel", "benchAboutCleanseBody"],
-              ["benchAboutOrganizeLabel", "benchAboutOrganizeBody"],
-              ["benchAboutEmphasizeLabel", "benchAboutEmphasizeBody"],
-            ] as const
-          ).map(([label, body]) => (
-            <li key={label} className="flex gap-2.5">
-              <span aria-hidden className="text-accent/70 select-none">
-                ◆
-              </span>
-              <span>
-                <strong className="font-semibold text-emph">{t(`financials.${label}` as TKey)}</strong> —{" "}
-                {t(`financials.${body}` as TKey)}
-              </span>
-            </li>
-          ))}
-        </ul>
       </section>
 
       {/* Side-by-side, the signals-page idiom: the numbers and the gate on
