@@ -338,6 +338,16 @@ function SectionBlock({
           ))}
         </div>
       )}
+
+      {/* Notes append chronologically, so the add affordance lives at the
+          bottom of the block — a fresh note opens exactly where it lands. */}
+      <button
+        onClick={addNotepad}
+        disabled={busy}
+        className="mt-2 w-full rounded-xl border border-dashed border-hairline bg-ink/3 hover:bg-ink/6 px-3 py-2 text-left text-[11px] text-muted hover:text-emph transition-colors disabled:opacity-40"
+      >
+        {t("notes.addNote")}
+      </button>
     </section>
   );
 }
