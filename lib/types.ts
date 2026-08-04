@@ -652,6 +652,20 @@ export interface DiligenceResearch {
   decidedAt: string | null;
 }
 
+/**
+ * The desk's context board: behind-the-scenes memory distilled after every
+ * research run (answered questions, established context, open threads) and
+ * read before the next run frames its questions. Agent context only — never
+ * part of the investor's record.
+ */
+export interface DeskContext {
+  symbol: string;
+  content: string;
+  /** The run whose completion produced this distillation (null on legacy rows). */
+  runId: string | null;
+  updatedAt: string;
+}
+
 /** The standing synthesis of core insights across the whole record (one per ticker). */
 export interface DiligenceSynthesis {
   symbol: string;

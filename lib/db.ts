@@ -8,6 +8,7 @@ import type {
   Attachment,
   ChatMessage,
   Citation,
+  DeskContext,
   DigestItem,
   DiligenceEvidence,
   DiligenceResearch,
@@ -452,6 +453,16 @@ export const SCHEMA_STATEMENTS: string[] = [
     "finishedAt" TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_finrun_user ON fin_suggest_runs("userId", symbol, "createdAt")`,
+  // ---- the desk's context board: behind-the-scenes memory distilled after
+  // every research run and read before the next (never the investor's record) ----
+  `CREATE TABLE IF NOT EXISTS desk_context (
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    content TEXT NOT NULL,
+    "runId" TEXT,
+    "updatedAt" TEXT NOT NULL,
+    PRIMARY KEY ("userId", symbol)
+  )`,
   `CREATE TABLE IF NOT EXISTS fin_messages (
     id TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL,
@@ -524,6 +535,7 @@ export async function removeTicker(userId: string, symbol: string): Promise<void
   await q`DELETE FROM fin_cleansing_events WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM fin_suggest_runs WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM fin_messages WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  await q`DELETE FROM desk_context WHERE "userId" = ${userId} AND symbol = ${symbol}`;
   await q`DELETE FROM tickers WHERE "userId" = ${userId} AND symbol = ${symbol}`;
 }
 
@@ -1737,6 +1749,30 @@ export async function recentFinMessages(
   return rows.map((r) => ({ ...r, adjustmentIds: JSON.parse(r.adjustmentIds) as string[] }));
 }
 
+// ---------- the desk's context board (behind-the-scenes run memory) ----------
+
+export async function getDeskContext(
+  userId: string,
+  symbol: string
+): Promise<DeskContext | undefined> {
+  const rows = await q<DeskContext>`
+    SELECT symbol, content, "runId", "updatedAt" FROM desk_context
+    WHERE "userId" = ${userId} AND symbol = ${symbol}`;
+  return rows[0];
+}
+
+export async function saveDeskContext(
+  userId: string,
+  symbol: string,
+  content: string,
+  runId: string | null
+): Promise<void> {
+  await q`INSERT INTO desk_context ("userId", symbol, content, "runId", "updatedAt")
+          VALUES (${userId}, ${symbol}, ${content}, ${runId}, ${now()})
+          ON CONFLICT ("userId", symbol) DO UPDATE SET content = EXCLUDED.content,
+            "runId" = EXCLUDED."runId", "updatedAt" = EXCLUDED."updatedAt"`;
+}
+
 // ---------- text annotations (highlight-by-selection) ----------
 
 export async function listAnnotations(userId: string, symbol: string): Promise<Annotation[]> {
@@ -2097,7 +2133,15 @@ export interface UsageSummary {
 }
 
 /** usage_event.feature values that belong to a daily research run (vs chat/compare/translate). */
-const RESEARCH_FEATURES = ["scoutBreadth", "triage", "scoutDeep", "synthesis", "backstory"];
+const RESEARCH_FEATURES = [
+  "scoutBreadth",
+  "triage",
+  "scoutDeep",
+  "synthesis",
+  "backstory",
+  "questions",
+  "contextBoard",
+];
 
 /** Aggregates over the trailing `days` window, in a handful of grouped queries. */
 export async function usageSummary(days: number): Promise<UsageSummary> {

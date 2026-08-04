@@ -836,6 +836,34 @@ Rules:
 - Tie each question to what it serves: signalKeys lists the board signals it feeds (empty for board-level questions); "why" says in one line which certainty gap, kill-path or record thread makes it TODAY'S question.
 - The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.`;
 
+/**
+ * The context board — the desk's behind-the-scenes memory. Distilled after
+ * every research run and read before the next one frames its questions, so
+ * answered questions stay answered and established context compounds instead
+ * of being re-derived. Internal agent context ONLY: it is never written into
+ * the investor's record (FOUNDATION: the desk never writes there uninvited).
+ */
+export const CONTEXT_BOARD_DOCTRINE = `THE CONTEXT BOARD (the desk's behind-the-scenes memory, refreshed after every research run):
+Distill what the desk now knows so the NEXT run starts from it instead of re-deriving it. Rules:
+- Evolve the previous board, never restart it: keep what still holds, revise what today's run moved, drop what went stale or was absorbed into the record.
+- ANSWERED QUESTIONS first: each focus question a recent run actually answered, as "Q → one-line answer (date)". The next run must not re-ask these unless new evidence reopens them.
+- Then ESTABLISHED CONTEXT: the load-bearing facts about the business model and culture the accumulated record now supports, each dated to the run or evidence that established it.
+- Then OPEN THREADS: questions raised but not yet answered, ranked by how much certainty they would close.
+- Bounded and dense: 250-400 words total, plain statements, no narrative padding. English only — the stored form is canonical.`;
+
+export const CONTEXT_BOARD_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["board"],
+  properties: {
+    board: {
+      type: "string",
+      description:
+        "The refreshed context board (250-400 words, markdown): ANSWERED QUESTIONS, ESTABLISHED CONTEXT, OPEN THREADS.",
+    },
+  },
+} as const;
+
 export const RUN_QUESTIONS_SCHEMA = {
   type: "object",
   additionalProperties: false,

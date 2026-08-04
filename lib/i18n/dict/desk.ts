@@ -14,6 +14,23 @@ const en = {
   stopResearch: "Stop research",
   stopHint: "Stop the run in progress so you can start a fresh one.",
 
+  // The steerable question stage: review/edit today's focus questions before
+  // the sweeps; the questions stay on the page after the run finishes.
+  steerTitle: "Today's focus questions — review before the run",
+  steerExplainer:
+    "The question suggestor framed what this run should answer — from the board, your record and what past runs already answered. Edit, remove or add questions; the sweeps steer by exactly what you submit.",
+  steerFraming: "Framing questions…",
+  steerStart: "▶ Start research",
+  steerStarting: "Starting…",
+  steerCancel: "Cancel",
+  steerAdd: "+ Add question",
+  steerPlaceholder: "A concrete, answerable question for today's sweeps…",
+  steerEmptyHint: "No questions — the run will sweep broadly without focus steering.",
+  questionsTitle: "What this run set out to answer",
+  questionsAnsweredNote:
+    "The brief below reports what each question found — an honest “no evidence” included.",
+  errRunning: "Research is already running on this ticker.",
+
   // Single-signal checks (the per-signal "Run signal research" pipeline)
   runSignal: "✦ Run signal research",
   signalCheckingShort: "Checking…",
@@ -143,6 +160,20 @@ const zh: Record<keyof typeof en, string> = {
   runNow: "立即运行研究",
   stopResearch: "停止研究",
   stopHint: "停止正在进行的研究，以便重新开始一次新的研究。",
+
+  steerTitle: "今日焦点问题——运行前审阅",
+  steerExplainer:
+    "提问器已根据信号板、你的记录以及过往运行已回答的问题，拟定本次研究要回答的问题。可编辑、删除或添加——检索将严格按你提交的问题展开。",
+  steerFraming: "正在拟定问题……",
+  steerStart: "▶ 开始研究",
+  steerStarting: "启动中……",
+  steerCancel: "取消",
+  steerAdd: "+ 添加问题",
+  steerPlaceholder: "一个具体、可通过检索回答的问题……",
+  steerEmptyHint: "没有问题——本次运行将进行广泛扫描，不设焦点问题。",
+  questionsTitle: "本次运行要回答的问题",
+  questionsAnsweredNote: "下方晨报逐一汇报每个问题的发现——包括诚实的“未找到证据”。",
+  errRunning: "该股票的研究正在进行中。",
 
   runSignal: "✦ 运行信号研究",
   signalCheckingShort: "核查中……",

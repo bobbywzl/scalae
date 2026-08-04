@@ -88,6 +88,7 @@ const ERROR_PATTERNS: { rx: RegExp; key: Parameters<TFunc>[0]; params?: (m: RegE
   { rx: /exceeded its \d+s time limit$/, key: "common.errAnalystTimeout" },
   { rx: /^Open at least one section before synthesizing\.$/, key: "dd.errNeedSection" },
   { rx: /^Research is already running on this section\.$/, key: "dd.errResearchRunning" },
+  { rx: /^Research is already running on this ticker\.$/, key: "desk.errRunning" },
   { rx: /^A moderation pass is already running on this ticker\.$/, key: "financials.errPassRunning" },
   { rx: /^Pass interrupted \(server restarted mid-pass\)\. Run it again\.$/, key: "financials.errPassInterrupted" },
   { rx: /^This adjustment already moved on — reload to see its current state\.$/, key: "financials.errAdjStale" },

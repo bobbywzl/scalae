@@ -5,6 +5,8 @@ import { researchSignalBackstory } from "./history";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
+  CONTEXT_BOARD_DOCTRINE,
+  CONTEXT_BOARD_SCHEMA,
   DESK_DOCTRINE,
   deskIdentity,
   EXPERT_LOOP_GUIDANCE,
@@ -23,6 +25,7 @@ import {
   createRun,
   failRun,
   finishRun,
+  getDeskContext,
   getDiligenceSynthesis,
   getSignal,
   getTicker,
@@ -42,6 +45,7 @@ import {
   resetQuietRuns,
   runStatus,
   runningRun,
+  saveDeskContext,
   setRunQuestions,
   setRunStage,
   touchLastRun,
@@ -290,6 +294,183 @@ Research it thoroughly: search from multiple angles, prefer primary sources (fil
 }
 
 // ---------------------------------------------------------------------------
+// Shared desk context: the pieces the question suggestor, the run synthesis
+// and the context-board refresher all read.
+// ---------------------------------------------------------------------------
+
+/** One signal's board line (key, plan, previous reading, history base rate). */
+async function signalBoardLine(key: string, s: Signal, extraNote = ""): Promise<string> {
+  const prev = (await readingsForSignal(s.id, 1))[0];
+  const prevLine = prev
+    ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
+    : " No previous reading.";
+  const historyLine = s.backstoryBrief ? ` History base rate: ${s.backstoryBrief}` : "";
+  return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${historyLine}${extraNote}`;
+}
+
+/** The investor's recent chat guidance (newest last) as prompt lines. */
+async function investorGuidance(userId: string, symbol: string): Promise<string> {
+  return (await listMessages(userId, symbol))
+    .filter((m) => m.role === "user")
+    .slice(-6)
+    .map((m) => `- ${m.content.slice(0, 300)}`)
+    .join("\n");
+}
+
+/** The due-diligence record block (best-effort; empty when the record is empty). */
+async function diligenceRecordBlock(userId: string, symbol: string): Promise<string> {
+  return Promise.all([
+    listNoteSections(userId, symbol).catch(() => []),
+    listNotes(userId, symbol).catch(() => []),
+    listDiligenceResearch(userId, symbol).catch(() => []),
+    getDiligenceSynthesis(userId, symbol).catch(() => null),
+    listDiligenceEvidence(userId, symbol).catch(() => []),
+  ]).then(([s, n, r, syn, ev]) => diligenceContext(s, n, r, syn ?? null, ev));
+}
+
+/**
+ * The stored context board as a prompt block — what past runs answered and
+ * established, read BEFORE every new run. Empty string when none exists yet.
+ */
+async function contextBoardBlock(userId: string, symbol: string): Promise<string> {
+  const ctx = await getDeskContext(userId, symbol).catch(() => undefined);
+  return ctx?.content?.trim()
+    ? `THE DESK'S CONTEXT BOARD (distilled after the previous run — recently ANSWERED questions, established context and open threads; do NOT re-ask what it already answers unless new evidence reopens it):\n${ctx.content.trim()}\n`
+    : "";
+}
+
+// ---------------------------------------------------------------------------
+// The question suggestor, callable on its own — the steerable first stage.
+// ---------------------------------------------------------------------------
+
+export interface FramedQuestion {
+  question: string;
+  why: string;
+}
+
+/**
+ * Frame today's focus questions WITHOUT starting a run — the review step
+ * behind the steerable "Run research now" flow. Same doctrine, same context
+ * as the run's own stage 0 (board, record, guidance, context board); the
+ * investor edits the output and the run starts with what they submit.
+ */
+export async function frameRunQuestions(userId: string, symbol: string): Promise<FramedQuestion[]> {
+  const ticker = await getTicker(userId, symbol);
+  if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
+  const signals = await listSignals(userId, symbol, "active");
+  if (signals.length === 0) throw new Error("Approve at least one signal before running research.");
+  const triageModel = await resolveModel("triage");
+
+  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock] = await Promise.all([
+    Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
+    listFocusAreas(userId, symbol),
+    investorGuidance(userId, symbol),
+    diligenceRecordBlock(userId, symbol),
+    contextBoardBlock(userId, symbol),
+  ]);
+
+  const framed = await withDeadline("questions", (signal) =>
+    claudeJSON<QuestionsOutput>({
+      model: triageModel,
+      signal,
+      system: [
+        { text: DESK_DOCTRINE, cache: true },
+        { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `DESK STATE (today: ${new Date().toDateString()}):
+
+ACTIVE SIGNAL BOARD (with previous readings):
+${boardLines.join("\n")}
+
+INVESTOR FOCUS AREAS:
+${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
+
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens. The investor will review and may edit them before the run starts.`,
+        },
+      ],
+      schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
+      maxTokens: 2500,
+      effort: "low",
+      meta: { userId, feature: "questions" },
+    })
+  );
+  return (framed.questions ?? [])
+    .filter((q) => q.question?.trim())
+    .slice(0, 6)
+    .map((q) => ({ question: q.question.trim(), why: (q.why ?? "").trim() }));
+}
+
+// ---------------------------------------------------------------------------
+// The context board refresher — the background pass after every run.
+// ---------------------------------------------------------------------------
+
+/**
+ * Distill the desk's standing context board after a run finishes: what the
+ * run's focus questions actually ANSWERED, what is now established about the
+ * business across the whole ticker (record, board, guidance), and which
+ * threads stay open. Kept behind the scenes and read by the next run's
+ * framing and synthesis. Best-effort trailing enrichment — never fatal.
+ */
+export async function refreshDeskContext(
+  userId: string,
+  symbol: string,
+  runId: string,
+  runOutput: { questions: string[]; brief: string }
+): Promise<void> {
+  const ticker = await getTicker(userId, symbol);
+  if (!ticker) return;
+  const triageModel = await resolveModel("triage");
+  const [prev, guidance, ddBlock] = await Promise.all([
+    getDeskContext(userId, symbol).catch(() => undefined),
+    investorGuidance(userId, symbol),
+    diligenceRecordBlock(userId, symbol),
+  ]);
+
+  const out = await withDeadline("contextBoard", (signal) =>
+    claudeJSON<{ board: string }>({
+      model: triageModel,
+      signal,
+      system: [
+        { text: DESK_DOCTRINE, cache: true },
+        { text: `${deskIdentity(symbol, ticker.name)}\n\n${CONTEXT_BOARD_DOCTRINE}` },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `Today is ${new Date().toDateString()}. A research run just finished.
+
+THE PREVIOUS CONTEXT BOARD (evolve this — never restart):
+${prev?.content?.trim() || "(none yet — this is the desk's first board)"}
+
+THE RUN'S FOCUS QUESTIONS:
+${runOutput.questions.map((q, i) => `Q${i + 1}. ${q}`).join("\n") || "(the run had no framed questions)"}
+
+WHAT THE RUN REPORTED (its note to the investor):
+${runOutput.brief || "(none)"}
+
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Refresh the context board per its doctrine — which focus questions this run ANSWERED (with the one-line answer, dated today), what is now established, what stays open.`,
+        },
+      ],
+      schema: CONTEXT_BOARD_SCHEMA as unknown as Record<string, unknown>,
+      maxTokens: 2500,
+      effort: "low",
+      meta: { userId, feature: "contextBoard" },
+    })
+  );
+  const board = (out.board ?? "").trim().slice(0, 8000);
+  if (board) await saveDeskContext(userId, symbol, board, runId);
+}
+
+// ---------------------------------------------------------------------------
 // The pipeline
 // ---------------------------------------------------------------------------
 
@@ -307,7 +488,19 @@ Research it thoroughly: search from multiple angles, prefer primary sources (fil
  *   4) Deep synthesis: signal readings with per-source citations, digest,
  *      brief, new-signal discovery
  */
-export async function executeRun(userId: string, runId: string, symbol: string): Promise<void> {
+export async function executeRun(
+  userId: string,
+  runId: string,
+  symbol: string,
+  opts: {
+    /**
+     * Investor-steered focus questions (the reviewed/edited output of
+     * frameRunQuestions). When present — even empty — stage 0's framing call
+     * is skipped and the run steers by exactly these.
+     */
+    questions?: string[];
+  } = {}
+): Promise<void> {
   // Reference for the synthesis budget below: how much of the route's 300s is
   // left when we reach synthesis (the run runs inside a single invocation).
   const runStart = Date.now();
@@ -362,67 +555,68 @@ export async function executeRun(userId: string, runId: string, symbol: string):
     const boardBlock = (
       await Promise.all(
         keyed.map(async ({ key, signal: s }) => {
-          const prev = (await readingsForSignal(s.id, 1))[0];
-          const prevLine = prev
-            ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
-            : " No previous reading.";
           const measured = overlapMeasured.get(s.id) ?? 0;
           const overlapNote = overlapWith.has(s.id)
             ? measured >= 0.5
               ? ` NOTE: kept alongside "${overlapWith.get(s.id)}" — their recent readings HAVE cited the same evidence (${Math.round(measured * 100)}% source overlap). They are one signal wearing two names: propose the merged replacement NOW with "replaces" set, unless today's evidence clearly separates them.`
               : ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
             : "";
-          // The signal's deep-history base rate (when researched) keeps daily
-          // readings judged against decades, not just yesterday.
-          const historyLine = s.backstoryBrief ? ` History base rate: ${s.backstoryBrief}` : "";
-          return `- [${key}] "${s.name}" (${s.type}, focus: ${s.focusArea}). Plan: ${s.measurementPlan} Scale: ${s.scale}.${prevLine}${historyLine}${overlapNote}`;
+          return signalBoardLine(key, s, overlapNote);
         })
       )
     ).join("\n");
 
     const focusAreas = await listFocusAreas(userId, symbol);
-    const guidance = (await listMessages(userId, symbol))
-      .filter((m) => m.role === "user")
-      .slice(-6)
-      .map((m) => `- ${m.content.slice(0, 300)}`)
-      .join("\n");
+    const guidance = await investorGuidance(userId, symbol);
     // The due-diligence record: the map of what the investor currently
     // understands, which the circle-of-competence loop steers proposals by
     // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
-    const ddBlock = await Promise.all([
-      listNoteSections(userId, symbol).catch(() => []),
-      listNotes(userId, symbol).catch(() => []),
-      listDiligenceResearch(userId, symbol).catch(() => []),
-      getDiligenceSynthesis(userId, symbol).catch(() => null),
-      listDiligenceEvidence(userId, symbol).catch(() => []),
-    ]).then(([s, n, r, syn, ev]) => diligenceContext(s, n, r, syn ?? null, ev));
+    const ddBlock = await diligenceRecordBlock(userId, symbol);
+    // What past runs answered and established — read BEFORE this run works.
+    const ctxBlock = await contextBoardBlock(userId, symbol);
 
-    // ---- Stage 0: the question suggestor frames what today's run must answer ----
+    // ---- Stage 0: today's focus questions ----
     // The circle-of-competence discipline made operational (FOUNDATION.md):
     // research starts from the investor's open questions, never from the news.
-    // Graceful degrade — if framing fails, the run proceeds exactly as before.
+    // Two paths: STEERED — the investor reviewed/edited the framed questions
+    // (frameRunQuestions) and the run uses exactly what they submitted; or
+    // UNATTENDED (cron, chat, stale-desk auto-run) — the question suggestor
+    // frames them here. Graceful degrade — a failed framing runs unfocused.
     await throwIfStopped(runId);
-    await setRunStage(
-      runId,
-      "questions",
-      `Question suggestor (${triageModel}) framing what today's run must answer — reading the board, the due-diligence record and your guidance…`
-    );
     let questions: { question: string; why: string; signalKeys: string[] }[] = [];
-    try {
-      const framed = await withDeadline("questions", (signal) =>
-        claudeJSON<QuestionsOutput>({
-          model: triageModel,
-          signal,
-          // Same cached doctrine prefix as triage/synthesis — the daily cron
-          // re-reads it at ~0.1× input cost for every desk it sweeps.
-          system: [
-            { text: DESK_DOCTRINE, cache: true },
-            { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
-          ],
-          messages: [
-            {
-              role: "user",
-              content: `DESK STATE (today: ${new Date().toDateString()}):
+    if (opts.questions) {
+      questions = opts.questions
+        .map((q) => ({ question: q.trim(), why: "", signalKeys: [] as string[] }))
+        .filter((q) => q.question);
+      if (questions.length > 0) {
+        await setRunStage(
+          runId,
+          "questions",
+          `Focus questions set by you — ${questions.length} steering this run.`
+        );
+        await setRunQuestions(runId, questions.map((q) => q.question));
+      }
+    } else {
+      await setRunStage(
+        runId,
+        "questions",
+        `Question suggestor (${triageModel}) framing what today's run must answer — reading the board, the due-diligence record and your guidance…`
+      );
+      try {
+        const framed = await withDeadline("questions", (signal) =>
+          claudeJSON<QuestionsOutput>({
+            model: triageModel,
+            signal,
+            // Same cached doctrine prefix as triage/synthesis — the daily cron
+            // re-reads it at ~0.1× input cost for every desk it sweeps.
+            system: [
+              { text: DESK_DOCTRINE, cache: true },
+              { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+            ],
+            messages: [
+              {
+                role: "user",
+                content: `DESK STATE (today: ${new Date().toDateString()}):
 
 ACTIVE SIGNAL BOARD (with previous readings):
 ${boardBlock}
@@ -433,31 +627,32 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
-            },
-          ],
-          schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
-          maxTokens: 2500,
-          effort: "low",
-          meta: { userId, feature: "questions" },
-        })
-      );
-      questions = (framed.questions ?? [])
-        .filter((q) => q.question?.trim())
-        .slice(0, 6)
-        .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: q.signalKeys ?? [] }));
-      if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
-    } catch (e) {
-      console.error(
-        `[scalae] question framing timed out or failed (running without focus questions):`,
-        e instanceof Error ? e.message : e
-      );
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
+              },
+            ],
+            schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
+            maxTokens: 2500,
+            effort: "low",
+            meta: { userId, feature: "questions" },
+          })
+        );
+        questions = (framed.questions ?? [])
+          .filter((q) => q.question?.trim())
+          .slice(0, 6)
+          .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: q.signalKeys ?? [] }));
+        if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
+      } catch (e) {
+        console.error(
+          `[scalae] question framing timed out or failed (running without focus questions):`,
+          e instanceof Error ? e.message : e
+        );
+      }
     }
     const questionsBlock = questions.length
-      ? `\nTODAY'S FOCUS QUESTIONS (framed by the question suggestor before the sweeps — the run exists to move these):\n${questions
+      ? `\nTODAY'S FOCUS QUESTIONS (set before the sweeps — the run exists to move these):\n${questions
           .map(
             (q, i) =>
-              `Q${i + 1}. ${q.question} — ${q.why}${q.signalKeys.length ? ` [serves ${q.signalKeys.join(", ")}]` : ""}`
+              `Q${i + 1}. ${q.question}${q.why ? ` — ${q.why}` : ""}${q.signalKeys.length ? ` [serves ${q.signalKeys.join(", ")}]` : ""}`
           )
           .join("\n")}\n`
       : "";
@@ -636,7 +831,7 @@ ${questionsBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ddBlock ? `${ddBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -754,6 +949,20 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
     await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
 
+    // ---- Refresh the context board (background, best-effort) ----
+    // What did this run answer, and what does the whole ticker's record now
+    // establish? Distilled AFTER the run is finished, read by the NEXT one —
+    // answered questions stay answered instead of being re-asked.
+    await refreshDeskContext(userId, symbol, runId, {
+      questions: questions.map((q) => q.question),
+      brief: out.brief ?? "",
+    }).catch((e) =>
+      console.error(
+        `[scalae] context board refresh (${symbol}) failed:`,
+        e instanceof Error ? e.message : e
+      )
+    );
+
     // ---- Backfill deep-history backstories (bounded: 2 per run, best-effort) ----
     // Every signal should carry its decades-scale base rate; new boards fill in
     // over a few runs. This runs AFTER the run is finished, and each backstory
@@ -850,11 +1059,8 @@ export async function executeSignalRun(
     const historyLine = signal.backstoryBrief ? ` History base rate: ${signal.backstoryBrief}` : "";
     const boardBlock = `- [S1] "${signal.name}" (${signal.type}, focus: ${signal.focusArea}). Plan: ${signal.measurementPlan} Scale: ${signal.scale}.${prevLine}${historyLine}`;
 
-    const guidance = (await listMessages(userId, symbol))
-      .filter((m) => m.role === "user")
-      .slice(-6)
-      .map((m) => `- ${m.content.slice(0, 300)}`)
-      .join("\n");
+    const guidance = await investorGuidance(userId, symbol);
+    const ctxBlock = await contextBoardBlock(userId, symbol);
 
     // ---- Stage 0: frame what THIS check must answer (scoped questions) ----
     await throwIfStopped(runId);
@@ -884,7 +1090,7 @@ ${boardBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions strictly about this signal's measurement plan and its kill-path — what must be answered TODAY to move or honestly re-confirm its reading. Every question's signalKeys is ["S1"].`,
+${ctxBlock ? `${ctxBlock}\n` : ""}TASK: This is a SINGLE-SIGNAL check, not a board run. Frame 2-4 focus questions strictly about this signal's measurement plan and its kill-path — what must be answered TODAY to move or honestly re-confirm its reading. Every question's signalKeys is ["S1"].`,
             },
           ],
           schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
@@ -1052,7 +1258,7 @@ ${questionsBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-FIELD RESEARCH (grounded web sweeps scoped to this signal; numbered sources listed at the end):
+${ctxBlock ? `${ctxBlock}\n` : ""}FIELD RESEARCH (grounded web sweeps scoped to this signal; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -1140,6 +1346,17 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
     // Fresh evidence on a named gap snaps the desk out of dormancy backoff;
     // a quiet check never deepens it (it looked at one signal, not the desk).
     if (r?.newEvidence === true) await resetQuietRuns(userId, symbol).catch(() => {});
+
+    // A check answers questions too — fold them into the context board.
+    await refreshDeskContext(userId, symbol, runId, {
+      questions: questions.map((q) => q.question),
+      brief: out.note ?? "",
+    }).catch((e) =>
+      console.error(
+        `[scalae] context board refresh (${symbol}) failed:`,
+        e instanceof Error ? e.message : e
+      )
+    );
 
     // Backfill this signal's deep-history base rate if it's missing.
     if (!signal.backstory) {

@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
-import { cancelRunningRun, getTicker, listSignals } from "@/lib/db";
-import { executeRun, startRun } from "@/lib/agents/research";
+import { cancelRunningRun, getTicker, listSignals, runningRun } from "@/lib/db";
+import { executeRun, frameRunQuestions, startRun } from "@/lib/agents/research";
+import { friendlyAIError } from "@/lib/ai/claude";
 import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
 import { localizeRun } from "@/lib/i18n/translate";
@@ -14,8 +15,18 @@ export const maxDuration = 300;
 
 type Params = { params: Promise<{ symbol: string }> };
 
-/** Kick off a research run; the pipeline continues after the response returns. */
-export async function POST(_req: Request, { params }: Params) {
+/**
+ * The run entry point, three modes by body:
+ *  - {}                      → unattended run (cron/auto/chat idiom): the
+ *                              question suggestor frames stage 0 itself.
+ *  - { frame: true }         → STEERING, step 1: run ONLY the question
+ *                              suggestor and return its questions for the
+ *                              investor to review/edit. No run starts.
+ *  - { questions: string[] } → STEERING, step 2: start the run with exactly
+ *                              the submitted questions (possibly none) —
+ *                              stage 0's framing call is skipped.
+ */
+export async function POST(req: Request, { params }: Params) {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { symbol: raw } = await params;
@@ -28,9 +39,35 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
+  const body = (await req.json().catch(() => ({}))) as { frame?: boolean; questions?: unknown };
+
+  if (body.frame === true) {
+    if (await runningRun(user.id, symbol)) {
+      return NextResponse.json(
+        { error: "Research is already running on this ticker." },
+        { status: 409 }
+      );
+    }
+    try {
+      const questions = await frameRunQuestions(user.id, symbol);
+      return NextResponse.json({ questions });
+    } catch (e) {
+      console.error(`[scalae] question framing (${symbol}) failed:`, e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: friendlyAIError(e) }, { status: 502 });
+    }
+  }
+
+  let steered: string[] | undefined;
+  if (Array.isArray(body.questions)) {
+    steered = body.questions
+      .filter((q): q is string => typeof q === "string" && q.trim().length > 0)
+      .map((q) => q.trim().slice(0, 300))
+      .slice(0, 6);
+  }
+
   const { run, started } = await startRun(user.id, symbol);
   if (started) {
-    after(() => executeRun(user.id, run.id, symbol));
+    after(() => executeRun(user.id, run.id, symbol, steered ? { questions: steered } : {}));
   }
   const lang = await requestLang(user.id);
   return NextResponse.json({ run: await localizeRun(run, lang, { userId: user.id }), started });

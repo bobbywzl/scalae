@@ -151,6 +151,50 @@ export default function DeskPage() {
     [load, t]
   );
 
+  // --- The steerable question stage: "Run research now" first frames today's
+  // focus questions for review; the run starts with exactly what's submitted.
+  const [steer, setSteer] = useState<{ question: string; why: string }[] | null>(null);
+  const [framing, setFraming] = useState(false);
+  const [steerBusy, setSteerBusy] = useState(false);
+  const [steerError, setSteerError] = useState<string | null>(null);
+
+  const openSteer = useCallback(async () => {
+    if (anyRunning || framing) return;
+    setFraming(true);
+    setSteerError(null);
+    try {
+      const { questions } = await api<{ questions: { question: string; why: string }[] }>(
+        `/api/tickers/${encodeURIComponent(symbol)}/run`,
+        { method: "POST", body: JSON.stringify({ frame: true }) }
+      );
+      setSteer(questions);
+    } catch (e) {
+      // Framing failed — open the card empty so the investor writes their own.
+      setSteer([]);
+      setSteerError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+    } finally {
+      setFraming(false);
+    }
+  }, [anyRunning, framing, symbol, t]);
+
+  const startSteered = useCallback(async () => {
+    if (!steer || steerBusy) return;
+    setSteerBusy(true);
+    setSteerError(null);
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/run`, {
+        method: "POST",
+        body: JSON.stringify({ questions: steer.map((q) => q.question.trim()).filter(Boolean) }),
+      });
+      setSteer(null);
+      load();
+    } catch (e) {
+      setSteerError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+    } finally {
+      setSteerBusy(false);
+    }
+  }, [steer, steerBusy, symbol, load, t]);
+
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
@@ -593,12 +637,16 @@ export default function DeskPage() {
               </button>
             )}
             <button
-              onClick={startRun}
-              disabled={anyRunning}
+              onClick={openSteer}
+              disabled={anyRunning || framing || !!steer}
               title={signalChecking ? t("desk.signalCheckBusy") : undefined}
               className="rounded-lg bg-ink/8 hover:bg-ink/12 disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
             >
-              {running ? t("desk.researching") : t("desk.runNow")}
+              {framing
+                ? t("desk.steerFraming")
+                : running
+                  ? t("desk.researching")
+                  : t("desk.runNow")}
             </button>
           </>
         )}
@@ -697,6 +745,74 @@ export default function DeskPage() {
       <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
         {/* left column */}
         <div className="space-y-5 min-w-0">
+          {/* The steerable question stage: review/edit today's focus questions
+              before the sweeps run — the run steers by what's submitted here. */}
+          {steer && !anyRunning && (
+            <section className="rounded-2xl bg-card border border-accent/25 p-5">
+              <SectionTitle>{t("desk.steerTitle")}</SectionTitle>
+              <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("desk.steerExplainer")}</p>
+              <div className="mt-3 space-y-2.5">
+                {steer.map((q, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="mt-2 shrink-0 text-[10px] text-muted tabular-nums">
+                      Q{i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <textarea
+                        value={q.question}
+                        onChange={(e) =>
+                          setSteer(
+                            (s) =>
+                              s?.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)) ??
+                              s
+                          )
+                        }
+                        rows={2}
+                        placeholder={t("desk.steerPlaceholder")}
+                        className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:border-accent/50"
+                      />
+                      {q.why && <p className="mt-0.5 text-[11px] text-muted/80">{q.why}</p>}
+                    </div>
+                    <button
+                      onClick={() => setSteer((s) => s?.filter((_, j) => j !== i) ?? s)}
+                      title={t("common.dismiss")}
+                      className="mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {steer.length === 0 && (
+                  <p className="text-xs text-muted italic">{t("desk.steerEmptyHint")}</p>
+                )}
+              </div>
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setSteer((s) => (s ? [...s, { question: "", why: "" }] : s))}
+                  className="rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 text-xs font-medium px-3 py-1.5 transition-colors"
+                >
+                  {t("desk.steerAdd")}
+                </button>
+                <span className="flex-1" />
+                <button
+                  onClick={() => setSteer(null)}
+                  disabled={steerBusy}
+                  className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-foreground disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
+                >
+                  {t("desk.steerCancel")}
+                </button>
+                <button
+                  onClick={startSteered}
+                  disabled={steerBusy}
+                  className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                >
+                  {steerBusy ? t("desk.steerStarting") : t("desk.steerStart")}
+                </button>
+              </div>
+              {steerError && <p className="mt-2 text-xs text-loss">{steerError}</p>}
+            </section>
+          )}
+
           {latestRun && (latestRun.status === "running" || latestRun.status === "error") && (
             <RunBanner run={latestRun} onRetry={startRun} />
           )}
@@ -775,6 +891,24 @@ export default function DeskPage() {
                 </span>
               )}
             </SectionTitle>
+            {/* The run's focus questions stay on the page after it finishes —
+                what exactly this research set out to answer. */}
+            {latestRun?.status === "done" && (latestRun.questions ?? []).length > 0 && (
+              <div className="mt-3 rounded-xl border border-hairline bg-ink/3 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                  {t("desk.questionsTitle")}
+                </p>
+                <ol className="mt-1.5 space-y-1">
+                  {(latestRun.questions ?? []).map((q, i) => (
+                    <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-emph">
+                      <span className="shrink-0 text-muted tabular-nums">Q{i + 1}</span>
+                      <span>{q}</span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-2 text-[11px] text-muted/70">{t("desk.questionsAnsweredNote")}</p>
+              </div>
+            )}
             {latestRun?.brief ? (
               <div className="mt-2">
                 <Annotatable surfaceId="brief">
