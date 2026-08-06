@@ -42,11 +42,11 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-accent pulse-soft" />
         <p className="text-sm font-medium">{t("desk.runInProgress")}</p>
-        <span className="text-[10px] text-muted ml-auto">
+        <span className="text-[0.625rem] text-muted ml-auto">
           {t("desk.startedAgo", { when: timeAgo(run.startedAt, t) })}
         </span>
       </div>
-      <div className="mt-2 flex items-center gap-2 text-[11px]">
+      <div className="mt-2 flex items-center gap-2 text-[0.6875rem]">
         {STAGES.map((s, i) => (
           <span key={s.key} className="flex items-center gap-2">
             {i > 0 && <span className="text-muted/50">→</span>}
@@ -66,14 +66,14 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
         ))}
       </div>
       {/* stageDetail is produced server-side in the user's language — render as-is. */}
-      <p className="text-[11px] text-muted mt-1.5">{run.stageDetail}</p>
+      <p className="text-[0.6875rem] text-muted mt-1.5">{run.stageDetail}</p>
       {/* The question suggestor's framing — what this run exists to answer. */}
       {(run.questions ?? []).length > 0 && (
         <div className="mt-2 rounded-lg border border-hairline bg-ink/4 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+          <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted">
             {t("desk.runQuestionsTitle")}
           </p>
-          <ol className="mt-1 space-y-0.5 text-[11px] text-emph list-decimal list-inside">
+          <ol className="mt-1 space-y-0.5 text-[0.6875rem] text-emph list-decimal list-inside">
             {(run.questions ?? []).map((q, i) => (
               <li key={i}>{q}</li>
             ))}

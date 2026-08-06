@@ -68,7 +68,7 @@ export default async function SignInPage({
           </div>
         )}
 
-        <p className="mt-6 text-[10px] text-muted/60">
+        <p className="mt-6 text-[0.625rem] text-muted/60">
           {t("common.notAdvice")} {t("onboarding.signinPrivacy")}
         </p>
       </div>

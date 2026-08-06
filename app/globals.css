@@ -87,6 +87,33 @@ html[data-theme="light"] {
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Full-bleed desk: pages span the whole viewport, so on big monitors the
+ * root font steps up and every rem-based size (all Tailwind text/spacing
+ * utilities and the arbitrary rem values in components) scales with it —
+ * the desk fills the screen instead of floating in a fixed column.
+ * Breakpoint media queries are unaffected: rem there resolves against the
+ * initial 16px, so sm/md/lg/xl/2xl stay at their usual widths.
+ */
+html {
+  font-size: 16px;
+}
+@media (min-width: 1600px) {
+  html {
+    font-size: 17px;
+  }
+}
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px;
+  }
+}
+@media (min-width: 2560px) {
+  html {
+    font-size: 20px;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

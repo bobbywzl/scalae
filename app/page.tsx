@@ -123,7 +123,7 @@ export default function WatchlistPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-5 py-10 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-10 flex-1">
       {splash && <WelcomeSplash name={me?.user?.name} onDone={() => setSplash(false)} />}
       <header className="mb-6">
         <p className="text-muted text-sm font-medium min-h-5">{today}</p>
@@ -133,7 +133,7 @@ export default function WatchlistPage() {
 
       {/* The dashboard: watchlist on the left, who-you-are & how-the-app-
           behaves on the right — side by side, everything in view. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_25rem] items-start">
         <div className="min-w-0">
           <AddTicker />
 
@@ -161,7 +161,7 @@ export default function WatchlistPage() {
                         {ticker.symbol}
                         {held && (
                           <span
-                            className={`ml-2 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide align-middle ${
+                            className={`ml-2 rounded px-1.5 py-px text-[0.5625rem] font-bold uppercase tracking-wide align-middle ${
                               (position!.unrealized ?? 0) >= 0
                                 ? "bg-gain/15 text-gain"
                                 : "bg-loss/15 text-loss"
@@ -181,7 +181,7 @@ export default function WatchlistPage() {
                         )}
                       </div>
                       <div className="text-muted text-xs truncate">{ticker.name}</div>
-                      <div className="text-[11px] mt-1 flex items-center gap-2">
+                      <div className="text-[0.6875rem] mt-1 flex items-center gap-2">
                         {!ticker.onboarded ? (
                           <span className="text-accent">{t("watchlist.setUp")}</span>
                         ) : (
@@ -215,7 +215,7 @@ export default function WatchlistPage() {
                         quote.currency &&
                         quote.currency !== "USD" &&
                         quote.fxToUsd != null && (
-                          <div className="text-[10px] text-muted tabular-nums">
+                          <div className="text-[0.625rem] text-muted tabular-nums">
                             ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
                           </div>
                         )}
@@ -251,13 +251,13 @@ export default function WatchlistPage() {
           {/* Account */}
           <div className="rounded-2xl bg-card border border-hairline p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 {t("watchlist.dashAccount")}
               </p>
               {me?.authEnabled && me.user && (
                 <a
                   href="/api/auth/logout"
-                  className="text-[11px] text-muted hover:text-loss transition-colors"
+                  className="text-[0.6875rem] text-muted hover:text-loss transition-colors"
                 >
                   {t("common.signOut")}
                 </a>
@@ -276,7 +276,7 @@ export default function WatchlistPage() {
                 <p className="text-sm font-semibold truncate">
                   {me?.user?.name || profile?.name || "Scalae"}
                 </p>
-                <p className="text-[11px] text-muted truncate">
+                <p className="text-[0.6875rem] text-muted truncate">
                   {me?.user?.email || t("watchlist.dashSingleUser")}
                 </p>
               </div>
@@ -291,7 +291,7 @@ export default function WatchlistPage() {
 
           {/* Investor profile */}
           <div className="rounded-2xl bg-card border border-hairline p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
               {t("watchlist.dashProfile")}
             </p>
             {profile && (profile.name || profile.country || profile.age || (profile.industries?.length ?? 0) > 0) ? (
@@ -312,7 +312,7 @@ export default function WatchlistPage() {
                     {profile.industries!.map((ind) => (
                       <span
                         key={ind}
-                        className="rounded-full bg-ink/6 border border-hairline px-2 py-0.5 text-[10px] text-emph"
+                        className="rounded-full bg-ink/6 border border-hairline px-2 py-0.5 text-[0.625rem] text-emph"
                       >
                         {ind}
                       </span>
@@ -321,17 +321,17 @@ export default function WatchlistPage() {
                 )}
               </div>
             ) : (
-              <p className="mt-2 text-[11px] text-muted leading-snug">{t("watchlist.dashNoProfile")}</p>
+              <p className="mt-2 text-[0.6875rem] text-muted leading-snug">{t("watchlist.dashNoProfile")}</p>
             )}
           </div>
 
           {/* Preferences — the auto-research lever + language, with settings a tap away. */}
           <div className="rounded-2xl bg-card border border-hairline p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 {t("watchlist.dashPreferences")}
               </p>
-              <Link href="/settings" className="text-[11px] text-accent hover:opacity-80 transition-opacity">
+              <Link href="/settings" className="text-[0.6875rem] text-accent hover:opacity-80 transition-opacity">
                 {t("common.settings")} →
               </Link>
             </div>
@@ -359,7 +359,7 @@ export default function WatchlistPage() {
                     {autoResearch === null ? "…" : autoResearch ? t("common.on") : t("common.off")}
                   </span>
                 </p>
-                <p className="text-[11px] text-muted leading-snug">
+                <p className="text-[0.6875rem] text-muted leading-snug">
                   {autoResearch === false ? t("watchlist.autoOffDesc") : t("watchlist.autoOnDesc")}
                 </p>
               </div>
@@ -372,7 +372,7 @@ export default function WatchlistPage() {
 
           {/* Tools */}
           <div className="rounded-2xl bg-card border border-hairline p-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
               {t("watchlist.dashTools")}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -404,7 +404,7 @@ export default function WatchlistPage() {
         </aside>
       </div>
 
-      <footer className="mt-10 text-center text-[11px] text-muted/60">
+      <footer className="mt-10 text-center text-[0.6875rem] text-muted/60">
         {t("watchlist.footer")} {t("common.notAdvice")}{" "}
         <Link href="/support" className="text-muted hover:text-foreground underline underline-offset-2 transition-colors">
           {t("watchlist.sendFeedback")}

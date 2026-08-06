@@ -120,7 +120,7 @@ export default function DiligencePage() {
 
   return (
     <AnnotationsProvider symbol={symbol}>
-    <main className="mx-auto w-full max-w-4xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link
           href="/"
@@ -130,7 +130,7 @@ export default function DiligencePage() {
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
-          <p className="text-muted text-[13px] mt-0.5">{t("dd.pageSubtitle", { name: ticker.name })}</p>
+          <p className="text-muted text-[0.8125rem] mt-0.5">{t("dd.pageSubtitle", { name: ticker.name })}</p>
         </div>
         <DeskTabs symbol={symbol} active="dd" />
       </header>
@@ -189,7 +189,7 @@ export default function DiligencePage() {
         {suggestions && suggestions.length > 0 && (
           <div className="mt-3">
             <p className="text-xs text-muted">{t("dd.suggestExplainer")}</p>
-            <div className="mt-2 grid sm:grid-cols-2 gap-2">
+            <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2">
               {suggestions.map((s) => (
                 <button
                   key={s.title}
@@ -197,12 +197,12 @@ export default function DiligencePage() {
                   disabled={busy}
                   className="text-left rounded-xl border border-hairline bg-ink/4 hover:bg-ink/8 disabled:opacity-50 px-3.5 py-2.5 transition-colors"
                 >
-                  <span className="text-[13px] font-semibold text-emph">+ {s.title}</span>
+                  <span className="text-[0.8125rem] font-semibold text-emph">+ {s.title}</span>
                   {s.rationale && (
                     <p className="text-xs text-muted mt-1 leading-relaxed">{s.rationale}</p>
                   )}
                   {s.signalNames.length > 0 && (
-                    <p className="text-[11px] text-accent/80 mt-1">
+                    <p className="text-[0.6875rem] text-accent/80 mt-1">
                       {t("dd.suggestDeepens", { names: s.signalNames.map((n) => `“${n}”`).join(", ") })}
                     </p>
                   )}
@@ -297,11 +297,11 @@ function SectionBlock({
             onChange={(e) => setTitle(e.target.value)}
             onBlur={rename}
             onKeyDown={(e) => e.key === "Enter" && rename()}
-            className="rounded-md border border-hairline bg-ink/4 px-2 py-0.5 text-[13px] font-semibold focus:outline-none focus:border-accent/50"
+            className="rounded-md border border-hairline bg-ink/4 px-2 py-0.5 text-[0.8125rem] font-semibold focus:outline-none focus:border-accent/50"
           />
         ) : (
           <h2
-            className="text-[13px] uppercase tracking-widest text-muted font-semibold cursor-pointer hover:text-emph transition-colors"
+            className="text-[0.8125rem] uppercase tracking-widest text-muted font-semibold cursor-pointer hover:text-emph transition-colors"
             title={t("notes.renameSection")}
             onClick={() => setRenaming(true)}
           >
@@ -311,7 +311,7 @@ function SectionBlock({
         <button
           onClick={addNotepad}
           disabled={busy}
-          className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[10px] text-muted hover:text-emph transition-colors disabled:opacity-40"
+          className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[0.625rem] text-muted hover:text-emph transition-colors disabled:opacity-40"
         >
           {t("notes.addNotepad")}
         </button>
@@ -321,7 +321,7 @@ function SectionBlock({
           onClick={remove}
           disabled={busy}
           title={t("notes.deleteSection")}
-          className="ml-auto flex items-center gap-1 rounded-md border border-loss/25 bg-loss/8 hover:bg-loss/18 px-2 py-0.5 text-[10px] font-medium text-loss transition-colors disabled:opacity-40"
+          className="ml-auto flex items-center gap-1 rounded-md border border-loss/25 bg-loss/8 hover:bg-loss/18 px-2 py-0.5 text-[0.625rem] font-medium text-loss transition-colors disabled:opacity-40"
         >
           🗑 {t("notes.deleteSection")}
         </button>
@@ -344,7 +344,7 @@ function SectionBlock({
       <button
         onClick={addNotepad}
         disabled={busy}
-        className="mt-2 w-full rounded-xl border border-dashed border-hairline bg-ink/3 hover:bg-ink/6 px-3 py-2 text-left text-[11px] text-muted hover:text-emph transition-colors disabled:opacity-40"
+        className="mt-2 w-full rounded-xl border border-dashed border-hairline bg-ink/3 hover:bg-ink/6 px-3 py-2 text-left text-[0.6875rem] text-muted hover:text-emph transition-colors disabled:opacity-40"
       >
         {t("notes.addNote")}
       </button>
@@ -469,12 +469,12 @@ function EvidenceStrip({
       ))}
       {section.evidence.length > 0 && (
         <>
-          <div className="mt-2 grid sm:grid-cols-2 gap-2.5">
+          <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
             {section.evidence.map((e) => (
               <EvidenceCard key={e.id} evidence={e} onChanged={onChanged} />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-muted/60">{t("dd.evidenceReadNote")}</p>
+          <p className="mt-2 text-[0.6875rem] text-muted/60">{t("dd.evidenceReadNote")}</p>
         </>
       )}
     </div>
@@ -555,14 +555,14 @@ function EvidenceCard({
           >
             {evidence.name}
           </a>
-          <span className="shrink-0 text-[10px] text-muted/70 tabular-nums">
+          <span className="shrink-0 text-[0.625rem] text-muted/70 tabular-nums">
             {fmtBytes(evidence.size)}
           </span>
           <button
             onClick={remove}
             disabled={busy}
             title={t("dd.evidenceDelete")}
-            className="ml-auto shrink-0 rounded-md px-1 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
+            className="ml-auto shrink-0 rounded-md px-1 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
           >
             ✕
           </button>
@@ -573,7 +573,7 @@ function EvidenceCard({
           placeholder={t("dd.evidenceCaptionPlaceholder")}
           className="mt-1.5 w-full rounded-md border border-hairline bg-ink/4 px-2 py-1 text-xs focus:outline-none focus:border-accent/50 placeholder:text-muted/50"
         />
-        <p className="mt-1 text-[10px] text-muted/60">{evidence.createdAt.slice(0, 10)}</p>
+        <p className="mt-1 text-[0.625rem] text-muted/60">{evidence.createdAt.slice(0, 10)}</p>
       </div>
     </div>
   );
@@ -686,9 +686,9 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
             queue({ title: e.target.value });
           }}
           placeholder={t("notes.notepadTitlePlaceholder")}
-          className="flex-1 min-w-0 bg-transparent text-[15px] font-semibold focus:outline-none placeholder:text-muted/50"
+          className="flex-1 min-w-0 bg-transparent text-[0.9375rem] font-semibold focus:outline-none placeholder:text-muted/50"
         />
-        <span className="shrink-0 text-[10px] text-muted/70 tabular-nums">
+        <span className="shrink-0 text-[0.625rem] text-muted/70 tabular-nums">
           {saveState === "saving"
             ? t("notes.saving")
             : saveState === "dirty"
@@ -697,7 +697,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
         </span>
         <button
           onClick={editing ? finishEditing : () => setEditing(true)}
-          className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+          className={`shrink-0 rounded-md px-2 py-0.5 text-[0.6875rem] font-medium transition-colors ${
             editing
               ? "bg-accent/12 text-accent hover:bg-accent/20"
               : "bg-ink/6 text-muted hover:bg-ink/10 hover:text-emph"
@@ -708,7 +708,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
         <button
           onClick={remove}
           title={t("notes.deleteNotepad")}
-          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors"
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors"
         >
           ✕
         </button>
@@ -724,7 +724,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
           />
         ) : isEmpty ? (
           <p
-            className="text-muted/70 text-[13px] italic cursor-text"
+            className="text-muted/70 text-[0.8125rem] italic cursor-text"
             onClick={() => setEditing(true)}
           >
             {t("notes.emptyNotepad")}
@@ -733,7 +733,7 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
           <Annotatable surfaceId={`note:${note.id}`}>
             <div
               onDoubleClick={() => setEditing(true)}
-              className="note-prose text-[15px] leading-relaxed"
+              className="note-prose text-[0.9375rem] leading-relaxed"
               dangerouslySetInnerHTML={{ __html: readHtml }}
             />
           </Annotatable>

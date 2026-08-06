@@ -72,9 +72,9 @@ function optionLabelT(
 function StatTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <div className="rounded-xl bg-card border border-hairline px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted">{label}</p>
       <p className={`text-lg font-bold tabular-nums mt-0.5 ${tone ?? ""}`}>{value}</p>
-      {sub && <p className="text-[11px] text-muted mt-0.5 tabular-nums">{sub}</p>}
+      {sub && <p className="text-[0.6875rem] text-muted mt-0.5 tabular-nums">{sub}</p>}
     </div>
   );
 }
@@ -82,7 +82,7 @@ function StatTile({ label, value, sub, tone }: { label: string; value: string; s
 function PctChip({ v }: { v: number | null }) {
   if (v == null) return null;
   return (
-    <span className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums ${v >= 0 ? "bg-gain/15 text-gain" : "bg-loss/15 text-loss"}`}>
+    <span className={`rounded px-1.5 py-px text-[0.625rem] font-semibold tabular-nums ${v >= 0 ? "bg-gain/15 text-gain" : "bg-loss/15 text-loss"}`}>
       {v >= 0 ? "+" : ""}
       {v.toFixed(1)}%
     </span>
@@ -253,7 +253,7 @@ export default function PortfolioPage() {
   const s = data?.summary;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap mb-5">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
           {t("common.backToWatchlist")}
@@ -328,7 +328,7 @@ export default function PortfolioPage() {
       {capEditing && data && (
         <section className="mb-5 rounded-2xl bg-card border border-accent/25 px-4 py-3 flex items-end gap-3 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted">{t("portfolio.capitalLabel")}</p>
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted">{t("portfolio.capitalLabel")}</p>
             <input
               autoFocus
               inputMode="decimal"
@@ -342,7 +342,7 @@ export default function PortfolioPage() {
               className="mt-1 rounded-lg bg-card2 border border-hairline focus:border-accent/50 px-2.5 py-2 text-sm outline-none tabular-nums w-44 transition-colors placeholder:text-muted/60"
             />
           </div>
-          <p className="text-[11px] text-muted max-w-sm pb-1">{t("portfolio.capitalDesc")}</p>
+          <p className="text-[0.6875rem] text-muted max-w-sm pb-1">{t("portfolio.capitalDesc")}</p>
           <div className="flex gap-2 pb-0.5 ml-auto">
             <button
               onClick={() => saveCapital(capInput)}
@@ -436,7 +436,7 @@ export default function PortfolioPage() {
             <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {data.initialCapital != null && data.cash != null ? (
                 <div className="rounded-xl bg-card border border-hairline px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted flex items-center">
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted flex items-center">
                     {t("portfolio.cash")}
                     <button
                       onClick={() => {
@@ -452,7 +452,7 @@ export default function PortfolioPage() {
                   <p className={`text-lg font-bold tabular-nums mt-0.5 ${data.cash < 0 ? "text-loss" : ""}`}>
                     {fmtUsd(data.cash)}
                   </p>
-                  <p className="text-[11px] text-muted mt-0.5 tabular-nums">
+                  <p className="text-[0.6875rem] text-muted mt-0.5 tabular-nums">
                     {t("portfolio.ofInitial", { amt: fmtUsd(data.initialCapital) })}
                   </p>
                 </div>
@@ -464,11 +464,11 @@ export default function PortfolioPage() {
                   }}
                   className="rounded-xl border border-dashed border-ink/20 hover:border-accent/50 px-4 py-3 text-left transition-colors group"
                 >
-                  <p className="text-[10px] uppercase tracking-wider text-muted">{t("portfolio.cash")}</p>
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted">{t("portfolio.cash")}</p>
                   <p className="text-sm font-semibold text-muted group-hover:text-accent mt-1 transition-colors">
                     {t("portfolio.setInitialCapital")}
                   </p>
-                  <p className="text-[11px] text-muted/70 mt-0.5">{t("portfolio.unlocksTracking")}</p>
+                  <p className="text-[0.6875rem] text-muted/70 mt-0.5">{t("portfolio.unlocksTracking")}</p>
                 </button>
               )}
               <StatTile
@@ -518,7 +518,7 @@ export default function PortfolioPage() {
           {data.pendingDividends.length > 0 && (
             <section className="rounded-2xl border border-warn/25 bg-warn/6 p-4">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[11px] uppercase tracking-widest text-warn font-semibold">
+                <p className="text-[0.6875rem] uppercase tracking-widest text-warn font-semibold">
                   {t(
                     data.pendingDividends.length === 1
                       ? "portfolio.divsDetectedOne"
@@ -526,11 +526,11 @@ export default function PortfolioPage() {
                     { n: data.pendingDividends.length }
                   )}
                 </p>
-                <p className="text-[11px] text-muted">{t("portfolio.pendingDivHint")}</p>
+                <p className="text-[0.6875rem] text-muted">{t("portfolio.pendingDivHint")}</p>
                 <button
                   onClick={applyAllDividends}
                   disabled={divBusy != null}
-                  className="ml-auto rounded-lg bg-warn/15 text-warn text-[11px] font-semibold px-2.5 py-1 hover:bg-warn/25 disabled:opacity-50 transition-colors"
+                  className="ml-auto rounded-lg bg-warn/15 text-warn text-[0.6875rem] font-semibold px-2.5 py-1 hover:bg-warn/25 disabled:opacity-50 transition-colors"
                 >
                   {divBusy === "all" ? t("portfolio.applying") : t("portfolio.applyAll")}
                 </button>
@@ -570,14 +570,14 @@ export default function PortfolioPage() {
                           setWithholding((m) => ({ ...m, [`${p.symbol}|${p.exDate}`]: e.target.value }))
                         }
                         placeholder="0"
-                        className="w-10 rounded bg-card2 border border-hairline px-1 py-0.5 text-[11px] tabular-nums outline-none focus:border-accent/50 transition-colors"
+                        className="w-10 rounded bg-card2 border border-hairline px-1 py-0.5 text-[0.6875rem] tabular-nums outline-none focus:border-accent/50 transition-colors"
                       />
                       %
                     </label>
                     <button
                       onClick={() => applyDividend(p.symbol, p.exDate)}
                       disabled={divBusy != null}
-                      className="ml-auto rounded-lg bg-ink/8 hover:bg-ink/12 text-[11px] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
+                      className="ml-auto rounded-lg bg-ink/8 hover:bg-ink/12 text-[0.6875rem] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
                     >
                       {divBusy === `${p.symbol}|${p.exDate}` ? "…" : t("portfolio.apply")}
                     </button>
@@ -589,16 +589,16 @@ export default function PortfolioPage() {
 
           {/* P&L chart */}
           <section className="rounded-2xl bg-card border border-hairline p-4">
-            <p className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-2">
+            <p className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold mb-2">
               {t("portfolio.pnlOverTime")}{" "}
               <span className="normal-case tracking-normal font-normal">{t("portfolio.usdUnit")}</span>
             </p>
             <PnlChart series={data.series} />
             {data.options.length > 0 && (
-              <p className="text-[10px] text-muted/70 mt-2">{t("portfolio.optionsMarkNote")}</p>
+              <p className="text-[0.625rem] text-muted/70 mt-2">{t("portfolio.optionsMarkNote")}</p>
             )}
             {data.unpriced.length > 0 && (
-              <p className="text-[10px] text-warn mt-1">
+              <p className="text-[0.625rem] text-warn mt-1">
                 {t("portfolio.unpricedNote", { syms: data.unpriced.join(", ") })}
               </p>
             )}
@@ -607,7 +607,7 @@ export default function PortfolioPage() {
           {/* Working orders (paper execution) */}
           {data.openOrders.length > 0 && (
             <section>
-              <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+              <p className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
                 {t("portfolio.openOrders")}{" "}
                 <span className="normal-case tracking-normal font-normal">
                   {t("portfolio.openOrdersSub")}
@@ -630,7 +630,7 @@ export default function PortfolioPage() {
                     <button
                       onClick={() => cancelOrder(o)}
                       disabled={orderBusy === o.id}
-                      className="ml-auto rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
+                      className="ml-auto rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-loss text-[0.6875rem] font-medium px-2.5 py-1 disabled:opacity-50 transition-colors"
                     >
                       {orderBusy === o.id ? "…" : t("portfolio.cancelOrder")}
                     </button>
@@ -642,7 +642,7 @@ export default function PortfolioPage() {
 
           {/* Stock positions — click a row for everything you can do with it */}
           <section>
-            <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+            <p className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
               {t("portfolio.stocks")}
             </p>
             {data.stocks.length === 0 ? (
@@ -671,7 +671,7 @@ export default function PortfolioPage() {
                           <p className="font-semibold text-sm">
                             {p.symbol}{" "}
                             {p.qty < 0 && (
-                              <span className="text-loss text-[10px] font-semibold ml-1">
+                              <span className="text-loss text-[0.625rem] font-semibold ml-1">
                                 {t("portfolio.shortTag")}
                               </span>
                             )}
@@ -687,7 +687,7 @@ export default function PortfolioPage() {
                                     ? t("portfolio.dripOnTitle")
                                     : t("portfolio.dripOffTitle")
                                 }
-                                className={`ml-2 rounded-full px-2 py-px text-[9px] font-semibold uppercase tracking-wider transition-colors ${
+                                className={`ml-2 rounded-full px-2 py-px text-[0.5625rem] font-semibold uppercase tracking-wider transition-colors ${
                                   data.drip[p.symbol]
                                     ? "bg-gain/15 text-gain"
                                     : "bg-ink/6 text-muted hover:bg-ink/10"
@@ -699,14 +699,14 @@ export default function PortfolioPage() {
                               </button>
                             )}
                           </p>
-                          <p className="text-[11px] text-muted tabular-nums">
+                          <p className="text-[0.6875rem] text-muted tabular-nums">
                             {t("portfolio.qtyAvg", {
                               qty: Math.abs(p.qty).toLocaleString(),
                               price: fmtNative(p.avgCost, p.currency),
                             })}
                             {s && s.marketValue > 0 && p.marketValue != null && (
                               <span
-                                className="ml-2 rounded bg-ink/6 px-1.5 py-px text-[10px]"
+                                className="ml-2 rounded bg-ink/6 px-1.5 py-px text-[0.625rem]"
                                 title={t("portfolio.pctOfBookTitle")}
                               >
                                 {t("portfolio.pctOfBook", {
@@ -740,20 +740,20 @@ export default function PortfolioPage() {
                           <p className="text-sm font-medium tabular-nums">
                             {p.mark != null ? fmtNative(p.mark, p.currency) : "—"}
                             {p.dayChangePct != null && (
-                              <span className={`ml-1.5 text-[10px] ${signCls(p.dayChangePct)}`}>
+                              <span className={`ml-1.5 text-[0.625rem] ${signCls(p.dayChangePct)}`}>
                                 {p.dayChangePct >= 0 ? "+" : ""}
                                 {p.dayChangePct.toFixed(1)}%
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] tabular-nums mt-0.5">
+                          <p className="text-[0.6875rem] tabular-nums mt-0.5">
                             <span className={signCls(p.unrealized)}>
                               {p.unrealized != null ? fmtNative(p.unrealized, p.currency, 0) : "—"}
                             </span>{" "}
                             <PctChip v={p.unrealizedPct} />
                           </p>
                           {p.currency !== "USD" && p.fxToUsd !== 1 && (
-                            <p className="text-[10px] text-muted tabular-nums mt-0.5">
+                            <p className="text-[0.625rem] text-muted tabular-nums mt-0.5">
                               {p.marketValue != null && (
                                 <>≈ {fmtUsd(p.marketValue * p.fxToUsd)}</>
                               )}
@@ -765,7 +765,7 @@ export default function PortfolioPage() {
                         </div>
                         <span
                           aria-hidden
-                          className={`shrink-0 text-[10px] transition-transform ${
+                          className={`shrink-0 text-[0.625rem] transition-transform ${
                             open ? "rotate-90 text-emph" : "text-muted/60"
                           }`}
                         >
@@ -839,7 +839,7 @@ export default function PortfolioPage() {
 
           {/* Options positions */}
           <section>
-            <p className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+            <p className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
               {t("portfolio.options")}
             </p>
             {data.options.length === 0 ? (
@@ -857,17 +857,17 @@ export default function PortfolioPage() {
                           </Link>{" "}
                           <span className="text-emph">{optionLabelT(p, t, lang, locale)}</span>
                           {p.qty < 0 && (
-                            <span className="text-warn text-[10px] font-semibold ml-1.5">
+                            <span className="text-warn text-[0.625rem] font-semibold ml-1.5">
                               {t("portfolio.shortTag")}
                             </span>
                           )}
                           {p.expired && (
-                            <span className="text-loss text-[10px] font-semibold ml-1.5">
+                            <span className="text-loss text-[0.625rem] font-semibold ml-1.5">
                               {t("portfolio.expiredTag")}
                             </span>
                           )}
                         </p>
-                        <p className="text-[11px] text-muted tabular-nums">
+                        <p className="text-[0.6875rem] text-muted tabular-nums">
                           {t(
                             Math.abs(p.qty) === 1 ? "portfolio.contractsAtOne" : "portfolio.contractsAtMany",
                             { n: Math.abs(p.qty), price: fmtNative(p.avgCost, p.currency) }
@@ -882,7 +882,7 @@ export default function PortfolioPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-medium tabular-nums">{p.mark != null ? fmtNative(p.mark, p.currency) : "—"}</p>
-                        <p className="text-[11px] tabular-nums mt-0.5">
+                        <p className="text-[0.6875rem] tabular-nums mt-0.5">
                           <span className={signCls(p.unrealized)}>
                             {p.unrealized != null ? fmtNative(p.unrealized, p.currency, 0) : "—"}
                           </span>{" "}
@@ -895,7 +895,7 @@ export default function PortfolioPage() {
               </ul>
             )}
             {data.options.some((o) => o.expired) && (
-              <p className="text-[10px] text-muted mt-1.5">{t("portfolio.expiredNote")}</p>
+              <p className="text-[0.625rem] text-muted mt-1.5">{t("portfolio.expiredNote")}</p>
             )}
           </section>
 
@@ -904,7 +904,7 @@ export default function PortfolioPage() {
             <section>
               <button
                 onClick={() => setShowOrderHistory((v) => !v)}
-                className="text-[11px] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
+                className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
               >
                 {t("portfolio.orderHistory", { n: data.orderHistory.length })} {showOrderHistory ? "▾" : "▸"}
               </button>
@@ -928,7 +928,7 @@ export default function PortfolioPage() {
                         )}
                       </span>
                       <span
-                        className={`ml-auto shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+                        className={`ml-auto shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider ${
                           o.status === "filled"
                             ? "bg-gain/15 text-gain"
                             : o.status === "canceled"
@@ -950,7 +950,7 @@ export default function PortfolioPage() {
             <section>
               <button
                 onClick={() => setShowReceipts((v) => !v)}
-                className="text-[11px] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
+                className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
               >
                 {t("portfolio.dividendReceipts", { n: data.dividends.length })} {showReceipts ? "▾" : "▸"}
               </button>
@@ -970,14 +970,14 @@ export default function PortfolioPage() {
                         </span>
                         {d.withholdingPct > 0 && (
                           <span
-                            className="rounded bg-ink/6 px-1.5 py-px text-[10px] text-muted"
+                            className="rounded bg-ink/6 px-1.5 py-px text-[0.625rem] text-muted"
                             title={t("portfolio.netOfWhTitle")}
                           >
                             {t("portfolio.netOfWh", { pct: d.withholdingPct })}
                           </span>
                         )}
                         <span
-                          className={`rounded px-1.5 py-px text-[10px] ${
+                          className={`rounded px-1.5 py-px text-[0.625rem] ${
                             d.reinvested ? "bg-gain/12 text-gain" : "bg-ink/6 text-muted"
                           }`}
                         >
@@ -987,7 +987,7 @@ export default function PortfolioPage() {
                     ))}
                   </ul>
                   {data.dividends.some((d) => d.currency !== "USD") && (
-                    <p className="text-[10px] text-muted mt-1.5">{t("portfolio.nonUsdNote")}</p>
+                    <p className="text-[0.625rem] text-muted mt-1.5">{t("portfolio.nonUsdNote")}</p>
                   )}
                 </>
               )}
@@ -998,7 +998,7 @@ export default function PortfolioPage() {
           <section>
             <button
               onClick={() => setShowTrades((v) => !v)}
-              className="text-[11px] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
+              className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold hover:text-emph transition-colors"
             >
               {t("portfolio.tradeHistory", { n: data.trades.length })} {showTrades ? "▾" : "▸"}
             </button>
@@ -1036,7 +1036,7 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      <footer className="mt-10 text-center text-[11px] text-muted/60">
+      <footer className="mt-10 text-center text-[0.6875rem] text-muted/60">
         {t("portfolio.footerLedger")} {t("common.notAdvice")}
       </footer>
     </main>

@@ -67,7 +67,7 @@ function DailyChart({
   const barW = Math.min(24, Math.max(3, slot - 2)); // 2px surface gap, ≤24px thick
   return (
     <div className="relative">
-      <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-1.5">{title}</p>
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-1.5">{title}</p>
       <svg
         viewBox={`0 0 ${W} ${H + 14}`}
         className="w-full"
@@ -109,7 +109,7 @@ function DailyChart({
       </svg>
       {hover !== null && data[hover] && (
         <div
-          className="absolute -top-1 rounded-lg bg-black border border-hairline px-2.5 py-1.5 text-[11px] pointer-events-none shadow-xl z-10"
+          className="absolute -top-1 rounded-lg bg-black border border-hairline px-2.5 py-1.5 text-[0.6875rem] pointer-events-none shadow-xl z-10"
           style={{ left: `${(hover / data.length) * 100}%`, transform: "translateX(-50%)" }}
         >
           <span className="text-muted">{data[hover].day.slice(5)}</span>{" "}
@@ -131,7 +131,7 @@ function BarList({
   const max = Math.max(...rows.map((r) => r.value), 1e-9);
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">{title}</p>
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-2">{title}</p>
       <div className="space-y-2">
         {rows.slice(0, 6).map((r) => (
           <div key={r.label} title={`${r.label} — ${fmtUsd(r.value)} · ${r.detail}`}>
@@ -145,7 +145,7 @@ function BarList({
                 style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%` }}
               />
             </div>
-            <p className="text-[10px] text-muted mt-0.5">{r.detail}</p>
+            <p className="text-[0.625rem] text-muted mt-0.5">{r.detail}</p>
           </div>
         ))}
         {rows.length === 0 && <p className="text-xs text-muted">No spend recorded yet.</p>}
@@ -218,7 +218,7 @@ export default function AdminPage() {
   const userCostShareMax = Math.max(...(usage?.byUser.map((u) => u.costUsd) ?? []), 1e-9);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-xl font-bold leading-tight">Accounts &amp; usage</h1>
@@ -227,7 +227,7 @@ export default function AdminPage() {
           </p>
         </div>
         {authOn === false && (
-          <span className="ml-auto rounded-lg border border-warn/25 bg-warn/8 px-3 py-1.5 text-[11px] text-warn">
+          <span className="ml-auto rounded-lg border border-warn/25 bg-warn/8 px-3 py-1.5 text-[0.6875rem] text-warn">
             Single-user mode — set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / SESSION_SECRET to open
             sign-ups
           </span>
@@ -253,7 +253,7 @@ export default function AdminPage() {
                 ] as const
               ).map(([label, v]) => (
                 <div key={label} className="rounded-xl bg-card border border-hairline px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted">{label}</p>
                   <p className="text-lg font-bold tabular-nums mt-0.5">{v.toLocaleString()}</p>
                 </div>
               ))}
@@ -263,7 +263,7 @@ export default function AdminPage() {
           {/* AI cost & usage */}
           <section className="rounded-2xl bg-card border border-hairline px-5 py-4 space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 AI cost &amp; usage{" "}
                 <span className="normal-case tracking-normal font-normal">
                   — last 90 days · estimated from list prices at call time
@@ -273,7 +273,7 @@ export default function AdminPage() {
                 <button
                   onClick={clearCostData}
                   disabled={clearing}
-                  className="rounded-lg border border-loss/30 px-2.5 py-1 text-[11px] text-loss/90 hover:text-loss hover:border-loss/50 transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-loss/30 px-2.5 py-1 text-[0.6875rem] text-loss/90 hover:text-loss hover:border-loss/50 transition-colors disabled:opacity-50"
                 >
                   {clearing ? "Clearing…" : "Clear cost data"}
                 </button>
@@ -299,7 +299,7 @@ export default function AdminPage() {
                     ] as const
                   ).map(([label, v]) => (
                     <div key={label} className="rounded-xl bg-white/3 border border-hairline px-3.5 py-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-muted">{label}</p>
+                      <p className="text-[0.625rem] uppercase tracking-wider text-muted">{label}</p>
                       <p className="text-base font-bold tabular-nums mt-0.5">{v}</p>
                     </div>
                   ))}
@@ -332,12 +332,12 @@ export default function AdminPage() {
 
                 {/* Cost by user */}
                 <div className="overflow-x-auto">
-                  <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-2">
                     Cost by user
                   </p>
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-[10px] uppercase tracking-wider text-muted border-b border-hairline">
+                      <tr className="text-[0.625rem] uppercase tracking-wider text-muted border-b border-hairline">
                         <th className="text-left py-2 font-semibold">User</th>
                         <th className="text-right px-3 py-2 font-semibold">Calls</th>
                         <th className="text-right px-3 py-2 font-semibold">Input</th>
@@ -384,7 +384,7 @@ export default function AdminPage() {
               />
             ) : (
               <p className="text-xs text-muted">
-                <span className="text-[10px] uppercase tracking-wider font-semibold">
+                <span className="text-[0.625rem] uppercase tracking-wider font-semibold">
                   Sign-ins per day
                 </span>{" "}
                 — no Google sessions yet{authOn === false ? " (single-user mode)" : ""}.
@@ -397,7 +397,7 @@ export default function AdminPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-muted border-b border-hairline">
+                  <tr className="text-[0.625rem] uppercase tracking-wider text-muted border-b border-hairline">
                     <th className="text-left px-4 py-2.5 font-semibold">Account</th>
                     <th className="text-left px-3 py-2.5 font-semibold">Profile</th>
                     <th className="text-right px-3 py-2.5 font-semibold">Desks</th>
@@ -435,7 +435,7 @@ export default function AdminPage() {
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={r.user.picture} alt="" className="h-6 w-6 rounded-full shrink-0" />
                             ) : (
-                              <span className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] shrink-0">
+                              <span className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[0.625rem] shrink-0">
                                 {(r.user.name || r.user.email)[0]?.toUpperCase()}
                               </span>
                             )}
@@ -443,7 +443,7 @@ export default function AdminPage() {
                               <span className="font-semibold block truncate">
                                 {r.user.name || r.user.email}
                                 {r.user.role === "admin" && (
-                                  <span className="ml-1.5 rounded bg-accent/15 text-accent px-1.5 py-px text-[9px] uppercase tracking-wider">
+                                  <span className="ml-1.5 rounded bg-accent/15 text-accent px-1.5 py-px text-[0.5625rem] uppercase tracking-wider">
                                     admin
                                   </span>
                                 )}
@@ -484,7 +484,7 @@ export default function AdminPage() {
 
           {models && (
             <section className="rounded-2xl bg-card border border-hairline px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 Models in use right now{" "}
                 <span className="normal-case tracking-normal font-normal">
                   — auto-selected from each provider&rsquo;s live list; pin per role with
@@ -501,7 +501,7 @@ export default function AdminPage() {
               </p>
             </section>
           )}
-          <p className="text-[10px] text-muted/60">
+          <p className="text-[0.625rem] text-muted/60">
             Costs are estimates from provider list prices at call time (cache tiers included).
             Research runs consume tokens per user — watch Cost by user when opening the app up.
           </p>

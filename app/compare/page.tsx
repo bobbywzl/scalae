@@ -66,7 +66,7 @@ function pulse(desk: DeskPayload) {
 
 function SignalCell({ s, onNavigate }: { s: SignalWithReadings | null; onNavigate?: string }) {
   const { t, locale } = useT();
-  if (!s) return <div className="text-[11px] text-muted italic px-3 py-2">{t("compare.notTracked")}</div>;
+  if (!s) return <div className="text-[0.6875rem] text-muted italic px-3 py-2">{t("compare.notTracked")}</div>;
   const r = s.latest;
   const level = r ? LEVEL_STYLE[r.level] : null;
   const delta = r ? DELTA_ARROW[r.delta] : null;
@@ -75,19 +75,19 @@ function SignalCell({ s, onNavigate }: { s: SignalWithReadings | null; onNavigat
       <p className="text-xs font-semibold leading-tight">{s.name}</p>
       <p className="mt-1 flex items-center gap-2 flex-wrap">
         {level && delta ? (
-          <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${level.cls}`}>
+          <span className={`rounded px-1.5 py-px text-[0.625rem] font-semibold ${level.cls}`}>
             {levelLabel(r!.level, t)} <span className={delta.cls}>{delta.ch}</span>
           </span>
         ) : (
-          <span className="text-[10px] text-muted italic">{t("compare.awaitingFirstReading")}</span>
+          <span className="text-[0.625rem] text-muted italic">{t("compare.awaitingFirstReading")}</span>
         )}
         {r?.value != null && (
-          <span className="text-[11px] tabular-nums text-emph">
+          <span className="text-[0.6875rem] tabular-nums text-emph">
             {r.value.toLocaleString(locale)} {r.valueUnit ?? ""}
           </span>
         )}
         {r?.newEvidence === false && (
-          <span className="text-[9px] uppercase tracking-wider text-muted/60">{t("compare.carryFwd")}</span>
+          <span className="text-[0.5625rem] uppercase tracking-wider text-muted/60">{t("compare.carryFwd")}</span>
         )}
       </p>
     </>
@@ -187,7 +187,7 @@ export default function ComparePage() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
           {t("common.backToWatchlist")}
@@ -229,14 +229,14 @@ export default function ComparePage() {
                           {fmtPrice(q.price, q.currency)}
                         </span>
                         <span
-                          className={`rounded px-1.5 py-px text-[10px] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
+                          className={`rounded px-1.5 py-px text-[0.625rem] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
                         >
                           {fmtPct(q.changePercent)}
                         </span>
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-[11px] text-muted tabular-nums">
+                  <p className="mt-2 text-[0.6875rem] text-muted tabular-nums">
                     {t("compare.mktCap")} <span className="text-emph">{fmtCap(q?.marketCap)}</span>
                     {q?.trailingPE != null && (
                       <>
@@ -259,7 +259,7 @@ export default function ComparePage() {
                     )}
                   </p>
                   {p.redFlags.length > 0 && (
-                    <p className="mt-1.5 text-[11px] text-loss/90">
+                    <p className="mt-1.5 text-[0.6875rem] text-loss/90">
                       ⚑ {p.redFlags.map((s) => s.name).join(" · ")}
                     </p>
                   )}
@@ -272,7 +272,7 @@ export default function ComparePage() {
           <section className="grid md:grid-cols-2 gap-4">
             {sides.map(({ sym, desk }) => (
               <div key={sym} className="rounded-2xl bg-card border border-accent/20 p-4">
-                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
+                <p className="text-[0.625rem] uppercase tracking-widest text-muted font-semibold">
                   {t("compare.thesisTitle", { sym: sym ?? "" })}
                 </p>
                 {desk?.latestRun?.dossier ? (
@@ -296,10 +296,10 @@ export default function ComparePage() {
           <section className="rounded-2xl bg-card border border-hairline p-4">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">
+                <p className="text-[0.625rem] uppercase tracking-widest text-muted font-semibold">
                   {t("compare.verdictTitle")}
                 </p>
-                <p className="text-[11px] text-muted mt-0.5">{t("compare.verdictDesc")}</p>
+                <p className="text-[0.6875rem] text-muted mt-0.5">{t("compare.verdictDesc")}</p>
               </div>
               <button
                 onClick={runVerdict}
@@ -325,14 +325,14 @@ export default function ComparePage() {
             {verdict && verdictFor === pairKey && !verdictBusy && (
               <div className="mt-3 text-sm border-t border-hairline pt-3">
                 <Markdown>{verdict}</Markdown>
-                <p className="mt-2 text-[10px] text-muted/60">{t("compare.verdictDisclaimer")}</p>
+                <p className="mt-2 text-[0.625rem] text-muted/60">{t("compare.verdictDisclaimer")}</p>
               </div>
             )}
           </section>
 
           {/* Signals that read the same aspect of each business */}
           <section className="rounded-2xl bg-card border border-hairline overflow-hidden">
-            <p className="px-4 pt-3 text-[10px] uppercase tracking-widest text-muted font-semibold">
+            <p className="px-4 pt-3 text-[0.625rem] uppercase tracking-widest text-muted font-semibold">
               {t("compare.matchedTitle")}
             </p>
             {matched && matched.pairs.length > 0 ? (
@@ -357,11 +357,11 @@ export default function ComparePage() {
                 { sym: symB, list: matched.onlyB },
               ].map(({ sym, list }) => (
                 <div key={sym} className="rounded-2xl bg-card border border-hairline p-1 pb-2">
-                  <p className="px-3 pt-2 text-[10px] uppercase tracking-widest text-muted font-semibold">
+                  <p className="px-3 pt-2 text-[0.625rem] uppercase tracking-widest text-muted font-semibold">
                     {t("compare.onlyDeskWatches", { sym: sym ?? "" })}
                   </p>
                   {list.length === 0 ? (
-                    <p className="px-3 py-2 text-[11px] text-muted italic">{t("compare.nothingUnique")}</p>
+                    <p className="px-3 py-2 text-[0.6875rem] text-muted italic">{t("compare.nothingUnique")}</p>
                   ) : (
                     list.map((s) => <SignalCell key={s.id} s={s} onNavigate={`/t/${encodeURIComponent(sym!)}/signals`} />)
                   )}
@@ -370,7 +370,7 @@ export default function ComparePage() {
             </section>
           )}
 
-          <p className="text-[10px] text-muted/60 text-center">{t("compare.matchNote")}</p>
+          <p className="text-[0.625rem] text-muted/60 text-center">{t("compare.matchNote")}</p>
         </div>
       )}
     </main>

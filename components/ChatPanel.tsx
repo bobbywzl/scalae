@@ -83,7 +83,7 @@ function AttachmentChip({
   const { t } = useT();
   const icon = a.kind === "image" ? "🖼" : a.kind === "pdf" ? "📄" : "📝";
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/5 px-2 py-1 text-[11px] text-emph max-w-[220px]">
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/5 px-2 py-1 text-[0.6875rem] text-emph max-w-[220px]">
       {a.kind === "image" && a.data ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -278,13 +278,13 @@ export function ChatPanel({
       <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-gain" />
         <p className="text-sm font-semibold">{title ?? t("chat.title")}</p>
-        <p className="text-[10px] text-muted ml-auto hidden sm:block">{t("chat.headerHint")}</p>
+        <p className="text-[0.625rem] text-muted ml-auto hidden sm:block">{t("chat.headerHint")}</p>
         {onToggleExpand && (
           <button
             onClick={onToggleExpand}
             title={expanded ? t("chat.exitFullTitle") : t("chat.enterFull")}
             aria-label={expanded ? t("chat.exitFull") : t("chat.enterFull")}
-            className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[11px] text-emph transition-colors"
+            className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[0.6875rem] text-emph transition-colors"
           >
             {expanded ? `⤡ ${t("chat.exit")}` : "⤢"}
           </button>
@@ -333,7 +333,7 @@ export function ChatPanel({
                   <button
                     onClick={() => toggleSpeak(m)}
                     title={speakingId === m.id ? t("chat.stopReading") : t("chat.readAloud")}
-                    className="text-[11px] text-muted hover:text-emph transition-colors"
+                    className="text-[0.6875rem] text-muted hover:text-emph transition-colors"
                   >
                     {speakingId === m.id ? `◼ ${t("chat.stop")}` : `🔊 ${t("chat.read")}`}
                   </button>
@@ -373,8 +373,8 @@ export function ChatPanel({
                         <span
                           className={
                             s.status === "active"
-                              ? "text-gain text-[11px]"
-                              : "text-muted text-[11px]"
+                              ? "text-gain text-[0.6875rem]"
+                              : "text-muted text-[0.6875rem]"
                           }
                         >
                           {s.status === "active"
@@ -402,7 +402,7 @@ export function ChatPanel({
               <p className="text-loss font-medium">{localizeError(error, t)}</p>
               <button
                 onClick={onRetry}
-                className="mt-2 rounded-lg bg-ink/8 hover:bg-ink/12 px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors"
+                className="mt-2 rounded-lg bg-ink/8 hover:bg-ink/12 px-3 py-1.5 text-[0.6875rem] font-semibold text-foreground transition-colors"
               >
                 {t("common.retry")}
               </button>
@@ -415,7 +415,7 @@ export function ChatPanel({
               <p className="text-muted">{t("chat.strandedNote")}</p>
               <button
                 onClick={onRetry}
-                className="mt-2 rounded-lg bg-accent/90 hover:bg-accent px-3 py-1.5 text-[11px] font-semibold text-white transition-colors"
+                className="mt-2 rounded-lg bg-accent/90 hover:bg-accent px-3 py-1.5 text-[0.6875rem] font-semibold text-white transition-colors"
               >
                 {t("chat.askToRespond")}
               </button>
@@ -432,7 +432,7 @@ export function ChatPanel({
               <button
                 key={k}
                 onClick={() => setText((prev) => (prev ? prev + " " + c : c))}
-                className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1 text-[11px] text-emph transition-colors"
+                className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1 text-[0.6875rem] text-emph transition-colors"
               >
                 {c}
               </button>
@@ -454,8 +454,8 @@ export function ChatPanel({
               ))}
             </div>
           )}
-          {attachBusy && <p className="text-[11px] text-muted pulse-soft">{t("chat.preparingFiles")}</p>}
-          {localError && <p className="text-[11px] text-loss">{localError}</p>}
+          {attachBusy && <p className="text-[0.6875rem] text-muted pulse-soft">{t("chat.preparingFiles")}</p>}
+          {localError && <p className="text-[0.6875rem] text-loss">{localError}</p>}
         </div>
       )}
 

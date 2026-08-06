@@ -354,7 +354,7 @@ export function TradeForm({
 
   const field =
     "rounded-lg bg-card2 border border-hairline focus-within:border-accent/50 px-2.5 py-2 text-sm outline-none w-full transition-colors placeholder:text-muted/60";
-  const label = "text-[10px] uppercase tracking-wider text-muted";
+  const label = "text-[0.625rem] uppercase tracking-wider text-muted";
 
   // -----------------------------------------------------------------------
   // Post-placement confirmation (the brokerage "order status" moment)
@@ -416,7 +416,7 @@ export function TradeForm({
             </button>
           ))}
         </div>
-        <button onClick={onCancel} className="text-[11px] text-muted hover:text-emph">
+        <button onClick={onCancel} className="text-[0.6875rem] text-muted hover:text-emph">
           {t("common.cancel")}
         </button>
       </div>
@@ -450,7 +450,7 @@ export function TradeForm({
                   <span className="font-semibold text-sm">{h.symbol}</span>
                   <span className="text-muted text-xs ml-2">{h.name}</span>
                 </span>
-                <span className="text-muted/70 text-[10px]">{h.exchange}</span>
+                <span className="text-muted/70 text-[0.625rem]">{h.exchange}</span>
               </button>
             ))}
           </div>
@@ -468,19 +468,19 @@ export function TradeForm({
           }}
         />
       ) : quoteBusy ? (
-        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted pulse-soft">
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[0.6875rem] text-muted pulse-soft">
           {t("trade.fetchingQuote")}
         </div>
       ) : symbol.trim().length > 0 ? (
-        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[11px] text-muted">
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-3 text-[0.6875rem] text-muted">
           {t("trade.noQuoteYet", { sym: symbol.trim().toUpperCase() })}
         </div>
       ) : null}
 
       {/* Your standing in this name, front and center while you trade it. */}
       {heldPos && heldPos.avgCost > 0 && (
-        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-2 text-[11px] text-emph tabular-nums flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wider text-muted">{t("trade.yourPosition")}</span>
+        <div className="rounded-xl bg-card2 border border-hairline px-3.5 py-2 text-[0.6875rem] text-emph tabular-nums flex items-center gap-2 flex-wrap">
+          <span className="text-[0.625rem] uppercase tracking-wider text-muted">{t("trade.yourPosition")}</span>
           <span>
             {t(heldPos.qty < 0 ? "trade.posShort" : "trade.posLong", {
               n: Math.abs(heldPos.qty).toLocaleString(),
@@ -500,7 +500,7 @@ export function TradeForm({
           /* ---------------- Review step ---------------- */
           <div className="space-y-3">
             <div className="rounded-xl bg-card2 border border-hairline px-4 py-3 space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted">{t("trade.reviewOrder")}</p>
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted">{t("trade.reviewOrder")}</p>
               <p className="text-sm font-semibold">
                 <span className={side === "buy" ? "text-gain" : "text-loss"}>
                   {t(side === "buy" ? "trade.buy" : "trade.sell").toUpperCase()}
@@ -528,16 +528,16 @@ export function TradeForm({
                 </p>
               )}
               {marketable && (
-                <p className="text-[11px] text-warn">{t("trade.marketableReview")}</p>
+                <p className="text-[0.6875rem] text-warn">{t("trade.marketableReview")}</p>
               )}
               {side === "buy" && cashUsd != null && currency === "USD" && estTotal != null && (
-                <p className={`text-[11px] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
+                <p className={`text-[0.6875rem] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
                   {t("trade.cashAvailable", { amount: fmtMoney(cashUsd, "USD") })}
                   {estTotal > cashUsd && ` ${t("trade.cashExceeds")}`}
                 </p>
               )}
               {weightPreview && (
-                <p className="text-[11px] text-muted tabular-nums">
+                <p className="text-[0.6875rem] text-muted tabular-nums">
                   {t("trade.weightPreview", {
                     now: weightPreview.now.toFixed(1),
                     after: weightPreview.after.toFixed(1),
@@ -545,7 +545,7 @@ export function TradeForm({
                 </p>
               )}
               {oversell && (
-                <p className="text-[11px] text-warn">
+                <p className="text-[0.6875rem] text-warn">
                   {t(heldPos && heldPos.qty > 0 ? "trade.oversellReviewOpen" : "trade.oversellReviewExtend")}
                 </p>
               )}
@@ -620,7 +620,7 @@ export function TradeForm({
                   onChange={setOrderType}
                 />
               </div>
-              <p className="text-[10px] text-muted mt-1">{t(ORDER_TYPE_HINT_KEY[orderType])}</p>
+              <p className="text-[0.625rem] text-muted mt-1">{t(ORDER_TYPE_HINT_KEY[orderType])}</p>
             </div>
 
             {(needsStop || needsLimit) && (
@@ -652,7 +652,7 @@ export function TradeForm({
               </div>
             )}
             {(needsStop || needsLimit) && (
-              <div className="-mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+              <div className="-mt-1 flex flex-wrap items-center gap-1.5 text-[0.625rem]">
                 <span className="text-muted">{t("trade.anchors")}</span>
                 {(
                   [
@@ -706,7 +706,7 @@ export function TradeForm({
               </div>
             </div>
             {qtyMode === "amount" && shares > 0 && (
-              <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
+              <p className="text-[0.6875rem] text-muted -mt-1.5 tabular-nums">
                 {t("trade.approxShares", {
                   n: shares.toLocaleString(),
                   price: effPrice != null ? fmtMoney(effPrice, currency) : t("trade.marketWord"),
@@ -714,7 +714,7 @@ export function TradeForm({
               </p>
             )}
             {heldApplies && side === "sell" && (held as number) > 0 && (
-              <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
+              <p className="text-[0.6875rem] text-muted -mt-1.5 tabular-nums">
                 {t("trade.youHold", { n: (held as number).toLocaleString() })}
                 {shares > (held as number) && (
                   <span className="text-warn"> {t("trade.sellMoreShort")}</span>
@@ -734,7 +734,7 @@ export function TradeForm({
               </p>
             )}
             {heldApplies && side === "buy" && (held as number) < 0 && (
-              <p className="text-[11px] text-muted -mt-1.5 tabular-nums">
+              <p className="text-[0.6875rem] text-muted -mt-1.5 tabular-nums">
                 {t("trade.youreShort", { n: Math.abs(held as number).toLocaleString() })}
                 {shares > Math.abs(held as number) && (
                   <span className="text-warn"> {t("trade.buyMoreLong")}</span>
@@ -772,12 +772,12 @@ export function TradeForm({
               </p>
             )}
             {marketable && (
-              <p className="text-[11px] text-warn">
+              <p className="text-[0.6875rem] text-warn">
                 {t("trade.marketableEntry", { type: t(ORDER_TYPE_KEY[orderType]).toLowerCase() })}
               </p>
             )}
             {oversell && (
-              <p className="text-[11px] text-warn">
+              <p className="text-[0.6875rem] text-warn">
                 {heldPos && heldPos.qty > 0
                   ? t("trade.oversellHeld", {
                       held: heldPos.qty.toLocaleString(),
@@ -788,10 +788,10 @@ export function TradeForm({
               </p>
             )}
             {typeof validation === "string" && validation !== "incomplete" && (
-              <p className="text-[11px] text-loss">{localizeTradeMsg(validation, t)}</p>
+              <p className="text-[0.6875rem] text-loss">{localizeTradeMsg(validation, t)}</p>
             )}
             {market == null && symbol.trim() !== "" && !quoteBusy && (
-              <p className="text-[11px] text-muted">{t("trade.needLiveQuote")}</p>
+              <p className="text-[0.6875rem] text-muted">{t("trade.needLiveQuote")}</p>
             )}
 
             <button
@@ -803,7 +803,7 @@ export function TradeForm({
                 sym: symbol.trim().toUpperCase() || "…",
               })}
             </button>
-            <p className="text-[10px] text-muted/70">{t("trade.paperNote")}</p>
+            <p className="text-[0.625rem] text-muted/70">{t("trade.paperNote")}</p>
           </div>
         )
       ) : (
@@ -905,7 +905,7 @@ export function TradeForm({
                 className={`${field} mt-1 tabular-nums`}
               />
               {kind === "option" && (
-                <p className="text-[10px] text-muted mt-0.5">{t("trade.perContractNote")}</p>
+                <p className="text-[0.625rem] text-muted mt-0.5">{t("trade.perContractNote")}</p>
               )}
             </div>
             <div>
@@ -931,7 +931,7 @@ export function TradeForm({
           </div>
 
           {deviates && quote?.price != null && (
-            <p className="text-warn text-[11px]">
+            <p className="text-warn text-[0.6875rem]">
               {t("trade.priceDeviates", { price: fmtMoney(quote.price, quote.currency) })}
             </p>
           )}

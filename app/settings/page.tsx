@@ -58,7 +58,7 @@ export default function SettingsPage() {
     }`;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 mb-6">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
           {t("common.backToWatchlist")}
@@ -72,7 +72,7 @@ export default function SettingsPage() {
       <div className="space-y-5">
         {/* Language */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.sectionLanguage")}
           </p>
           <div className="flex items-center gap-2">
@@ -82,12 +82,12 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted mt-2.5 leading-snug">{t("settings.languageDesc")}</p>
+          <p className="text-[0.6875rem] text-muted mt-2.5 leading-snug">{t("settings.languageDesc")}</p>
         </section>
 
         {/* Appearance */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.sectionAppearance")}
           </p>
           <div className="flex items-center gap-2">
@@ -105,12 +105,12 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted mt-2.5 leading-snug">{t("settings.appearanceDesc")}</p>
+          <p className="text-[0.6875rem] text-muted mt-2.5 leading-snug">{t("settings.appearanceDesc")}</p>
         </section>
 
         {/* Research preferences */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.sectionResearch")}
           </p>
           <div className="flex items-center gap-2.5">
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                   {autoResearch === null ? "…" : autoResearch ? t("common.on") : t("common.off")}
                 </span>
               </p>
-              <p className="text-[11px] text-muted leading-snug">
+              <p className="text-[0.6875rem] text-muted leading-snug">
                 {autoResearch === false ? t("watchlist.autoOffDesc") : t("watchlist.autoOnDesc")}
               </p>
             </div>
@@ -146,7 +146,7 @@ export default function SettingsPage() {
 
         {/* Profile & account moved to /profile */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.profileCardTitle")}
           </p>
           <Link
@@ -159,12 +159,12 @@ export default function SettingsPage() {
             </svg>
             {t("settings.openProfile")}
           </Link>
-          <p className="text-[11px] text-muted mt-2 leading-snug">{t("settings.profileCardDesc")}</p>
+          <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("settings.profileCardDesc")}</p>
         </section>
 
         {/* Help & feedback */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.sectionSupport")}
           </p>
           <Link
@@ -176,10 +176,10 @@ export default function SettingsPage() {
             </svg>
             {t("settings.helpFeedback")}
           </Link>
-          <p className="text-[11px] text-muted mt-2 leading-snug">{t("settings.supportDesc")}</p>
+          <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("settings.supportDesc")}</p>
         </section>
 
-        <p className="text-[10px] text-muted/60">{t("common.notAdvice")}</p>
+        <p className="text-[0.625rem] text-muted/60">{t("common.notAdvice")}</p>
       </div>
     </main>
   );

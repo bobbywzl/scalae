@@ -133,7 +133,7 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
           <button
             key={r.key}
             onClick={() => setRange(r.key)}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            className={`rounded-full px-2.5 py-1 text-[0.6875rem] font-medium transition-colors ${
               range === r.key
                 ? "bg-ink/12 text-foreground"
                 : "text-muted hover:bg-ink/6 hover:text-emph"
@@ -143,7 +143,7 @@ export function PnlChart({ series }: { series: PnlPoint[] }) {
           </button>
         ))}
         {hoverPt && (
-          <span className="ml-auto text-[11px] tabular-nums text-muted">
+          <span className="ml-auto text-[0.6875rem] tabular-nums text-muted">
             {fmtDay(hoverPt.date, locale, true)} ·{" "}
             <span className="text-foreground font-semibold">{fmtUsd(hoverPt.pnl, { sign: true })}</span>
             <span className="hidden sm:inline">

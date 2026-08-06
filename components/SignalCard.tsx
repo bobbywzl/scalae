@@ -35,7 +35,7 @@ export function SigKeyBadge({ sKey }: { sKey: string }) {
   return (
     <span
       title={t("signals.sKeyTitle", { key: sKey })}
-      className="shrink-0 rounded border border-hairline bg-ink/6 px-1 py-px text-[9px] font-bold tabular-nums tracking-wide text-muted"
+      className="shrink-0 rounded border border-hairline bg-ink/6 px-1 py-px text-[0.5625rem] font-bold tabular-nums tracking-wide text-muted"
     >
       {sKey}
     </span>
@@ -56,7 +56,7 @@ function SourceChip({ citation, siblings }: { citation: Citation; siblings: Cita
       rel="noreferrer"
       title={citation.title}
       onClick={(e) => e.stopPropagation()}
-      className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 hover:border-ink/25 px-2 py-0.5 text-[10px] text-emph transition-colors max-w-[220px] truncate"
+      className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 hover:border-ink/25 px-2 py-0.5 text-[0.625rem] text-emph transition-colors max-w-[220px] truncate"
     >
       {chipLabel(citation, siblings)}
     </a>
@@ -92,7 +92,7 @@ function SourcesModal({
         <div className="px-4 py-3 border-b border-hairline flex items-center gap-2">
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">{name}</p>
-            <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
               {t("signals.evidenceCatalog")} ·{" "}
               {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })} ·{" "}
               {t("signals.catalogGrows")}
@@ -100,7 +100,7 @@ function SourcesModal({
           </div>
           <button
             onClick={onClose}
-            className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[11px] text-emph transition-colors"
+            className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[0.6875rem] text-emph transition-colors"
           >
             {t("common.close")}
           </button>
@@ -114,7 +114,7 @@ function SourcesModal({
                 </a>
                 {s.count > 1 && (
                   <span
-                    className="shrink-0 rounded-full bg-ink/8 px-1.5 py-px text-[9px] text-muted"
+                    className="shrink-0 rounded-full bg-ink/8 px-1.5 py-px text-[0.5625rem] text-muted"
                     title={t("signals.citedInReadings", { n: s.count })}
                   >
                     ×{s.count}
@@ -124,7 +124,7 @@ function SourcesModal({
               <a href={s.url} target="_blank" rel="noreferrer" className="block text-emph hover:text-white leading-snug mt-0.5">
                 {s.title.length > 110 ? s.title.slice(0, 110) + "…" : s.title}
               </a>
-              <p className="text-[10px] text-muted mt-0.5">
+              <p className="text-[0.625rem] text-muted mt-0.5">
                 {t("signals.addedOn", { date: fmtDay(s.firstSeen, locale) })}
                 {s.lastSeen !== s.firstSeen && ` · ${t("signals.lastCited", { date: fmtDay(s.lastSeen, locale) })}`}
                 {s.foundBy.length > 0 && ` · ${t("signals.viaSources", { src: s.foundBy.join(" · ") })}`}
@@ -175,12 +175,12 @@ export function SignalCard({
               {sKey && <SigKeyBadge sKey={sKey} />}
               <span className="text-sm font-semibold leading-tight">{signal.name}</span>
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
+            <div className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
               {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
             </div>
           </div>
           {r && level && delta && (
-            <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}>
+            <span className={`shrink-0 rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold ${level.cls}`}>
               {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
             </span>
           )}
@@ -214,7 +214,7 @@ export function SignalCard({
             ) : (
               <p className="mt-1.5 text-xs text-emph leading-relaxed line-clamp-2">{r.rationale}</p>
             )}
-            <div className="mt-2 flex items-center gap-3 text-[10px] text-muted">
+            <div className="mt-2 flex items-center gap-3 text-[0.625rem] text-muted">
               <ConfidenceDots value={r.confidence} />
               <span>{timeAgo(r.date, t)}</span>
               {sources.length > 0 && (
@@ -249,7 +249,7 @@ export function SignalCard({
       {check && (
         <div className="px-4 pb-2.5 -mt-1">
           {check.checking ? (
-            <span className="text-[11px] text-accent pulse-soft">{t("desk.signalCheckingShort")}</span>
+            <span className="text-[0.6875rem] text-accent pulse-soft">{t("desk.signalCheckingShort")}</span>
           ) : (
             <button
               onClick={(e) => {
@@ -258,7 +258,7 @@ export function SignalCard({
               }}
               disabled={check.disabled}
               title={check.disabled ? t("desk.signalCheckBusy") : undefined}
-              className="rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-2 py-0.5 text-[11px] font-medium text-accent transition-colors"
+              className="rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-2 py-0.5 text-[0.6875rem] font-medium text-accent transition-colors"
             >
               {t("desk.runSignal")}
             </button>
@@ -275,7 +275,7 @@ export function SignalCard({
               overlapsWith.onOpen();
             }}
             title={t("signals.overlapKeptTitle")}
-            className="rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[10px] text-warn transition-colors max-w-full truncate"
+            className="rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[0.625rem] text-warn transition-colors max-w-full truncate"
           >
             {t("signals.overlapsChip", { name: overlapsWith.name })}
           </button>
@@ -291,7 +291,7 @@ export function SignalCard({
           {sources.length > 3 && (
             <button
               onClick={() => setSourcesOpen(true)}
-              className="text-[10px] text-muted hover:text-emph transition-colors"
+              className="text-[0.625rem] text-muted hover:text-emph transition-colors"
             >
               {t("signals.moreSources", { n: sources.length - 3 })}
             </button>
@@ -342,13 +342,13 @@ export function SignalListRow({
         className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
       >
         {sKey && <SigKeyBadge sKey={sKey} />}
-        <span className="text-[13px] font-medium truncate">{signal.name}</span>
+        <span className="text-[0.8125rem] font-medium truncate">{signal.name}</span>
       </button>
       {overlapsWith && (
         <button
           onClick={overlapsWith.onOpen}
           title={t("signals.overlapsChip", { name: overlapsWith.name })}
-          className="shrink-0 rounded bg-warn/10 hover:bg-warn/18 border border-warn/25 px-1 text-[10px] text-warn transition-colors"
+          className="shrink-0 rounded bg-warn/10 hover:bg-warn/18 border border-warn/25 px-1 text-[0.625rem] text-warn transition-colors"
         >
           ⇄
         </button>
@@ -358,13 +358,13 @@ export function SignalListRow({
           {r.value != null && (
             <span className="hidden md:inline shrink-0 text-xs font-semibold tabular-nums">
               {r.value.toLocaleString(locale)}{" "}
-              <span className="text-[10px] text-muted font-normal">
+              <span className="text-[0.625rem] text-muted font-normal">
                 {r.valueUnit ?? signal.scale}
               </span>
             </span>
           )}
           <span
-            className={`shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold ${level.cls}`}
+            className={`shrink-0 rounded-md px-1.5 py-px text-[0.625rem] font-semibold ${level.cls}`}
           >
             {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
           </span>
@@ -372,7 +372,7 @@ export function SignalListRow({
             <ConfidenceDots value={r.confidence} />
           </span>
           <span
-            className="hidden sm:inline shrink-0 text-[10px] text-muted tabular-nums"
+            className="hidden sm:inline shrink-0 text-[0.625rem] text-muted tabular-nums"
             title={carriedForward ? t("signals.noChangeThisRun") : undefined}
           >
             {timeAgo(r.date, t)}
@@ -380,7 +380,7 @@ export function SignalListRow({
           </span>
           {sources.length > 0 && (
             <span
-              className="hidden lg:inline shrink-0 text-[10px] text-muted"
+              className="hidden lg:inline shrink-0 text-[0.625rem] text-muted"
               title={t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", {
                 n: sources.length,
               })}
@@ -390,13 +390,13 @@ export function SignalListRow({
           )}
         </>
       ) : (
-        <span className="shrink-0 text-[10px] text-muted italic">
+        <span className="shrink-0 text-[0.625rem] text-muted italic">
           {t("signals.awaitingFirstRun")}
         </span>
       )}
       {check &&
         (check.checking ? (
-          <span className="shrink-0 text-[10px] text-accent pulse-soft">
+          <span className="shrink-0 text-[0.625rem] text-accent pulse-soft">
             {t("desk.signalCheckingShort")}
           </span>
         ) : (
@@ -404,7 +404,7 @@ export function SignalListRow({
             onClick={check.run}
             disabled={check.disabled}
             title={check.disabled ? t("desk.signalCheckBusy") : t("desk.runSignal")}
-            className="shrink-0 rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-1.5 py-px text-[11px] font-medium text-accent transition-colors"
+            className="shrink-0 rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-1.5 py-px text-[0.6875rem] font-medium text-accent transition-colors"
           >
             ✦
           </button>

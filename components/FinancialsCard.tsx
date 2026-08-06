@@ -155,12 +155,12 @@ export function FinancialsSection({
   return (
     <section className="rounded-2xl bg-card border border-hairline p-5">
       <div className="flex items-baseline gap-2 flex-wrap">
-        <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+        <h2 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
           {t("financials.title")}
         </h2>
         {/* The statement currency, always visible — deltas and the table live in it. */}
         <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+          className={`rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${
             data.currencyMismatch
               ? "bg-warn/15 text-warn"
               : "bg-ink/6 text-muted"
@@ -173,10 +173,10 @@ export function FinancialsSection({
               })
             : t("financials.currencyChip", { c })}
         </span>
-        <span className="text-[11px] text-muted/80">
+        <span className="text-[0.6875rem] text-muted/80">
           {t("financials.subtitle", { n: years.length })}
         </span>
-        <span className="ml-auto text-[10px] text-muted/70">
+        <span className="ml-auto text-[0.625rem] text-muted/70">
           {t("financials.sourceNote", { source: data.source, n: years.length })} ·{" "}
           {t("financials.asOf", { when: timeAgo(data.fetchedAt, t) })}
         </span>
@@ -195,7 +195,7 @@ export function FinancialsSection({
               <button
                 key={o.v}
                 onClick={() => setView(o.v)}
-                className={`rounded-full px-2.5 py-0.5 text-[11px] transition-colors ${
+                className={`rounded-full px-2.5 py-0.5 text-[0.6875rem] transition-colors ${
                   view === o.v ? "bg-accent/15 text-accent font-semibold" : "text-muted hover:text-emph"
                 }`}
               >
@@ -203,7 +203,7 @@ export function FinancialsSection({
               </button>
             ))}
           </div>
-          <span className="text-[10px] text-muted/70">
+          <span className="text-[0.625rem] text-muted/70">
             {t("financials.viewCleansedNote", { n: appliedCount, m: cleansed.cells.length })}
           </span>
         </div>
@@ -220,7 +220,7 @@ export function FinancialsSection({
           <div className="mt-4 flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setShowTable((v) => !v)}
-              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
             >
               {showTable ? t("financials.hideTable") : t("financials.showTable")}
             </button>
@@ -236,11 +236,11 @@ export function FinancialsSection({
                     () => {}
                   );
               }}
-              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
             >
               {copied ? t("financials.copied") : t("financials.copyTable")}
             </button>
-            <span className="text-[10px] text-muted/60">{t("financials.accuracyNote")}</span>
+            <span className="text-[0.625rem] text-muted/60">{t("financials.accuracyNote")}</span>
           </div>
           {showTable && (
             <MetricsTable years={years} metrics={metrics} c={c} t={t} tipFor={tipFor} />
@@ -286,17 +286,17 @@ function Snapshot({
   ];
   return (
     <div className="mt-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted mb-1.5">
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted mb-1.5">
         {t("financials.snapshotTitle")}
       </p>
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2.5">
+      <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-x-4 gap-y-2.5">
         {cells.map((cell) => (
           <div key={cell.key} className="min-w-0" title={cell.tip}>
-            <p className="text-[9px] uppercase tracking-wider text-muted flex items-center gap-1">
+            <p className="text-[0.5625rem] uppercase tracking-wider text-muted flex items-center gap-1">
               {label(t, cell.key)}
               {cell.tip && <span className="text-muted/50">ⓘ</span>}
             </p>
-            <p className="text-[12px] tabular-nums text-emph mt-px truncate">{cell.value}</p>
+            <p className="text-[0.75rem] tabular-nums text-emph mt-px truncate">{cell.value}</p>
           </div>
         ))}
       </div>
@@ -332,17 +332,17 @@ function DcfInputsBlock({
   ];
   return (
     <div className="mt-4 rounded-xl border border-accent/20 bg-accent/[0.04] p-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted">
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted">
         {t("financials.dcfTitle")}
         <span className="text-muted/60 normal-case tracking-normal ml-1.5">
           · {t("financials.dcfNote", { n })}
         </span>
       </p>
-      <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2.5">
+      <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-x-4 gap-y-2.5">
         {cells.map((cell) => (
           <div key={cell.key} className="min-w-0">
-            <p className="text-[9px] uppercase tracking-wider text-muted truncate">{label(t, cell.key)}</p>
-            <p className="text-[12px] tabular-nums text-emph mt-px truncate">{cell.value}</p>
+            <p className="text-[0.5625rem] uppercase tracking-wider text-muted truncate">{label(t, cell.key)}</p>
+            <p className="text-[0.75rem] tabular-nums text-emph mt-px truncate">{cell.value}</p>
           </div>
         ))}
       </div>
@@ -381,7 +381,7 @@ function PeerPanel({
     return (
       <button
         onClick={() => run()}
-        className="mt-4 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+        className="mt-4 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
       >
         {t("financials.comparePeers")}
       </button>
@@ -402,7 +402,7 @@ function PeerPanel({
 
   return (
     <div className="mt-4">
-      <p className="text-[10px] uppercase tracking-wider text-muted">
+      <p className="text-[0.625rem] uppercase tracking-wider text-muted">
         {t("financials.peersTitle")}
         <span className="text-muted/60 normal-case tracking-normal ml-1.5">
           ·{" "}
@@ -423,7 +423,7 @@ function PeerPanel({
             <p className="text-muted text-xs mt-1.5">{t("financials.peersNoneAuto")}</p>
           ) : (
             <div className="overflow-x-auto mt-1.5">
-              <table className="w-full text-[11px] tabular-nums">
+              <table className="w-full text-[0.6875rem] tabular-nums">
                 <thead>
                   <tr className="text-muted text-left">
                     <th className="font-medium py-1 pr-3">{t("financials.colTicker")}</th>
@@ -438,7 +438,7 @@ function PeerPanel({
                   <tr className="border-t border-hairline">
                     <td className="py-1 pr-3 font-semibold text-foreground whitespace-nowrap">
                       {data.symbol}{" "}
-                      <span className="text-[9px] text-accent uppercase">{t("financials.thisCompany")}</span>
+                      <span className="text-[0.5625rem] text-accent uppercase">{t("financials.thisCompany")}</span>
                     </td>
                     {cols.map((col) => (
                       <td key={col.key} className="py-1 px-2 text-right text-emph">
@@ -471,17 +471,17 @@ function PeerPanel({
               if (input.trim()) run(input);
             }}
           >
-            <span className="text-[10px] text-muted">{t("financials.addPeersLabel")}</span>
+            <span className="text-[0.625rem] text-muted">{t("financials.addPeersLabel")}</span>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("financials.addPeersPlaceholder")}
-              className="rounded-md border border-hairline bg-ink/4 px-2 py-1 text-[11px] w-48 focus:outline-none focus:border-accent/50"
+              className="rounded-md border border-hairline bg-ink/4 px-2 py-1 text-[0.6875rem] w-48 focus:outline-none focus:border-accent/50"
             />
             <button
               type="submit"
               disabled={!input.trim()}
-              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 disabled:opacity-40 px-2.5 py-1 text-[10px] text-muted hover:text-emph transition-colors"
+              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 disabled:opacity-40 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
             >
               {t("financials.addPeersGo")}
             </button>
@@ -509,7 +509,7 @@ function MetricsTable({
 }) {
   return (
     <div className="overflow-x-auto mt-2">
-      <table className="w-full text-[11px] tabular-nums border-collapse">
+      <table className="w-full text-[0.6875rem] tabular-nums border-collapse">
         <thead>
           <tr className="text-muted">
             <th className="sticky left-0 bg-card text-left font-medium py-1 pr-3 z-10">FY</th>
@@ -577,7 +577,7 @@ function FragmentGroup({
       <tr>
         <td
           colSpan={span}
-          className="pt-3 pb-1 text-[9px] uppercase tracking-widest text-muted/70 font-semibold"
+          className="pt-3 pb-1 text-[0.5625rem] uppercase tracking-widest text-muted/70 font-semibold"
         >
           {groupLabel}
         </td>

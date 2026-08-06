@@ -686,7 +686,7 @@ export default function DeskPage() {
   const boardWrapCls =
     boardLayout === "list"
       ? "mt-2 rounded-xl border border-hairline bg-card divide-y divide-hairline overflow-hidden"
-      : "grid sm:grid-cols-2 gap-3 mt-2";
+      : "grid sm:grid-cols-2 2xl:grid-cols-3 gap-3 mt-2";
 
   const header = (
     <header className="flex items-center gap-4 flex-wrap">
@@ -706,7 +706,7 @@ export default function DeskPage() {
           <>
             <span className="font-semibold tabular-nums">{fmtPrice(quote.price, quote.currency)}</span>
             {quote.currency && quote.currency !== "USD" && quote.fxToUsd != null && (
-              <span className="text-[11px] text-muted tabular-nums">
+              <span className="text-[0.6875rem] text-muted tabular-nums">
                 ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
               </span>
             )}
@@ -749,7 +749,7 @@ export default function DeskPage() {
   if (onboarding) {
     return (
       <AnnotationsProvider symbol={symbol}>
-      <main className="mx-auto w-full max-w-3xl px-5 py-8 flex-1 flex flex-col gap-5">
+      <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col gap-5">
         {header}
         <div className="rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 text-sm">
           <span className="font-semibold">{t("desk.setupTitle")}</span>{" "}
@@ -771,7 +771,7 @@ export default function DeskPage() {
               onClear={() => setSelected(new Set())}
               onBulk={bulkAct}
             />
-            <div className="grid sm:grid-cols-2 gap-3 mt-2">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-2">
               {suggested.map((s) => (
                 <SuggestionCard
                   key={s.id}
@@ -805,7 +805,7 @@ export default function DeskPage() {
               onClose={() => setFullDesk(false)}
             />
           )}
-          <div className={fullDesk ? "flex-1 min-h-0 w-full max-w-3xl mx-auto" : ""}>
+          <div className={fullDesk ? "flex-1 min-h-0 w-full" : ""}>
             <ChatPanel
               messages={desk.messages}
               signalsById={signalsById}
@@ -831,10 +831,10 @@ export default function DeskPage() {
 
   return (
     <AnnotationsProvider symbol={symbol}>
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       {header}
 
-      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_22.5rem] xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:grid-cols-[minmax(0,1fr)_30rem] gap-5 items-start">
         {/* left column */}
         <div className="space-y-5 min-w-0">
           {/* The steerable question stage: review/edit today's focus questions
@@ -846,7 +846,7 @@ export default function DeskPage() {
               <div className="mt-3 space-y-2.5">
                 {steer.map((q, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <span className="mt-2 shrink-0 text-[10px] text-muted tabular-nums">
+                    <span className="mt-2 shrink-0 text-[0.625rem] text-muted tabular-nums">
                       Q{i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -864,7 +864,7 @@ export default function DeskPage() {
                         className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:border-accent/50"
                       />
                       {q.why && (
-                        <p className="mt-0.5 text-[11px] text-muted/80">
+                        <p className="mt-0.5 text-[0.6875rem] text-muted/80">
                           <SigRefText text={q.why} active={desk.active} onOpen={setDetailId} />
                         </p>
                       )}
@@ -872,7 +872,7 @@ export default function DeskPage() {
                     <button
                       onClick={() => setSteer((s) => s?.filter((_, j) => j !== i) ?? s)}
                       title={t("common.dismiss")}
-                      className="mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted/60 hover:text-loss transition-colors"
+                      className="mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors"
                     >
                       ✕
                     </button>
@@ -936,7 +936,7 @@ export default function DeskPage() {
                 <SectionTitle>{t("desk.dossierTitle")}</SectionTitle>
                 <button
                   onClick={() => setDossierOpen((v) => !v)}
-                  className="ml-auto rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[10px] text-muted hover:text-emph transition-colors"
+                  className="ml-auto rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[0.625rem] text-muted hover:text-emph transition-colors"
                 >
                   {dossierOpen ? t("common.collapse") : t("common.expand")}
                 </button>
@@ -982,7 +982,7 @@ export default function DeskPage() {
             <SectionTitle>
               {t("desk.todaysBrief")}
               {latestRun?.finishedAt && (
-                <span className="text-[10px] text-muted font-normal normal-case tracking-normal ml-auto">
+                <span className="text-[0.625rem] text-muted font-normal normal-case tracking-normal ml-auto">
                   {t("common.updatedAgo", { when: timeAgo(latestRun.finishedAt, t) })}
                 </span>
               )}
@@ -991,12 +991,12 @@ export default function DeskPage() {
                 what exactly this research set out to answer. */}
             {latestRun?.status === "done" && (latestRun.questions ?? []).length > 0 && (
               <div className="mt-3 rounded-xl border border-hairline bg-ink/3 px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                   {t("desk.questionsTitle")}
                 </p>
                 <ol className="mt-1.5 space-y-1">
                   {(latestRun.questions ?? []).map((q, i) => (
-                    <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-emph">
+                    <li key={i} className="flex gap-2 text-[0.8125rem] leading-relaxed text-emph">
                       <span className="shrink-0 text-muted tabular-nums">Q{i + 1}</span>
                       <span>
                         <SigRefText text={q} active={desk.active} onOpen={setDetailId} />
@@ -1004,7 +1004,7 @@ export default function DeskPage() {
                     </li>
                   ))}
                 </ol>
-                <p className="mt-2 text-[11px] text-muted/70">{t("desk.questionsAnsweredNote")}</p>
+                <p className="mt-2 text-[0.6875rem] text-muted/70">{t("desk.questionsAnsweredNote")}</p>
               </div>
             )}
             {latestRun?.brief ? (
@@ -1060,7 +1060,7 @@ export default function DeskPage() {
                 onClear={() => setSelected(new Set())}
                 onBulk={bulkAct}
               />
-              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+              <div className="grid sm:grid-cols-2 2xl:grid-cols-3 gap-3 mt-2">
                 {suggested.map((s) => (
                   <SuggestionCard
                     key={s.id}
@@ -1089,7 +1089,7 @@ export default function DeskPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <SectionTitle>{t("desk.signalBoard")}</SectionTitle>
               {desk.active.length > 0 && (
-                <div className="ml-auto flex items-center gap-1 text-[10px]">
+                <div className="ml-auto flex items-center gap-1 text-[0.625rem]">
                   {desk.active.length >= 4 && (
                     <>
                       <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
@@ -1138,7 +1138,7 @@ export default function DeskPage() {
               )}
             </div>
             {boardStats && boardStats.total > 0 && (
-              <p className="mt-1.5 text-[11px] text-muted tabular-nums">
+              <p className="mt-1.5 text-[0.6875rem] text-muted tabular-nums">
                 {t(boardStats.total === 1 ? "desk.statActiveOne" : "desk.statActiveMany", {
                   n: boardStats.total,
                 })}
@@ -1202,9 +1202,9 @@ export default function DeskPage() {
               <div className="mt-2 rounded-xl bg-card border border-hairline px-4 py-3">
                 <ul className="space-y-1.5">
                   {boardStats.roster.map((r) => (
-                    <li key={r.url} className="flex items-baseline gap-2 text-[11px]">
+                    <li key={r.url} className="flex items-baseline gap-2 text-[0.6875rem]">
                       <span
-                        className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
+                        className={`shrink-0 rounded px-1 py-px text-[0.5rem] uppercase tracking-wider ${
                           r.cls === "company" ? "bg-warn/12 text-warn/90" : "bg-ink/6 text-muted"
                         }`}
                       >
@@ -1232,7 +1232,7 @@ export default function DeskPage() {
                   ))}
                 </ul>
                 {boardStats.classLinks.company * 2 >= boardStats.links && (
-                  <p className="mt-2 text-[11px] text-warn/80">
+                  <p className="mt-2 text-[0.6875rem] text-warn/80">
                     {t("desk.companyConcentration", {
                       c: boardStats.classLinks.company,
                       total: boardStats.links,
@@ -1252,14 +1252,14 @@ export default function DeskPage() {
                 const fa = desk.focusAreas.find((f) => f.title === area);
                 return (
                   <div key={area}>
-                    <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+                    <h3 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
                       {area}
                     </h3>
                     {fa?.description && (
-                      <p className="text-[11px] text-muted/80 mt-0.5">{fa.description}</p>
+                      <p className="text-[0.6875rem] text-muted/80 mt-0.5">{fa.description}</p>
                     )}
                     {signals.length === 0 && fa && (
-                      <p className="text-[11px] text-muted/70 italic mt-1">
+                      <p className="text-[0.6875rem] text-muted/70 italic mt-1">
                         {t("desk.focusAreaEmpty")}{" "}
                         {confirmAreaId === fa.id ? (
                           <button
@@ -1305,14 +1305,14 @@ export default function DeskPage() {
               >
                 <SectionTitle>
                   {t("desk.archive")}{" "}
-                  <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                  <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
                     {t("desk.archiveCounts", {
                       r: desk.retired.length,
                       d: (desk.dismissed ?? []).length,
                     })}
                   </span>
                 </SectionTitle>
-                <span className="text-muted text-[10px] group-hover:text-emph transition-colors">
+                <span className="text-muted text-[0.625rem] group-hover:text-emph transition-colors">
                   {archiveOpen ? `▾ ${t("common.hide")}` : `▸ ${t("common.show")}`}
                 </span>
               </button>
@@ -1369,7 +1369,7 @@ export default function DeskPage() {
               onClose={() => setFullDesk(false)}
             />
           )}
-          <div className={fullDesk ? "flex-1 min-h-0 w-full max-w-4xl mx-auto" : "h-full"}>
+          <div className={fullDesk ? "flex-1 min-h-0 w-full" : "h-full"}>
             <ChatPanel
               messages={desk.messages}
               signalsById={signalsById}
@@ -1497,7 +1497,7 @@ function FullDeskBar({
   const { t } = useT();
   const up = (quote?.changePercent ?? 0) >= 0;
   return (
-    <div className="w-full max-w-4xl mx-auto pb-3 flex items-center gap-3 flex-wrap">
+    <div className="w-full pb-3 flex items-center gap-3 flex-wrap">
       <div className="min-w-0">
         <p className="text-sm font-bold leading-tight">
           {symbol} <span className="text-muted font-normal truncate">{name}</span>
@@ -1509,19 +1509,19 @@ function FullDeskBar({
             {fmtPrice(quote.price, quote.currency)}
           </span>
           {quote.currency && quote.currency !== "USD" && quote.fxToUsd != null && (
-            <span className="text-[10px] text-muted tabular-nums">
+            <span className="text-[0.625rem] text-muted tabular-nums">
               ≈ {fmtPrice(quote.price * quote.fxToUsd, "USD")}
             </span>
           )}
           <span
-            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
+            className={`rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-chipfg ${up ? "bg-gain" : "bg-loss"}`}
           >
             {fmtPct(quote.changePercent)}
           </span>
         </>
       )}
       {running && (
-        <span className="text-[11px] text-accent pulse-soft">{t("desk.researching")}</span>
+        <span className="text-[0.6875rem] text-accent pulse-soft">{t("desk.researching")}</span>
       )}
       <button
         onClick={onClose}
@@ -1560,7 +1560,7 @@ function BulkBar({
     .filter((s) => selected.has(s.id) && s.replaces)
     .map((s) => signalsById.get(s.replaces!)?.name ?? t("desk.anActiveSignal"));
   return (
-    <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px]">
+    <div className="mt-2 flex items-center gap-2 flex-wrap text-[0.6875rem]">
       <button
         onClick={allSelected ? onClear : onSelectAll}
         className="rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1 font-medium text-emph transition-colors"
@@ -1658,17 +1658,17 @@ function ArchiveRow({
             {signal.name}
           </span>
           <span
-            className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+            className={`shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider ${
               kind === "retired" ? "bg-ink/8 text-muted" : "bg-warn/10 text-warn/80"
             }`}
           >
             {t(`common.status_${kind}`)}
           </span>
           {onOpen && (
-            <span className="text-[10px] text-muted/60 shrink-0">{t("desk.historyLink")}</span>
+            <span className="text-[0.625rem] text-muted/60 shrink-0">{t("desk.historyLink")}</span>
           )}
         </div>
-        <p className="text-[11px] text-muted truncate mt-0.5">
+        <p className="text-[0.6875rem] text-muted truncate mt-0.5">
           {signal.focusArea}
           {replacedByName && (
             <span className="text-warn/80">
@@ -1681,7 +1681,7 @@ function ArchiveRow({
       </div>
       {confirming && needsGuard ? (
         <span className="flex items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/8 px-2 py-1 flex-wrap">
-          <span className="text-[11px] text-emph">
+          <span className="text-[0.6875rem] text-emph">
             {t("desk.guardReplacedActive", { name: activeReplacement })}
           </span>
           <button
@@ -1690,7 +1690,7 @@ function ArchiveRow({
               onSwapBack();
             }}
             disabled={busy}
-            className="rounded-md bg-warn/20 hover:bg-warn/30 text-warn text-[11px] font-semibold px-2 py-1 disabled:opacity-50 transition-colors"
+            className="rounded-md bg-warn/20 hover:bg-warn/30 text-warn text-[0.6875rem] font-semibold px-2 py-1 disabled:opacity-50 transition-colors"
           >
             {t("desk.swapBack", { name: activeReplacement })}
           </button>
@@ -1700,14 +1700,14 @@ function ArchiveRow({
               onReactivate();
             }}
             disabled={busy}
-            className="rounded-md bg-ink/6 hover:bg-ink/10 text-[11px] font-medium text-emph px-2 py-1 disabled:opacity-50 transition-colors"
+            className="rounded-md bg-ink/6 hover:bg-ink/10 text-[0.6875rem] font-medium text-emph px-2 py-1 disabled:opacity-50 transition-colors"
             title={t("desk.keepBothTitle")}
           >
             {t("desk.keepBoth")}
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="rounded-md text-muted hover:text-emph text-[11px] px-1.5 py-1 transition-colors"
+            className="rounded-md text-muted hover:text-emph text-[0.6875rem] px-1.5 py-1 transition-colors"
           >
             {t("common.cancel")}
           </button>
@@ -1717,7 +1717,7 @@ function ArchiveRow({
           onClick={() => (needsGuard ? setConfirming(true) : onReactivate())}
           disabled={busy}
           title={kind === "retired" ? t("desk.reactivateTitle") : t("desk.restoreTitle")}
-          className="shrink-0 rounded-lg bg-ink/6 hover:bg-ink/10 text-[11px] font-medium text-emph px-2.5 py-1.5 disabled:opacity-50 transition-colors"
+          className="shrink-0 rounded-lg bg-ink/6 hover:bg-ink/10 text-[0.6875rem] font-medium text-emph px-2.5 py-1.5 disabled:opacity-50 transition-colors"
         >
           {busy ? "…" : kind === "retired" ? t("desk.reactivate") : t("desk.restoreProposal")}
         </button>
@@ -1757,7 +1757,7 @@ function SigRefText({
             key={i}
             onClick={() => onOpen(sig.id)}
             title={t("desk.sigRefTitle", { key: `S${part}`, name: sig.name })}
-            className="inline-flex max-w-[220px] items-baseline gap-1 rounded border border-accent/25 bg-accent/8 hover:bg-accent/18 px-1 py-px align-baseline text-[10px] leading-tight text-accent transition-colors"
+            className="inline-flex max-w-[220px] items-baseline gap-1 rounded border border-accent/25 bg-accent/8 hover:bg-accent/18 px-1 py-px align-baseline text-[0.625rem] leading-tight text-accent transition-colors"
           >
             <span className="shrink-0 font-bold tabular-nums">{`S${part}`}</span>
             <span className="truncate font-medium">{sig.name}</span>
@@ -1770,7 +1770,7 @@ function SigRefText({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
+    <h2 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
       {children}
     </h2>
   );
@@ -1778,7 +1778,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+    <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
       {children}
     </span>
   );

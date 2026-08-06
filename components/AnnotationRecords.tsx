@@ -100,13 +100,13 @@ export function AnnotationRecords({
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 text-left w-full group"
       >
-        <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
+        <h2 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
           {t("notes.annRecTitle")}{" "}
-          <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+          <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
             {rows.length}
           </span>
         </h2>
-        <span className="text-muted text-[10px] group-hover:text-emph transition-colors">
+        <span className="text-muted text-[0.625rem] group-hover:text-emph transition-colors">
           {open ? `▾ ${t("common.hide")}` : `▸ ${t("common.show")}`}
         </span>
       </button>
@@ -125,15 +125,15 @@ export function AnnotationRecords({
                   <p className="text-emph leading-snug">
                     “{a.selectedText.length > 180 ? a.selectedText.slice(0, 180) + "…" : a.selectedText}”
                   </p>
-                  {a.comment && <p className="mt-0.5 text-[11px] text-[#b5b5ba]">💬 {a.comment}</p>}
-                  <p className="mt-0.5 text-[10px] text-muted">
+                  {a.comment && <p className="mt-0.5 text-[0.6875rem] text-[#b5b5ba]">💬 {a.comment}</p>}
+                  <p className="mt-0.5 text-[0.625rem] text-muted">
                     {surfaceLabel(a.surfaceId)} · {timeAgo(a.createdAt, t)}
                   </p>
                 </div>
                 <button
                   onClick={() => ctx.remove(a.id)}
                   title={t("notes.annotDelete")}
-                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted/50 hover:text-loss opacity-0 group-hover/row:opacity-100 transition-all"
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/50 hover:text-loss opacity-0 group-hover/row:opacity-100 transition-all"
                 >
                   ✕
                 </button>

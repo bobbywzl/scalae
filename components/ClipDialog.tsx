@@ -90,7 +90,7 @@ export function ClipDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-semibold">{t("notes.clipTitle")}</p>
-        <p className="text-[11px] text-muted mt-1 line-clamp-2">{item.headline}</p>
+        <p className="text-[0.6875rem] text-muted mt-1 line-clamp-2">{item.headline}</p>
 
         {state === "done" ? (
           <p className="text-gain text-sm font-medium mt-4">{t("notes.clipped")}</p>
@@ -110,10 +110,10 @@ export function ClipDialog({
           </div>
         ) : (
           <div className="mt-3 max-h-80 overflow-y-auto space-y-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted">{t("notes.clipPick")}</p>
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted">{t("notes.clipPick")}</p>
             {payload.sections.map((s) => (
               <div key={s.id}>
-                <p className="text-[10px] uppercase tracking-widest text-muted/80 font-semibold">
+                <p className="text-[0.625rem] uppercase tracking-widest text-muted/80 font-semibold">
                   {s.title}
                 </p>
                 <div className="mt-1 space-y-1">

@@ -91,7 +91,7 @@ export function AddTicker() {
                 <span className="font-semibold text-sm">{h.symbol}</span>
                 <span className="text-muted text-xs ml-2">{h.name}</span>
               </span>
-              <span className="text-muted/70 text-[10px] uppercase tracking-wide">
+              <span className="text-muted/70 text-[0.625rem] uppercase tracking-wide">
                 {busy === h.symbol ? t("watchlist.adding") : h.exchange}
               </span>
             </button>

@@ -52,7 +52,7 @@ export function NoteEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: "note-prose focus:outline-none min-h-[140px] text-[15px] leading-relaxed",
+        class: "note-prose focus:outline-none min-h-[140px] text-[0.9375rem] leading-relaxed",
       },
     },
     onUpdate: ({ editor: e }) => onChange(JSON.stringify(e.getJSON())),
@@ -102,7 +102,7 @@ export function NoteEditor({
             if (v === "p") chain().setParagraph().run();
             else chain().setHeading({ level: Number(v.slice(1)) as 1 | 2 | 3 }).run();
           }}
-          className="rounded bg-ink/6 border border-hairline text-[10px] text-emph px-1 py-0.5 mr-1"
+          className="rounded bg-ink/6 border border-hairline text-[0.625rem] text-emph px-1 py-0.5 mr-1"
         >
           <option value="p">{t("notes.tbParagraph")}</option>
           <option value="h1">{t("notes.tbH1")}</option>
@@ -117,7 +117,7 @@ export function NoteEditor({
             else chain().unsetFontFamily().run();
           }}
           title={t("notes.tbFont")}
-          className="rounded bg-ink/6 border border-hairline text-[10px] text-emph px-1 py-0.5"
+          className="rounded bg-ink/6 border border-hairline text-[0.625rem] text-emph px-1 py-0.5"
         >
           <option value="">{t("notes.tbFontDefault")}</option>
           <option value={FONT_SERIF}>{t("notes.tbFontSerif")}</option>
@@ -131,7 +131,7 @@ export function NoteEditor({
             else chain().unsetFontSize().run();
           }}
           title={t("notes.tbSize")}
-          className="rounded bg-ink/6 border border-hairline text-[10px] text-emph px-1 py-0.5 mr-1"
+          className="rounded bg-ink/6 border border-hairline text-[0.625rem] text-emph px-1 py-0.5 mr-1"
         >
           <option value="">{t("notes.tbSize")}</option>
           {SIZES.map((v) => (
@@ -238,7 +238,7 @@ function Btn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded px-1.5 py-0.5 text-[11px] leading-4 transition-colors disabled:opacity-30 ${
+      className={`rounded px-1.5 py-0.5 text-[0.6875rem] leading-4 transition-colors disabled:opacity-30 ${
         active ? "bg-ink/15 text-foreground" : "text-muted hover:text-emph hover:bg-ink/8"
       }`}
     >

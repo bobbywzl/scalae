@@ -49,12 +49,12 @@ function Evidence({ files }: { files: Attachment[] }) {
                 : `data:text/plain;charset=utf-8,${encodeURIComponent(f.data)}`
             }
             download={f.name}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[11px] hover:border-white/25"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-white/25"
           >
             {f.kind === "pdf" ? "📄" : "📝"} {f.name} <span className="text-muted">{fmtBytes(f.size)}</span>
           </a>
         ) : (
-          <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[11px] text-muted">
+          <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted">
             {f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"} {f.name} · {fmtBytes(f.size)}
           </span>
         )
@@ -136,7 +136,7 @@ export default function AdminFeedbackPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-xl font-bold leading-tight">Feedback</h1>
@@ -150,7 +150,7 @@ export default function AdminFeedbackPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              className={`rounded-lg border px-2.5 py-1 text-[0.6875rem] font-medium transition-colors ${
                 filter === f
                   ? "border-accent/60 bg-accent/12"
                   : "border-hairline bg-white/4 text-muted hover:text-foreground"
@@ -178,14 +178,14 @@ export default function AdminFeedbackPage() {
                 className="w-full text-left px-4 py-3 hover:bg-white/3 transition-colors"
               >
                 <span className="flex items-center gap-2.5 flex-wrap">
-                  <span className={`rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${STATUS_BADGE[t.status].cls}`}>
+                  <span className={`rounded px-1.5 py-px text-[0.5625rem] font-bold uppercase tracking-wide ${STATUS_BADGE[t.status].cls}`}>
                     {STATUS_BADGE[t.status].label}
                   </span>
-                  <span className="font-mono text-[10px] text-muted">{t.id}</span>
-                  <span className="text-[10px] text-muted">{CATEGORY_LABEL[t.category] ?? t.category}</span>
+                  <span className="font-mono text-[0.625rem] text-muted">{t.id}</span>
+                  <span className="text-[0.625rem] text-muted">{CATEGORY_LABEL[t.category] ?? t.category}</span>
                   <span className="text-xs font-semibold flex-1 min-w-0 truncate">{t.subject}</span>
-                  <span className="text-[10px] text-muted truncate max-w-[180px]">{user.email}</span>
-                  <span className="text-[10px] text-muted shrink-0">{timeAgo(t.updatedAt)}</span>
+                  <span className="text-[0.625rem] text-muted truncate max-w-[180px]">{user.email}</span>
+                  <span className="text-[0.625rem] text-muted shrink-0">{timeAgo(t.updatedAt)}</span>
                 </span>
               </button>
 
@@ -202,7 +202,7 @@ export default function AdminFeedbackPage() {
                             m.role === "admin" ? "border-accent/25 bg-accent/6" : "border-hairline bg-white/3"
                           }`}
                         >
-                          <p className="text-[10px] uppercase tracking-wider font-semibold mb-1 text-muted">
+                          <p className="text-[0.625rem] uppercase tracking-wider font-semibold mb-1 text-muted">
                             {m.role === "admin" ? "Team" : user.name || user.email}
                             <span className="ml-2 normal-case tracking-normal font-normal">{timeAgo(m.createdAt)}</span>
                           </p>
@@ -220,13 +220,13 @@ export default function AdminFeedbackPage() {
                           placeholder={`Respond to ${user.name || user.email}…`}
                           className="w-full bg-transparent text-xs placeholder:text-muted focus:outline-none resize-y"
                         />
-                        {note && <p className="text-[11px] text-accent">{note}</p>}
+                        {note && <p className="text-[0.6875rem] text-accent">{note}</p>}
                         <div className="flex items-center justify-end gap-2 flex-wrap">
                           {thread.status !== "closed" ? (
                             <button
                               onClick={() => act({ status: "closed" })}
                               disabled={sending}
-                              className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                              className="rounded-lg border border-hairline px-3 py-1.5 text-[0.6875rem] text-muted hover:text-foreground transition-colors disabled:opacity-50"
                             >
                               Close
                             </button>
@@ -234,7 +234,7 @@ export default function AdminFeedbackPage() {
                             <button
                               onClick={() => act({ status: "open" })}
                               disabled={sending}
-                              className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-accent hover:opacity-80 disabled:opacity-50"
+                              className="rounded-lg border border-hairline px-3 py-1.5 text-[0.6875rem] text-accent hover:opacity-80 disabled:opacity-50"
                             >
                               Reopen
                             </button>
@@ -242,7 +242,7 @@ export default function AdminFeedbackPage() {
                           <button
                             onClick={() => act({ message: response.trim(), status: "closed" })}
                             disabled={sending || !response.trim()}
-                            className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                            className="rounded-lg border border-hairline px-3 py-1.5 text-[0.6875rem] text-muted hover:text-foreground transition-colors disabled:opacity-50"
                             title="Post the response and close the request"
                           >
                             Respond &amp; close
@@ -250,7 +250,7 @@ export default function AdminFeedbackPage() {
                           <button
                             onClick={() => act({ message: response.trim() })}
                             disabled={sending || !response.trim()}
-                            className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[11px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                            className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
                           >
                             {sending ? "Sending…" : "Send response"}
                           </button>

@@ -274,7 +274,7 @@ export function SignalDetail({
     return m;
   }, [signal.history]);
   const clipText = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-  const sectionTitle = "text-[10px] uppercase tracking-wider text-muted font-semibold";
+  const sectionTitle = "text-[0.625rem] uppercase tracking-wider text-muted font-semibold";
 
   const spark = signal.type === "quantitative" ? sparkValues(signal.history) : [];
   // When today is a carry-forward, the date fresh evidence last moved this signal —
@@ -293,19 +293,19 @@ export function SignalDetail({
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col p-3 sm:p-6">
       {/* Header */}
-      <div className="w-full max-w-6xl mx-auto pb-3 flex items-center gap-3 flex-wrap">
+      <div className="w-full pb-3 flex items-center gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
             {sKey && <SigKeyBadge sKey={sKey} />}
             <p className="text-base font-bold leading-tight truncate">{signal.name}</p>
           </div>
-          <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
             {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
             {signal.focusArea} · {signal.symbol}
           </p>
         </div>
         {r && level && delta && (
-          <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${level.cls}`}>
+          <span className={`shrink-0 rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold ${level.cls}`}>
             {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
           </span>
         )}
@@ -314,13 +314,13 @@ export function SignalDetail({
           {check &&
             (check.checking ? (
               <span className="flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/8 px-2.5 py-1.5 min-w-0">
-                <span className="text-[11px] text-accent pulse-soft truncate max-w-[280px]">
+                <span className="text-[0.6875rem] text-accent pulse-soft truncate max-w-[280px]">
                   {check.stage || t("desk.signalCheckingShort")}
                 </span>
                 <button
                   onClick={check.stop}
                   title={t("desk.stopHint")}
-                  className="shrink-0 rounded-md bg-loss/15 hover:bg-loss/25 text-loss text-[10px] font-medium px-2 py-0.5 transition-colors"
+                  className="shrink-0 rounded-md bg-loss/15 hover:bg-loss/25 text-loss text-[0.625rem] font-medium px-2 py-0.5 transition-colors"
                 >
                   {t("desk.stopResearch")}
                 </button>
@@ -330,13 +330,13 @@ export function SignalDetail({
                 onClick={check.run}
                 disabled={check.disabled}
                 title={check.disabled ? t("desk.signalCheckBusy") : undefined}
-                className="rounded-lg border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 text-accent text-[11px] font-semibold px-2.5 py-1.5 transition-colors"
+                className="rounded-lg border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 text-accent text-[0.6875rem] font-semibold px-2.5 py-1.5 transition-colors"
               >
                 {t("desk.runSignal")}
               </button>
             ))}
           {readOnly ? (
-            <span className="rounded-lg border border-hairline bg-ink/4 px-2.5 py-1.5 text-[11px] text-muted">
+            <span className="rounded-lg border border-hairline bg-ink/4 px-2.5 py-1.5 text-[0.6875rem] text-muted">
               {t("signals.retiredBadge")}
               {supersededBy && (
                 <span className="text-warn/80"> · {t("signals.supersededBy", { name: supersededBy })}</span>
@@ -344,18 +344,18 @@ export function SignalDetail({
             </span>
           ) : confirmRetire ? (
             <span className="flex items-center gap-1.5 rounded-lg border border-loss/30 bg-loss/8 px-2 py-1">
-              <span className="text-[11px] text-emph hidden sm:inline">
+              <span className="text-[0.6875rem] text-emph hidden sm:inline">
                 {t("signals.retireConfirmText")}
               </span>
               <button
                 onClick={() => onRetire(signal.id)}
-                className="rounded-md bg-loss/20 hover:bg-loss/30 text-loss text-[11px] font-semibold px-2 py-1 transition-colors"
+                className="rounded-md bg-loss/20 hover:bg-loss/30 text-loss text-[0.6875rem] font-semibold px-2 py-1 transition-colors"
               >
                 {t("signals.confirmRetire")}
               </button>
               <button
                 onClick={() => setConfirmRetire(false)}
-                className="rounded-md bg-ink/6 hover:bg-ink/10 text-muted text-[11px] font-medium px-2 py-1 transition-colors"
+                className="rounded-md bg-ink/6 hover:bg-ink/10 text-muted text-[0.6875rem] font-medium px-2 py-1 transition-colors"
               >
                 {t("common.cancel")}
               </button>
@@ -363,7 +363,7 @@ export function SignalDetail({
           ) : (
             <button
               onClick={() => setConfirmRetire(true)}
-              className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-loss text-[11px] font-medium px-2.5 py-1.5 transition-colors"
+              className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-loss text-[0.6875rem] font-medium px-2.5 py-1.5 transition-colors"
             >
               {t("signals.retireSignal")}
             </button>
@@ -380,8 +380,10 @@ export function SignalDetail({
       {/* Segmented layout: signal world left, scoped analyst desk right
           (archive mode drops the desk — the record speaks for itself) */}
       <div
-        className={`flex-1 min-h-0 w-full mx-auto grid gap-4 ${
-          readOnly ? "max-w-4xl" : "max-w-6xl lg:grid-cols-[minmax(0,1fr)_400px]"
+        className={`flex-1 min-h-0 w-full grid gap-4 ${
+          readOnly
+            ? ""
+            : "lg:grid-cols-[minmax(0,1fr)_25rem] xl:grid-cols-[minmax(0,1fr)_28rem] 2xl:grid-cols-[minmax(0,1fr)_32rem]"
         }`}
       >
         <div className="overflow-y-auto rounded-2xl bg-card border border-hairline p-5 space-y-5">
@@ -400,7 +402,7 @@ export function SignalDetail({
           )}
           {check?.note && (
             <div className="rounded-xl border border-accent/20 bg-accent/6 px-3.5 py-2.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 {t("desk.signalCheckNote")}
                 <span className="normal-case tracking-normal font-normal text-muted/70">
                   {" "}
@@ -428,7 +430,7 @@ export function SignalDetail({
                   {spark.length >= 2 && (
                     <span className="flex items-end gap-2 pb-0.5">
                       <ReadingSparkline values={spark} width={120} height={30} />
-                      <span className="text-[10px] text-muted tabular-nums">
+                      <span className="text-[0.625rem] text-muted tabular-nums">
                         {t("signals.rangeOverReadings", {
                           min: Math.min(...spark).toLocaleString(locale),
                           max: Math.max(...spark).toLocaleString(locale),
@@ -437,20 +439,20 @@ export function SignalDetail({
                       </span>
                     </span>
                   )}
-                  <span className="text-[11px] text-muted pb-0.5">
+                  <span className="text-[0.6875rem] text-muted pb-0.5">
                     {timeAgo(r.date, t)} · {t("signals.confidencePct", { pct: (r.confidence * 100).toFixed(0) })}
                     {neverFresh && ` ${t("signals.priorNoEvidence")}`}
                   </span>
                 </div>
                 {neverFresh && (
-                  <p className="mt-1.5 text-[11px] text-warn/90">
+                  <p className="mt-1.5 text-[0.6875rem] text-warn/90">
                     {t(signal.history.length === 1 ? "signals.neverFreshOne" : "signals.neverFreshMany", {
                       n: signal.history.length,
                     })}
                   </p>
                 )}
                 {freshSince && (
-                  <p className="mt-1.5 text-[11px] text-muted">
+                  <p className="mt-1.5 text-[0.6875rem] text-muted">
                     {t("signals.carriedSincePre")}
                     <span className="text-emph">{fmtDay(freshSince, locale)}</span>
                     {t("signals.carriedSincePost")}
@@ -474,7 +476,7 @@ export function SignalDetail({
                         target="_blank"
                         rel="noreferrer"
                         title={c.title}
-                        className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[10px] text-emph transition-colors max-w-[280px] truncate"
+                        className="rounded-full border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-0.5 text-[0.625rem] text-emph transition-colors max-w-[280px] truncate"
                       >
                         {chipLabel(c, r.citations)}
                       </a>
@@ -490,7 +492,7 @@ export function SignalDetail({
           {lineage && (
             <button
               onClick={lineage.onOpen}
-              className="w-full text-left rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-3 py-2 text-[11px] text-emph transition-colors"
+              className="w-full text-left rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-3 py-2 text-[0.6875rem] text-emph transition-colors"
             >
               {t("signals.replacedPrefix")}
               <span className="font-semibold">“{lineage.name}”</span>
@@ -502,7 +504,7 @@ export function SignalDetail({
             <button
               onClick={overlapsWith.onOpen}
               title={t("signals.overlapKeptDetailTitle")}
-              className="w-full text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[11px] text-warn transition-colors"
+              className="w-full text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[0.6875rem] text-warn transition-colors"
             >
               {t("signals.keptAlongsidePre")}
               <span className="font-semibold">“{overlapsWith.name}”</span>
@@ -521,7 +523,7 @@ export function SignalDetail({
             <p className={sectionTitle}>{t("signals.measurementPlan")}</p>
             <p className="mt-1.5 text-xs text-emph leading-relaxed">{signal.measurementPlan}</p>
             {signal.scale && (
-              <p className="text-[11px] text-muted mt-1">{t("signals.scaleLabel", { scale: signal.scale })}</p>
+              <p className="text-[0.6875rem] text-muted mt-1">{t("signals.scaleLabel", { scale: signal.scale })}</p>
             )}
           </section>
 
@@ -544,7 +546,7 @@ export function SignalDetail({
                       onClick={researchHistory}
                       disabled={histBusy}
                       title={t("signals.historyBtnTitle")}
-                      className="ml-auto rounded-md bg-ink/6 hover:bg-ink/10 text-[10px] font-medium text-muted hover:text-emph px-2 py-1 disabled:opacity-50 transition-colors"
+                      className="ml-auto rounded-md bg-ink/6 hover:bg-ink/10 text-[0.625rem] font-medium text-muted hover:text-emph px-2 py-1 disabled:opacity-50 transition-colors"
                     >
                       {histBusy
                         ? t("signals.researchingBusy")
@@ -554,9 +556,9 @@ export function SignalDetail({
                     </button>
                   )}
                 </div>
-                {histError && <p className="mt-1.5 text-[11px] text-loss">{localizeError(histError, t)}</p>}
+                {histError && <p className="mt-1.5 text-[0.6875rem] text-loss">{localizeError(histError, t)}</p>}
                 {histBusy && !backstory && (
-                  <p className="mt-1.5 text-[11px] text-muted pulse-soft">
+                  <p className="mt-1.5 text-[0.6875rem] text-muted pulse-soft">
                     {t("signals.historyTracing")}
                   </p>
                 )}
@@ -566,7 +568,7 @@ export function SignalDetail({
                       <Markdown>{linkCitations(backstory, bSources)}</Markdown>
                     </Annotatable>
                     {bAt && (
-                      <p className="mt-1.5 text-[10px] text-muted/60">
+                      <p className="mt-1.5 text-[0.625rem] text-muted/60">
                         {t("signals.researchedAgo", { when: timeAgo(bAt, t) })} ·{" "}
                         {t(bSources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", {
                           n: bSources.length,
@@ -577,7 +579,7 @@ export function SignalDetail({
                   </div>
                 ) : (
                   !histBusy && (
-                    <p className="mt-1.5 text-[11px] text-muted italic">
+                    <p className="mt-1.5 text-[0.6875rem] text-muted italic">
                       {readOnly ? t("signals.notResearchedRO") : t("signals.notResearched")}
                     </p>
                   )
@@ -608,7 +610,7 @@ export function SignalDetail({
                         {src.domain}
                       </a>
                       <span
-                        className={`shrink-0 rounded px-1 py-px text-[8px] uppercase tracking-wider ${
+                        className={`shrink-0 rounded px-1 py-px text-[0.5rem] uppercase tracking-wider ${
                           sourceClass(src, companyDomains) === "company"
                             ? "bg-warn/12 text-warn/90"
                             : "bg-ink/6 text-muted"
@@ -626,7 +628,7 @@ export function SignalDetail({
                                 n: src.count,
                               })
                         }
-                        className={`rounded-full px-1.5 py-px text-[9px] transition-colors ${
+                        className={`rounded-full px-1.5 py-px text-[0.5625rem] transition-colors ${
                           filterUrl === src.url
                             ? "bg-accent/25 text-accent"
                             : "bg-ink/8 text-muted hover:bg-ink/15 hover:text-emph"
@@ -634,7 +636,7 @@ export function SignalDetail({
                       >
                         ⧉ {t(src.count === 1 ? "signals.readingsOne" : "signals.readingsMany", { n: src.count })}
                       </button>
-                      <span className="text-[10px] text-muted/70 ml-auto shrink-0">
+                      <span className="text-[0.625rem] text-muted/70 ml-auto shrink-0">
                         {fmtDay(src.firstSeen, locale)}
                         {src.lastSeen !== src.firstSeen && ` → ${fmtDay(src.lastSeen, locale)}`}
                       </span>
@@ -651,7 +653,7 @@ export function SignalDetail({
                       return (
                         <div className="mt-1 space-y-1">
                           {d && (
-                            <p className="text-[11px] leading-snug">
+                            <p className="text-[0.6875rem] leading-snug">
                               <span
                                 className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 align-middle ${IMPACT_DOT[d.impact]}`}
                               />
@@ -662,10 +664,10 @@ export function SignalDetail({
                             </p>
                           )}
                           {d?.sourceNote && (
-                            <p className="text-[10px] text-muted/90 leading-snug">☞ {d.sourceNote}</p>
+                            <p className="text-[0.625rem] text-muted/90 leading-snug">☞ {d.sourceNote}</p>
                           )}
                           {imp && (
-                            <p className="text-[11px] text-[#b5b5ba] leading-snug">
+                            <p className="text-[0.6875rem] text-[#b5b5ba] leading-snug">
                               <span className="text-accent/85 font-medium">
                                 {t("signals.srcImplication", {
                                   date: fmtDay(imp.date, locale),
@@ -713,7 +715,7 @@ export function SignalDetail({
                 )}
               </p>
               {tracedSource && filteredHistory.length < tracedSource.count && (
-                <p className="mt-1 text-[11px] text-muted">
+                <p className="mt-1 text-[0.6875rem] text-muted">
                   {filteredHistory.length === 0
                     ? t(tracedSource.count === 1 ? "signals.tracedNoneOne" : "signals.tracedNoneMany", {
                         total: signal.history.length,
@@ -731,7 +733,7 @@ export function SignalDetail({
                   <li key={h.id} className="text-xs">
                     <div className="flex items-center gap-2">
                       <span className="text-muted tabular-nums">{h.date.slice(0, 10)}</span>
-                      <span className={`rounded px-1.5 py-px text-[10px] font-medium ${LEVEL_STYLE[h.level].cls}`}>
+                      <span className={`rounded px-1.5 py-px text-[0.625rem] font-medium ${LEVEL_STYLE[h.level].cls}`}>
                         {levelLabel(h.level, t)}
                       </span>
                       {h.value != null && (
@@ -739,11 +741,11 @@ export function SignalDetail({
                           {h.value.toLocaleString(locale)} {h.valueUnit ?? ""}
                         </span>
                       )}
-                      <span className="text-[10px] text-muted/70">
+                      <span className="text-[0.625rem] text-muted/70">
                         {t("signals.confShort", { pct: (h.confidence * 100).toFixed(0) })}
                       </span>
                       {h.newEvidence === false && (
-                        <span className="text-[9px] uppercase tracking-wider text-muted/60 border border-hairline rounded px-1 py-px">
+                        <span className="text-[0.5625rem] uppercase tracking-wider text-muted/60 border border-hairline rounded px-1 py-px">
                           {t("signals.carryForward")}
                         </span>
                       )}
@@ -761,7 +763,7 @@ export function SignalDetail({
                           })
                         }
                         title={t("notes.clipTitle")}
-                        className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                        className="ml-auto shrink-0 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[0.625rem] text-emph hover:text-accent transition-colors"
                       >
                         {t("notes.clipAction")}
                       </button>
@@ -780,7 +782,7 @@ export function SignalDetail({
                             target="_blank"
                             rel="noreferrer"
                             title={c.title}
-                            className={`hover:underline text-[11px] ${
+                            className={`hover:underline text-[0.6875rem] ${
                               filterUrl === c.url ? "text-accent font-semibold" : "text-accent/90"
                             }`}
                           >

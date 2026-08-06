@@ -76,10 +76,10 @@ export function DigestFeed({
                 one-line recommendation on whether it's the one to open.
                 Legacy items (no class/note) keep the old muted byline. */}
             {(d.sourceClass || d.sourceNote) && (
-              <p className="text-[11px] mt-1 leading-snug">
+              <p className="text-[0.6875rem] mt-1 leading-snug">
                 {d.sourceClass && (
                   <span
-                    className={`mr-1.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide align-middle ${SOURCE_CLASS_CHIP[d.sourceClass]}`}
+                    className={`mr-1.5 inline-block rounded-full px-1.5 py-px text-[0.5625rem] font-semibold uppercase tracking-wide align-middle ${SOURCE_CLASS_CHIP[d.sourceClass]}`}
                   >
                     {t(SOURCE_CLASS_LABEL[d.sourceClass])}
                   </span>
@@ -99,14 +99,14 @@ export function DigestFeed({
                 {d.sourceNote && <span className="text-muted"> — {d.sourceNote}</span>}
               </p>
             )}
-            <p className="text-[10px] text-muted mt-1">
+            <p className="text-[0.625rem] text-muted mt-1">
               {!(d.sourceClass || d.sourceNote) && d.source ? `${d.source} · ` : ""}
               {timeAgo(d.date, t)}
               {onClip && (
                 <button
                   onClick={() => onClip(d)}
                   title={t("notes.clipTitle")}
-                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[0.625rem] text-emph hover:text-accent transition-colors"
                 >
                   {t("notes.clipAction")}
                 </button>
@@ -115,7 +115,7 @@ export function DigestFeed({
                 <button
                   onClick={() => onTrackStory(d)}
                   title={t("signals.trackThisTitle")}
-                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[10px] text-emph hover:text-accent transition-colors"
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[0.625rem] text-emph hover:text-accent transition-colors"
                 >
                   {t("signals.trackThis")}
                 </button>
@@ -124,7 +124,7 @@ export function DigestFeed({
                 <button
                   onClick={() => onDelete(d)}
                   title={t("signals.feedRemoveTitle")}
-                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-loss/10 hover:border-loss/30 px-1.5 py-px text-[10px] text-muted hover:text-loss transition-colors"
+                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-loss/10 hover:border-loss/30 px-1.5 py-px text-[0.625rem] text-muted hover:text-loss transition-colors"
                 >
                   ✕ {t("signals.feedRemove")}
                 </button>

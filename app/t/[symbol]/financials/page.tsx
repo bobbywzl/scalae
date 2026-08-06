@@ -235,7 +235,7 @@ export default function FinanceCleansingPage() {
   const archived = adjustments.filter((a) => a.status === "dismissed" || a.status === "reverted");
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 flex-wrap">
         <Link
           href="/"
@@ -289,7 +289,7 @@ export default function FinanceCleansingPage() {
       {/* The bench's brief — why cleansing exists and what this page gives,
           in a few sentences (FOUNDATION: the finance-cleansing bench). */}
       <section className="mt-5 rounded-2xl border border-hairline bg-card px-5 py-4">
-        <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold">
+        <h2 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold">
           {t("financials.benchAboutTitle")}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -299,7 +299,7 @@ export default function FinanceCleansingPage() {
 
       {/* Side-by-side, the signals-page idiom: the numbers and the gate on
           the left, the financial analyst desk sticky on the right. */}
-      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+      <div className="mt-5 grid lg:grid-cols-[minmax(0,1fr)_22.5rem] xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:grid-cols-[minmax(0,1fr)_30rem] gap-5 items-start">
         {/* left column */}
         <div className="space-y-5 min-w-0">
           {/* Suggestion-pass state: running note / failure / the last pass's summary. */}
@@ -323,7 +323,7 @@ export default function FinanceCleansingPage() {
           )}
           {!suggesting && suggestRun?.status === "done" && suggestRun.note && (
             <div className="rounded-xl border border-hairline bg-card px-4 py-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 {t("financials.suggestNoteTitle")}
                 <span className="normal-case tracking-normal font-normal text-muted/70">
                   {" "}
@@ -333,10 +333,10 @@ export default function FinanceCleansingPage() {
                     : t("financials.suggestFoundNone")}
                 </span>
               </p>
-              <p className="text-[13px] text-emph mt-1.5 leading-relaxed">{suggestRun.note}</p>
+              <p className="text-[0.8125rem] text-emph mt-1.5 leading-relaxed">{suggestRun.note}</p>
             </div>
           )}
-          {suggestError && <p className="text-[11px] text-loss">{suggestError}</p>}
+          {suggestError && <p className="text-[0.6875rem] text-loss">{suggestError}</p>}
 
           {/* The finance breakdown, moved to this screen — raw or cleansed view. */}
           {financials ? (
@@ -357,7 +357,7 @@ export default function FinanceCleansingPage() {
             <section>
               <SectionTitle>
                 {t("financials.adjPendingTitle")}{" "}
-                <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+                <span className="rounded-full bg-warn/15 text-warn px-2 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
                   {t("financials.adjPendingBadge", { n: pending.length })}
                 </span>
               </SectionTitle>
@@ -442,7 +442,7 @@ function KindChip({ kind }: { kind: FinAdjustment["kind"] }) {
   const { t } = useT();
   return (
     <span
-      className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+      className={`shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider ${
         kind === "growth" ? "bg-warn/12 text-warn/90" : "bg-ink/8 text-muted"
       }`}
     >
@@ -459,7 +459,7 @@ function AdjLine({ adj, currency }: { adj: FinAdjustment; currency: string | nul
       ? `${adj.delta < 0 ? "−" : "+"}${Math.abs(adj.delta).toLocaleString()}`
       : fmtDelta(adj.delta, currency);
   return (
-    <p className="text-[11px] text-emph tabular-nums">
+    <p className="text-[0.6875rem] text-emph tabular-nums">
       {t("financials.adjLine", { key: metricLabel, year: adj.fiscalYear })}{" "}
       <span className={`font-semibold ${adj.delta < 0 ? "text-loss" : "text-gain"}`}>{amount}</span>
     </p>
@@ -477,7 +477,7 @@ function SourceChips({ adj }: { adj: FinAdjustment }) {
           target="_blank"
           rel="noreferrer"
           title={s.title}
-          className="rounded-full border border-hairline bg-ink/4 px-2 py-0.5 text-[9px] text-muted hover:text-accent hover:border-accent/40 transition-colors truncate max-w-40"
+          className="rounded-full border border-hairline bg-ink/4 px-2 py-0.5 text-[0.5625rem] text-muted hover:text-accent hover:border-accent/40 transition-colors truncate max-w-40"
         >
           {s.domain ?? s.title}
         </a>
@@ -502,7 +502,7 @@ function AdjustmentCard({
   return (
     <div className="rounded-xl bg-card border border-warn/30 p-3.5">
       <div className="flex items-center gap-2">
-        <span className="text-[13px] font-semibold text-emph min-w-0 truncate">{adj.title}</span>
+        <span className="text-[0.8125rem] font-semibold text-emph min-w-0 truncate">{adj.title}</span>
         <KindChip kind={adj.kind} />
       </div>
       <div className="mt-1">
@@ -525,7 +525,7 @@ function AdjustmentCard({
         >
           {t("financials.adjDismiss")}
         </button>
-        <span className="ml-auto text-[9px] text-muted/60">{adj.createdAt.slice(0, 10)}</span>
+        <span className="ml-auto text-[0.5625rem] text-muted/60">{adj.createdAt.slice(0, 10)}</span>
       </div>
     </div>
   );
@@ -556,7 +556,7 @@ function AppliedRow({
       <button
         onClick={onRevert}
         disabled={busy}
-        className="shrink-0 rounded-lg bg-ink/6 hover:bg-ink/10 text-[11px] font-medium text-emph px-2.5 py-1.5 disabled:opacity-50 transition-colors"
+        className="shrink-0 rounded-lg bg-ink/6 hover:bg-ink/10 text-[0.6875rem] font-medium text-emph px-2.5 py-1.5 disabled:opacity-50 transition-colors"
       >
         {busy ? "…" : t("financials.adjRevert")}
       </button>
@@ -581,11 +581,11 @@ function ArchivePanel({
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 text-left w-full group">
         <SectionTitle>
           {t("financials.adjArchive")}{" "}
-          <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal">
+          <span className="rounded-full bg-ink/6 text-muted px-2 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
             {t("financials.adjArchiveCounts", { d, r })}
           </span>
         </SectionTitle>
-        <span className="text-muted text-[10px] group-hover:text-emph transition-colors">
+        <span className="text-muted text-[0.625rem] group-hover:text-emph transition-colors">
           {open ? `▾ ${t("common.hide")}` : `▸ ${t("common.show")}`}
         </span>
       </button>
@@ -598,8 +598,8 @@ function ArchivePanel({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] text-muted truncate">{a.title}</span>
-                  <span className="shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider bg-ink/8 text-muted">
+                  <span className="text-[0.8125rem] text-muted truncate">{a.title}</span>
+                  <span className="shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider bg-ink/8 text-muted">
                     {a.status === "dismissed"
                       ? t("financials.adjStatusDismissed")
                       : t("financials.adjStatusReverted")}
@@ -607,7 +607,7 @@ function ArchivePanel({
                 </div>
                 <AdjLine adj={a} currency={currency} />
               </div>
-              <span className="shrink-0 text-[9px] text-muted/60">
+              <span className="shrink-0 text-[0.5625rem] text-muted/60">
                 {(a.decidedAt ?? a.createdAt).slice(0, 10)}
               </span>
             </div>
@@ -688,7 +688,7 @@ function AnalystDesk({
             {/* Adjustments this turn recorded, rendered as live cards. */}
             {m.role === "assistant" && m.adjustmentIds.length > 0 && (
               <div className="mr-auto max-w-[92%] mt-1.5 space-y-1.5">
-                <p className="text-[10px] text-muted">
+                <p className="text-[0.625rem] text-muted">
                   {t("financials.deskParkedN", { n: m.adjustmentIds.length })}
                 </p>
                 {m.adjustmentIds.map((id) => {
@@ -702,7 +702,7 @@ function AnalystDesk({
                       }`}
                     >
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[12px] font-semibold text-emph min-w-0 truncate">
+                        <span className="text-[0.75rem] font-semibold text-emph min-w-0 truncate">
                           {adj.title}
                         </span>
                         <KindChip kind={adj.kind} />
@@ -715,20 +715,20 @@ function AnalystDesk({
                           <button
                             onClick={() => onAct(adj.id, "apply")}
                             disabled={actingId === adj.id}
-                            className="rounded-md bg-gain/15 text-gain font-semibold text-[11px] px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+                            className="rounded-md bg-gain/15 text-gain font-semibold text-[0.6875rem] px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
                           >
                             {actingId === adj.id ? t("financials.adjWorking") : t("financials.adjApply")}
                           </button>
                           <button
                             onClick={() => onAct(adj.id, "dismiss")}
                             disabled={actingId === adj.id}
-                            className="rounded-md bg-ink/6 text-muted font-medium text-[11px] px-2.5 py-1 hover:bg-ink/10 disabled:opacity-50 transition-colors"
+                            className="rounded-md bg-ink/6 text-muted font-medium text-[0.6875rem] px-2.5 py-1 hover:bg-ink/10 disabled:opacity-50 transition-colors"
                           >
                             {t("financials.adjDismiss")}
                           </button>
                         </div>
                       ) : (
-                        <p className="mt-1 text-[10px] text-muted">
+                        <p className="mt-1 text-[0.625rem] text-muted">
                           {adj.status === "applied"
                             ? t("financials.adjAppliedTitle")
                             : adj.status === "reverted"
@@ -745,17 +745,17 @@ function AnalystDesk({
         ))}
         {busy && (
           <div className="mr-auto max-w-[92%] rounded-2xl rounded-bl-md bg-ink/5 border border-hairline px-3.5 py-2 flex items-center gap-3">
-            <span className="text-[12px] text-accent pulse-soft">{t("financials.deskThinking")}</span>
+            <span className="text-[0.75rem] text-accent pulse-soft">{t("financials.deskThinking")}</span>
             <button
               onClick={onPause}
-              className="rounded-md bg-ink/6 hover:bg-ink/10 text-[10px] text-muted hover:text-emph px-2 py-0.5 transition-colors"
+              className="rounded-md bg-ink/6 hover:bg-ink/10 text-[0.625rem] text-muted hover:text-emph px-2 py-0.5 transition-colors"
             >
               {t("financials.deskPause")}
             </button>
           </div>
         )}
         {error && !busy && (
-          <p className="text-[11px] text-loss">
+          <p className="text-[0.6875rem] text-loss">
             {localizeError(error, t)}{" "}
             <button onClick={onRetry} className="underline decoration-dotted hover:text-emph transition-colors">
               {t("financials.deskRetry")}
@@ -816,14 +816,14 @@ function HistoryPanel({
       <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("financials.historyExplainer")}</p>
 
       <div className="mt-2 rounded-2xl bg-card border border-hairline p-4">
-        <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+        <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
           {t("financials.historyDiffTitle")}
         </p>
         {cells.length === 0 ? (
           <p className="text-muted text-xs italic mt-1.5">{t("financials.historyDiffNone")}</p>
         ) : (
           <div className="overflow-x-auto mt-1.5">
-            <table className="w-full text-[11px] tabular-nums">
+            <table className="w-full text-[0.6875rem] tabular-nums">
               <thead>
                 <tr className="text-muted text-left">
                   <th className="font-medium py-1 pr-3">{t("financials.historyColMetric")}</th>
@@ -841,7 +841,7 @@ function HistoryPanel({
                       <td className="py-1 pr-3 text-emph whitespace-nowrap">
                         {t(`financials.${cell.metricKey}` as TKey)}
                         {cell.derived && (
-                          <span className="ml-1.5 rounded bg-ink/8 px-1 py-px text-[8px] uppercase tracking-wider text-muted">
+                          <span className="ml-1.5 rounded bg-ink/8 px-1 py-px text-[0.5rem] uppercase tracking-wider text-muted">
                             {t("financials.historyDerived")}
                           </span>
                         )}
@@ -867,7 +867,7 @@ function HistoryPanel({
           </div>
         )}
 
-        <p className="mt-4 text-[10px] uppercase tracking-wider text-muted font-semibold">
+        <p className="mt-4 text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
           {t("financials.historyEventsTitle")}
         </p>
         {events.length === 0 ? (
@@ -875,10 +875,10 @@ function HistoryPanel({
         ) : (
           <ul className="mt-1.5 space-y-1">
             {events.map((e) => (
-              <li key={e.id} className="flex items-baseline gap-2 text-[11px]">
+              <li key={e.id} className="flex items-baseline gap-2 text-[0.6875rem]">
                 <span className="shrink-0 text-muted/70 tabular-nums">{e.at.slice(0, 10)}</span>
                 <span
-                  className={`shrink-0 rounded px-1.5 py-px text-[9px] uppercase tracking-wider ${
+                  className={`shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider ${
                     e.action === "applied"
                       ? "bg-gain/12 text-gain"
                       : e.action === "suggested"
@@ -900,7 +900,7 @@ function HistoryPanel({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
+    <h2 className="text-[0.6875rem] uppercase tracking-widest text-muted font-semibold flex items-center gap-2">
       {children}
     </h2>
   );

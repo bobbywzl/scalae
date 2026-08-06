@@ -114,7 +114,7 @@ function AdminLoginContent() {
             </button>
           </form>
         </div>
-        <p className="mt-5 text-center text-[10px] text-muted/60">
+        <p className="mt-5 text-center text-[0.625rem] text-muted/60">
           Restricted area — activity here is scoped to app administrators.
         </p>
       </div>

@@ -216,7 +216,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
           ref={boxRef}
           role="dialog"
           aria-label={t("search.open")}
-          className="bubble-in fixed right-5 top-[max(4.5rem,10vh)] z-50 flex max-h-[min(600px,80vh)] w-[min(430px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-hairline bg-card shadow-2xl shadow-black/40"
+          className="bubble-in fixed right-5 top-[max(4.5rem,10vh)] z-50 flex max-h-[min(37.5rem,80vh)] w-[min(27rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-hairline bg-card shadow-2xl shadow-black/40"
         >
           {/* Query row */}
           <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">
@@ -234,7 +234,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
               }}
               onKeyDown={onInputKey}
               placeholder={t("search.placeholder")}
-              className="min-w-0 flex-1 bg-transparent text-[15px] focus:outline-none placeholder:text-muted/60"
+              className="min-w-0 flex-1 bg-transparent text-[0.9375rem] focus:outline-none placeholder:text-muted/60"
             />
             {busy && active && (
               <span className="shrink-0 text-xs text-accent pulse-soft">{t("search.searching")}</span>
@@ -309,7 +309,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
                 const offset = flat.indexOf(g.items[0]);
                 return (
                   <div key={g.pill} className="mb-2 last:mb-0">
-                    <p className="px-2.5 pb-1 pt-1.5 text-[10px] uppercase tracking-widest text-muted/70 font-semibold">
+                    <p className="px-2.5 pb-1 pt-1.5 text-[0.625rem] uppercase tracking-widest text-muted/70 font-semibold">
                       {t(PILL_LABEL_KEY[g.pill])}
                     </p>
                     {g.items.map((hit, i) => (
@@ -330,7 +330,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
           </div>
 
           {/* Footer: count + keyboard hints */}
-          <div className="flex items-center justify-between border-t border-hairline px-4 py-2 text-[10px] text-muted/60">
+          <div className="flex items-center justify-between border-t border-hairline px-4 py-2 text-[0.625rem] text-muted/60">
             <span className="tabular-nums">
               {active && !busy ? t("search.matches", { n: flat.length }) : ""}
             </span>
@@ -368,7 +368,7 @@ function ResultRow({
       }`}
     >
       <span className="flex items-center gap-2 min-w-0">
-        <span className="shrink-0 rounded bg-accent/12 px-1.5 py-px text-[10px] font-semibold text-accent">
+        <span className="shrink-0 rounded bg-accent/12 px-1.5 py-px text-[0.625rem] font-semibold text-accent">
           {t(`search.type_${hit.type}` as TKey)}
         </span>
         {hit.path.length > 0 && (
@@ -382,18 +382,18 @@ function ResultRow({
           </span>
         )}
         {hit.meta && (
-          <span className="shrink-0 rounded bg-ink/6 px-1.5 py-px text-[9px] uppercase tracking-wider text-muted/80">
+          <span className="shrink-0 rounded bg-ink/6 px-1.5 py-px text-[0.5625rem] uppercase tracking-wider text-muted/80">
             {hit.meta}
           </span>
         )}
         {hit.date && (
-          <span className="ml-auto shrink-0 text-[10px] text-muted/50 tabular-nums">
+          <span className="ml-auto shrink-0 text-[0.625rem] text-muted/50 tabular-nums">
             {hit.date.slice(0, 10)}
           </span>
         )}
       </span>
       {hit.snippet && (
-        <span className="mt-1 block text-[13px] leading-relaxed text-emph">
+        <span className="mt-1 block text-[0.8125rem] leading-relaxed text-emph">
           <Highlighted text={hit.snippet} tokens={tokens} />
         </span>
       )}
@@ -415,7 +415,7 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+      className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium transition-colors ${
         active
           ? "bg-accent/15 text-accent"
           : subtle

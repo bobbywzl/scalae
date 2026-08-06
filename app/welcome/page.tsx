@@ -328,7 +328,7 @@ export default function WelcomePage() {
         </span>
         <nav className="flex items-center gap-3" aria-label={t("onboarding.setupProgress")}>
           {PHASES.map((p, i) => (
-            <span key={p.key} className="flex items-center gap-1.5 text-[11px]">
+            <span key={p.key} className="flex items-center gap-1.5 text-[0.6875rem]">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
                   i < phaseIndex ? "bg-gain" : i === phaseIndex ? "bg-accent pulse-soft" : "bg-ink/20"
@@ -340,7 +340,7 @@ export default function WelcomePage() {
             </span>
           ))}
         </nav>
-        <button onClick={skipAll} className="text-[11px] text-muted hover:text-foreground transition-colors">
+        <button onClick={skipAll} className="text-[0.6875rem] text-muted hover:text-foreground transition-colors">
           {t("onboarding.skipSetup")}
         </button>
       </header>
@@ -376,7 +376,7 @@ export default function WelcomePage() {
           {/* Desk confirmation chips live in the stream, like a rich message */}
           {step === "confirm" && !typing && desks.length > 0 && (
             <div className="bubble-in rounded-2xl bg-card border border-hairline px-4 py-3.5 space-y-2.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                 {t("onboarding.firstDesksTitle")} · {deskCount}/{MAX_DESKS}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -384,7 +384,7 @@ export default function WelcomePage() {
                   <button
                     key={d.symbol}
                     onClick={() => toggleDesk(d.symbol)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                    className={`rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors ${
                       d.on
                         ? "border-accent/60 bg-accent/12 text-foreground"
                         : "border-hairline bg-ink/4 text-muted hover:text-foreground"
@@ -397,7 +397,7 @@ export default function WelcomePage() {
                   </button>
                 ))}
               </div>
-              {note && <p className="text-[11px] text-warn">{note}</p>}
+              {note && <p className="text-[0.6875rem] text-warn">{note}</p>}
             </div>
           )}
           <div ref={bottomRef} />
@@ -506,7 +506,7 @@ export default function WelcomePage() {
                   <button
                     key={i.label}
                     onClick={() => toggleIndustry(i.label)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                    className={`rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors ${
                       industries.includes(i.label)
                         ? "border-accent/60 bg-accent/12 text-foreground"
                         : "border-hairline bg-ink/4 text-muted hover:text-foreground"
@@ -533,7 +533,7 @@ export default function WelcomePage() {
               {picked.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {picked.map((p) => (
-                    <span key={p.symbol} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/12 border border-accent/40 px-2 py-1 text-[11px] font-medium">
+                    <span key={p.symbol} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/12 border border-accent/40 px-2 py-1 text-[0.6875rem] font-medium">
                       {p.symbol} <span className="text-muted">{p.name}</span>
                       <button onClick={() => setPicked((xs) => xs.filter((x) => x.symbol !== p.symbol))} className="text-muted hover:text-loss">
                         ✕
@@ -560,7 +560,7 @@ export default function WelcomePage() {
                         >
                           <span className="font-semibold">{h.symbol}</span>
                           <span className="text-muted truncate flex-1">{h.name}</span>
-                          <span className="text-muted/60 text-[10px]">{h.exchange}</span>
+                          <span className="text-muted/60 text-[0.625rem]">{h.exchange}</span>
                         </button>
                       </li>
                     ))}
@@ -597,7 +597,7 @@ export default function WelcomePage() {
             <p className="text-center text-sm text-muted pulse-soft py-1.5">{t("onboarding.settingUpDesks")}</p>
           )}
 
-          <p className="mt-3 text-center text-[10px] text-muted/60">
+          <p className="mt-3 text-center text-[0.625rem] text-muted/60">
             {t("common.notAdvice")} {t("onboarding.profilePrivate")}
           </p>
         </div>

@@ -54,7 +54,7 @@ function AttachmentChips({
       {files.map((f, i) => (
         <span
           key={`${f.name}-${i}`}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[11px]"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem]"
         >
           <span aria-hidden>{f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"}</span>
           <span className="max-w-[160px] truncate">{f.name}</span>
@@ -98,7 +98,7 @@ function EvidenceGallery({ files }: { files: Attachment[] }) {
                 : `data:text/plain;charset=utf-8,${encodeURIComponent(f.data)}`
             }
             download={f.name}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[11px] hover:border-ink/25"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-ink/25"
           >
             {f.kind === "pdf" ? "📄" : "📝"} {f.name}
             <span className="text-muted">{fmtBytes(f.size)}</span>
@@ -106,7 +106,7 @@ function EvidenceGallery({ files }: { files: Attachment[] }) {
         ) : (
           <span
             key={i}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[11px] text-muted"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted"
           >
             {f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"} {f.name} · {fmtBytes(f.size)}
           </span>
@@ -153,7 +153,7 @@ function AttachButton({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors"
         title={t("support.attachTitle")}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -290,7 +290,7 @@ export default function SupportPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 mb-6">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
           {t("common.backToWatchlist")}
@@ -304,7 +304,7 @@ export default function SupportPage() {
       <div className="space-y-5">
         {/* New request */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("support.newRequest")}
           </p>
 
@@ -318,14 +318,14 @@ export default function SupportPage() {
                 </span>{" "}
                 {t("support.reqIdKeep")}
               </p>
-              <p className="mt-1 text-[11px] text-muted leading-snug">
+              <p className="mt-1 text-[0.6875rem] text-muted leading-snug">
                 {me?.authEnabled && me.user
                   ? t("support.emailNotice", { email: me.user.email })
                   : t("support.responsesHere")}
               </p>
               <button
                 onClick={() => setFiledId(null)}
-                className="mt-2.5 text-[11px] font-medium text-accent hover:opacity-80"
+                className="mt-2.5 text-[0.6875rem] font-medium text-accent hover:opacity-80"
               >
                 {t("support.fileAnother")}
               </button>
@@ -339,7 +339,7 @@ export default function SupportPage() {
                     type="button"
                     onClick={() => setCategory(c.key)}
                     title={t(c.hintKey)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                    className={`rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors ${
                       category === c.key
                         ? "border-accent/60 bg-accent/12 text-foreground"
                         : "border-hairline bg-ink/4 text-muted hover:text-foreground hover:bg-ink/8"
@@ -386,7 +386,7 @@ export default function SupportPage() {
 
         {/* My requests */}
         <section className="rounded-2xl bg-card border border-hairline overflow-hidden">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold px-5 pt-4 pb-1">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold px-5 pt-4 pb-1">
             {t("support.yourRequests")}
           </p>
           {rows === null ? (
@@ -402,12 +402,12 @@ export default function SupportPage() {
                     className="w-full text-left px-5 py-3 hover:bg-ink/3 transition-colors"
                   >
                     <span className="flex items-center gap-2.5 flex-wrap">
-                      <span className={`rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${STATUS_BADGE[tk.status].cls}`}>
+                      <span className={`rounded px-1.5 py-px text-[0.5625rem] font-bold uppercase tracking-wide ${STATUS_BADGE[tk.status].cls}`}>
                         {t(STATUS_BADGE[tk.status].labelKey)}
                       </span>
-                      <span className="font-mono text-[10px] text-muted">{tk.id}</span>
+                      <span className="font-mono text-[0.625rem] text-muted">{tk.id}</span>
                       <span className="text-xs font-semibold flex-1 min-w-0 truncate">{tk.subject}</span>
-                      <span className="text-[10px] text-muted shrink-0">{timeAgo(tk.updatedAt, t)}</span>
+                      <span className="text-[0.625rem] text-muted shrink-0">{timeAgo(tk.updatedAt, t)}</span>
                     </span>
                   </button>
 
@@ -426,7 +426,7 @@ export default function SupportPage() {
                                   : "border-hairline bg-ink/3"
                               }`}
                             >
-                              <p className="text-[10px] uppercase tracking-wider font-semibold mb-1 text-muted">
+                              <p className="text-[0.625rem] uppercase tracking-wider font-semibold mb-1 text-muted">
                                 {m.role === "admin" ? t("support.supportTeam") : t("support.you")}
                                 <span className="ml-2 normal-case tracking-normal font-normal">
                                   {timeAgo(m.createdAt, t)}
@@ -452,13 +452,13 @@ export default function SupportPage() {
                                 files={replyFiles}
                                 onRemove={(i) => setReplyFiles(replyFiles.filter((_, j) => j !== i))}
                               />
-                              {replyError && <p className="text-[11px] text-loss">{replyError}</p>}
+                              {replyError && <p className="text-[0.6875rem] text-loss">{replyError}</p>}
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <AttachButton files={replyFiles} setFiles={setReplyFiles} onError={setReplyError} />
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => setStatus("closed")}
-                                    className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-muted hover:text-foreground transition-colors"
+                                    className="rounded-lg border border-hairline px-3 py-1.5 text-[0.6875rem] text-muted hover:text-foreground transition-colors"
                                     title={t("support.closeTitle")}
                                   >
                                     {t("support.closeRequest")}
@@ -466,7 +466,7 @@ export default function SupportPage() {
                                   <button
                                     onClick={sendReply}
                                     disabled={sendingReply || (!reply.trim() && replyFiles.length === 0)}
-                                    className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[11px] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                                    className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
                                   >
                                     {sendingReply ? t("support.sending") : t("support.sendReply")}
                                   </button>
@@ -475,10 +475,10 @@ export default function SupportPage() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-between gap-2 rounded-xl border border-hairline bg-ink/3 px-3.5 py-2.5">
-                              <p className="text-[11px] text-muted">{t("support.closedNote")}</p>
+                              <p className="text-[0.6875rem] text-muted">{t("support.closedNote")}</p>
                               <button
                                 onClick={() => setStatus("open")}
-                                className="rounded-lg border border-hairline px-3 py-1.5 text-[11px] text-accent hover:opacity-80 transition-opacity shrink-0"
+                                className="rounded-lg border border-hairline px-3 py-1.5 text-[0.6875rem] text-accent hover:opacity-80 transition-opacity shrink-0"
                               >
                                 {t("support.reopen")}
                               </button>
@@ -494,7 +494,7 @@ export default function SupportPage() {
           )}
         </section>
 
-        <p className="text-[10px] text-muted/60">{t("support.footerNote")}</p>
+        <p className="text-[0.625rem] text-muted/60">{t("support.footerNote")}</p>
       </div>
     </main>
   );

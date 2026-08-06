@@ -42,8 +42,8 @@ function RangeBar({ low, high, value }: { low: number | null; high: number | nul
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="text-[9px] uppercase tracking-wider text-muted">{label}</p>
-      <p className="text-[11px] tabular-nums text-emph mt-px truncate">{children}</p>
+      <p className="text-[0.5625rem] uppercase tracking-wider text-muted">{label}</p>
+      <p className="text-[0.6875rem] tabular-nums text-emph mt-px truncate">{children}</p>
     </div>
   );
 }
@@ -86,7 +86,7 @@ export function QuoteCard({
           <p className="text-xs font-semibold truncate">
             {q.name} <span className="text-muted font-normal">· {q.symbol}</span>
           </p>
-          <p className="text-[10px] text-muted truncate">
+          <p className="text-[0.625rem] text-muted truncate">
             {q.exchange ?? "—"} · {c}
             {state && <span className={q.marketState === "REGULAR" ? " text-gain" : ""}> · {state}</span>}
           </p>
@@ -103,7 +103,7 @@ export function QuoteCard({
               <button
                 type="button"
                 onClick={() => onUsePrice(q.price!)}
-                className="ml-2 rounded border border-accent/40 bg-accent/10 hover:bg-accent/20 px-1.5 py-px text-[10px] text-accent font-semibold transition-colors"
+                className="ml-2 rounded border border-accent/40 bg-accent/10 hover:bg-accent/20 px-1.5 py-px text-[0.625rem] text-accent font-semibold transition-colors"
               >
                 {t("trade.usePrice")}
               </button>
@@ -113,7 +113,7 @@ export function QuoteCard({
         <Sparkline data={q.spark} positive={up} width={88} height={30} />
       </div>
 
-      <div className="mt-2.5 grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2">
+      <div className="mt-2.5 grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-2">
         <Cell label={t("trade.bidSize")}>
           {priceBtn(t("trade.useBid"), q.bid)}
           {q.bidSize != null && <span className="text-muted"> ×{fmtInt(q.bidSize)}</span>}

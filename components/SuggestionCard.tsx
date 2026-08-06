@@ -49,7 +49,7 @@ export function SuggestionCard({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-sm font-semibold leading-tight">{signal.name}</div>
-          <div className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
+          <div className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
             {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
             {signal.focusArea} · <span className="text-warn/90">{t(ORIGIN_KEY[signal.origin])}</span>
           </div>
@@ -58,7 +58,7 @@ export function SuggestionCard({
           <button
             onClick={() => onToggleSelect(signal.id)}
             aria-label={selected ? t("signals.deselectProposal") : t("signals.selectProposal")}
-            className={`shrink-0 h-5 w-5 rounded-md border flex items-center justify-center text-[11px] font-bold transition-colors ${
+            className={`shrink-0 h-5 w-5 rounded-md border flex items-center justify-center text-[0.6875rem] font-bold transition-colors ${
               selected
                 ? "bg-accent border-accent text-white"
                 : "border-ink/25 text-transparent hover:border-ink/50"
@@ -69,13 +69,13 @@ export function SuggestionCard({
         )}
       </div>
       {replacesName && (
-        <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warn/12 border border-warn/25 px-2 py-1 text-[11px] text-warn">
+        <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warn/12 border border-warn/25 px-2 py-1 text-[0.6875rem] text-warn">
           {t("signals.replacesBanner", { name: replacesName })}
         </p>
       )}
       {previouslyDismissedAt && (
         <p
-          className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-ink/6 border border-hairline px-2 py-1 text-[11px] text-muted"
+          className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted"
           title={t("signals.dismissedMemoryTitle")}
         >
           {t("signals.dismissedBack", { date: fmtDay(previouslyDismissedAt, locale) })}
@@ -83,8 +83,8 @@ export function SuggestionCard({
       )}
       <p className="mt-2 text-xs text-emph leading-relaxed">{signal.thesis}</p>
       {!compact && (
-        <p className="mt-1.5 text-[11px] text-muted leading-relaxed">
-          <span className="uppercase tracking-wider text-[10px]">{t("signals.planLabel")}</span>{" "}
+        <p className="mt-1.5 text-[0.6875rem] text-muted leading-relaxed">
+          <span className="uppercase tracking-wider text-[0.625rem]">{t("signals.planLabel")}</span>{" "}
           {signal.measurementPlan}
           {signal.scale ? ` (${signal.scale})` : ""}
         </p>

@@ -82,7 +82,7 @@ export default function ProfilePage() {
     "w-full rounded-xl bg-ink/4 border border-hairline focus:border-accent/60 outline-none px-3.5 py-2 text-sm transition-colors";
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-5 py-8 flex-1">
+    <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
       <header className="flex items-center gap-4 mb-6">
         <Link href="/" className="text-accent text-sm font-medium shrink-0 hover:opacity-80 transition-opacity">
           {t("common.backToWatchlist")}
@@ -106,7 +106,7 @@ export default function ProfilePage() {
       <div className="space-y-5">
         {/* Account identity */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
             {t("settings.sectionAccount")}
           </p>
           {data === null ? (
@@ -125,14 +125,14 @@ export default function ProfilePage() {
                 <p className="font-semibold truncate">
                   {user.name || user.email}
                   {user.role === "admin" && (
-                    <span className="ml-2 rounded bg-accent/15 text-accent px-1.5 py-px text-[9px] uppercase tracking-wider align-middle">
+                    <span className="ml-2 rounded bg-accent/15 text-accent px-1.5 py-px text-[0.5625rem] uppercase tracking-wider align-middle">
                       {t("settings.adminBadge")}
                     </span>
                   )}
                 </p>
                 <p className="text-muted text-xs truncate">{user.email}</p>
                 {user.createdAt && (
-                  <p className="text-muted/70 text-[11px] mt-0.5">
+                  <p className="text-muted/70 text-[0.6875rem] mt-0.5">
                     {t("settings.memberSince", {
                       date: new Date(user.createdAt).toLocaleDateString(locale, {
                         year: "numeric",
@@ -154,17 +154,17 @@ export default function ProfilePage() {
 
         {/* Investor profile (editable) */}
         <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-1">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-1">
             {t("settings.sectionInvestor")}
           </p>
-          <p className="text-[11px] text-muted mb-3 leading-snug">{t("settings.investorDesc")}</p>
+          <p className="text-[0.6875rem] text-muted mb-3 leading-snug">{t("settings.investorDesc")}</p>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[11px] text-muted font-medium">{t("settings.fieldName")}</span>
+              <span className="text-[0.6875rem] text-muted font-medium">{t("settings.fieldName")}</span>
               <input value={name} onChange={(e) => setName(e.target.value)} className={`${inputCls} mt-1`} maxLength={60} />
             </label>
             <label className="block">
-              <span className="text-[11px] text-muted font-medium">{t("settings.fieldAge")}</span>
+              <span className="text-[0.6875rem] text-muted font-medium">{t("settings.fieldAge")}</span>
               <input
                 value={age}
                 onChange={(e) => setAge(e.target.value.replace(/[^\d]/g, ""))}
@@ -174,11 +174,11 @@ export default function ProfilePage() {
               />
             </label>
             <label className="block">
-              <span className="text-[11px] text-muted font-medium">{t("settings.fieldCountry")}</span>
+              <span className="text-[0.6875rem] text-muted font-medium">{t("settings.fieldCountry")}</span>
               <input value={country} onChange={(e) => setCountry(e.target.value)} className={`${inputCls} mt-1`} maxLength={60} />
             </label>
             <label className="block">
-              <span className="text-[11px] text-muted font-medium">{t("settings.fieldIndustries")}</span>
+              <span className="text-[0.6875rem] text-muted font-medium">{t("settings.fieldIndustries")}</span>
               <input
                 value={industries}
                 onChange={(e) => setIndustries(e.target.value)}
@@ -203,7 +203,7 @@ export default function ProfilePage() {
         {/* Account actions */}
         {data?.authEnabled && user && (
           <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-3">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
               {t("settings.sectionAccount")}
             </p>
             <a
@@ -216,11 +216,11 @@ export default function ProfilePage() {
               </svg>
               {t("common.signOut")}
             </a>
-            <p className="text-[11px] text-muted mt-2 leading-snug">{t("settings.signOutDesc")}</p>
+            <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("settings.signOutDesc")}</p>
           </section>
         )}
 
-        <p className="text-[10px] text-muted/60">{t("common.notAdvice")}</p>
+        <p className="text-[0.625rem] text-muted/60">{t("common.notAdvice")}</p>
       </div>
     </main>
   );

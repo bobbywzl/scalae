@@ -347,7 +347,7 @@ export function Annotatable({ surfaceId, children }: { surfaceId: string; childr
               }
             }}
             placeholder={t("notes.annotPlaceholder")}
-            className="w-full rounded-md border border-hairline bg-ink/6 px-2 py-1 text-[11px] focus:outline-none focus:border-accent/50 placeholder:text-muted/60"
+            className="w-full rounded-md border border-hairline bg-ink/6 px-2 py-1 text-[0.6875rem] focus:outline-none focus:border-accent/50 placeholder:text-muted/60"
           />
         </div>
       )}
