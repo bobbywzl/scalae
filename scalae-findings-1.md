@@ -143,6 +143,12 @@ belonging to it is **approved** (derive areas from the approved board), and add
 a delete affordance for empty areas. Fuller fix: park `focusAreas` in the same
 approval queue as signals.
 
+> **Shipped (loop 1 fix round, owner-picked).** Areas now materialize at signal
+> activation (`setSignalStatus` → `ensureFocusArea`); chat persists an emitted
+> area only when this turn's proposals or existing signals reference it;
+> orphaned areas render as removable empty groups backed by a guarded DELETE
+> route (`/api/tickers/[symbol]/focus-areas`). Re-observe next loop.
+
 ---
 
 ## 5 · The paper ledger misses fills a real broker would have made — and undercharges shorts on dividends
@@ -234,6 +240,10 @@ map — it renders as confident movement with no chips. The charter's line is
 be verified this run)" to the rationale — or flip the reading to carry-forward.
 Five lines; closes the last gap between "cannot fabricate links" (already true)
 and "cannot present unevidenced movement as evidenced".
+
+> **Shipped (loop 1 fix round, owner-picked).** Guard live at both
+> `insertReading` sites (board run + single-signal check): confidence halved
+> and the shortfall stated in the stored rationale. Re-observe next loop.
 
 ---
 

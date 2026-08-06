@@ -588,6 +588,36 @@ export async function upsertFocusArea(
           ON CONFLICT ("userId", symbol, title) DO UPDATE SET description = EXCLUDED.description`;
 }
 
+/** Materialize a focus area if absent, preserving any existing description. */
+export async function ensureFocusArea(userId: string, symbol: string, title: string): Promise<void> {
+  await q`INSERT INTO focus_areas (id, "userId", symbol, title, description, "createdAt")
+          VALUES (${uid()}, ${userId}, ${symbol}, ${title}, ${""}, ${now()})
+          ON CONFLICT ("userId", symbol, title) DO NOTHING`;
+}
+
+/**
+ * Remove a focus area the board no longer uses — refused while any active or
+ * pending signal still carries its title, so the delete can never orphan a
+ * live instrument. Returns whether a row was deleted.
+ */
+export async function removeFocusAreaIfUnused(
+  userId: string,
+  symbol: string,
+  id: string
+): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    DELETE FROM focus_areas fa
+    WHERE fa.id = ${id} AND fa."userId" = ${userId} AND fa.symbol = ${symbol}
+      AND NOT EXISTS (
+        SELECT 1 FROM signals s
+        WHERE s."userId" = fa."userId" AND s.symbol = fa.symbol
+          AND s.status IN ('active', 'suggested')
+          AND lower(s."focusArea") = lower(fa.title)
+      )
+    RETURNING fa.id`;
+  return rows.length > 0;
+}
+
 // ---------- signals ----------
 
 export async function listSignals(userId: string, symbol: string, status?: SignalStatus): Promise<Signal[]> {
@@ -656,6 +686,13 @@ export async function setSignalBackstory(
 export async function setSignalStatus(id: string, status: SignalStatus): Promise<void> {
   if (status === "active") {
     await q`UPDATE signals SET status = 'active', "approvedAt" = ${now()} WHERE id = ${id}`;
+    // Activation is the human gate (FOUNDATION: focus areas are gated on a
+    // human decision) — the approved signal materializes its focus area here,
+    // never the analyst's chat output on its own.
+    const s = await getSignal(id);
+    if (s?.focusArea?.trim()) {
+      await ensureFocusArea(s.userId ?? "local", s.symbol, s.focusArea.trim()).catch(() => {});
+    }
   } else if (status === "dismissed") {
     // Stamp the dismissal so re-proposals and restored proposals can say
     // "previously dismissed on <date>" — institutional memory for the gate.
