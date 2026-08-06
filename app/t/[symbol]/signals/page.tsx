@@ -13,7 +13,7 @@ import { ClipDialog } from "@/components/ClipDialog";
 import { PositionCard } from "@/components/PositionCard";
 import { useT } from "@/components/PrefsProvider";
 import { RunBanner } from "@/components/RunBanner";
-import { SignalCard } from "@/components/SignalCard";
+import { SignalCard, SignalListRow } from "@/components/SignalCard";
 import { SignalDetail } from "@/components/SignalDetail";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { api, fmtPct, fmtPrice, localizeError, timeAgo } from "@/components/util";
@@ -26,7 +26,14 @@ import {
   type SourceClass,
 } from "@/lib/citations";
 import type { TKey } from "@/lib/i18n/dictionaries";
-import type { Attachment, DeskPayload, DigestItem, Run, Signal } from "@/lib/types";
+import type {
+  Attachment,
+  DeskPayload,
+  DigestItem,
+  Run,
+  Signal,
+  SignalWithReadings,
+} from "@/lib/types";
 
 /** Localized sourceClassLabel (same keys SignalDetail uses). */
 const SRC_CLASS_KEY: Record<SourceClass, TKey> = {
@@ -56,11 +63,33 @@ export default function DeskPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [boardSort, setBoardSort] = useState<"focus" | "stale" | "confidence" | "health">("focus");
+  // Board display form: narrative cards or a compact scan list (persisted —
+  // a viewing preference, not per-ticker state).
+  const [boardLayout, setBoardLayoutState] = useState<"cards" | "list">("cards");
   // Undo window: retire/dismiss/swap get one low-friction second chance.
   const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
   const [clipItem, setClipItem] = useState<DigestItem | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRan = useRef(false);
+
+  // Restore the saved layout after mount (not in the initializer — the server
+  // render has no localStorage, and a mismatch would break hydration).
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem("scalae.boardLayout") === "list") setBoardLayoutState("list");
+    } catch {
+      /* private mode / storage blocked — default stands */
+    }
+  }, []);
+  const setBoardLayout = useCallback((v: "cards" | "list") => {
+    setBoardLayoutState(v);
+    try {
+      localStorage.setItem("scalae.boardLayout", v);
+    } catch {
+      /* preference just won't persist */
+    }
+  }, []);
 
   const showUndo = useCallback((msg: string, undo: () => void) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -317,6 +346,15 @@ export default function DeskPage() {
       for (const s of [...desk.active, ...desk.suggested, ...desk.retired, ...(desk.dismissed ?? [])])
         m.set(s.id, s);
     }
+    return m;
+  }, [desk]);
+
+  // Board keys (S1, S2, …) in desk.active order — the SAME order the research
+  // pipeline keys its prompts with (listSignals, createdAt ASC), so a "S3" in
+  // a focus-question rationale is THIS board's S3. Stable across board sorts.
+  const signalKeys = useMemo(() => {
+    const m = new Map<string, string>();
+    desk?.active.forEach((s, i) => m.set(s.id, `S${i + 1}`));
     return m;
   }, [desk]);
 
@@ -596,6 +634,32 @@ export default function DeskPage() {
         }
       : null;
 
+  // One board item in the current display form; the grouped and sorted views
+  // both render through this, so cards ⇄ list stays a single switch.
+  const boardItem = (s: SignalWithReadings) => {
+    const pair = overlapPairs.get(s.id);
+    const props = {
+      signal: s,
+      sKey: signalKeys.get(s.id) ?? null,
+      onOpen: (sig: SignalWithReadings) => setDetailId(sig.id),
+      overlapsWith: pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null,
+      check: {
+        checking: signalChecking && signalRun?.signalId === s.id,
+        disabled: anyRunning,
+        run: () => startSignalCheck(s.id),
+      },
+    };
+    return boardLayout === "list" ? (
+      <SignalListRow key={s.id} {...props} />
+    ) : (
+      <SignalCard key={s.id} {...props} />
+    );
+  };
+  const boardWrapCls =
+    boardLayout === "list"
+      ? "mt-2 rounded-xl border border-hairline bg-card divide-y divide-hairline overflow-hidden"
+      : "grid sm:grid-cols-2 gap-3 mt-2";
+
   const header = (
     <header className="flex items-center gap-4 flex-wrap">
       <Link
@@ -771,7 +835,11 @@ export default function DeskPage() {
                         placeholder={t("desk.steerPlaceholder")}
                         className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:border-accent/50"
                       />
-                      {q.why && <p className="mt-0.5 text-[11px] text-muted/80">{q.why}</p>}
+                      {q.why && (
+                        <p className="mt-0.5 text-[11px] text-muted/80">
+                          <SigRefText text={q.why} active={desk.active} onOpen={setDetailId} />
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => setSteer((s) => s?.filter((_, j) => j !== i) ?? s)}
@@ -902,7 +970,9 @@ export default function DeskPage() {
                   {(latestRun.questions ?? []).map((q, i) => (
                     <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-emph">
                       <span className="shrink-0 text-muted tabular-nums">Q{i + 1}</span>
-                      <span>{q}</span>
+                      <span>
+                        <SigRefText text={q} active={desk.active} onOpen={setDetailId} />
+                      </span>
                     </li>
                   ))}
                 </ol>
@@ -990,22 +1060,45 @@ export default function DeskPage() {
           <section>
             <div className="flex items-center gap-2 flex-wrap">
               <SectionTitle>{t("desk.signalBoard")}</SectionTitle>
-              {desk.active.length >= 4 && (
+              {desk.active.length > 0 && (
                 <div className="ml-auto flex items-center gap-1 text-[10px]">
-                  <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
+                  {desk.active.length >= 4 && (
+                    <>
+                      <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
+                      {(
+                        [
+                          { v: "focus", label: t("desk.sortFocus") },
+                          { v: "stale", label: t("desk.sortStale") },
+                          { v: "confidence", label: t("desk.sortConfidence") },
+                          { v: "health", label: t("desk.sortHealth") },
+                        ] as const
+                      ).map((o) => (
+                        <button
+                          key={o.v}
+                          onClick={() => setBoardSort(o.v)}
+                          className={`rounded-md px-2 py-0.5 transition-colors ${
+                            boardSort === o.v
+                              ? "bg-ink/12 text-foreground font-semibold"
+                              : "text-muted hover:text-emph bg-ink/4"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                      <span className="mx-1 h-3 w-px bg-hairline" aria-hidden />
+                    </>
+                  )}
                   {(
                     [
-                      { v: "focus", label: t("desk.sortFocus") },
-                      { v: "stale", label: t("desk.sortStale") },
-                      { v: "confidence", label: t("desk.sortConfidence") },
-                      { v: "health", label: t("desk.sortHealth") },
+                      { v: "cards", label: `▦ ${t("desk.layoutCards")}` },
+                      { v: "list", label: `☰ ${t("desk.layoutList")}` },
                     ] as const
                   ).map((o) => (
                     <button
                       key={o.v}
-                      onClick={() => setBoardSort(o.v)}
+                      onClick={() => setBoardLayout(o.v)}
                       className={`rounded-md px-2 py-0.5 transition-colors ${
-                        boardSort === o.v
+                        boardLayout === o.v
                           ? "bg-ink/12 text-foreground font-semibold"
                           : "text-muted hover:text-emph bg-ink/4"
                       }`}
@@ -1124,26 +1217,7 @@ export default function DeskPage() {
               <p className="text-muted text-xs italic mt-2">{t("desk.noActiveSignals")}</p>
             )}
             {boardSort !== "focus" && sortedActive.length > 0 && (
-              <div className="grid sm:grid-cols-2 gap-3 mt-2">
-                {sortedActive.map((s) => {
-                  const pair = overlapPairs.get(s.id);
-                  return (
-                    <SignalCard
-                      key={s.id}
-                      signal={s}
-                      onOpen={(sig) => setDetailId(sig.id)}
-                      overlapsWith={
-                        pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
-                      }
-                      check={{
-                        checking: signalChecking && signalRun?.signalId === s.id,
-                        disabled: anyRunning,
-                        run: () => startSignalCheck(s.id),
-                      }}
-                    />
-                  );
-                })}
-              </div>
+              <div className={boardWrapCls}>{sortedActive.map(boardItem)}</div>
             )}
             <div className={`space-y-5 mt-2 ${boardSort !== "focus" ? "hidden" : ""}`}>
               {grouped.map(([area, signals]) => {
@@ -1156,26 +1230,7 @@ export default function DeskPage() {
                     {fa?.description && (
                       <p className="text-[11px] text-muted/80 mt-0.5">{fa.description}</p>
                     )}
-                    <div className="grid sm:grid-cols-2 gap-3 mt-2">
-                      {signals.map((s) => {
-                        const pair = overlapPairs.get(s.id);
-                        return (
-                          <SignalCard
-                            key={s.id}
-                            signal={s}
-                            onOpen={(sig) => setDetailId(sig.id)}
-                            overlapsWith={
-                              pair ? { name: pair.name, onOpen: () => setDetailId(pair.id) } : null
-                            }
-                            check={{
-                              checking: signalChecking && signalRun?.signalId === s.id,
-                              disabled: anyRunning,
-                              run: () => startSignalCheck(s.id),
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
+                    <div className={boardWrapCls}>{signals.map(boardItem)}</div>
                   </div>
                 );
               })}
@@ -1290,6 +1345,7 @@ export default function DeskPage() {
       {detailSignal && (
         <SignalDetail
           signal={detailSignal}
+          sKey={signalKeys.get(detailSignal.id) ?? null}
           signalsById={signalsById}
           digest={desk.digest}
           onClose={() => setDetailId(null)}
@@ -1616,6 +1672,48 @@ function ArchiveRow({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Research prose cites board signals by their run key — "S3 has sat at 0.55
+ * confidence for two runs". Those keys exist in the prompts, not on the page,
+ * so render each S-reference as a chip carrying the signal's name; clicking
+ * it opens that signal. Keys that don't resolve on the current board (the
+ * board changed since framing) stay plain text.
+ */
+function SigRefText({
+  text,
+  active,
+  onOpen,
+}: {
+  text: string;
+  active: SignalWithReadings[];
+  onOpen: (id: string) => void;
+}) {
+  const { t } = useT();
+  // One capture group → split alternates [prose, key-number, prose, …].
+  const parts = text.split(/\bS(\d{1,2})\b/g);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 0) return <span key={i}>{part}</span>;
+        const sig = active[Number(part) - 1];
+        if (!sig) return <span key={i}>{`S${part}`}</span>;
+        return (
+          <button
+            key={i}
+            onClick={() => onOpen(sig.id)}
+            title={t("desk.sigRefTitle", { key: `S${part}`, name: sig.name })}
+            className="inline-flex max-w-[220px] items-baseline gap-1 rounded border border-accent/25 bg-accent/8 hover:bg-accent/18 px-1 py-px align-baseline text-[10px] leading-tight text-accent transition-colors"
+          >
+            <span className="shrink-0 font-bold tabular-nums">{`S${part}`}</span>
+            <span className="truncate font-medium">{sig.name}</span>
+          </button>
+        );
+      })}
+    </>
   );
 }
 

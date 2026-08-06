@@ -71,6 +71,9 @@ const en = {
   // Signal board
   signalBoard: "Signal board",
   viewLabel: "view:",
+  layoutCards: "Cards",
+  layoutList: "List",
+  sigRefTitle: "{key} on the board: “{name}” — click to open",
   sortFocus: "Focus areas",
   sortStale: "Stalest first",
   sortConfidence: "Thinnest confidence",
@@ -209,6 +212,9 @@ const zh: Record<keyof typeof en, string> = {
 
   signalBoard: "信号板",
   viewLabel: "视图：",
+  layoutCards: "卡片",
+  layoutList: "列表",
+  sigRefTitle: "信号板上的 {key}：“{name}”——点击打开",
   sortFocus: "关注领域",
   sortStale: "最久未更新优先",
   sortConfidence: "置信度最低优先",

@@ -25,6 +25,23 @@ function ConfidenceDots({ value }: { value: number }) {
   );
 }
 
+/**
+ * The signal's board key (S1, S2, …) — the exact key research runs and focus
+ * questions use when they cite this signal, so prose like "S3 has sat at 0.55
+ * confidence" resolves at a glance.
+ */
+export function SigKeyBadge({ sKey }: { sKey: string }) {
+  const { t } = useT();
+  return (
+    <span
+      title={t("signals.sKeyTitle", { key: sKey })}
+      className="shrink-0 rounded border border-hairline bg-ink/6 px-1 py-px text-[9px] font-bold tabular-nums tracking-wide text-muted"
+    >
+      {sKey}
+    </span>
+  );
+}
+
 const fmtDay = (iso: string, locale: string) => {
   const d = new Date(iso);
   return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
@@ -126,11 +143,14 @@ function SourcesModal({
  */
 export function SignalCard({
   signal,
+  sKey = null,
   onOpen,
   overlapsWith = null,
   check = null,
 }: {
   signal: SignalWithReadings;
+  /** Board key (S1, S2, …) — the key research prose cites this signal by. */
+  sKey?: string | null;
   onOpen: (signal: SignalWithReadings) => void;
   /** Keep-both pair: the other active signal this one overlaps with. */
   overlapsWith?: { name: string; onOpen: () => void } | null;
@@ -151,7 +171,10 @@ export function SignalCard({
       <button onClick={() => onOpen(signal)} className="w-full text-left px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight">{signal.name}</div>
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              {sKey && <SigKeyBadge sKey={sKey} />}
+              <span className="text-sm font-semibold leading-tight">{signal.name}</span>
+            </div>
             <div className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
               {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
             </div>
@@ -279,6 +302,113 @@ export function SignalCard({
       {sourcesOpen && (
         <SourcesModal name={signal.name} sources={sources} onClose={() => setSourcesOpen(false)} />
       )}
+    </div>
+  );
+}
+
+/**
+ * Compact one-line board row — the list form of SignalCard. Same data, scan
+ * density instead of narrative: key, name, level, value, confidence, age.
+ * Clicking the row opens the same detail view as the card.
+ */
+export function SignalListRow({
+  signal,
+  sKey = null,
+  onOpen,
+  overlapsWith = null,
+  check = null,
+}: {
+  signal: SignalWithReadings;
+  /** Board key (S1, S2, …) — the key research prose cites this signal by. */
+  sKey?: string | null;
+  onOpen: (signal: SignalWithReadings) => void;
+  /** Keep-both pair: the other active signal this one overlaps with. */
+  overlapsWith?: { name: string; onOpen: () => void } | null;
+  /** Single-signal check control: run this one signal's research now. */
+  check?: { checking: boolean; disabled: boolean; run: () => void } | null;
+}) {
+  const { t, locale } = useT();
+  const r = signal.latest;
+  const level = r ? LEVEL_STYLE[r.level] : null;
+  const delta = r ? DELTA_ARROW[r.delta] : null;
+  const sources = signal.sources ?? [];
+  const carriedForward = r?.newEvidence === false;
+
+  return (
+    <div className="flex items-center gap-2 px-3.5 py-2 hover:bg-ink/4 transition-colors">
+      <button
+        onClick={() => onOpen(signal)}
+        title={t("signals.openHint")}
+        className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
+      >
+        {sKey && <SigKeyBadge sKey={sKey} />}
+        <span className="text-[13px] font-medium truncate">{signal.name}</span>
+      </button>
+      {overlapsWith && (
+        <button
+          onClick={overlapsWith.onOpen}
+          title={t("signals.overlapsChip", { name: overlapsWith.name })}
+          className="shrink-0 rounded bg-warn/10 hover:bg-warn/18 border border-warn/25 px-1 text-[10px] text-warn transition-colors"
+        >
+          ⇄
+        </button>
+      )}
+      {r && level && delta ? (
+        <>
+          {r.value != null && (
+            <span className="hidden md:inline shrink-0 text-xs font-semibold tabular-nums">
+              {r.value.toLocaleString(locale)}{" "}
+              <span className="text-[10px] text-muted font-normal">
+                {r.valueUnit ?? signal.scale}
+              </span>
+            </span>
+          )}
+          <span
+            className={`shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold ${level.cls}`}
+          >
+            {levelLabel(r.level, t)} <span className={delta.cls}>{delta.ch}</span>
+          </span>
+          <span className="hidden sm:flex shrink-0">
+            <ConfidenceDots value={r.confidence} />
+          </span>
+          <span
+            className="hidden sm:inline shrink-0 text-[10px] text-muted tabular-nums"
+            title={carriedForward ? t("signals.noChangeThisRun") : undefined}
+          >
+            {timeAgo(r.date, t)}
+            {carriedForward && <span className="text-muted/60"> =</span>}
+          </span>
+          {sources.length > 0 && (
+            <span
+              className="hidden lg:inline shrink-0 text-[10px] text-muted"
+              title={t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", {
+                n: sources.length,
+              })}
+            >
+              🔗 {sources.length}
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="shrink-0 text-[10px] text-muted italic">
+          {t("signals.awaitingFirstRun")}
+        </span>
+      )}
+      {check &&
+        (check.checking ? (
+          <span className="shrink-0 text-[10px] text-accent pulse-soft">
+            {t("desk.signalCheckingShort")}
+          </span>
+        ) : (
+          <button
+            onClick={check.run}
+            disabled={check.disabled}
+            title={check.disabled ? t("desk.signalCheckBusy") : t("desk.runSignal")}
+            className="shrink-0 rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-1.5 py-px text-[11px] font-medium text-accent transition-colors"
+          >
+            ✦
+          </button>
+        ))}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { ChatPanel } from "./ChatPanel";
 import { ClipDialog, type ClipPayload } from "./ClipDialog";
 import { Markdown } from "./Markdown";
 import { useT } from "@/components/PrefsProvider";
+import { SigKeyBadge } from "./SignalCard";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { api, DELTA_ARROW, IMPACT_DOT, LEVEL_STYLE, levelLabel, localizeError, timeAgo } from "./util";
 
@@ -48,6 +49,7 @@ const SRC_CLASS_TITLE_KEY: Record<SourceClass, TKey> = {
  */
 export function SignalDetail({
   signal,
+  sKey = null,
   signalsById,
   digest = [],
   onClose,
@@ -62,6 +64,8 @@ export function SignalDetail({
   check = null,
 }: {
   signal: SignalWithReadings;
+  /** Board key (S1, S2, …) — the key research prose cites this signal by. */
+  sKey?: string | null;
   signalsById: Map<string, Signal>;
   /** The desk's evidence feed — catalog entries import their descriptions from it. */
   digest?: DigestItem[];
@@ -291,7 +295,10 @@ export function SignalDetail({
       {/* Header */}
       <div className="w-full max-w-6xl mx-auto pb-3 flex items-center gap-3 flex-wrap">
         <div className="min-w-0">
-          <p className="text-base font-bold leading-tight truncate">{signal.name}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            {sKey && <SigKeyBadge sKey={sKey} />}
+            <p className="text-base font-bold leading-tight truncate">{signal.name}</p>
+          </div>
           <p className="text-[10px] uppercase tracking-wider text-muted mt-0.5">
             {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
             {signal.focusArea} · {signal.symbol}

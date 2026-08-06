@@ -9,6 +9,7 @@ const en = {
   // Shared signal chrome
   typeQuantitative: "# quantitative",
   typeQualitative: "◆ qualitative",
+  sKeyTitle: "{key} — research runs and focus questions cite this signal by this key",
   awaitingFirstRun: "Awaiting first research run.",
   sourcesOne: "{n} source",
   sourcesMany: "{n} sources",
@@ -142,6 +143,7 @@ const en = {
 const zh: Record<keyof typeof en, string> = {
   typeQuantitative: "# 定量",
   typeQualitative: "◆ 定性",
+  sKeyTitle: "{key}——研究运行与焦点问题以此编号引用该信号",
   awaitingFirstRun: "等待首次研究运行。",
   sourcesOne: "{n} 个来源",
   sourcesMany: "{n} 个来源",
