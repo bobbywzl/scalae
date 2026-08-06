@@ -98,6 +98,11 @@ const en = {
     "{c} of {total} evidence links come from company-controlled sources — corroborate independently.",
   noActiveSignals: "No active signals.",
   otherFocusArea: "Other",
+  focusAreaEmpty: "No signals watch this area.",
+  focusAreaRemove: "Remove",
+  focusAreaRemoveConfirm: "Remove this focus area?",
+  focusAreaRemoveTitle:
+    "Remove this empty focus area — it returns automatically if you approve a signal into it",
 
   // Archive
   archive: "Archive",
@@ -239,6 +244,10 @@ const zh: Record<keyof typeof en, string> = {
     "{total} 条证据链接中有 {c} 条来自公司控制的来源——请通过独立来源交叉验证。",
   noActiveSignals: "暂无已启用信号。",
   otherFocusArea: "其他",
+  focusAreaEmpty: "暂无信号跟踪此关注领域。",
+  focusAreaRemove: "移除",
+  focusAreaRemoveConfirm: "确认移除此关注领域？",
+  focusAreaRemoveTitle: "移除这一空白关注领域——此后批准相关信号时它会自动恢复",
 
   archive: "归档",
   archiveCounts: "{r} 个已停用 · {d} 个已忽略",

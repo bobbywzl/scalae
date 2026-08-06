@@ -886,6 +886,11 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       const citations = (r.citationIndexes ?? [])
         .filter((i) => i >= 0 && i < allSources.length)
         .map((i) => allSources[i]);
+      // Evidence discipline (FOUNDATION): movement must carry its evidence
+      // map. A "new evidence" reading whose cited indexes all failed
+      // validation may not present itself as evidenced — halve confidence
+      // and say so plainly in the stored (canonical-English) rationale.
+      const unevidenced = r.newEvidence === true && citations.length === 0;
       await insertReading({
         signalId: signal.id,
         runId,
@@ -894,8 +899,10 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
         valueUnit: r.valueUnit ?? null,
         level: r.level ?? "unclear",
         delta: r.delta ?? "flat",
-        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)),
-        rationale: r.rationale ?? "",
+        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
+        rationale: unevidenced
+          ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
+          : (r.rationale ?? ""),
         newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
         citations,
       });
@@ -1300,6 +1307,9 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
       const citations = (r.citationIndexes ?? [])
         .filter((i) => i >= 0 && i < allSources.length)
         .map((i) => allSources[i]);
+      // Same unevidenced-movement guard as the board run: new evidence with no
+      // surviving citations halves confidence and says so.
+      const unevidenced = r.newEvidence === true && citations.length === 0;
       await insertReading({
         signalId,
         runId,
@@ -1308,8 +1318,10 @@ LANGUAGE: Write EVERY output field in English — the desk's stored record is ca
         valueUnit: r.valueUnit ?? null,
         level: r.level ?? "unclear",
         delta: r.delta ?? "flat",
-        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)),
-        rationale: r.rationale ?? "",
+        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
+        rationale: unevidenced
+          ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
+          : (r.rationale ?? ""),
         newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
         citations,
       });

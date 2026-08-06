@@ -69,6 +69,8 @@ export default function DeskPage() {
   // Undo window: retire/dismiss/swap get one low-friction second chance.
   const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
   const [clipItem, setClipItem] = useState<DigestItem | null>(null);
+  // Orphaned focus-area removal: two-step confirm, then the guarded DELETE.
+  const [confirmAreaId, setConfirmAreaId] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRan = useRef(false);
 
@@ -166,6 +168,23 @@ export default function DeskPage() {
     }
     load();
   }, [symbol, load]);
+
+  // Remove an orphaned focus area (server refuses while signals still use it).
+  const removeArea = useCallback(
+    async (id: string) => {
+      setConfirmAreaId(null);
+      try {
+        await api(`/api/tickers/${encodeURIComponent(symbol)}/focus-areas`, {
+          method: "DELETE",
+          body: JSON.stringify({ id }),
+        });
+      } catch {
+        /* refused or already gone — the reload below shows the true state */
+      }
+      load();
+    },
+    [symbol, load]
+  );
 
   // Check one signal now — the board pipeline's structure scoped to one signal.
   const startSignalCheck = useCallback(
@@ -591,6 +610,15 @@ export default function DeskPage() {
       const key = s.focusArea || t("desk.otherFocusArea");
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(s);
+    }
+    // Orphaned areas — no active signal and nothing pending toward them —
+    // render as removable empty groups instead of invisibly steering the desk.
+    for (const f of desk.focusAreas) {
+      if (groups.has(f.title)) continue;
+      const pending = desk.suggested.some(
+        (s) => s.focusArea.trim().toLowerCase() === f.title.trim().toLowerCase()
+      );
+      if (!pending) groups.set(f.title, []);
     }
     return [...groups.entries()].sort(
       (a, b) =>
@@ -1230,7 +1258,30 @@ export default function DeskPage() {
                     {fa?.description && (
                       <p className="text-[11px] text-muted/80 mt-0.5">{fa.description}</p>
                     )}
-                    <div className={boardWrapCls}>{signals.map(boardItem)}</div>
+                    {signals.length === 0 && fa && (
+                      <p className="text-[11px] text-muted/70 italic mt-1">
+                        {t("desk.focusAreaEmpty")}{" "}
+                        {confirmAreaId === fa.id ? (
+                          <button
+                            onClick={() => removeArea(fa.id)}
+                            className="not-italic text-loss hover:underline font-medium"
+                          >
+                            {t("desk.focusAreaRemoveConfirm")}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmAreaId(fa.id)}
+                            title={t("desk.focusAreaRemoveTitle")}
+                            className="not-italic text-muted hover:text-loss hover:underline"
+                          >
+                            {t("desk.focusAreaRemove")}
+                          </button>
+                        )}
+                      </p>
+                    )}
+                    {signals.length > 0 && (
+                      <div className={boardWrapCls}>{signals.map(boardItem)}</div>
+                    )}
                   </div>
                 );
               })}

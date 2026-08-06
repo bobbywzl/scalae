@@ -442,7 +442,7 @@ Use the desk state above to answer questions with evidence (cite readings/brief 
 - Investor explicitly asks to approve/reject pending proposals → put those exact names in approveProposals/dismissProposals and confirm in reply.
 - Investor explicitly asks to stop tracking an active signal → put its exact name in retireSignals. If they want it replaced, also propose the sharper replacement.
 - Investor asks to run/refresh research → startResearch=true.
-Only emit focusAreas when the investor genuinely introduces a new area of concern. Never approve/retire/dismiss anything the investor did not explicitly request. Keep replies short and useful — this is a working desk, not a report. Set onboardingComplete=false.`;
+Only emit focusAreas when the investor genuinely introduces a new area of concern — and always propose the signals that would watch it in the same turn: an area takes effect only through the signals that carry it (it lands on the board when one is approved), so an area emitted without signals goes nowhere. Never approve/retire/dismiss anything the investor did not explicitly request. Keep replies short and useful — this is a working desk, not a report. Set onboardingComplete=false.`;
 
   // Conversation language: the analyst speaks the investor's language, but
   // everything destined for the board stays canonical English — the display
@@ -597,18 +597,30 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
   }
 
   // --- focus areas & new proposals (approval-gated) ---
+  // FOUNDATION (Human sovereignty): focus areas are gated on a human decision.
+  // An emitted area persists here only as the label of work the investor can
+  // actually review — a title carried by this turn's proposals or an existing
+  // signal (which lets the analyst refresh a live area's description on ask).
+  // Free-floating areas from conversation are dropped; a proposal's area
+  // materializes on the board when its signal is APPROVED (setSignalStatus).
+  const referencedTitles = new Set(
+    [
+      ...(out.proposals ?? []).map((p) => p.focusArea ?? ""),
+      ...active.map((s) => s.focusArea),
+      ...suggested.map((s) => s.focusArea),
+    ]
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+  );
   for (const fa of out.focusAreas ?? []) {
-    if (fa.title?.trim()) await upsertFocusArea(userId, symbol, fa.title.trim(), fa.description ?? "");
+    const title = fa.title?.trim();
+    if (title && referencedTitles.has(title.toLowerCase())) {
+      await upsertFocusArea(userId, symbol, title, fa.description ?? "");
+    }
   }
   const proposalIds: string[] = [];
   for (const p of out.proposals ?? []) {
     if (!p.name?.trim()) continue;
-    if (p.focusArea?.trim()) {
-      const known = (await listFocusAreas(userId, symbol)).some(
-        (f) => f.title.toLowerCase() === p.focusArea.trim().toLowerCase()
-      );
-      if (!known) await upsertFocusArea(userId, symbol, p.focusArea.trim(), "");
-    }
     const id = await insertProposal(userId, symbol, p, ticker.onboarded ? "chat" : "onboarding");
     if (id) proposalIds.push(id);
   }
