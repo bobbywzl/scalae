@@ -8,20 +8,33 @@
  * patterns below in sync with lib/ai/models.ts.
  */
 
+// include = ORDERED TIERS (first tier with a live match wins), mirroring
+// lib/ai/models.ts: flagship Claude roles prefer Fable/Mythos where the org's
+// key offers it and resolve Opus otherwise; support roles stay on Sonnet.
 const ROLES = [
-  { role: "synthesis", provider: "claude", include: /^claude-opus-\d/, exclude: /-(fast|latest)\b/ },
-  { role: "chat", provider: "claude", include: /^claude-opus-\d/, exclude: /-(fast|latest)\b/ },
-  { role: "triage", provider: "claude", include: /^claude-opus-\d/, exclude: /-(fast|latest)\b/ },
+  {
+    role: "synthesis",
+    provider: "claude",
+    include: [/^claude-(fable|mythos)-\d/, /^claude-opus-\d/],
+    exclude: /-(fast|latest)\b/,
+  },
+  {
+    role: "chat",
+    provider: "claude",
+    include: [/^claude-(fable|mythos)-\d/, /^claude-opus-\d/],
+    exclude: /-(fast|latest)\b/,
+  },
+  { role: "triage", provider: "claude", include: [/^claude-sonnet-\d/], exclude: /-(fast|latest)\b/ },
   {
     role: "scoutBreadth",
     provider: "gemini",
-    include: /^gemini-[\d.]+-flash/,
+    include: [/^gemini-[\d.]+-flash/],
     exclude: /(lite|embedding|aqa|tts|image|audio|live|vision|learnlm|robotics|thinking)/,
   },
   {
     role: "scoutDeep",
     provider: "gemini",
-    include: /^gemini-[\d.]+-pro/,
+    include: [/^gemini-[\d.]+-pro/],
     exclude: /(embedding|aqa|tts|image|audio|live|vision|learnlm|robotics)/,
   },
 ];
@@ -77,11 +90,13 @@ async function claudeModels() {
 }
 
 function pick(ids, cfg) {
-  return (
-    ids
-      .filter((id) => cfg.include.test(id) && !cfg.exclude.test(id))
-      .sort((a, b) => score(b) - score(a))[0] ?? "(none available — using pinned fallback)"
-  );
+  for (const tier of cfg.include) {
+    const hit = ids
+      .filter((id) => tier.test(id) && !cfg.exclude.test(id))
+      .sort((a, b) => score(b) - score(a))[0];
+    if (hit) return hit;
+  }
+  return "(none available — using pinned fallback)";
 }
 
 const [claude, gemini] = await Promise.all([

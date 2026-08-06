@@ -3,7 +3,7 @@ import { recordGeminiUsage, type UsageMeta } from "./usage";
 // Which Gemini model runs each scout tier is decided by lib/ai/models.ts
 // (automatic best-available selection, env-overridable) and passed in via
 // opts.model. This is only the stable floor used if a caller omits the model.
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 export interface GroundedResult {
   text: string;
