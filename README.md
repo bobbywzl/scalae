@@ -122,19 +122,24 @@ each run.
 |---|---|---|
 | Breadth scouts (parallel) | newest full Gemini **Flash** | Native Google-Search grounding with per-claim source metadata; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price for the 6–10 parallel sweeps. |
 | Deep-dive scouts | newest Gemini **Pro** | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of probes that cross-check conflicting primary sources. |
-| Analyst-desk chat — deep lane — & pairwise compare | newest flagship **Opus** | The investor's live analyst where judgment is earned: signal building and upgrades, approvals and desk actions, document reads (images, PDFs, text natively), onboarding intake, and anything synthesizing new information. |
+| Analyst-desk chat — deep lane — & pairwise compare | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The investor's live analyst where judgment is earned: signal building and upgrades, approvals and desk actions, document reads (images, PDFs, text natively), onboarding intake, and anything synthesizing new information. |
 | Analyst-desk chat — fast lane | newest **Sonnet** (value) | Simple working-chat questions run over a compact desk snapshot (dossier, brief, latest readings) and answer in seconds; the turn escalates automatically to the deep lane the moment it needs desk actions, documents, or fresh synthesis (`CLAUDE_CHAT_FAST_MODEL` to pin). |
-| Deep synthesis | newest flagship **Opus** | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump, where Claude leads. Stays flagship: it carries the desk's quality. |
-| Due-diligence memos, record synthesis & topic suggestions | newest flagship **Opus** | The record is the product's centre and every call is an explicit human ask (never the cron) — flagship quality is earned here (`CLAUDE_DILIGENCE_MODEL` to pin). |
+| Deep synthesis | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump, where Claude leads. Stays on the strongest tier available: it carries the desk's quality. |
+| Due-diligence memos, record synthesis & topic suggestions | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The record is the product's centre and every call is an explicit human ask (never the cron) — top-tier quality is earned here (`CLAUDE_DILIGENCE_MODEL` to pin). |
 | Question framing, gap triage & signal deep-history | newest **Sonnet** (value) | Bounded support work that runs on every desk every day — framing what today's run must answer (the question suggestor), routing which threads deserve a deep dive, and writing each signal's decades-scale backstory (cached forever). Sonnet handles all three well; the flagship isn't earned here (`CLAUDE_TRIAGE_MODEL` / `CLAUDE_BACKSTORY_MODEL` to pin). |
 | Display translation (中文 mode) | newest Claude **Haiku** | High-volume, mechanical, cached per text in the `translations` table — each string is translated exactly once, so the value tier is plenty (`CLAUDE_TRANSLATE_MODEL` to pin). |
 
-The **flagship** tier (Opus-class) is used for Claude rather than the pricier
-Fable/Mythos tier, which needs 30-day data retention and costs ~2×. To move
-synthesis to that ceiling, add `fable|mythos` to the `synthesis` include in
-`lib/ai/models.ts` or set `CLAUDE_SYNTHESIS_MODEL=claude-fable-5` (a Fable/Mythos
-model auto-falls back to Opus on the rare safety refusal). To drop to the value
-tier, set it to a Sonnet model.
+The flagship roles (synthesis, deep chat lane, compare, diligence) select in
+**ordered tiers, newest first**: the Fable/Mythos tier when the org's API key
+actually offers it (requires 30-day data retention — not available under ZDR —
+and costs ~2× Opus), otherwise the newest flagship **Opus**, automatically and
+with zero configuration — the provider's live model list is the eligibility
+gate, so no deployment can select a model its account cannot run. A
+Fable/Mythos call additionally carries a server-side safety-refusal fallback
+to Opus (finance content practically never trips it). To pin any role — e.g.
+keep synthesis on Opus for cost — set its env var:
+`CLAUDE_SYNTHESIS_MODEL=claude-opus-5`; a Sonnet model drops it to the value
+tier.
 
 **Updated monthly:** `.github/workflows/model-review.yml` runs on the 1st of each
 month and opens an issue summarising each provider's current lineup and what the
@@ -170,7 +175,7 @@ The model defaults are set per stage in code (see **Why these models**); overrid
 
 ## Cost & latency note
 
-The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: one question-framing call (Sonnet), a handful of parallel breadth sweeps (focus questions + per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one large synthesis call. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries. The **daily synthesis stays on flagship Opus** — it carries the desk's quality — while the supporting Claude calls are tiered down: **question framing, gap triage and signal deep-history run on Sonnet** (`CLAUDE_TRIAGE_MODEL` / `CLAUDE_BACKSTORY_MODEL` to re-pin), keeping the flagship out of every supporting call without touching the reading itself. To go bigger, set `CLAUDE_SYNTHESIS_MODEL=claude-fable-5` for the top tier; to trim scout cost, set `GEMINI_DEEP_MODEL=gemini-3.5-flash`. Legacy global pins (`GEMINI_MODEL`, `CLAUDE_MODEL`) are ignored (with a log warning) — delete them; only per-role vars pin models, so auto-selection can keep tracking each provider's newest lineup. The admin page shows the models in use right now, and the cost telemetry already nets out cached tokens, so savings show up there.
+The deep pipeline trades cost/latency for depth. Each run per ticker is roughly: one question-framing call (Sonnet), a handful of parallel breadth sweeps (focus questions + per-signal bundles + broad + primary-source + scuttlebutt), one gap-triage Claude call, up to 4 deep-dive sweeps, and one large synthesis call. Grounding rides Gemini's 5,000-prompt/month free pool then ~$14/1k queries. The **daily synthesis runs the newest top-tier Claude the account offers** (Fable/Mythos where available, else flagship Opus — it carries the desk's quality) while the supporting Claude calls are tiered down: **question framing, gap triage and signal deep-history run on Sonnet** (`CLAUDE_TRIAGE_MODEL` / `CLAUDE_BACKSTORY_MODEL` to re-pin), keeping the top tiers out of every supporting call without touching the reading itself. To hold synthesis at flagship cost, set `CLAUDE_SYNTHESIS_MODEL=claude-opus-5`; to trim scout cost, set `GEMINI_DEEP_MODEL=gemini-3.5-flash`. Legacy global pins (`GEMINI_MODEL`, `CLAUDE_MODEL`) are ignored (with a log warning) — delete them; only per-role vars pin models, so auto-selection can keep tracking each provider's newest lineup. The admin page shows the models in use right now, and the cost telemetry already nets out cached tokens, so savings show up there.
 
 Three cost controls keep spend from compounding as signals and tickers pile up, without thinning any single run:
 - **Prompt caching.** The large static desk doctrine (the ten lenses + misjudgment checklist, ~3–4K tokens) is sent as an Anthropic ephemeral-cache prefix shared by *every* Claude call across every ticker and run — so the daily cron writes it once and re-reads it at ~0.1× input cost for the rest of the sweep. Only the tiny per-ticker identity + task varies (`lib/agents/framework.ts` → `DESK_DOCTRINE`).
@@ -183,7 +188,7 @@ Interactive latency is governed first by **lane routing**: working-chat turns la
 
 ## Deploying
 
-Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set) and set the env vars. The default models have no special account requirements; only if you override synthesis to `claude-fable-5` must the Anthropic org meet Fable 5's 30-day data-retention requirement (not available under ZDR).
+Deploys on Vercel as-is: the database is Neon Postgres (`DATABASE_URL`), shared between local and cloud. Add a cron hitting `/api/cron/daily` (protected by `CRON_SECRET` if set) and set the env vars. Model selection needs no special account setup: the flagship roles adopt the Fable/Mythos tier automatically **only** when the Anthropic org's model list offers it (which requires meeting Fable 5's 30-day data-retention requirement — not available under ZDR); every other org resolves the newest Opus. Pin any role's env var to opt out of the top tier.
 
 ---
 

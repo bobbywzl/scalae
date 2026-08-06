@@ -12,9 +12,9 @@ const client = g.__anthropic ?? (g.__anthropic = new Anthropic({ maxRetries: 3 }
 // opts.model. This module just executes the call the caller asks for.
 
 /** Where a Fable/Mythos request reroutes if safety classifiers decline it (rare). */
-const FALLBACK_MODEL = "claude-opus-4-8";
+const FALLBACK_MODEL = "claude-opus-5";
 /** Last-resort default if a caller omits opts.model (callers normally pass one). */
-const DEFAULT_MODEL = "claude-opus-4-8";
+const DEFAULT_MODEL = "claude-opus-5";
 
 /**
  * List available Claude model IDs (Models API, auto-paginated), for automatic
@@ -132,10 +132,10 @@ export function friendlyAIError(e: unknown): string {
 
 /**
  * One structured-output call to Claude. Adaptive thinking stays on (always-on
- * for Fable 5, default-configured for Opus 4.8); the response text is
- * schema-constrained JSON which we parse. Streams under the hood — synthesis
- * calls run for minutes and non-streaming requests are prone to connection
- * drops.
+ * for the Fable/Mythos tier, default-configured for Opus); the response text
+ * is schema-constrained JSON which we parse. Streams under the hood —
+ * synthesis calls run for minutes and non-streaming requests are prone to
+ * connection drops.
  */
 export async function claudeJSON<T>(opts: ClaudeJSONOptions): Promise<T> {
   const primary = opts.model ?? DEFAULT_MODEL;
@@ -194,10 +194,10 @@ async function claudeJSONOnce<T>(opts: ClaudeJSONOptions): Promise<T> {
     },
   };
 
-  // Fable 5 runs safety classifiers that can decline a request (finance
-  // content practically never trips them, but the API contract requires
-  // handling it): opt into the server-side fallback so a declined call is
-  // transparently re-run on Opus 4.8 in the same request.
+  // Fable/Mythos models run safety classifiers that can decline a request
+  // (finance content practically never trips them, but the API contract
+  // requires handling it): opt into the server-side fallback so a declined
+  // call is transparently re-run on Opus in the same request.
   const fable = model.startsWith("claude-fable") || model.startsWith("claude-mythos");
   // Thread the stage-deadline signal into the request so a timeout truly
   // cancels the in-flight stream (freeing time and tokens), not just abandons it.

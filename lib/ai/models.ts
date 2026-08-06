@@ -16,25 +16,29 @@ import { listGeminiModels } from "./gemini";
  *   - overridable: a per-role env var always wins, to pin a model by hand
  *     (legacy global GEMINI_MODEL / CLAUDE_MODEL pins are IGNORED with a warning).
  *
- * TIER by role (cost discipline — spend the flagship only where it is earned):
- *   - Opus (flagship): synthesis (the daily crown-jewel reading), compare, and
- *     the chat DEEP lane — signal building, document reads, desk actions,
- *     onboarding. These carry the desk's quality.
+ * TIER by role (cost discipline — spend the top tiers only where earned):
+ *   - Fable/Mythos → Opus (flagship roles): synthesis (the daily crown-jewel
+ *     reading), compare, the chat DEEP lane and diligence memos. These carry
+ *     the desk's quality, so they run the newest top-tier Claude the org's API
+ *     key can actually see: tiers are tried IN ORDER, so an org whose model
+ *     list offers Fable/Mythos (30-day retention orgs; ~2× Opus price) adopts
+ *     it automatically, and every other org — including ZDR — resolves the
+ *     newest Opus with zero configuration. A Fable/Mythos call also carries a
+ *     server-side safety-refusal fallback to Opus (lib/ai/claude.ts).
  *   - Sonnet (value): the chat FAST lane (simple working-chat Q&A answered in
  *     seconds from a compact snapshot; escalates to the deep lane for anything
  *     heavier), plus triage and backstory — bounded, high-frequency support
  *     work where the flagship is not earned.
  *   - Haiku (economy): display-language translation (mechanical, cached).
- * To move synthesis to the pricier Fable/Mythos tier (30-day retention, ~2×),
- * add `fable|mythos` to the `synthesis` include below, or set
- * CLAUDE_SYNTHESIS_MODEL. Any role can be re-pinned with its own env var.
+ * To pin any role (e.g. synthesis back to Opus-only), set its env var —
+ * CLAUDE_SYNTHESIS_MODEL=claude-opus-5 — and the override always wins.
  *
  * Reviewed monthly by .github/workflows/model-review.yml, which opens an issue
  * summarising each provider's current lineup so a human can approve adopting a
  * genuinely new model family (consistent with FOUNDATION.md's approval gates).
  */
 
-export const MODELS_REVIEWED_AT = "2026-07";
+export const MODELS_REVIEWED_AT = "2026-08";
 
 export type ModelRole =
   | "synthesis"
@@ -52,29 +56,37 @@ interface RoleConfig {
   provider: Provider;
   /** Env var that pins/overrides the auto-choice. */
   env: string;
-  /** Models eligible for this role. */
-  include: RegExp;
+  /**
+   * Models eligible for this role, as ORDERED TIERS: the first pattern with
+   * any live match supplies the candidate pool (then the newest wins within
+   * it). Lets flagship roles prefer Fable/Mythos where the org's key offers
+   * it while resolving Opus everywhere else — the live list is the gate.
+   */
+  include: RegExp[];
   /** Disqualified variants (fast-mode routing IDs, media/embedding models, …). */
   exclude: RegExp;
   /** Conservative floor used only if the live model list can't be fetched. */
   fallback: string;
 }
 
+/** Flagship Claude tiers, newest first: Fable/Mythos where available, else Opus. */
+const CLAUDE_FLAGSHIP_TIERS = [/^claude-(fable|mythos)-\d/, /^claude-opus-\d/];
+
 const ROLES: Record<ModelRole, RoleConfig> = {
-  // Claude — newest flagship Opus (add `fable|mythos` here for the top tier).
+  // Claude — newest top-tier model the org can use (Fable/Mythos → Opus).
   synthesis: {
     provider: "claude",
     env: "CLAUDE_SYNTHESIS_MODEL",
-    include: /^claude-opus-\d/,
+    include: CLAUDE_FLAGSHIP_TIERS,
     exclude: /-(fast|latest)\b/,
-    fallback: "claude-opus-4-8",
+    fallback: "claude-opus-5",
   },
   chat: {
     provider: "claude",
     env: "CLAUDE_CHAT_MODEL",
-    include: /^claude-opus-\d/,
+    include: CLAUDE_FLAGSHIP_TIERS,
     exclude: /-(fast|latest)\b/,
-    fallback: "claude-opus-4-8",
+    fallback: "claude-opus-5",
   },
   // The chat FAST lane: simple working-chat Q&A answered from a compact desk
   // snapshot. It runs on every quick question, must come back in seconds, and
@@ -84,7 +96,7 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   chatFast: {
     provider: "claude",
     env: "CLAUDE_CHAT_FAST_MODEL",
-    include: /^claude-sonnet-\d/,
+    include: [/^claude-sonnet-\d/],
     exclude: /-(fast|latest)\b/,
     fallback: "claude-sonnet-5",
   },
@@ -95,9 +107,9 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   diligence: {
     provider: "claude",
     env: "CLAUDE_DILIGENCE_MODEL",
-    include: /^claude-opus-\d/,
+    include: CLAUDE_FLAGSHIP_TIERS,
     exclude: /-(fast|latest)\b/,
-    fallback: "claude-opus-4-8",
+    fallback: "claude-opus-5",
   },
   // Mid-run gap triage: read the breadth sweeps against the board and decide
   // which threads deserve a deep dive. A bounded routing/judgment task that
@@ -107,7 +119,7 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   triage: {
     provider: "claude",
     env: "CLAUDE_TRIAGE_MODEL",
-    include: /^claude-sonnet-\d/,
+    include: [/^claude-sonnet-\d/],
     exclude: /-(fast|latest)\b/,
     fallback: "claude-sonnet-5",
   },
@@ -117,7 +129,7 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   backstory: {
     provider: "claude",
     env: "CLAUDE_BACKSTORY_MODEL",
-    include: /^claude-sonnet-\d/,
+    include: [/^claude-sonnet-\d/],
     exclude: /-(fast|latest)\b/,
     fallback: "claude-sonnet-5",
   },
@@ -127,7 +139,7 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   translate: {
     provider: "claude",
     env: "CLAUDE_TRANSLATE_MODEL",
-    include: /^claude-haiku-\d/,
+    include: [/^claude-haiku-\d/],
     exclude: /-(fast|latest)\b/,
     fallback: "claude-haiku-4-5-20251001",
   },
@@ -139,16 +151,19 @@ const ROLES: Record<ModelRole, RoleConfig> = {
   scoutBreadth: {
     provider: "gemini",
     env: "GEMINI_BREADTH_MODEL",
-    include: /^gemini-[\d.]+-flash/,
+    include: [/^gemini-[\d.]+-flash/],
     exclude: /(lite|embedding|aqa|tts|image|audio|live|vision|learnlm|robotics|thinking)/,
     fallback: "gemini-3.5-flash",
   },
+  // Deep floor matches the breadth floor's line (3.5): the fallback only bites
+  // when the live list is unreachable and must never regress a scout tier to an
+  // older generation than its sibling.
   scoutDeep: {
     provider: "gemini",
     env: "GEMINI_DEEP_MODEL",
-    include: /^gemini-[\d.]+-pro/,
+    include: [/^gemini-[\d.]+-pro/],
     exclude: /(embedding|aqa|tts|image|audio|live|vision|learnlm|robotics)/,
-    fallback: "gemini-2.5-pro",
+    fallback: "gemini-3.5-pro",
   },
 };
 
@@ -211,13 +226,17 @@ export async function resolveModel(role: ModelRole): Promise<string> {
     );
   }
   const ids = await available(cfg.provider);
-  const pick = [...ids]
-    .filter((id) => cfg.include.test(id) && !cfg.exclude.test(id))
-    .sort((a, b) => score(b) - score(a))[0];
-  if (!pick) {
-    console.warn(`[scalae] no live ${cfg.provider} model matched role "${role}" — using fallback ${cfg.fallback}`);
+  // Tiers in order: the first pattern with any live match supplies the pool,
+  // and the newest model wins within it. An org whose key can't see a tier
+  // (e.g. Fable/Mythos under ZDR) simply falls through to the next.
+  for (const tier of cfg.include) {
+    const pick = [...ids]
+      .filter((id) => tier.test(id) && !cfg.exclude.test(id))
+      .sort((a, b) => score(b) - score(a))[0];
+    if (pick) return pick;
   }
-  return pick ?? cfg.fallback;
+  console.warn(`[scalae] no live ${cfg.provider} model matched role "${role}" — using fallback ${cfg.fallback}`);
+  return cfg.fallback;
 }
 
 const warnedLegacy = new Set<Provider>();

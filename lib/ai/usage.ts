@@ -30,6 +30,7 @@ const MODEL_PRICING: Record<string, Price> = {
   // Sonnet $3/$15, Haiku 4.5 $1/$5)
   "claude-fable-5": price(10, 50),
   "claude-mythos-5": price(10, 50),
+  "claude-opus-5": price(5, 25),
   "claude-opus-4-8": price(5, 25),
   "claude-opus-4-7": price(5, 25),
   "claude-opus-4-6": price(5, 25),
