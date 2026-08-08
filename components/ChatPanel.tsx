@@ -76,14 +76,23 @@ function speechRecognitionCtor(): (new () => SRLike) | null {
 function AttachmentChip({
   a,
   onRemove,
+  inverted,
 }: {
   a: Attachment;
   onRemove?: () => void;
+  /** Render on the ink-inverted user bubble (background-toned instead of ink-toned). */
+  inverted?: boolean;
 }) {
   const { t } = useT();
   const icon = a.kind === "image" ? "🖼" : a.kind === "pdf" ? "📄" : "📝";
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/5 px-2 py-1 text-[0.6875rem] text-emph max-w-[220px]">
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[0.6875rem] max-w-[220px] ${
+        inverted
+          ? "border-background/15 bg-background/10 text-background"
+          : "border-hairline bg-ink/5 text-emph"
+      }`}
+    >
       {a.kind === "image" && a.data ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -95,7 +104,11 @@ function AttachmentChip({
         <span aria-hidden>{icon}</span>
       )}
       <span className="truncate">{a.name}</span>
-      {a.size > 0 && <span className="text-muted shrink-0">{fmtBytes(a.size)}</span>}
+      {a.size > 0 && (
+        <span className={`shrink-0 ${inverted ? "text-background/60" : "text-muted"}`}>
+          {fmtBytes(a.size)}
+        </span>
+      )}
       {onRemove && (
         <button
           onClick={onRemove}
@@ -304,14 +317,14 @@ export function ChatPanel({
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-br-md bg-accent text-white px-3.5 py-2.5 text-sm whitespace-pre-wrap"
+                  ? "max-w-[85%] rounded-2xl rounded-br-md bg-ink text-background px-3.5 py-2.5 text-sm whitespace-pre-wrap"
                   : `${expanded ? "max-w-[95%]" : "max-w-[92%]"} rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 group`
               }
             >
               {m.attachments?.length > 0 && (
                 <div className={`flex flex-wrap gap-1.5 ${m.content ? "mb-2" : ""}`}>
                   {m.attachments.map((a, i) => (
-                    <AttachmentChip key={i} a={a} />
+                    <AttachmentChip key={i} a={a} inverted={m.role === "user"} />
                   ))}
                 </div>
               )}

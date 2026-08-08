@@ -121,8 +121,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Text selection: a solid highlighter yellow with forced black text — legible
+   on every surface in both themes (black desk, white cards, accent-blue
+   buttons, ink-inverted chat bubbles), unlike the old translucent accent-blue
+   which vanished on blue surfaces. Mobile Safari/Chrome may keep the OS's own
+   selection tint — that's why no message surface is system-blue anymore. */
 ::selection {
-  background: rgba(10, 132, 255, 0.4);
+  background: #ffd60a;
+  color: #000000;
 }
 
 *::-webkit-scrollbar {

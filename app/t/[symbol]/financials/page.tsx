@@ -679,7 +679,7 @@ function AnalystDesk({
             <div
               className={
                 m.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-accent/12 px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap"
+                  ? "ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-ink text-background px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap"
                   : "mr-auto max-w-[92%] rounded-2xl rounded-bl-md bg-ink/5 border border-hairline px-3.5 py-2 text-sm leading-relaxed"
               }
             >
