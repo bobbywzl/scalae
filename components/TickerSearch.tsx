@@ -26,7 +26,7 @@ const PILL_LABEL_KEY: Record<SearchPill, TKey> = {
 
 function pillHref(symbol: string, pill: SearchPill): string {
   const base = `/t/${encodeURIComponent(symbol)}`;
-  return pill === "signals" ? `${base}/signals` : pill === "fin" ? `${base}/financials` : base;
+  return pill === "signals" ? `${base}/signals` : pill === "fin" ? `${base}/financials` : `${base}/dd`;
 }
 
 /** Emphasize every query word inside a snippet (case-insensitive). */

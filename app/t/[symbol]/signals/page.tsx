@@ -206,6 +206,54 @@ export default function DeskPage() {
   const [steerBusy, setSteerBusy] = useState(false);
   const [steerError, setSteerError] = useState<string | null>(null);
 
+  // The question stage must survive click-aways to other pages: the card (and
+  // every edit made on it) persists per ticker until the run starts or the
+  // investor cancels it. Storage is the source across navigations; a window
+  // event covers framing that resolves AFTER this page instance unmounted.
+  const steerStore = `scalae.steer.${symbol}`;
+  const readSteerStore = useCallback((): { question: string; why: string }[] | null => {
+    try {
+      const raw = localStorage.getItem(steerStore);
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return parsed
+        .filter((q): q is Record<string, unknown> => !!q && typeof q === "object")
+        .map((q) => ({
+          question: typeof q.question === "string" ? q.question : "",
+          why: typeof q.why === "string" ? q.why : "",
+        }));
+    } catch {
+      return null;
+    }
+  }, [steerStore]);
+  const clearSteer = useCallback(() => {
+    setSteer(null);
+    try {
+      localStorage.removeItem(steerStore);
+    } catch {
+      /* storage blocked — nothing persisted to clear */
+    }
+  }, [steerStore]);
+  useEffect(() => {
+    const restore = () => {
+      const stored = readSteerStore();
+      // Fill only an empty stage — never clobber questions being edited live.
+      if (stored) setSteer((s) => s ?? stored);
+    };
+    restore();
+    window.addEventListener("scalae:steer", restore);
+    return () => window.removeEventListener("scalae:steer", restore);
+  }, [readSteerStore]);
+  useEffect(() => {
+    if (steer === null) return;
+    try {
+      localStorage.setItem(steerStore, JSON.stringify(steer));
+    } catch {
+      /* private mode — the card just won't survive navigation */
+    }
+  }, [steer, steerStore]);
+
   const openSteer = useCallback(async () => {
     if (anyRunning || framing) return;
     setFraming(true);
@@ -215,6 +263,15 @@ export default function DeskPage() {
         `/api/tickers/${encodeURIComponent(symbol)}/run`,
         { method: "POST", body: JSON.stringify({ frame: true }) }
       );
+      // Persist before setState: if the investor already clicked away, this
+      // instance is unmounted — storage plus the event still deliver the
+      // framed questions to whichever page instance is live.
+      try {
+        localStorage.setItem(steerStore, JSON.stringify(questions));
+        window.dispatchEvent(new Event("scalae:steer"));
+      } catch {
+        /* storage blocked — in-memory state below still shows the card */
+      }
       setSteer(questions);
     } catch (e) {
       // Framing failed — open the card empty so the investor writes their own.
@@ -223,7 +280,7 @@ export default function DeskPage() {
     } finally {
       setFraming(false);
     }
-  }, [anyRunning, framing, symbol, t]);
+  }, [anyRunning, framing, symbol, steerStore, t]);
 
   const startSteered = useCallback(async () => {
     if (!steer || steerBusy) return;
@@ -234,14 +291,14 @@ export default function DeskPage() {
         method: "POST",
         body: JSON.stringify({ questions: steer.map((q) => q.question.trim()).filter(Boolean) }),
       });
-      setSteer(null);
+      clearSteer();
       load();
     } catch (e) {
       setSteerError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
     } finally {
       setSteerBusy(false);
     }
-  }, [steer, steerBusy, symbol, load, t]);
+  }, [steer, steerBusy, symbol, clearSteer, load, t]);
 
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
@@ -891,7 +948,7 @@ export default function DeskPage() {
                 </button>
                 <span className="flex-1" />
                 <button
-                  onClick={() => setSteer(null)}
+                  onClick={clearSteer}
                   disabled={steerBusy}
                   className="rounded-lg bg-ink/6 hover:bg-ink/10 text-muted hover:text-foreground disabled:opacity-50 text-xs font-medium px-3 py-1.5 transition-colors"
                 >

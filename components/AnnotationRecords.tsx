@@ -125,7 +125,14 @@ export function AnnotationRecords({
                   <p className="text-emph leading-snug">
                     “{a.selectedText.length > 180 ? a.selectedText.slice(0, 180) + "…" : a.selectedText}”
                   </p>
-                  {a.comment && <p className="mt-0.5 text-[0.6875rem] text-[#b5b5ba]">💬 {a.comment}</p>}
+                  {a.comment && (
+                    <p
+                      className="mt-1 border-l-2 pl-2 text-[0.6875rem] leading-snug text-emph/90"
+                      style={{ borderColor: COLOR_SWATCHES[a.color] ?? COLOR_SWATCHES.amber }}
+                    >
+                      {a.comment}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-[0.625rem] text-muted">
                     {surfaceLabel(a.surfaceId)} · {timeAgo(a.createdAt, t)}
                   </p>
@@ -133,9 +140,12 @@ export function AnnotationRecords({
                 <button
                   onClick={() => ctx.remove(a.id)}
                   title={t("notes.annotDelete")}
-                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/50 hover:text-loss opacity-0 group-hover/row:opacity-100 transition-all"
+                  aria-label={t("notes.annotDelete")}
+                  className="shrink-0 rounded-md p-1 text-muted/50 hover:text-loss hover:bg-loss/10 opacity-0 group-hover/row:opacity-100 transition-all"
                 >
-                  ✕
+                  <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" aria-hidden>
+                    <path d="M2.5 2.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
                 </button>
               </li>
             ))}

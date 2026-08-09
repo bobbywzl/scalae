@@ -5,8 +5,8 @@ import { useT } from "@/components/PrefsProvider";
 
 /**
  * The ticker's surface switch — one segmented pill next to the ticker name on
- * every desk page, three parts: Signals (the board), Due diligence (the
- * record, the ticker's main page), and Finance (the investor's customized
+ * every desk page, three parts: Signals (the board, the ticker's landing
+ * page), Due diligence (the record), and Finance (the investor's customized
  * view of the reported financials). The active segment is the page you're
  * on; the others navigate.
  */
@@ -38,7 +38,7 @@ export function DeskTabs({
   return (
     <nav className="flex items-center gap-0.5 rounded-full border border-hairline bg-ink/4 p-0.5 shrink-0">
       {seg("signals", `${base}/signals`, t("dd.tabSignals"))}
-      {seg("dd", base, t("dd.tabDiligence"))}
+      {seg("dd", `${base}/dd`, t("dd.tabDiligence"))}
       {seg("fin", `${base}/financials`, t("dd.tabFinance"))}
     </nav>
   );

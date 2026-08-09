@@ -322,3 +322,90 @@ body {
   height: 0;
   pointer-events: none;
 }
+
+/*
+ * Highlight annotations — the iOS-marker look. A mark carries paint only:
+ * vertical padding never moves inline text, and the horizontal padding is
+ * cancelled by an equal negative margin, so the tint bleeds slightly past the
+ * glyphs while the words themselves NEVER shift — applying, hovering or
+ * removing a highlight is layout-neutral by construction. The tint is a
+ * background-image so the fresh-highlight sweep can grow background-size
+ * left→right; the hover deepen is a background-color layered beneath it.
+ * A commented highlight is a different SHAPE: a ringed capsule (inset
+ * outline, fuller radius) instead of the plain flat tint.
+ */
+mark.ann-mark {
+  --ann-tint: rgba(251, 191, 36, 0.28);
+  --ann-deep: rgba(251, 191, 36, 0.15);
+  --ann-line: rgba(251, 191, 36, 0.78);
+  background-color: transparent;
+  background-image: linear-gradient(var(--ann-tint), var(--ann-tint));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: 0 50%;
+  border-radius: 0.3em;
+  padding: 0.14em 0.09em;
+  margin: 0 -0.09em;
+  color: inherit;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-color 0.18s ease;
+}
+mark.ann-mark.ann-hot {
+  background-color: var(--ann-deep);
+}
+mark.ann-mark--commented {
+  border-radius: 0.6em;
+  padding: 0.14em 0.28em;
+  margin: 0 -0.28em;
+  box-shadow: inset 0 0 0 1px var(--ann-line);
+}
+mark.ann-fresh {
+  animation: ann-sweep 0.5s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+@keyframes ann-sweep {
+  from {
+    background-size: 0% 100%;
+  }
+  to {
+    background-size: 100% 100%;
+  }
+}
+
+/* The hover comment bar and the selection toolbar: rise in, fade away. */
+.ann-bar {
+  position: absolute;
+  z-index: 55;
+}
+.ann-bar-inner {
+  animation: ann-rise 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.ann-bar-inner.ann-bar-out {
+  /* The fill of ann-rise would outrank these declarations — cancel it so the
+     fade-away transition owns opacity/transform. */
+  animation: none;
+  opacity: 0;
+  transform: translateY(5px);
+  pointer-events: none;
+}
+.ann-pop {
+  animation: ann-rise 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ann-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  mark.ann-fresh,
+  .ann-bar-inner,
+  .ann-pop {
+    animation: none;
+  }
+}
