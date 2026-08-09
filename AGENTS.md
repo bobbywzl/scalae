@@ -8,8 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Do not use different phrases or sentence structures for the sake of variety.
 Be simple, concise, and straight to the point: the wording that is most easily
-interpretable by and suitable for the target audience. Applies to everything
-written — UI copy, prompts, docs, comments, commit messages, replies.
+interpretable by and suitable for the target audience. Use as few words and as
+simple wording as possible — fewer and more precise always beats more and
+complex. Applies to everything written — UI copy, prompts, docs, comments,
+commit messages, replies.
 
 # Product vision
 
