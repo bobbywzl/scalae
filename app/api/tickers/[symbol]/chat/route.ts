@@ -30,6 +30,8 @@ export async function POST(req: Request, { params }: Params) {
     message?: string;
     retry?: boolean;
     attachments?: unknown;
+    /** Start on the senior analyst (turns needing proposals/desk actions — e.g. "track this"). */
+    deep?: boolean;
   };
   const retry = body.retry === true;
   const message = (body.message ?? "").trim();
@@ -47,6 +49,7 @@ export async function POST(req: Request, { params }: Params) {
       retry,
       attachments: files,
       lang: await requestLang(user.id),
+      forceDeep: body.deep === true,
     });
     if (result.startResearch) {
       const { run, started } = await startRun(user.id, symbol);
