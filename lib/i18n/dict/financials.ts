@@ -27,6 +27,7 @@ const en = {
   grp_cashflow: "Cash flow",
   grp_dcf: "DCF drivers",
   grp_perShare: "Per share",
+  grp_custom: "Your rows",
 
   // DCF driver rows + the "build your own" inputs block
   revenueGrowth: "Revenue growth",
@@ -114,13 +115,11 @@ const en = {
   thisCompany: "this",
 
   // ---- Finance cleansing (the /t/[symbol]/financials screen) ----
-  cleansePageSubtitle:
-    "Your customized view of {name}’s reported record — noise and windfalls stripped, every change traced.",
 
   // The bench's brief — the purpose of cleansing, and this page's value, tersely.
   benchAboutTitle: "What the analyst does here",
   benchAboutBody:
-    "Reported earnings mix real economics with noise — one-time charges, settlements, windfall revaluation gains. This bench is your cleansed view of {name}’s numbers: the analyst strips those distortions (never real costs like depreciation), keeps every change reversible and traced beside the as-reported record, and bolds the figures an owner reads first. Nothing changes until you approve it.",
+    "Reported earnings mix real economics with noise — one-time charges, settlements, windfall revaluation gains. This bench is your cleansed view of {name}’s numbers: the analyst strips those distortions (never real costs like depreciation), keeps every change reversible and traced beside the as-reported record, and bolds the figures an owner reads first. On your ask it also reshapes the board itself — adds or hides rows and fiscal-year columns, fills missing figures. Nothing changes until you approve it.",
   cleanseLoading: "Opening the bench…",
   cleanseUnavailable:
     "Financials aren’t available for this ticker, so there is nothing to cleanse yet. The rest of the desk keeps working without them.",
@@ -136,8 +135,9 @@ const en = {
   viewCleansed: "Cleansed",
   viewReported: "As reported",
   viewCleansedNote:
-    "{n} applied adjustment(s) move {m} cell(s) — highlighted below. The valuation snapshot, peers, and rows whose inputs aren’t in this table (gross margin, ROIC, ROA, NOPAT, FCFF, tax rate, current ratio, interest coverage, DPS) stay as reported.",
+    "{n} applied adjustment(s) move {m} cell(s) — highlighted below. The valuation snapshot, peers, and rows whose inputs aren’t in this table (gross margin, ROIC, ROA, NOPAT, FCFF, tax rate, current ratio, interest coverage, DPS) stay as reported unless you pin a value onto them.",
   cellReportedTip: "As reported: {raw} · via {titles}",
+  boardEditsLabel: "Board edits in effect:",
 
   // The "suggest moderations" pass
   suggestBtn: "✦ Suggest moderations",
@@ -163,16 +163,32 @@ const en = {
   adjKindNoise: "noise",
   adjKindGrowth: "windfall",
   adjLine: "{key} · FY{year}",
+  // Board-edit adjustment lines & chips (op ≠ delta)
+  adjLineSet: "{key} · FY{year} →",
+  adjLineAddRow: "New row “{label}” · {n} value(s)",
+  adjLineRemoveRow: "Hide row “{label}”",
+  adjLineAddYear: "Add column FY{year}",
+  adjLineRemoveYear: "Hide column FY{year}",
+  adjOpSet: "pinned value",
+  adjOpAddRow: "new row",
+  adjOpRemoveRow: "hide row",
+  adjOpAddYear: "new year",
+  adjOpRemoveYear: "hide year",
+  // One recurring item across several fiscal years — a single grouped card.
+  adjGroupHint: "One item across {n} line-years — review each below.",
+  adjApplyAll: "Apply all {n}",
+  adjDismissAll: "Dismiss all {n}",
   adjNone: "No adjustments yet — run a moderation pass or ask the analyst desk.",
   adjArchive: "Cleansing archive",
   adjArchiveCounts: "{d} dismissed · {r} reverted",
+  adjStatusApplied: "applied",
   adjStatusDismissed: "dismissed",
   adjStatusReverted: "reverted",
 
   // The financial analyst desk (the cleansing chat)
   deskTitle: "Financial analyst desk",
   deskExplainer:
-    "Ask for the customization you want — “remove the 2025 IPO windfall from net income”, “strip last year’s impairment” — and the analyst implements it precisely. When the bench lacks the disclosed amounts, it researches the filings, lays out the specific plan, and parks each change here for your approval — like a proposed signal. Explicit commands with amounts already on the bench apply at once.",
+    "Ask for the customization you want — “remove the 2025 IPO windfall from net income”, “add an R&D expense row”, “add FY2014 and fill in revenue”, “hide the ROA row” — and the analyst implements it precisely. When the bench lacks the disclosed amounts, it researches the filings, lays out the specific plan, and parks each change here for your approval — like a proposed signal. Board edits (rows, columns, pinned figures) always park for your approval; only explicit delta commands with amounts already on the bench apply at once.",
   deskPlaceholder: "e.g. Remove the unrealized valuation gain from FY2025 net income",
   deskSend: "Send",
   deskThinking: "The analyst is working…",
@@ -221,6 +237,7 @@ const zh: Record<keyof typeof en, string> = {
   grp_cashflow: "现金流",
   grp_dcf: "DCF 驱动因子",
   grp_perShare: "每股",
+  grp_custom: "自定义行",
 
   revenueGrowth: "营收增速",
   taxRate: "有效税率",
@@ -303,11 +320,9 @@ const zh: Record<keyof typeof en, string> = {
   colTicker: "股票",
   thisCompany: "本公司",
 
-  cleansePageSubtitle: "你对 {name} 公开财报的自定义视图——剔除噪音与一次性暴利，每处改动皆可追溯。",
-
   benchAboutTitle: "分析师在这里能做什么",
   benchAboutBody:
-    "公开财报把真实的经营成果与噪音混在一起——一次性费用、和解金、暴利重估收益。这个工作台是你对 {name} 数字的清洗视图：分析师剔除这些失真（绝不剔除折旧等真实成本），每处改动都可撤销、可追溯，与披露原值并列呈现，并把股东最应先看的数字加粗突出。未经你批准，任何数字都不会改变。",
+    "公开财报把真实的经营成果与噪音混在一起——一次性费用、和解金、暴利重估收益。这个工作台是你对 {name} 数字的清洗视图：分析师剔除这些失真（绝不剔除折旧等真实成本），每处改动都可撤销、可追溯，与披露原值并列呈现，并把股东最应先看的数字加粗突出。你也可以让分析师重塑表格本身——增删行与财年列、补齐缺失数字。未经你批准，任何数字都不会改变。",
   cleanseLoading: "正在打开清洗工作台……",
   cleanseUnavailable: "该股票暂无财务数据，因此还没有可清洗的内容。研究台的其他部分不受影响。",
 
@@ -319,8 +334,9 @@ const zh: Record<keyof typeof en, string> = {
   viewCleansed: "清洗后",
   viewReported: "按披露",
   viewCleansedNote:
-    "{n} 项已生效的调整改动了 {m} 个单元格——已在下方高亮。估值快照、同业对比，以及输入项不在本表中的行（毛利率、ROIC、ROA、NOPAT、FCFF、税率、流动比率、利息保障倍数、每股股息）保持披露原值。",
+    "{n} 项已生效的调整改动了 {m} 个单元格——已在下方高亮。估值快照、同业对比，以及输入项不在本表中的行（毛利率、ROIC、ROA、NOPAT、FCFF、税率、流动比率、利息保障倍数、每股股息）保持披露原值，除非你直接固定了数值。",
   cellReportedTip: "披露原值：{raw} · 来自 {titles}",
+  boardEditsLabel: "生效中的表格编辑：",
 
   suggestBtn: "✦ 建议调整项",
   suggestRunning: "正在扫描记录……",
@@ -343,15 +359,29 @@ const zh: Record<keyof typeof en, string> = {
   adjKindNoise: "噪音",
   adjKindGrowth: "暴利",
   adjLine: "{key} · {year} 财年",
+  adjLineSet: "{key} · {year} 财年 →",
+  adjLineAddRow: "新增行“{label}” · {n} 个数值",
+  adjLineRemoveRow: "隐藏行“{label}”",
+  adjLineAddYear: "新增 {year} 财年列",
+  adjLineRemoveYear: "隐藏 {year} 财年列",
+  adjOpSet: "固定数值",
+  adjOpAddRow: "新增行",
+  adjOpRemoveRow: "隐藏行",
+  adjOpAddYear: "新增年份",
+  adjOpRemoveYear: "隐藏年份",
+  adjGroupHint: "同一项目，跨 {n} 个行·财年——请逐条审阅。",
+  adjApplyAll: "全部应用（{n} 项）",
+  adjDismissAll: "全部不采纳（{n} 项）",
   adjNone: "还没有调整项——运行一次建议扫描，或询问下方的财务分析台。",
   adjArchive: "清洗档案",
   adjArchiveCounts: "{d} 项未采纳 · {r} 项已撤销",
+  adjStatusApplied: "已应用",
   adjStatusDismissed: "未采纳",
   adjStatusReverted: "已撤销",
 
   deskTitle: "财务分析台",
   deskExplainer:
-    "说出你想要的自定义——“把 2025 年 IPO 暴利从净利润中剔除”、“剔除去年的减值”——分析师会精确执行。当工作台缺少披露金额时，分析师会检索申报文件、给出具体的调整方案，并将每项改动在此提交待你批准——如同提议一个新信号。金额已在台面上的明确指令则立即生效。",
+    "说出你想要的自定义——“把 2025 年 IPO 暴利从净利润中剔除”、“加一行研发费用”、“加上 2014 财年并填入营收”、“隐藏 ROA 这一行”——分析师会精确执行。当工作台缺少披露金额时，分析师会检索申报文件、给出具体的调整方案，并将每项改动在此提交待你批准——如同提议一个新信号。表格编辑（行、列、固定数值）一律提交待你批准；只有金额已在台面上的明确调整指令才会立即生效。",
   deskPlaceholder: "例如：把 2025 财年净利润中的未实现估值收益剔除",
   deskSend: "发送",
   deskThinking: "分析师处理中……",

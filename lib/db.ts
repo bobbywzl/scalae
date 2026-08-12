@@ -430,6 +430,16 @@ export const SCHEMA_STATEMENTS: string[] = [
     "decidedAt" TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_finadj_user ON fin_adjustments("userId", symbol, status)`,
+  // ---- board edits: beyond cell deltas, an adjustment can pin a cell (set),
+  // add a custom row, hide a row, or add/hide a fiscal-year column. Legacy
+  // rows default to op 'delta'; the op-specific payload rides in the new
+  // nullable columns (cells is a JSON {fiscalYear: value} map). ----
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS op TEXT NOT NULL DEFAULT 'delta'`,
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS value DOUBLE PRECISION`,
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS "rowLabel" TEXT`,
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS "rowFormat" TEXT`,
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS "rowGroup" TEXT`,
+  `ALTER TABLE fin_adjustments ADD COLUMN IF NOT EXISTS cells TEXT`,
   `CREATE TABLE IF NOT EXISTS fin_cleansing_events (
     id TEXT PRIMARY KEY,
     "userId" TEXT NOT NULL,
@@ -1555,8 +1565,9 @@ export async function deleteDiligenceEvidence(userId: string, id: string): Promi
 // the append-only audit log, suggestion passes, and the analyst desk thread.
 // ---------------------------------------------------------------------------
 
-interface FinAdjustmentRow extends Omit<FinAdjustment, "sources"> {
+interface FinAdjustmentRow extends Omit<FinAdjustment, "sources" | "cells"> {
   sources: string;
+  cells: string | null;
 }
 
 function parseFinAdjustment(r: FinAdjustmentRow): FinAdjustment {
@@ -1566,7 +1577,13 @@ function parseFinAdjustment(r: FinAdjustmentRow): FinAdjustment {
   } catch {
     /* malformed row — adjustment renders without linked citations */
   }
-  return { ...r, sources };
+  let cells: FinAdjustment["cells"] = null;
+  try {
+    cells = r.cells ? (JSON.parse(r.cells) as FinAdjustment["cells"]) : null;
+  } catch {
+    /* malformed row — addRow renders without initial values */
+  }
+  return { ...r, op: r.op ?? "delta", sources, cells };
 }
 
 /** Every adjustment for a ticker, any status, newest first. */
@@ -1593,12 +1610,19 @@ export async function insertFinAdjustment(
   status: Extract<FinAdjustmentStatus, "suggested" | "applied"> = "suggested"
 ): Promise<FinAdjustment> {
   const ts = now();
+  const op = p.op ?? "delta";
   const row: FinAdjustment = {
     id: uid(),
     symbol,
+    op,
     metricKey: p.metricKey,
     fiscalYear: p.fiscalYear,
-    delta: p.delta,
+    delta: op === "delta" ? p.delta : 0,
+    value: op === "set" && p.value != null && Number.isFinite(p.value) ? p.value : null,
+    rowLabel: op === "addRow" ? (p.rowLabel ?? "").trim().slice(0, 80) || null : null,
+    rowFormat: op === "addRow" ? (p.rowFormat ?? "money") : null,
+    rowGroup: op === "addRow" ? (p.rowGroup ?? "custom") : null,
+    cells: op === "addRow" ? (p.cells ?? null) : null,
     title: p.title.trim().slice(0, 160),
     rationale: p.rationale.trim().slice(0, 1200),
     kind: p.kind === "growth" ? "growth" : "noise",
@@ -1609,8 +1633,10 @@ export async function insertFinAdjustment(
     appliedAt: status === "applied" ? ts : null,
     decidedAt: null,
   };
-  await q`INSERT INTO fin_adjustments (id, "userId", symbol, "metricKey", "fiscalYear", delta, title, rationale, kind, origin, status, sources, "createdAt", "appliedAt")
-          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.metricKey}, ${row.fiscalYear}, ${row.delta},
+  await q`INSERT INTO fin_adjustments (id, "userId", symbol, op, "metricKey", "fiscalYear", delta, value, "rowLabel", "rowFormat", "rowGroup", cells, title, rationale, kind, origin, status, sources, "createdAt", "appliedAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.op}, ${row.metricKey}, ${row.fiscalYear}, ${row.delta},
+                  ${row.value}, ${row.rowLabel}, ${row.rowFormat}, ${row.rowGroup},
+                  ${row.cells ? JSON.stringify(row.cells) : null},
                   ${row.title}, ${row.rationale}, ${row.kind}, ${row.origin}, ${row.status},
                   ${JSON.stringify(row.sources)}, ${row.createdAt}, ${row.appliedAt})`;
   return row;

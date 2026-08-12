@@ -4,6 +4,7 @@ import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
 import { withDomain } from "../citations";
 import { attachmentBlocks } from "./chat";
+import { cleansingBenchContext } from "./context";
 import { withDeadline } from "./research";
 import {
   DESK_DOCTRINE,
@@ -254,9 +255,13 @@ export async function executeSectionResearch(
       }
     }
 
-    // Board context: what the desk already watches on this ticker, so the memo
-    // speaks to the same instrument panel the investor sees.
-    const signals = await listSignals(userId, research.symbol, "active");
+    // Board + bench context: what the desk already watches and how the
+    // investor reads the numbers, so the memo speaks to the same connected
+    // desk the investor sees (signals ↔ financials ↔ this record).
+    const [signals, benchBlock] = await Promise.all([
+      listSignals(userId, research.symbol, "active"),
+      cleansingBenchContext(userId, research.symbol).catch(() => ""),
+    ]);
     const boardLines = (
       await Promise.all(
         signals.map(async (s) => {
@@ -293,6 +298,7 @@ ${rec.priorInsights.join("\n") || "(none)"}
 THE DESK'S ACTIVE SIGNAL BOARD (for reference, so the memo speaks to what is already watched):
 ${boardLines || "(no active signals)"}
 
+${benchBlock ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (for reference — engage where the topic touches the financial record):\n${benchBlock}\n` : ""}
 FIELD RESEARCH (three grounded sweeps on this topic; numbered sources listed at the end):
 ${researchBlock}
 
@@ -360,7 +366,7 @@ export async function refreshDiligenceSynthesis(
 ): Promise<DiligenceSynthesis> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-  const [sections, notes, research, evidence, signals, focusAreas, run] = await Promise.all([
+  const [sections, notes, research, evidence, signals, focusAreas, run, benchBlock] = await Promise.all([
     listNoteSections(userId, symbol),
     listNotes(userId, symbol),
     listDiligenceResearch(userId, symbol),
@@ -368,6 +374,7 @@ export async function refreshDiligenceSynthesis(
     listSignals(userId, symbol, "active"),
     listFocusAreas(userId, symbol),
     latestRun(userId, symbol),
+    cleansingBenchContext(userId, symbol).catch(() => ""),
   ]);
   if (sections.length === 0) throw new Error("Open at least one section before synthesizing.");
 
@@ -414,6 +421,7 @@ FOCUS AREAS: ${focusAreas.map((f) => f.title).join("; ") || "(none)"}
 THE SIGNAL BOARD'S CURRENT READINGS (for the tensions check — where the record and the board disagree):
 ${boardLines || "(no active signals)"}
 
+${benchBlock ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (for the tensions check too — where the record and the numbers disagree):\n${benchBlock}\n` : ""}
 ${run?.dossier ? `THE DESK'S STANDING DOSSIER (the board's own synthesis, for contrast):\n${run.dossier}` : ""}
 
 TASK: Write the standing synthesis of this record per the synthesis doctrine — the thesis as written (referring to sections by their **bolded titles**), the tensions, and the open fronts where the circle of competence should expand next. Work ONLY from the material above.
@@ -458,12 +466,13 @@ export async function suggestDiligenceSections(
 ): Promise<SectionSuggestion[]> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-  const [sections, signals, focusAreas, run, synthesis] = await Promise.all([
+  const [sections, signals, focusAreas, run, synthesis, benchBlock] = await Promise.all([
     listNoteSections(userId, symbol),
     listSignals(userId, symbol, "active"),
     listFocusAreas(userId, symbol),
     latestRun(userId, symbol),
     getDiligenceSynthesis(userId, symbol),
+    cleansingBenchContext(userId, symbol).catch(() => ""),
   ]);
 
   const task = `THE DESK'S ACTIVE SIGNALS:
@@ -473,6 +482,7 @@ FOCUS AREAS: ${focusAreas.map((f) => `${f.title} — ${f.description}`).join("; 
 
 ${run?.dossier ? `THE STANDING DOSSIER:\n${run.dossier}\n` : ""}
 ${synthesis?.content ? `THE RECORD'S CURRENT SYNTHESIS (note its "open fronts"):\n${synthesis.content}\n` : ""}
+${benchBlock ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (topics often hide in what the investor chose to strip or pin):\n${benchBlock}\n` : ""}
 SECTIONS THE RECORD ALREADY HAS (do NOT suggest these or near-duplicates of them):
 ${sections.map((s) => `- ${s.title}`).join("\n") || "(none yet)"}
 

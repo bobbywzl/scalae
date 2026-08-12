@@ -243,10 +243,35 @@ the numbers themselves: owner earnings made visible.
   the disclosed figures, it returns the specific plan and parks every change for
   approval, exactly like a proposed signal: the investor approves the numbers, not
   the idea. Every apply is reversible.
+- **The board is the investor's, shape and all.** Beyond cleansing deltas, the
+  analyst desk edits the board itself through conversation: pinning a missing or
+  wrong cell to a disclosed or investor-stated figure, adding custom rows the
+  provider table lacks, adding fiscal-year columns beyond the provider's window,
+  hiding rows or columns. Board edits are **request-only and never automatic**:
+  they exist solely when the investor asks for them (the desk never volunteers
+  them; the moderation pass never emits them), and every one parks for explicit
+  approval on the bench — no same-gesture fast path, however explicit the ask.
+  Hiding is presentational: the reported record underneath is untouched, derived
+  rows and DCF medians keep computing on the full record, and every edit reverses
+  like any adjustment. One recurring item spanning several fiscal years is
+  reviewed as one grouped card, each line-year still separately decidable — the
+  no-duplication rule applied to the bench's own review queue.
 - **The history is the point.** An append-only log records every difference between
   the raw public record and the customized view — proposal, application, dismissal,
   revert — dated and per line-item. A cleansed view that cannot show its audit
   trail is exactly the instrument this desk refuses.
+
+## One desk, fully connected
+
+A ticker's three analyst surfaces — the signals desk chat, the financial analyst
+desk, and the due-diligence agents — are one desk, not three. Each carries full
+read context across the entire ticker: the signal board and its latest readings,
+the reported financials with the investor's cleansed view and its adjustments,
+and the due-diligence record with its standing synthesis. No analyst reasons
+about the business with a third of the picture. The sharing is strictly
+read-only: each surface writes only to its own board, through its own human
+gate, and refers the investor to the owning surface for anything outside its
+write scope.
 
 ## Human sovereignty
 

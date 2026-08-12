@@ -296,8 +296,8 @@ export interface RichQuote {
 
 /** How a metric row is rendered and whether a rising value is "good". */
 export type MetricFormat = "money" | "pct" | "ratio" | "shares" | "perShare" | "x";
-/** Which block of the table a metric belongs to. */
-export type MetricGroup = "income" | "returns" | "balance" | "cashflow" | "dcf" | "perShare";
+/** Which block of the table a metric belongs to ("custom" = investor-added rows). */
+export type MetricGroup = "income" | "returns" | "balance" | "cashflow" | "dcf" | "perShare" | "custom";
 
 /** One row of the metrics×years table — values aligned to `fiscalYears`. */
 export interface FinancialMetric {
@@ -435,6 +435,18 @@ export type FinAdjustmentKind = "noise" | "growth";
 export type FinAdjustmentStatus = "suggested" | "applied" | "dismissed" | "reverted";
 /** Where the adjustment came from: the suggestion pass or the analyst desk chat. */
 export type FinAdjustmentOrigin = "suggest" | "analyst";
+/**
+ * What the adjustment does to the investor's board.
+ *  - "delta": a signed cleansing delta on one reported cell (the original op).
+ *  - "set": pin one cell to an exact value (fills gaps; pinned cells stop recomputing).
+ *  - "addRow": add a custom line item with per-year values.
+ *  - "removeRow": hide a row from the cleansed view (presentational; raw data untouched).
+ *  - "addYear": add a fiscal-year column outside the provider's window (starts empty).
+ *  - "removeYear": hide a fiscal-year column from the cleansed view.
+ * Board edits (everything except "delta") exist only on the investor's explicit
+ * request via the analyst desk and ALWAYS park for approval — never auto-applied.
+ */
+export type FinAdjustmentOp = "delta" | "set" | "addRow" | "removeRow" | "addYear" | "removeYear";
 
 /**
  * One cleansing adjustment: a signed delta on one metric cell (metricKey ×
@@ -445,11 +457,28 @@ export type FinAdjustmentOrigin = "suggest" | "analyst";
 export interface FinAdjustment {
   id: string;
   symbol: string;
-  /** One of the directly-adjustable base metric keys (lib/cleansing.ts). */
+  /** How this adjustment edits the board (legacy rows are "delta"). */
+  op: FinAdjustmentOp;
+  /**
+   * delta/set: the target row key ("custom:*" for investor-added rows);
+   * addRow: the generated custom row key; removeRow: the row to hide;
+   * addYear/removeYear: "".
+   */
   metricKey: string;
-  /** Fiscal-year label, matching TickerFinancials.fiscalYears (e.g. "2025"). */
+  /** Fiscal-year label, matching TickerFinancials.fiscalYears (e.g. "2025"). "" for addRow. */
   fiscalYear: string;
+  /** delta op: signed amount; 0 for the other ops. */
   delta: number;
+  /** set op: the pinned cell value; null otherwise. */
+  value: number | null;
+  /** addRow: display label of the custom row; null otherwise. */
+  rowLabel: string | null;
+  /** addRow: how the custom row's values render; null otherwise. */
+  rowFormat: MetricFormat | null;
+  /** addRow: which table group the custom row joins; null otherwise. */
+  rowGroup: MetricGroup | null;
+  /** addRow: initial cell values keyed by fiscal-year label; null otherwise. */
+  cells: Record<string, number | null> | null;
   /** Short name of the item, e.g. "Unrealized Anthropic stake gain". */
   title: string;
   /** Why this item distorts the record, citing the disclosure it traces to. */
@@ -468,12 +497,21 @@ export interface FinAdjustment {
 
 /** Shape the cleansing agents emit when proposing an adjustment (pre-review). */
 export interface FinAdjustmentProposal {
+  /** Defaults to "delta" (the suggestion pass emits deltas only). */
+  op?: FinAdjustmentOp;
   metricKey: string;
   fiscalYear: string;
   delta: number;
   title: string;
   rationale: string;
   kind: FinAdjustmentKind;
+  /** set op only. */
+  value?: number | null;
+  /** addRow op only. */
+  rowLabel?: string | null;
+  rowFormat?: MetricFormat | null;
+  rowGroup?: MetricGroup | null;
+  cells?: Record<string, number | null> | null;
 }
 
 /**
@@ -530,12 +568,26 @@ export interface CleansedCell {
 
 /** The deterministic result of overlaying the applied adjustments on the raw table. */
 export interface CleansedFinancials {
-  /** Full metric set, adjusted where applicable — same shape as the raw table. */
+  /**
+   * The cleansed view's fiscal-year labels: the reported years plus applied
+   * addYear columns, minus hidden (removeYear) columns — oldest → newest.
+   */
+  fiscalYears: string[];
+  /**
+   * Visible metric rows (custom rows included, hidden rows excluded),
+   * adjusted where applicable — values aligned to `fiscalYears` above.
+   */
   metrics: FinancialMetric[];
   /** DCF inputs with the normalized medians recomputed off the cleansed rows. */
   dcfInputs: DcfInputs;
-  /** Every cell that differs from raw (the current raw → cleansed diff). */
+  /** Every visible reported cell that differs from raw (the current raw → cleansed diff). */
   cells: CleansedCell[];
+  /** Year labels added by applied addYear edits (subset of fiscalYears). */
+  addedYears: string[];
+  /** Year labels hidden by applied removeYear edits. */
+  hiddenYears: string[];
+  /** Row keys hidden by applied removeRow edits. */
+  hiddenRows: string[];
 }
 
 /** Payload for the finance-cleansing screen. */

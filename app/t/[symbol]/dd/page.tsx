@@ -131,7 +131,7 @@ export default function DiligencePage() {
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
-          <p className="text-muted text-[0.8125rem] mt-0.5">{t("dd.pageSubtitle", { name: ticker.name })}</p>
+          <p className="text-muted text-xs truncate">{ticker.name}</p>
         </div>
         <DeskTabs symbol={symbol} active="dd" />
       </header>
