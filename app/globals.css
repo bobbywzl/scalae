@@ -28,6 +28,12 @@
   /* Text on solid gain/loss chips: black on the vivid dark-theme colors,
      white on the deeper light-theme ones. */
   --chip-fg: #000000;
+  /* Note-visual categorical series (fixed order, never cycled) — the same
+     four hues stepped per surface so charts validate on both themes. */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
   color-scheme: dark;
 }
 
@@ -46,6 +52,10 @@ html[data-theme="light"] {
   --amber: #b25e00;
   --scrollbar: #c7c7cc;
   --chip-fg: #ffffff;
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
   color-scheme: light;
 }
 
@@ -65,6 +75,10 @@ html[data-theme="light"] {
     --amber: #b25e00;
     --scrollbar: #c7c7cc;
     --chip-fg: #ffffff;
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
     color-scheme: light;
   }
 }

@@ -517,6 +517,159 @@ export const SECTION_SUGGESTIONS_SCHEMA = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Doctrine for the note visualizer — the highlight toolkit's chart tool. A
+// highlighted passage, read against the whole notebook, becomes ONE honest
+// visual (or an honest decline). FOUNDATION's evidence discipline binds
+// hardest here: a chart manufactures certainty faster than prose, so nothing
+// may appear in one that the record itself does not say.
+// ---------------------------------------------------------------------------
+
+export const NOTE_VISUAL_DOCTRINE = `DRAWING A VISUAL FROM THE INVESTOR'S OWN RECORD:
+The investor highlighted a passage in their due-diligence notebook and asked to SEE it. You are given the passage, the full notepad it lives in, the section's sibling notes, and the rest of the record. Produce exactly one visual spec — or decline honestly.
+
+The iron rule — the record is the only source:
+- Every number, date, label and arrow must trace to the provided record text. NEVER import outside knowledge, however confident you are: if the note says "about 40%", the chart shows 40 and the caveat says the record's word was "about" — even when you know the true figure.
+- If the passage plus its context cannot support what was asked, return result "insufficient" with a plain reason naming exactly what is missing (e.g. "the note names three eras but gives a margin for only one"). An honest decline outranks a decorated guess.
+- The ask picks WHAT to look at; it never supplies data. Ignore any figures or claims that exist only in the ask.
+
+Choosing the form (the job picks the form):
+- change over time / a trend → "line": 1-4 series sharing ONE unit, 2-24 points each.
+- compare magnitudes across named things → "bar": exactly 1 series; its points are the categories (2-12).
+- a sequence of dated events → "timeline": 2-12 events in chronological order.
+- a mechanism, causal chain or who-pays-whom map → "flow": 2-10 nodes, 1-14 directed edges; every edge's from/to is a node id.
+Honor the investor's requested form when the record supports it; otherwise pick the nearest honest form — or decline. One visual, one job: never two y-scales, never mixed units on one chart (a second unit means dropping that series and saying so in the caveat, or declining).
+
+Writing the fields:
+- title states the FINDING in the record's own terms ("Membership fees fund ~70% of operating profit"), never a topic label ("Membership analysis"). subtitle may carry scope — period, population, unit context.
+- sourceNote (always): one line naming where in the record the data comes from ("this note's 2019-2024 store counts; the 'Unit economics' note").
+- caveat: every approximation, gap or tension, in the record's own words ("the two notes disagree on 2022 — drawn from the newer one"). Empty only when nothing needs flagging.
+- Keep labels short (they render in a small card); numbers stay in the record's own units and precision — never sharpen "roughly half" into 51.5.`;
+
+/**
+ * The visualizer's output — flat (no nested optionality), every field
+ * required, empty string/array meaning "not used by this kind", so the schema
+ * follows the codebase's all-required structured-output idiom. Server-side
+ * normalization (lib/visual-spec.ts) re-checks every bound before render.
+ */
+export const NOTE_VISUAL_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "result",
+    "reason",
+    "kind",
+    "title",
+    "subtitle",
+    "unit",
+    "series",
+    "events",
+    "nodes",
+    "edges",
+    "sourceNote",
+    "caveat",
+  ],
+  properties: {
+    result: {
+      type: "string",
+      enum: ["chart", "insufficient"],
+      description:
+        '"chart" when the record supports the visual; "insufficient" when it does not (then fill reason and leave the drawing fields empty).',
+    },
+    reason: {
+      type: "string",
+      description:
+        'insufficient only: what the record lacks, plainly, so the investor knows what to write or research next. "" when result is "chart".',
+    },
+    kind: {
+      type: "string",
+      enum: ["line", "bar", "timeline", "flow"],
+      description: 'The visual form (see doctrine). Use "line" as the placeholder when declining.',
+    },
+    title: { type: "string", description: "The takeaway as a finding, ≤120 chars. \"\" when declining." },
+    subtitle: { type: "string", description: 'Optional scope line (period, unit context). "" when unused.' },
+    unit: {
+      type: "string",
+      description: 'line/bar: the ONE unit every y value shares ("%", "$B", "stores"). "" for timeline/flow.',
+    },
+    series: {
+      type: "array",
+      description:
+        "line: 1-4 series (one shared unit). bar: exactly 1 series whose points are the categories. [] for timeline/flow.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "points"],
+        properties: {
+          name: { type: "string", description: "Series name (≤60 chars)." },
+          points: {
+            type: "array",
+            description: "Ordered points; x is the ordinal label (year/date/era/category), y the value.",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["x", "y"],
+              properties: {
+                x: { type: "string" },
+                y: { type: "number" },
+              },
+            },
+          },
+        },
+      },
+    },
+    events: {
+      type: "array",
+      description: "timeline only: 2-12 events, chronological. [] otherwise.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["date", "label", "detail"],
+        properties: {
+          date: { type: "string", description: 'When — date or era label ("2019", "Mar 2024").' },
+          label: { type: "string", description: "What happened (≤120 chars)." },
+          detail: { type: "string", description: 'One muted context line. "" when none.' },
+        },
+      },
+    },
+    nodes: {
+      type: "array",
+      description: "flow only: 2-10 nodes. [] otherwise.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label"],
+        properties: {
+          id: { type: "string", description: "Short stable id referenced by edges." },
+          label: { type: "string", description: "Node label (≤80 chars)." },
+        },
+      },
+    },
+    edges: {
+      type: "array",
+      description: "flow only: 1-14 directed edges between node ids. [] otherwise.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["from", "to", "label"],
+        properties: {
+          from: { type: "string" },
+          to: { type: "string" },
+          label: { type: "string", description: 'Relation on the arrow ("licenses", "~60% of COGS"). "" when none.' },
+        },
+      },
+    },
+    sourceNote: {
+      type: "string",
+      description: 'chart only: where in the record the data comes from, one line. "" when declining.',
+    },
+    caveat: {
+      type: "string",
+      description: 'Approximations/gaps in the record\'s own words. "" when nothing needs flagging.',
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
 // Doctrine for the finance-cleansing bench (FOUNDATION: business-model
 // anchor — owner earnings; "EBITDA = bullshit earnings"; febezzlement).
 // The investor's own normalization of the reported record: strip genuine

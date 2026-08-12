@@ -775,6 +775,8 @@ export interface DiligencePayload {
     notes: Note[];
     research: DiligenceResearch[];
     evidence: DiligenceEvidence[];
+    /** Kept visuals for this section's notepads (each carries its noteId). */
+    visuals: NoteVisual[];
   })[];
   synthesis: DiligenceSynthesis | null;
   /** True when sections/notes/memos changed after the synthesis was written. */
@@ -783,6 +785,85 @@ export interface DiligencePayload {
   focusAreaTitles: string[];
   /** Active board signals (chips + the suggest-topics flow). */
   activeSignals: { id: string; name: string; focusArea: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// Note visuals: the highlight toolkit's visualizer. A highlighted passage,
+// read against the whole notebook, becomes ONE chart/diagram spec — drawn
+// strictly from the record's own words (the generator declines rather than
+// invent data) and kept beneath its notepad only on the investor's explicit
+// keep (the record itself is never written into).
+// ---------------------------------------------------------------------------
+
+/** The four visual forms the note visualizer can draw. */
+export type VisualKind = "line" | "bar" | "timeline" | "flow";
+
+export interface VisualPoint {
+  /** Ordinal x label (year, date, era, category name). */
+  x: string;
+  y: number;
+}
+
+export interface VisualSeries {
+  name: string;
+  points: VisualPoint[];
+}
+
+export interface VisualEvent {
+  /** When — a date or era label ("2019", "Mar 2024", "IPO"). */
+  date: string;
+  label: string;
+  /** One optional muted line under the label ("" = none). */
+  detail: string;
+}
+
+export interface VisualNode {
+  id: string;
+  label: string;
+}
+
+export interface VisualEdge {
+  from: string;
+  to: string;
+  /** Optional relation label on the arrow ("" = none). */
+  label: string;
+}
+
+/**
+ * A renderable visual. Which fields are populated depends on `kind`:
+ * line → series (1-4, one shared unit); bar → series (exactly 1; its points
+ * are the categories); timeline → events; flow → nodes + edges. `sourceNote`
+ * (provenance) always renders under the visual; `caveat` carries the record's
+ * own approximations and gaps.
+ */
+export interface VisualSpec {
+  kind: VisualKind;
+  /** The takeaway stated as a finding, not a topic. */
+  title: string;
+  subtitle: string;
+  /** line/bar: the one unit every y value shares ("%", "$B", "stores"). */
+  unit: string;
+  series: VisualSeries[];
+  events: VisualEvent[];
+  nodes: VisualNode[];
+  edges: VisualEdge[];
+  /** Where in the record the data comes from — always shown. */
+  sourceNote: string;
+  /** Approximations/gaps, in the record's words ("" = nothing to flag). */
+  caveat: string;
+}
+
+/** A kept visual, attached beneath its notepad (never inside the investor's text). */
+export interface NoteVisual {
+  id: string;
+  noteId: string;
+  symbol: string;
+  /** The highlighted passage the visual was asked about. */
+  selectedText: string;
+  /** What the investor asked to see (their words and/or the picked lens). */
+  ask: string;
+  spec: VisualSpec;
+  createdAt: string;
 }
 
 /**

@@ -221,7 +221,31 @@ function CrossIcon() {
   );
 }
 
-export function Annotatable({ surfaceId, children }: { surfaceId: string; children: ReactNode }) {
+function ChartIcon() {
+  return (
+    <svg viewBox="0 0 12 12" className="h-3 w-3" fill="currentColor" aria-hidden>
+      <rect x="1" y="6.5" width="2.4" height="4.5" rx="0.7" />
+      <rect x="4.8" y="3.5" width="2.4" height="7.5" rx="0.7" />
+      <rect x="8.6" y="1" width="2.4" height="10" rx="0.7" />
+    </svg>
+  );
+}
+
+export function Annotatable({
+  surfaceId,
+  children,
+  onVisualize,
+}: {
+  surfaceId: string;
+  children: ReactNode;
+  /**
+   * When set, the selection toolbar grows a Visualize tool: the callback gets
+   * the highlighted text and the surface owns what happens next (the dd page
+   * opens the visualizer dialog). Highlighting stays untouched — visualizing
+   * a passage never creates an annotation.
+   */
+  onVisualize?: (sel: { selectedText: string }) => void;
+}) {
   const ctx = useContext(Ctx);
   const { t } = useT();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -467,7 +491,7 @@ export function Annotatable({ surfaceId, children }: { surfaceId: string; childr
         <div
           ref={toolbarRef}
           className="ann-pop absolute z-[60] rounded-xl bg-card2 border border-ink/15 shadow-2xl shadow-black/50 p-2 flex flex-col gap-1.5 w-56"
-          style={{ left: Math.max(0, Math.min(toolbar.x - 112, (containerRef.current?.clientWidth ?? 300) - 224)), top: toolbar.y - 86 }}
+          style={{ left: Math.max(0, Math.min(toolbar.x - 112, (containerRef.current?.clientWidth ?? 300) - 224)), top: toolbar.y - (onVisualize ? 116 : 86) }}
           onMouseDown={(e) => {
             const tag = (e.target as HTMLElement).tagName;
             if (tag === "INPUT" || tag === "BUTTON") return;
@@ -505,6 +529,19 @@ export function Annotatable({ surfaceId, children }: { surfaceId: string; childr
             placeholder={t("notes.annotPlaceholder")}
             className="w-full rounded-md border border-hairline bg-ink/6 px-2 py-1 text-[0.6875rem] focus:outline-none focus:border-accent/50 placeholder:text-muted/60"
           />
+          {onVisualize && (
+            <button
+              onClick={() => {
+                const selectedText = toolbar.selectedText;
+                dismiss();
+                onVisualize({ selectedText });
+              }}
+              className="w-full flex items-center gap-1.5 rounded-md bg-accent/10 hover:bg-accent/20 text-accent px-2 py-1 text-[0.6875rem] font-medium transition-colors"
+            >
+              <ChartIcon />
+              {t("notes.vizAction")}
+            </button>
+          )}
         </div>
       )}
     </div>
