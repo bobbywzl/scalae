@@ -42,10 +42,14 @@ import type { Lang } from "../i18n/config";
 import type {
   Citation,
   FinAdjustment,
+  FinAdjustmentOp,
   FinAdjustmentProposal,
   FinMessage,
+  MetricFormat,
+  MetricGroup,
   TickerFinancials,
 } from "../types";
+import { diligenceRecordContext, signalBoardContext } from "./context";
 
 /**
  * The finance-cleansing bench's agents (FOUNDATION: human sovereignty;
@@ -74,16 +78,30 @@ const ANALYST_PHASE1_LIMIT_MS = 150_000;
 const ANALYST_SWEEP_LIMIT_MS = 80_000;
 const ANALYST_TOTAL_BUDGET_MS = 285_000;
 
+/**
+ * The wire shape a cleansing agent emits for one proposal. addRow cells
+ * arrive as {fiscalYear, value} pairs (JSON-schema-friendly); validProposals
+ * normalizes them into the FinAdjustmentProposal record shape.
+ */
+type AgentProposal = Omit<FinAdjustmentProposal, "cells"> & {
+  cells?: { fiscalYear: string; value: number }[] | Record<string, number | null> | null;
+  citationIndexes?: number[];
+  applyNow?: boolean;
+};
+
+/** A normalized, table-checked proposal ready for insertFinAdjustment. */
+type ValidProposal = FinAdjustmentProposal & { citationIndexes: number[]; applyNow?: boolean };
+
 interface SuggestOutput {
   note: string;
-  proposals: (FinAdjustmentProposal & { citationIndexes: number[] })[];
+  proposals: AgentProposal[];
 }
 
 interface AnalystOutput {
   reply: string;
   /** Non-empty = the analyst needs the desk to research disclosed figures first. */
   researchQueries: string[];
-  proposals: (FinAdjustmentProposal & { citationIndexes: number[]; applyNow: boolean })[];
+  proposals: AgentProposal[];
   applyAdjustmentIds: string[];
   revertAdjustmentIds: string[];
   dismissAdjustmentIds: string[];
@@ -116,42 +134,176 @@ export async function finChatError(userId: string, symbol: string): Promise<stri
 // re-checked against the actual table here.
 // ---------------------------------------------------------------------------
 
-function validProposals<T extends FinAdjustmentProposal>(
-  raw: T[] | undefined,
+const ROW_FORMATS = new Set<string>(["money", "pct", "ratio", "x", "perShare", "shares"]);
+const ROW_GROUPS = new Set<string>(["income", "returns", "balance", "cashflow", "dcf", "perShare", "custom"]);
+
+/** Op-aware identity of an adjustment/proposal, for the no-duplication ledger. */
+function identityKey(a: {
+  op?: FinAdjustmentOp | null;
+  metricKey: string;
+  fiscalYear: string;
+  title: string;
+  value?: number | null;
+  rowLabel?: string | null;
+}): string {
+  const title = a.title.toLowerCase().trim();
+  switch (a.op ?? "delta") {
+    case "set":
+      return `set|${a.metricKey}|${a.fiscalYear}|${a.value ?? ""}`;
+    case "addRow":
+      return `addRow|${(a.rowLabel ?? a.metricKey).toLowerCase().trim()}`;
+    case "removeRow":
+      return `removeRow|${a.metricKey}`;
+    case "addYear":
+      return `addYear|${a.fiscalYear}`;
+    case "removeYear":
+      return `removeYear|${a.fiscalYear}`;
+    default:
+      return `delta|${a.metricKey}|${a.fiscalYear}|${title}`;
+  }
+}
+
+/** addRow cells in either wire shape → [year, value] entries. */
+function cellEntries(cells: AgentProposal["cells"]): [string, number | null][] {
+  if (!cells) return [];
+  if (Array.isArray(cells)) {
+    return cells.map((c) => [String(c?.fiscalYear ?? "").trim(), c?.value ?? null]);
+  }
+  return Object.entries(cells);
+}
+
+/**
+ * Validate + normalize what an agent proposed against the actual table and
+ * the bench's history. Belt-and-braces: the schema already constrains shape,
+ * but every number and target that lands in the record is re-checked here.
+ * Board edits (op ≠ "delta") pass only when `allowBoardEdits` — the analyst
+ * desk implementing an explicit investor request; the suggestion pass never
+ * emits them. Proposals are processed in emission order so a set may target
+ * a row/year added earlier in the same batch.
+ */
+function validProposals(
+  raw: AgentProposal[] | undefined,
   fin: TickerFinancials,
   existing: FinAdjustment[],
-  cap: number
-): T[] {
-  const out: T[] = [];
-  const seen = new Set(
-    existing
-      .filter((a) => a.status !== "reverted") // a reverted item may honestly be re-proposed
-      .map((a) => `${a.metricKey}|${a.fiscalYear}|${a.title.toLowerCase().trim()}`)
-  );
-  for (const p of raw ?? []) {
-    if (!p || !ADJUSTABLE.has(p.metricKey)) continue;
-    if (!fin.fiscalYears.includes(p.fiscalYear)) continue;
-    if (!Number.isFinite(p.delta) || p.delta === 0) continue;
-    if (!p.title?.trim()) continue;
-    const key = `${p.metricKey}|${p.fiscalYear}|${p.title.toLowerCase().trim()}`;
-    if (seen.has(key)) continue;
-    // Same line, same year, same amount = the same item under another name.
-    if (
-      existing.some(
-        (a) =>
-          a.status !== "reverted" &&
-          a.metricKey === p.metricKey &&
-          a.fiscalYear === p.fiscalYear &&
-          Math.abs(a.delta - p.delta) <= Math.abs(p.delta) * 1e-6
-      )
-    ) {
-      continue;
-    }
+  cap: number,
+  allowBoardEdits = false
+): ValidProposal[] {
+  const out: ValidProposal[] = [];
+  const live = existing.filter((a) => a.status !== "reverted"); // a reverted item may honestly be re-proposed
+  const seen = new Set(live.map((a) => identityKey(a)));
+
+  // Legal targets: the reported grid plus rows/years already added on the
+  // bench (pending or applied — a set against a pending addRow simply stays
+  // inert until both are applied) plus ones added earlier in this batch.
+  const knownYears = new Set(fin.fiscalYears);
+  const knownRowKeys = new Set(fin.metrics.map((m) => m.key));
+  for (const a of existing) {
+    if (a.status === "dismissed" || a.status === "reverted") continue;
+    if (a.op === "addYear" && a.fiscalYear) knownYears.add(a.fiscalYear);
+    if (a.op === "addRow" && a.metricKey) knownRowKeys.add(a.metricKey);
+  }
+
+  const push = (p: ValidProposal) => {
+    const key = identityKey(p);
+    if (seen.has(key)) return;
     seen.add(key);
     out.push(p);
+  };
+  const base = (p: AgentProposal, op: FinAdjustmentOp): ValidProposal => ({
+    ...p,
+    op,
+    delta: op === "delta" ? p.delta : 0,
+    value: null,
+    rowLabel: null,
+    rowFormat: null,
+    rowGroup: null,
+    cells: null,
+    citationIndexes: Array.isArray(p.citationIndexes)
+      ? p.citationIndexes.filter((n) => Number.isInteger(n))
+      : [],
+  });
+
+  for (const p of raw ?? []) {
     if (out.length >= cap) break;
+    if (!p || !p.title?.trim()) continue;
+    const op: FinAdjustmentOp = p.op && allowBoardEdits ? p.op : "delta";
+    if (p.op && p.op !== "delta" && !allowBoardEdits) continue; // never launder a board edit into a delta
+
+    switch (op) {
+      case "delta": {
+        if (!ADJUSTABLE.has(p.metricKey)) continue;
+        // Deltas trace disclosed amounts against REPORTED cells — original years only.
+        if (!fin.fiscalYears.includes(p.fiscalYear)) continue;
+        if (!Number.isFinite(p.delta) || p.delta === 0) continue;
+        // Same line, same year, same amount = the same item under another name.
+        if (
+          live.some(
+            (a) =>
+              (a.op ?? "delta") === "delta" &&
+              a.metricKey === p.metricKey &&
+              a.fiscalYear === p.fiscalYear &&
+              Math.abs(a.delta - p.delta) <= Math.abs(p.delta) * 1e-6
+          )
+        ) {
+          continue;
+        }
+        push(base(p, "delta"));
+        break;
+      }
+      case "set": {
+        if (!knownRowKeys.has(p.metricKey)) continue;
+        if (!knownYears.has(p.fiscalYear)) continue;
+        if (p.value == null || !Number.isFinite(p.value)) continue;
+        push({ ...base(p, "set"), value: p.value });
+        break;
+      }
+      case "addRow": {
+        const label = (p.rowLabel ?? "").trim().slice(0, 80);
+        if (!label) continue;
+        if (seen.has(identityKey({ op: "addRow", metricKey: "", fiscalYear: "", title: p.title, rowLabel: label }))) continue;
+        const cells: Record<string, number | null> = {};
+        for (const [year, v] of cellEntries(p.cells)) {
+          if (!knownYears.has(year) || v == null || !Number.isFinite(v)) continue;
+          cells[year] = v;
+        }
+        // The row's stable key, from its label; unique against every known row.
+        const slug =
+          label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "row";
+        let key = `custom:${slug}`;
+        for (let n = 2; knownRowKeys.has(key); n++) key = `custom:${slug}-${n}`;
+        knownRowKeys.add(key);
+        push({
+          ...base(p, "addRow"),
+          metricKey: key,
+          fiscalYear: "",
+          rowLabel: label,
+          rowFormat: ROW_FORMATS.has(p.rowFormat ?? "") ? (p.rowFormat as MetricFormat) : "money",
+          rowGroup: ROW_GROUPS.has(p.rowGroup ?? "") ? (p.rowGroup as MetricGroup) : "custom",
+          cells,
+        });
+        break;
+      }
+      case "removeRow": {
+        if (!knownRowKeys.has(p.metricKey)) continue;
+        push({ ...base(p, "removeRow"), fiscalYear: "" });
+        break;
+      }
+      case "addYear": {
+        const year = (p.fiscalYear ?? "").trim();
+        if (!/^\d{4}$/.test(year)) continue;
+        if (knownYears.has(year)) continue;
+        knownYears.add(year);
+        push({ ...base(p, "addYear"), metricKey: "", fiscalYear: year });
+        break;
+      }
+      case "removeYear": {
+        if (!knownYears.has(p.fiscalYear)) continue;
+        push({ ...base(p, "removeYear"), metricKey: "" });
+        break;
+      }
+    }
   }
-  return out;
+  return out.slice(0, cap);
 }
 
 /** Resolve citationIndexes into Citation[] against a numbered source list. */
@@ -242,9 +394,10 @@ export async function executeCleansingSuggest(
     }
     const existing = await listFinAdjustments(userId, symbol);
 
-    const [deepModel, synthModel] = await Promise.all([
+    const [deepModel, synthModel, boardBlock] = await Promise.all([
       resolveModel("scoutDeep"),
       resolveModel("diligence"),
+      signalBoardContext(userId, symbol).catch(() => ""),
     ]);
 
     const yearsSpan = `${fin.fiscalYears[0]}–${fin.fiscalYears[fin.fiscalYears.length - 1]}`;
@@ -329,6 +482,8 @@ ${researchBlock}
 
 NUMBERED SOURCES:
 ${sourceList || "(none)"}
+
+${boardBlock}
 
 TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Skip anything the sweeps could not pin to a disclosed amount. Work the DELTA ANOMALIES explicitly: for each flagged line-year, either propose the disclosed one-time or abnormal item(s) behind the move, or account for it in the pass note as genuine business performance that must stand — no flagged anomaly goes unaddressed, and a real move is never cleansed away. Then write the pass note (what you examined, each anomaly's verdict, what you found in each direction, what you deliberately did not propose and why).
 
@@ -425,9 +580,13 @@ export async function handleFinAnalystTurn(
   const pausedByInvestor = async () =>
     ((await getSetting(userId, finChatCancelKey(symbol)).catch(() => null)) ?? "") >= turnStartedAt;
 
-  const [adjustments, events] = await Promise.all([
+  // The whole ticker in view (FOUNDATION: one connected desk): the bench
+  // pieces plus the signal board and the due-diligence record, read-only.
+  const [adjustments, events, boardBlock, ddBlock] = await Promise.all([
     listFinAdjustments(userId, symbol),
     listFinCleansingEvents(userId, symbol, 30),
+    signalBoardContext(userId, symbol).catch(() => ""),
+    diligenceRecordContext(userId, symbol).catch(() => ""),
   ]);
   const applied = adjustments.filter((a) => a.status === "applied");
   const cleansed = applied.length > 0 ? applyCleansing(fin, applied) : null;
@@ -466,7 +625,9 @@ RECENT BENCH HISTORY (audit log, newest first):
 ${events.map((e) => `- ${e.at.slice(0, 10)} ${e.action}: ${e.detail}`).join("\n") || "(none)"}
 
 NUMBERED SOURCES (from existing adjustments; cite [n] when you reuse one):
-${sourceList || "(none)"}`;
+${sourceList || "(none)"}
+
+${[boardBlock, ddBlock].filter(Boolean).join("\n\n")}`;
 
   const languageDirective =
     opts.lang === "zh"
@@ -604,13 +765,14 @@ ${researchSources.map((s, i) => `[${sources.length + i}] ${s.title} — ${s.url}
 
   // --- new adjustments from this turn ---
   // Parked by default; applied in the same gesture ONLY for an explicit
-  // command whose amounts were already on the bench. A turn that needed
+  // delta command whose amounts were already on the bench. A turn that needed
   // research always parks — the investor approves the specific numbers the
-  // desk found, exactly like a proposed signal.
+  // desk found, exactly like a proposed signal. BOARD EDITS always park, no
+  // matter how explicit the ask: request-only, never automatic.
   const created: string[] = [];
-  const proposals = validProposals(out.proposals, fin, adjustments, 8);
+  const proposals = validProposals(out.proposals, fin, adjustments, 16, true);
   for (const p of proposals) {
-    const parked = researched || p.applyNow !== true;
+    const parked = researched || p.applyNow !== true || (p.op ?? "delta") !== "delta";
     const adj = await insertFinAdjustment(
       userId,
       symbol,

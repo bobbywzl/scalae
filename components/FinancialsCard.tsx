@@ -59,7 +59,7 @@ function trendClass(m: FinancialMetric): string {
   return delta > 0 ? "text-gain" : delta < 0 ? "text-loss" : "text-emph";
 }
 
-const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "dcf", "perShare"];
+const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "dcf", "perShare", "custom"];
 
 /** Tab-separated export with RAW numeric values (Excel/CapIQ-ready), so the
  *  investor can build their own DCF — not the display-formatted strings.
@@ -69,7 +69,8 @@ function buildTSV(
   fiscalYears: string[],
   metrics: FinancialMetric[],
   d: DcfInputs,
-  t: ReturnType<typeof useT>["t"]
+  t: ReturnType<typeof useT>["t"],
+  labelFor: (key: string) => string
 ): string {
   const cell = (v: number | null) => (v == null ? "" : String(v));
   const lines: string[] = [];
@@ -78,7 +79,7 @@ function buildTSV(
     const rows = metrics.filter((m) => m.group === g);
     if (!rows.length) continue;
     lines.push(t(`financials.grp_${g}` as TKey));
-    for (const m of rows) lines.push([label(t, m.key), ...m.values.map(cell)].join("\t"));
+    for (const m of rows) lines.push([labelFor(m.key), ...m.values.map(cell)].join("\t"));
   }
   lines.push("", t("financials.dcfTitle"));
   const kv: [string, number | null][] = [
@@ -125,10 +126,24 @@ export function FinancialsSection({
   const [view, setView] = useState<"cleansed" | "reported">(cleansed ? "cleansed" : "reported");
 
   const c = data.currency ?? "USD";
-  const years = data.fiscalYears;
   const cleansedActive = view === "cleansed" && cleansed != null;
+  // The cleansed view carries its own grid: added year columns in, hidden
+  // years/rows out, custom rows appended (board edits). Reported view = raw.
+  const years = cleansedActive ? cleansed.fiscalYears : data.fiscalYears;
   const metrics = cleansedActive ? cleansed.metrics : data.metrics;
   const dcfInputs = cleansedActive ? cleansed.dcfInputs : data.dcfInputs;
+
+  // Custom rows ("custom:*") resolve their label from the addRow adjustment
+  // that created them; everything else through the i18n dictionary.
+  const customLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of adjustments) {
+      if ((a.op ?? "delta") === "addRow" && a.metricKey) m.set(a.metricKey, a.rowLabel ?? a.title);
+    }
+    return m;
+  }, [adjustments]);
+  const labelFor = (key: string): string =>
+    key.startsWith("custom:") ? (customLabels.get(key) ?? key.slice(7)) : label(t, key);
 
   // "metricKey:year" → moved cell, for highlighting + hover provenance.
   const movedCells = useMemo(() => {
@@ -209,6 +224,12 @@ export function FinancialsSection({
         </div>
       )}
 
+      {/* Board-shape edits in effect (added/hidden years, hidden rows, custom
+          rows) — each an applied, reversible adjustment on the bench. */}
+      {cleansedActive && cleansed && (
+        <BoardEditChips cleansed={cleansed} labelFor={labelFor} t={t} />
+      )}
+
       <Snapshot data={data} c={c} t={t} />
 
       <DcfInputsBlock d={dcfInputs} n={years.length} c={c} t={t} />
@@ -227,7 +248,7 @@ export function FinancialsSection({
             <button
               onClick={() => {
                 navigator.clipboard
-                  ?.writeText(buildTSV(data.symbol, years, metrics, dcfInputs, t))
+                  ?.writeText(buildTSV(data.symbol, years, metrics, dcfInputs, t, labelFor))
                   .then(
                     () => {
                       setCopied(true);
@@ -243,11 +264,48 @@ export function FinancialsSection({
             <span className="text-[0.625rem] text-muted/60">{t("financials.accuracyNote")}</span>
           </div>
           {showTable && (
-            <MetricsTable years={years} metrics={metrics} c={c} t={t} tipFor={tipFor} />
+            <MetricsTable years={years} metrics={metrics} c={c} t={t} tipFor={tipFor} labelFor={labelFor} />
           )}
         </>
       )}
     </section>
+  );
+}
+
+// --- board-shape edits in effect (cleansed view only) ---
+function BoardEditChips({
+  cleansed,
+  labelFor,
+  t,
+}: {
+  cleansed: CleansedFinancials;
+  labelFor: (key: string) => string;
+  t: ReturnType<typeof useT>["t"];
+}) {
+  const customKeys = cleansed.metrics.filter((m) => m.key.startsWith("custom:")).map((m) => m.key);
+  const chips: { sign: "+" | "−"; text: string }[] = [
+    ...customKeys.map((k) => ({ sign: "+" as const, text: labelFor(k) })),
+    ...cleansed.addedYears.map((y) => ({ sign: "+" as const, text: `FY${y}` })),
+    ...cleansed.hiddenRows.map((k) => ({ sign: "−" as const, text: labelFor(k) })),
+    ...cleansed.hiddenYears.map((y) => ({ sign: "−" as const, text: `FY${y}` })),
+  ];
+  if (chips.length === 0) return null;
+  return (
+    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+      <span className="text-[0.625rem] text-muted/70">{t("financials.boardEditsLabel")}</span>
+      {chips.map((chip, i) => (
+        <span
+          key={i}
+          className={`rounded-full border px-2 py-0.5 text-[0.625rem] tabular-nums ${
+            chip.sign === "+"
+              ? "border-gain/30 bg-gain/8 text-gain"
+              : "border-hairline bg-ink/5 text-muted line-through decoration-muted/50"
+          }`}
+        >
+          {chip.sign} {chip.text}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -499,6 +557,7 @@ function MetricsTable({
   c,
   t,
   tipFor,
+  labelFor,
 }: {
   years: string[];
   metrics: FinancialMetric[];
@@ -506,6 +565,8 @@ function MetricsTable({
   t: ReturnType<typeof useT>["t"];
   /** Hover text for a moved cell in the cleansed view (undefined = untouched). */
   tipFor: (m: FinancialMetric, yearIdx: number) => string | undefined;
+  /** Row label resolver (custom rows resolve through their addRow adjustment). */
+  labelFor: (key: string) => string;
 }) {
   return (
     <div className="overflow-x-auto mt-2">
@@ -531,7 +592,7 @@ function MetricsTable({
                   return (
                     <tr key={m.key} className="border-t border-hairline/50">
                       <td className="sticky left-0 bg-card py-1 pr-3 text-muted whitespace-nowrap z-10">
-                        {label(t, m.key)}
+                        {labelFor(m.key)}
                       </td>
                       {m.values.map((v, i) => {
                         const tip = tipFor(m, i);

@@ -2,6 +2,8 @@ import type {
   CleansedCell,
   CleansedFinancials,
   FinAdjustment,
+  FinAdjustmentOp,
+  FinancialMetric,
   TickerFinancials,
 } from "./types";
 
@@ -27,6 +29,13 @@ import type {
  * 4. Rows whose true inputs aren't in the table at all (ROIC, ROA, NOPAT,
  *    FCFF, tax rate, gross margin, current ratio, interest coverage, DPS)
  *    stay raw — the UI says so rather than serving approximations.
+ * 5. BOARD EDITS (op ≠ "delta") reshape the view, never the record: "set"
+ *    pins a cell to an exact value (a pinned cell always beats a recompute);
+ *    "addRow" materializes a custom row whose reported values are null;
+ *    "addYear" widens the grid with an empty column; "removeRow"/"removeYear"
+ *    only hide — derived rows and the DCF medians keep computing on the full
+ *    grid, because a hidden year spliced out of a growth series would
+ *    manufacture numbers the record never reported.
  */
 
 /** Base line items that accept direct deltas (traceable reported figures). */
@@ -63,6 +72,13 @@ export const RAW_ONLY_KEYS = [
 const div = (a: number | null, b: number | null): number | null =>
   a != null && b != null && b !== 0 ? a / b : null;
 
+/** Numeric-aware fiscal-year ordering (labels are 4-digit years in practice). */
+const cmpYear = (a: string, b: string): number => {
+  const na = Number(a);
+  const nb = Number(b);
+  return Number.isFinite(na) && Number.isFinite(nb) ? na - nb : a.localeCompare(b);
+};
+
 /** Relative-epsilon equality so float recomputes don't register phantom diffs. */
 function near(a: number | null, b: number | null): boolean {
   if (a == null || b == null) return a === b;
@@ -85,9 +101,42 @@ export function applyCleansing(
   fin: TickerFinancials,
   applied: FinAdjustment[]
 ): CleansedFinancials {
-  const years = fin.fiscalYears;
-  const raw = new Map<string, (number | null)[]>(fin.metrics.map((m) => [m.key, m.values]));
-  const vals = new Map<string, (number | null)[]>(fin.metrics.map((m) => [m.key, [...m.values]]));
+  // Board edits ride alongside deltas; partition by op (legacy rows = delta).
+  const ops = (o: FinAdjustmentOp) => applied.filter((a) => (a.op ?? "delta") === o);
+  const deltas = ops("delta");
+  // Oldest-first so the investor's LATEST applied pin on a cell wins.
+  const sets = ops("set").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const addRows = ops("addRow").sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const hiddenRowKeys = new Set(ops("removeRow").map((a) => a.metricKey));
+  const addedYears = [
+    ...new Set(ops("addYear").map((a) => a.fiscalYear)),
+  ].filter((y) => !!y && !fin.fiscalYears.includes(y));
+  const hiddenYearLabels = new Set(ops("removeYear").map((a) => a.fiscalYear));
+
+  // The working grid: reported years plus applied addYear columns, in fiscal
+  // order. Reported rows remap onto it (null in the added columns); custom
+  // rows (addRow) exist only in the cleansed view, so their raw side is null.
+  const years = [...fin.fiscalYears, ...addedYears].sort(cmpYear);
+  const oldIdx = new Map(fin.fiscalYears.map((y, i) => [y, i]));
+  const remap = (values: (number | null)[]): (number | null)[] =>
+    years.map((y) => {
+      const i = oldIdx.get(y);
+      return i == null ? null : (values[i] ?? null);
+    });
+  const customRows: FinancialMetric[] = addRows.map((a) => ({
+    key: a.metricKey,
+    group: a.rowGroup ?? "custom",
+    format: a.rowFormat ?? "money",
+    polarity: 0,
+    values: years.map(() => null),
+  }));
+  const customKeys = new Set(customRows.map((m) => m.key));
+  const allMetrics: FinancialMetric[] = [
+    ...fin.metrics.map((m) => ({ ...m, values: remap(m.values) })),
+    ...customRows,
+  ];
+  const raw = new Map<string, (number | null)[]>(allMetrics.map((m) => [m.key, m.values]));
+  const vals = new Map<string, (number | null)[]>(allMetrics.map((m) => [m.key, [...m.values]]));
 
   // Per-cell adjustment provenance ("metricKey:yearIndex" → adjustment ids).
   const contrib = new Map<string, Set<string>>();
@@ -109,8 +158,34 @@ export function applyCleansing(
   };
   const idsAt = (k: string, i: number): string[] => [...(contrib.get(cellKey(k, i)) ?? [])];
 
-  // --- 1. direct deltas on the whitelisted base rows ---
-  for (const a of applied) {
+  // --- 1a. custom-row cells (addRow) — direct placements of the row's values ---
+  for (const a of addRows) {
+    const row = vals.get(a.metricKey);
+    if (!row || !a.cells) continue;
+    for (const [year, v] of Object.entries(a.cells)) {
+      const i = years.indexOf(year);
+      if (i < 0 || v == null || !Number.isFinite(v)) continue;
+      row[i] = v;
+      direct.add(cellKey(a.metricKey, i));
+      addContrib(a.metricKey, i, [a.id]);
+    }
+  }
+
+  // --- 1b. set ops: pin cells to exact values (any row, incl. custom and
+  // derived rows). A pinned cell is the investor's explicit figure — it always
+  // beats a recompute (setDerived skips direct cells below).
+  for (const s of sets) {
+    if (s.value == null || !Number.isFinite(s.value)) continue;
+    const i = years.indexOf(s.fiscalYear);
+    const row = vals.get(s.metricKey);
+    if (i < 0 || !row) continue;
+    row[i] = s.value;
+    direct.add(cellKey(s.metricKey, i));
+    addContrib(s.metricKey, i, [s.id]);
+  }
+
+  // --- 1c. direct deltas on the whitelisted base rows ---
+  for (const a of deltas) {
     if (!ADJUSTABLE.has(a.metricKey) || !Number.isFinite(a.delta) || a.delta === 0) continue;
     const i = years.indexOf(a.fiscalYear);
     if (i < 0) continue;
@@ -125,7 +200,9 @@ export function applyCleansing(
   const moved = (k: string, i: number): boolean => !near(at(k, i), rawAt(k, i));
 
   // Set a recomputed value; provenance is the union of its inputs' contributors.
+  // A directly-set (pinned) cell never recomputes — the investor's figure wins.
   const setDerived = (k: string, i: number, v: number | null, inputs: [string, number][]) => {
+    if (direct.has(cellKey(k, i))) return;
     const row = vals.get(k);
     if (!row) return;
     row[i] = v;
@@ -137,12 +214,21 @@ export function applyCleansing(
   };
 
   // --- 2. derived rows, in dependency order ---
+  // Delta-propagation rows (netDebt, fcf, eps) prefer raw + Δ of inputs; where
+  // the raw base is null (an added-year column, or a provider gap the investor
+  // filled with sets) there is no provider figure to reconcile against, so
+  // they fall back to the exact formula over the current values.
   for (let i = 0; i < years.length; i++) {
     // Net debt: provider-sourced raw → delta-propagation (Δdebt − Δcash).
     if (moved("totalDebt", i) || moved("cash", i)) {
       const base = rawAt("netDebt", i);
       if (base != null) {
         setDerived("netDebt", i, base + deltaOf("totalDebt", i) - deltaOf("cash", i), [
+          ["totalDebt", i],
+          ["cash", i],
+        ]);
+      } else if (at("totalDebt", i) != null && at("cash", i) != null) {
+        setDerived("netDebt", i, at("totalDebt", i)! - at("cash", i)!, [
           ["totalDebt", i],
           ["cash", i],
         ]);
@@ -174,11 +260,16 @@ export function applyCleansing(
       ]);
     }
     // FCF: provider-sourced raw → delta-propagation from OCF/capex. A direct
-    // fcf adjustment wins outright (already applied above; no recompute).
-    if (!direct.has(cellKey("fcf", i)) && (moved("ocf", i) || moved("capex", i))) {
+    // fcf adjustment or pin wins outright (setDerived skips direct cells).
+    if (moved("ocf", i) || moved("capex", i)) {
       const base = rawAt("fcf", i);
       if (base != null) {
         setDerived("fcf", i, base + deltaOf("ocf", i) + deltaOf("capex", i), [
+          ["ocf", i],
+          ["capex", i],
+        ]);
+      } else if (at("ocf", i) != null && at("capex", i) != null) {
+        setDerived("fcf", i, at("ocf", i)! + at("capex", i)!, [
           ["ocf", i],
           ["capex", i],
         ]);
@@ -215,6 +306,11 @@ export function applyCleansing(
       const rawRatio = div(rawAt("netIncome", i), rawAt("shares", i));
       if (base != null && adjRatio != null && rawRatio != null) {
         setDerived("eps", i, base + (adjRatio - rawRatio), [
+          ["netIncome", i],
+          ["shares", i],
+        ]);
+      } else if (base == null && adjRatio != null) {
+        setDerived("eps", i, adjRatio, [
           ["netIncome", i],
           ["shares", i],
         ]);
@@ -259,9 +355,14 @@ export function applyCleansing(
   }
 
   // --- 4. the raw → cleansed diff (metric order, then year order) ---
+  // Custom rows are excluded (they have no reported side — the addRow
+  // adjustment itself is their record), as are hidden rows/years (not part of
+  // the visible view; the hiding edit is its own auditable record).
   const cells: CleansedCell[] = [];
-  for (const m of fin.metrics) {
+  for (const m of allMetrics) {
+    if (customKeys.has(m.key) || hiddenRowKeys.has(m.key)) continue;
     for (let i = 0; i < years.length; i++) {
+      if (hiddenYearLabels.has(years[i])) continue;
       if (!moved(m.key, i)) continue;
       cells.push({
         metricKey: m.key,
@@ -274,10 +375,21 @@ export function applyCleansing(
     }
   }
 
+  // --- 5. project to the visible view: hidden years/rows drop out of the
+  // payload; the full grid stays the computation substrate above.
+  const visIdx = years
+    .map((y, i) => (hiddenYearLabels.has(y) ? -1 : i))
+    .filter((i) => i >= 0);
   return {
-    metrics: fin.metrics.map((m) => ({ ...m, values: vals.get(m.key)! })),
+    fiscalYears: visIdx.map((i) => years[i]),
+    metrics: allMetrics
+      .filter((m) => !hiddenRowKeys.has(m.key))
+      .map((m) => ({ ...m, values: visIdx.map((i) => vals.get(m.key)![i]) })),
     dcfInputs,
     cells,
+    addedYears: addedYears.filter((y) => !hiddenYearLabels.has(y)).sort(cmpYear),
+    hiddenYears: [...hiddenYearLabels].filter((y) => years.includes(y)).sort(cmpYear),
+    hiddenRows: [...hiddenRowKeys],
   };
 }
 
@@ -285,27 +397,66 @@ export function applyCleansing(
 // Shared formatting + agent context
 // ---------------------------------------------------------------------------
 
-/** Compact signed money for audit-log lines and agent context ("−$1.2B", "+¥340B" style). */
-export function fmtDelta(v: number, currency: string | null): string {
-  const cc = !currency || currency === "USD" ? "$" : `${currency} `;
+/** Compact money scale shared by the signed/unsigned formatters below. */
+function moneyScale(v: number): string {
   const a = Math.abs(v);
-  const s =
-    a >= 1e12 ? (a / 1e12).toFixed(2) + "T"
+  return a >= 1e12 ? (a / 1e12).toFixed(2) + "T"
     : a >= 1e9 ? (a / 1e9).toFixed(2) + "B"
     : a >= 1e6 ? (a / 1e6).toFixed(1) + "M"
     : a >= 1e3 ? (a / 1e3).toFixed(0) + "k"
     : a.toFixed(0);
-  return `${v < 0 ? "−" : "+"}${cc}${s}`;
 }
 
-/** The frozen human line an audit-log event stores ("netIncome FY2025 −$1.2B — SpaceX IPO gain"). */
+/** Compact signed money for audit-log lines and agent context ("−$1.2B", "+¥340B" style). */
+export function fmtDelta(v: number, currency: string | null): string {
+  const cc = !currency || currency === "USD" ? "$" : `${currency} `;
+  return `${v < 0 ? "−" : "+"}${cc}${moneyScale(v)}`;
+}
+
+/** Compact unsigned-positive money for pinned (set) values ("$1.2B", "CNY 340B"). */
+export function fmtAmount(v: number, currency: string | null): string {
+  const cc = !currency || currency === "USD" ? "$" : `${currency} `;
+  return `${v < 0 ? "−" : ""}${cc}${moneyScale(v)}`;
+}
+
+/**
+ * The frozen human line an audit-log event stores, op-aware:
+ * "netIncome FY2025 −$1.2B — SpaceX IPO gain", "add row \"R&D expense\" …",
+ * "hide FY2016 column — …".
+ */
 export function describeAdjustment(
-  a: Pick<FinAdjustment, "metricKey" | "fiscalYear" | "delta" | "title">,
+  a: Pick<FinAdjustment, "metricKey" | "fiscalYear" | "delta" | "title"> &
+    Partial<Pick<FinAdjustment, "op" | "value" | "rowLabel" | "cells">>,
   currency: string | null
 ): string {
-  const amount =
-    a.metricKey === "shares" ? `${a.delta < 0 ? "−" : "+"}${Math.abs(a.delta).toLocaleString("en-US")} shares` : fmtDelta(a.delta, currency);
-  return `${a.metricKey} FY${a.fiscalYear} ${amount} — ${a.title}`;
+  switch (a.op ?? "delta") {
+    case "set": {
+      const v = a.value;
+      const amount =
+        v == null ? "cleared"
+        : a.metricKey === "shares" ? `${Math.abs(v).toLocaleString("en-US")} shares`
+        : Math.abs(v) >= 1e4 ? fmtAmount(v, currency)
+        : String(v);
+      return `${a.metricKey} FY${a.fiscalYear} = ${amount} — ${a.title}`;
+    }
+    case "addRow": {
+      const n = a.cells ? Object.values(a.cells).filter((v) => v != null).length : 0;
+      return `add row "${a.rowLabel ?? a.metricKey}"${n > 0 ? ` (${n} value${n === 1 ? "" : "s"})` : ""} — ${a.title}`;
+    }
+    case "removeRow":
+      return `hide row ${a.metricKey} — ${a.title}`;
+    case "addYear":
+      return `add FY${a.fiscalYear} column — ${a.title}`;
+    case "removeYear":
+      return `hide FY${a.fiscalYear} column — ${a.title}`;
+    default: {
+      const amount =
+        a.metricKey === "shares"
+          ? `${a.delta < 0 ? "−" : "+"}${Math.abs(a.delta).toLocaleString("en-US")} shares`
+          : fmtDelta(a.delta, currency);
+      return `${a.metricKey} FY${a.fiscalYear} ${amount} — ${a.title}`;
+    }
+  }
 }
 
 /**
@@ -438,11 +589,15 @@ export function deltaAnomalyLines(anomalies: DeltaAnomaly[], currency: string | 
 export function adjustmentLines(adjustments: FinAdjustment[], currency: string | null): string {
   if (adjustments.length === 0) return "(none)";
   return adjustments
-    .map(
-      (a) =>
-        `- [id ${a.id}] (${a.status}, ${a.kind}) ${describeAdjustment(a, currency)}${
-          a.rationale ? ` | rationale: ${a.rationale.slice(0, 220)}` : ""
-        }`
-    )
+    .map((a) => {
+      const op = a.op ?? "delta";
+      // Board edits label themselves by op; a custom row also exposes its
+      // stable key so the analyst can target it with set/removeRow ops.
+      const tag = op === "delta" ? a.kind : op;
+      const rowKey = op === "addRow" ? ` (row key: ${a.metricKey})` : "";
+      return `- [id ${a.id}] (${a.status}, ${tag}) ${describeAdjustment(a, currency)}${rowKey}${
+        a.rationale ? ` | rationale: ${a.rationale.slice(0, 220)}` : ""
+      }`;
+    })
     .join("\n");
 }

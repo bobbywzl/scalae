@@ -26,6 +26,7 @@ import {
   latestRun,
   listDiligenceEvidence,
   listDiligenceResearch,
+  listFinAdjustments,
   listFocusAreas,
   listMessagesWithAttachments,
   listNoteSections,
@@ -41,6 +42,7 @@ import {
 } from "../db";
 import { getQuote, quoteLine } from "../market";
 import { financialsSummary, peekFinancials } from "../financials";
+import { benchLines } from "./context";
 import { diligenceContext } from "../notes";
 import { computeInvolvement, involvementLine } from "../portfolio";
 import type { Lang } from "../i18n/config";
@@ -283,6 +285,7 @@ export async function handleChatTurn(
     ddResearch,
     ddSynthesis,
     ddEvidence,
+    finAdjustments,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -300,6 +303,7 @@ export async function handleChatTurn(
     listDiligenceResearch(userId, symbol).catch(() => []),
     getDiligenceSynthesis(userId, symbol).catch(() => null),
     listDiligenceEvidence(userId, symbol).catch(() => []),
+    listFinAdjustments(userId, symbol).catch(() => []),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -341,6 +345,7 @@ Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 ${financials ? financialsSummary(financials) : ""}
+${financials ? benchLines(financials, finAdjustments) : ""}
 ${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
 ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
@@ -365,6 +370,7 @@ ${quickBoardLines || "(empty board)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 Due-diligence sections: ${noteSections.map((n) => n.title).join("; ") || "none"}
+Finance bench: ${finAdjustments.filter((a) => a.status === "applied").length} applied adjustment(s), ${finAdjustments.filter((a) => a.status === "suggested").length} awaiting review (details in the deep context)
 ${run?.dossier ? `\nTHE BUSINESS, AS THE DESK READS IT (standing dossier):\n${run.dossier}\n` : ""}${run?.brief ? `\nLATEST DAILY BRIEF:\n${run.brief}\n` : ""}${ddSynthesis?.content ? `\nDUE-DILIGENCE RECORD — STANDING SYNTHESIS:\n${ddSynthesis.content}\n` : ""}`;
 
   // Signal-focused context: the one signal's full world, in depth.

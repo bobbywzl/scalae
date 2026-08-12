@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { DeskTabs } from "@/components/DeskTabs";
@@ -10,9 +10,11 @@ import { useT } from "@/components/PrefsProvider";
 import { api, localizeError, timeAgo } from "@/components/util";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type {
+  Citation,
   CleansedCell,
   CleansingPayload,
   FinAdjustment,
+  FinAdjustmentOp,
   FinCleansingEvent,
   FinMessage,
   MetricFormat,
@@ -40,6 +42,49 @@ function fmtDelta(v: number, c: string | null): string {
     : a >= 1e3 ? (a / 1e3).toFixed(0) + "k"
     : a.toFixed(0);
   return `${v < 0 ? "−" : "+"}${cur$(c)}${s}`;
+}
+
+/**
+ * Bench display metadata shared by every adjustment line on the page: row
+ * labels and value formats, with custom rows ("custom:*") resolving through
+ * the addRow adjustment that created them.
+ */
+interface BenchMeta {
+  labelFor: (key: string) => string;
+  formatFor: (key: string) => MetricFormat;
+}
+const BenchMetaContext = createContext<BenchMeta>({
+  labelFor: (key) => key,
+  formatFor: () => "money",
+});
+
+/**
+ * One reviewable card = one item. A recurring item proposed across several
+ * line-years (same op, kind and title — e.g. the same subsidy stream in four
+ * fiscal years) folds into a single group instead of repeating the card;
+ * structural board edits stay singletons.
+ */
+function groupProposals(items: FinAdjustment[]): FinAdjustment[][] {
+  const groups: FinAdjustment[][] = [];
+  const byKey = new Map<string, FinAdjustment[]>();
+  for (const a of items) {
+    const op = a.op ?? "delta";
+    const key =
+      op === "delta" || op === "set"
+        ? `${op}|${a.kind}|${a.title.toLowerCase().trim()}`
+        : `one|${a.id}`;
+    let g = byKey.get(key);
+    if (!g) {
+      g = [];
+      byKey.set(key, g);
+      groups.push(g);
+    }
+    g.push(a);
+  }
+  for (const g of groups) {
+    g.sort((x, y) => x.fiscalYear.localeCompare(y.fiscalYear) || x.metricKey.localeCompare(y.metricKey));
+  }
+  return groups;
 }
 
 export default function FinanceCleansingPage() {
@@ -116,6 +161,27 @@ export default function FinanceCleansingPage() {
         method: "PATCH",
         body: JSON.stringify({ action }),
       });
+      await load();
+    } catch (e) {
+      setSuggestError(
+        e instanceof Error ? localizeError(e.message, t) : t("common.errRequestFailed", { code: "?" })
+      );
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  /** Decide a whole grouped item at once (sequential; one reload at the end). */
+  async function actMany(ids: string[], action: "apply" | "dismiss") {
+    if (actingId || ids.length === 0) return;
+    setActingId(ids[0]);
+    try {
+      for (const id of ids) {
+        await api(`/api/cleansing/adjustments/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ action }),
+        });
+      }
       await load();
     } catch (e) {
       setSuggestError(
@@ -204,11 +270,24 @@ export default function FinanceCleansingPage() {
     () => new Map((payload?.adjustments ?? []).map((a) => [a.id, a])),
     [payload]
   );
-  const formatByKey = useMemo(() => {
-    const m = new Map<string, MetricFormat>();
-    for (const metric of payload?.financials?.metrics ?? []) m.set(metric.key, metric.format);
-    return m;
-  }, [payload]);
+  const benchMeta = useMemo<BenchMeta>(() => {
+    const formats = new Map<string, MetricFormat>();
+    const labels = new Map<string, string>();
+    for (const metric of payload?.financials?.metrics ?? []) formats.set(metric.key, metric.format);
+    for (const a of payload?.adjustments ?? []) {
+      if ((a.op ?? "delta") === "addRow" && a.metricKey) {
+        if (a.rowFormat) formats.set(a.metricKey, a.rowFormat);
+        labels.set(a.metricKey, a.rowLabel ?? a.title);
+      }
+    }
+    return {
+      labelFor: (key) =>
+        key.startsWith("custom:")
+          ? (labels.get(key) ?? key.slice(7))
+          : t(`financials.${key}` as TKey),
+      formatFor: (key) => formats.get(key) ?? "money",
+    };
+  }, [payload, t]);
 
   if (notFound) {
     return (
@@ -235,7 +314,10 @@ export default function FinanceCleansingPage() {
   const archived = adjustments.filter((a) => a.status === "dismissed" || a.status === "reverted");
 
   return (
+    <BenchMetaContext.Provider value={benchMeta}>
     <main className="w-full px-5 sm:px-6 lg:px-8 py-8 flex-1">
+      {/* The per-ticker header, identical across signals / dd / finance:
+          back link, symbol + company name, the desk pill, actions right. */}
       <header className="flex items-center gap-4 flex-wrap">
         <Link
           href="/"
@@ -245,9 +327,7 @@ export default function FinanceCleansingPage() {
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-bold leading-tight">{ticker.symbol}</h1>
-          <p className="text-muted text-xs">
-            {t("financials.cleansePageSubtitle", { name: ticker.name })}
-          </p>
+          <p className="text-muted text-xs truncate">{ticker.name}</p>
         </div>
         <DeskTabs symbol={symbol} active="fin" />
         <div className="flex items-center gap-2 ml-auto">
@@ -363,13 +443,14 @@ export default function FinanceCleansingPage() {
               </SectionTitle>
               <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("financials.adjPendingExplainer")}</p>
               <div className="grid sm:grid-cols-2 gap-3 mt-2">
-                {pending.map((a) => (
-                  <AdjustmentCard
-                    key={a.id}
-                    adj={a}
+                {groupProposals(pending).map((items) => (
+                  <AdjustmentGroupCard
+                    key={items[0].id}
+                    items={items}
                     currency={currency}
-                    busy={actingId === a.id}
+                    actingId={actingId}
                     onAct={act}
+                    onActMany={actMany}
                   />
                 ))}
               </div>
@@ -402,7 +483,6 @@ export default function FinanceCleansingPage() {
           <HistoryPanel
             cells={cleansed?.cells ?? []}
             adjById={adjById}
-            formatByKey={formatByKey}
             currency={currency}
             events={events}
           />
@@ -427,10 +507,12 @@ export default function FinanceCleansingPage() {
             onRetry={retryChat}
             onPause={pauseChat}
             onAct={act}
+            onActMany={actMany}
           />
         </div>
       </div>
     </main>
+    </BenchMetaContext.Provider>
   );
 }
 
@@ -451,26 +533,73 @@ function KindChip({ kind }: { kind: FinAdjustment["kind"] }) {
   );
 }
 
-function AdjLine({ adj, currency }: { adj: FinAdjustment; currency: string | null }) {
+/** Chip naming a board edit's operation (delta adjustments use KindChip). */
+function OpChip({ op }: { op: FinAdjustmentOp }) {
   const { t } = useT();
-  const metricLabel = t(`financials.${adj.metricKey}` as TKey);
-  const amount =
-    adj.metricKey === "shares"
-      ? `${adj.delta < 0 ? "−" : "+"}${Math.abs(adj.delta).toLocaleString()}`
-      : fmtDelta(adj.delta, currency);
+  const key =
+    op === "set" ? "adjOpSet"
+    : op === "addRow" ? "adjOpAddRow"
+    : op === "removeRow" ? "adjOpRemoveRow"
+    : op === "addYear" ? "adjOpAddYear"
+    : "adjOpRemoveYear";
   return (
-    <p className="text-[0.6875rem] text-emph tabular-nums">
-      {t("financials.adjLine", { key: metricLabel, year: adj.fiscalYear })}{" "}
-      <span className={`font-semibold ${adj.delta < 0 ? "text-loss" : "text-gain"}`}>{amount}</span>
-    </p>
+    <span className="shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider bg-accent/12 text-accent/90">
+      {t(`financials.${key}` as TKey)}
+    </span>
   );
 }
 
-function SourceChips({ adj }: { adj: FinAdjustment }) {
-  if (adj.sources.length === 0) return null;
+/** The one-line summary of what an adjustment does to the board, op-aware. */
+function AdjLine({ adj, currency }: { adj: FinAdjustment; currency: string | null }) {
+  const { t } = useT();
+  const { labelFor, formatFor } = useContext(BenchMetaContext);
+  const cls = "text-[0.6875rem] text-emph tabular-nums";
+  switch (adj.op ?? "delta") {
+    case "addRow": {
+      const n = adj.cells ? Object.values(adj.cells).filter((v) => v != null).length : 0;
+      return <p className={cls}>{t("financials.adjLineAddRow", { label: adj.rowLabel ?? adj.title, n })}</p>;
+    }
+    case "removeRow":
+      return <p className={cls}>{t("financials.adjLineRemoveRow", { label: labelFor(adj.metricKey) })}</p>;
+    case "addYear":
+      return <p className={cls}>{t("financials.adjLineAddYear", { year: adj.fiscalYear })}</p>;
+    case "removeYear":
+      return <p className={cls}>{t("financials.adjLineRemoveYear", { year: adj.fiscalYear })}</p>;
+    case "set":
+      return (
+        <p className={cls}>
+          {t("financials.adjLineSet", { key: labelFor(adj.metricKey), year: adj.fiscalYear })}{" "}
+          <span className="font-semibold text-accent">
+            {adj.value == null ? "—" : fmtMetric(adj.value, formatFor(adj.metricKey), currency ?? "USD")}
+          </span>
+        </p>
+      );
+    default: {
+      const amount =
+        adj.metricKey === "shares"
+          ? `${adj.delta < 0 ? "−" : "+"}${Math.abs(adj.delta).toLocaleString()}`
+          : fmtDelta(adj.delta, currency);
+      return (
+        <p className={cls}>
+          {t("financials.adjLine", { key: labelFor(adj.metricKey), year: adj.fiscalYear })}{" "}
+          <span className={`font-semibold ${adj.delta < 0 ? "text-loss" : "text-gain"}`}>{amount}</span>
+        </p>
+      );
+    }
+  }
+}
+
+/** Kind chip for deltas, op chip for board edits. */
+function AdjChip({ adj }: { adj: FinAdjustment }) {
+  const op = adj.op ?? "delta";
+  return op === "delta" ? <KindChip kind={adj.kind} /> : <OpChip op={op} />;
+}
+
+function SourceChips({ sources }: { sources: Citation[] }) {
+  if (sources.length === 0) return null;
   return (
     <p className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-      {adj.sources.slice(0, 4).map((s) => (
+      {sources.slice(0, 4).map((s) => (
         <a
           key={s.url}
           href={s.url}
@@ -486,46 +615,99 @@ function SourceChips({ adj }: { adj: FinAdjustment }) {
   );
 }
 
-/** One pending proposal: the item, its line/FY/delta, rationale, sources, gate buttons. */
-function AdjustmentCard({
-  adj,
+/** Distinct sources across a grouped item's line-years. */
+function mergedSources(items: FinAdjustment[]): Citation[] {
+  const out: Citation[] = [];
+  for (const a of items) {
+    for (const s of a.sources) {
+      if (s?.url && !out.some((x) => x.url === s.url)) out.push(s);
+    }
+  }
+  return out;
+}
+
+/**
+ * One pending ITEM: a single proposal, or a recurring item grouped across
+ * line-years — the title and rationale once, each line-year separately
+ * reviewable, plus apply-all / dismiss-all for the whole item.
+ */
+function AdjustmentGroupCard({
+  items,
   currency,
-  busy,
+  actingId,
   onAct,
+  onActMany,
 }: {
-  adj: FinAdjustment;
+  items: FinAdjustment[];
   currency: string | null;
-  busy: boolean;
+  actingId: string | null;
   onAct: (id: string, action: "apply" | "dismiss" | "revert") => void;
+  onActMany: (ids: string[], action: "apply" | "dismiss") => void;
 }) {
   const { t } = useT();
+  const lead = items[0];
+  const acting = actingId != null;
+  const single = items.length === 1;
   return (
     <div className="rounded-xl bg-card border border-warn/30 p-3.5">
       <div className="flex items-center gap-2">
-        <span className="text-[0.8125rem] font-semibold text-emph min-w-0 truncate">{adj.title}</span>
-        <KindChip kind={adj.kind} />
+        <span className="text-[0.8125rem] font-semibold text-emph min-w-0 truncate">{lead.title}</span>
+        <AdjChip adj={lead} />
       </div>
-      <div className="mt-1">
-        <AdjLine adj={adj} currency={currency} />
-      </div>
-      {adj.rationale && <p className="text-xs text-muted mt-1.5 leading-relaxed">{adj.rationale}</p>}
-      <SourceChips adj={adj} />
+      {single ? (
+        <div className="mt-1">
+          <AdjLine adj={lead} currency={currency} />
+        </div>
+      ) : (
+        <>
+          <p className="text-[0.625rem] text-muted mt-1">{t("financials.adjGroupHint", { n: items.length })}</p>
+          <div className="mt-1.5 space-y-1">
+            {items.map((a) => (
+              <div key={a.id} className="flex items-center gap-2" title={a.rationale || undefined}>
+                <AdjLine adj={a} currency={currency} />
+                <span className="ml-auto flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => onAct(a.id, "apply")}
+                    disabled={acting}
+                    className="rounded bg-gain/15 text-gain font-semibold text-[0.625rem] px-2 py-0.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+                  >
+                    {actingId === a.id ? "…" : t("financials.adjApply")}
+                  </button>
+                  <button
+                    onClick={() => onAct(a.id, "dismiss")}
+                    disabled={acting}
+                    className="rounded bg-ink/6 text-muted font-medium text-[0.625rem] px-2 py-0.5 hover:bg-ink/10 disabled:opacity-50 transition-colors"
+                  >
+                    {t("financials.adjDismiss")}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {lead.rationale && <p className="text-xs text-muted mt-1.5 leading-relaxed">{lead.rationale}</p>}
+      <SourceChips sources={mergedSources(items)} />
       <div className="mt-2.5 flex items-center gap-2">
         <button
-          onClick={() => onAct(adj.id, "apply")}
-          disabled={busy}
+          onClick={() => (single ? onAct(lead.id, "apply") : onActMany(items.map((a) => a.id), "apply"))}
+          disabled={acting}
           className="rounded-lg bg-gain/15 text-gain font-semibold text-xs px-3 py-1.5 hover:bg-gain/25 disabled:opacity-50 transition-colors"
         >
-          {busy ? t("financials.adjWorking") : t("financials.adjApply")}
+          {acting && items.some((a) => a.id === actingId)
+            ? t("financials.adjWorking")
+            : single
+              ? t("financials.adjApply")
+              : t("financials.adjApplyAll", { n: items.length })}
         </button>
         <button
-          onClick={() => onAct(adj.id, "dismiss")}
-          disabled={busy}
+          onClick={() => (single ? onAct(lead.id, "dismiss") : onActMany(items.map((a) => a.id), "dismiss"))}
+          disabled={acting}
           className="rounded-lg bg-ink/6 text-muted font-medium text-xs px-3 py-1.5 hover:bg-ink/10 hover:text-foreground disabled:opacity-50 transition-colors"
         >
-          {t("financials.adjDismiss")}
+          {single ? t("financials.adjDismiss") : t("financials.adjDismissAll", { n: items.length })}
         </button>
-        <span className="ml-auto text-[0.5625rem] text-muted/60">{adj.createdAt.slice(0, 10)}</span>
+        <span className="ml-auto text-[0.5625rem] text-muted/60">{lead.createdAt.slice(0, 10)}</span>
       </div>
     </div>
   );
@@ -549,7 +731,7 @@ function AppliedRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-emph truncate">{adj.title}</span>
-          <KindChip kind={adj.kind} />
+          <AdjChip adj={adj} />
         </div>
         <AdjLine adj={adj} currency={currency} />
       </div>
@@ -599,6 +781,7 @@ function ArchivePanel({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[0.8125rem] text-muted truncate">{a.title}</span>
+                  <AdjChip adj={a} />
                   <span className="shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider bg-ink/8 text-muted">
                     {a.status === "dismissed"
                       ? t("financials.adjStatusDismissed")
@@ -615,6 +798,94 @@ function ArchivePanel({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * A grouped item inside the analyst-desk thread: compact rows per line-year,
+ * live gate buttons on pending rows, status chips on decided ones.
+ */
+function ChatAdjustmentGroup({
+  items,
+  currency,
+  actingId,
+  onAct,
+  onActMany,
+}: {
+  items: FinAdjustment[];
+  currency: string | null;
+  actingId: string | null;
+  onAct: (id: string, action: "apply" | "dismiss" | "revert") => void;
+  onActMany: (ids: string[], action: "apply" | "dismiss") => void;
+}) {
+  const { t } = useT();
+  const lead = items[0];
+  const acting = actingId != null;
+  const pendingIds = items.filter((a) => a.status === "suggested").map((a) => a.id);
+  const statusLabel = (s: FinAdjustment["status"]) =>
+    s === "applied"
+      ? t("financials.adjStatusApplied")
+      : s === "reverted"
+        ? t("financials.adjStatusReverted")
+        : t("financials.adjStatusDismissed");
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2 ${
+        pendingIds.length > 0 ? "border-warn/30 bg-warn/5" : "border-hairline bg-ink/4"
+      }`}
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[0.75rem] font-semibold text-emph min-w-0 truncate">{lead.title}</span>
+        <AdjChip adj={lead} />
+      </div>
+      <div className="mt-1 space-y-0.5">
+        {items.map((a) => (
+          <div key={a.id} className="flex items-center gap-2" title={a.rationale || undefined}>
+            <AdjLine adj={a} currency={currency} />
+            {a.status === "suggested" ? (
+              <span className="ml-auto flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => onAct(a.id, "apply")}
+                  disabled={acting}
+                  className="rounded-md bg-gain/15 text-gain font-semibold text-[0.6875rem] px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+                >
+                  {actingId === a.id ? t("financials.adjWorking") : t("financials.adjApply")}
+                </button>
+                <button
+                  onClick={() => onAct(a.id, "dismiss")}
+                  disabled={acting}
+                  className="rounded-md bg-ink/6 text-muted font-medium text-[0.6875rem] px-2.5 py-1 hover:bg-ink/10 disabled:opacity-50 transition-colors"
+                >
+                  {t("financials.adjDismiss")}
+                </button>
+              </span>
+            ) : (
+              <span className="ml-auto shrink-0 rounded px-1.5 py-px text-[0.5625rem] uppercase tracking-wider bg-ink/8 text-muted">
+                {statusLabel(a.status)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {pendingIds.length > 1 && (
+        <div className="mt-1.5 flex items-center gap-2">
+          <button
+            onClick={() => onActMany(pendingIds, "apply")}
+            disabled={acting}
+            className="rounded-md bg-gain/15 text-gain font-semibold text-[0.6875rem] px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
+          >
+            {t("financials.adjApplyAll", { n: pendingIds.length })}
+          </button>
+          <button
+            onClick={() => onActMany(pendingIds, "dismiss")}
+            disabled={acting}
+            className="rounded-md bg-ink/6 text-muted font-medium text-[0.6875rem] px-2.5 py-1 hover:bg-ink/10 disabled:opacity-50 transition-colors"
+          >
+            {t("financials.adjDismissAll", { n: pendingIds.length })}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -635,6 +906,7 @@ function AnalystDesk({
   onRetry,
   onPause,
   onAct,
+  onActMany,
 }: {
   messages: FinMessage[];
   adjById: Map<string, FinAdjustment>;
@@ -648,6 +920,7 @@ function AnalystDesk({
   onRetry: () => void;
   onPause: () => void;
   onAct: (id: string, action: "apply" | "dismiss" | "revert") => void;
+  onActMany: (ids: string[], action: "apply" | "dismiss") => void;
 }) {
   const { t } = useT();
   const [draft, setDraft] = useState("");
@@ -685,60 +958,26 @@ function AnalystDesk({
             >
               {m.role === "user" ? m.content : <Markdown>{m.content}</Markdown>}
             </div>
-            {/* Adjustments this turn recorded, rendered as live cards. */}
+            {/* Adjustments this turn recorded, rendered as live cards —
+                grouped exactly like the pending section, so one multi-year
+                item is one card here too. */}
             {m.role === "assistant" && m.adjustmentIds.length > 0 && (
               <div className="mr-auto max-w-[92%] mt-1.5 space-y-1.5">
                 <p className="text-[0.625rem] text-muted">
                   {t("financials.deskParkedN", { n: m.adjustmentIds.length })}
                 </p>
-                {m.adjustmentIds.map((id) => {
-                  const adj = adjById.get(id);
-                  if (!adj) return null;
-                  return (
-                    <div
-                      key={id}
-                      className={`rounded-xl border px-3 py-2 ${
-                        adj.status === "suggested" ? "border-warn/30 bg-warn/5" : "border-hairline bg-ink/4"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[0.75rem] font-semibold text-emph min-w-0 truncate">
-                          {adj.title}
-                        </span>
-                        <KindChip kind={adj.kind} />
-                        <span className="ml-auto shrink-0">
-                          <AdjLine adj={adj} currency={currency} />
-                        </span>
-                      </div>
-                      {adj.status === "suggested" ? (
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <button
-                            onClick={() => onAct(adj.id, "apply")}
-                            disabled={actingId === adj.id}
-                            className="rounded-md bg-gain/15 text-gain font-semibold text-[0.6875rem] px-2.5 py-1 hover:bg-gain/25 disabled:opacity-50 transition-colors"
-                          >
-                            {actingId === adj.id ? t("financials.adjWorking") : t("financials.adjApply")}
-                          </button>
-                          <button
-                            onClick={() => onAct(adj.id, "dismiss")}
-                            disabled={actingId === adj.id}
-                            className="rounded-md bg-ink/6 text-muted font-medium text-[0.6875rem] px-2.5 py-1 hover:bg-ink/10 disabled:opacity-50 transition-colors"
-                          >
-                            {t("financials.adjDismiss")}
-                          </button>
-                        </div>
-                      ) : (
-                        <p className="mt-1 text-[0.625rem] text-muted">
-                          {adj.status === "applied"
-                            ? t("financials.adjAppliedTitle")
-                            : adj.status === "reverted"
-                              ? t("financials.adjStatusReverted")
-                              : t("financials.adjStatusDismissed")}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                {groupProposals(
+                  m.adjustmentIds.map((id) => adjById.get(id)).filter((a): a is FinAdjustment => !!a)
+                ).map((items) => (
+                  <ChatAdjustmentGroup
+                    key={items[0].id}
+                    items={items}
+                    currency={currency}
+                    actingId={actingId}
+                    onAct={onAct}
+                    onActMany={onActMany}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -798,17 +1037,16 @@ function AnalystDesk({
 function HistoryPanel({
   cells,
   adjById,
-  formatByKey,
   currency,
   events,
 }: {
   cells: CleansedCell[];
   adjById: Map<string, FinAdjustment>;
-  formatByKey: Map<string, MetricFormat>;
   currency: string | null;
   events: FinCleansingEvent[];
 }) {
   const { t } = useT();
+  const { labelFor, formatFor } = useContext(BenchMetaContext);
   const c = currency ?? "USD";
   return (
     <section>
@@ -835,11 +1073,11 @@ function HistoryPanel({
               </thead>
               <tbody>
                 {cells.map((cell) => {
-                  const fmt = formatByKey.get(cell.metricKey) ?? "money";
+                  const fmt = formatFor(cell.metricKey);
                   return (
                     <tr key={`${cell.metricKey}:${cell.year}`} className="border-t border-hairline/60">
                       <td className="py-1 pr-3 text-emph whitespace-nowrap">
-                        {t(`financials.${cell.metricKey}` as TKey)}
+                        {labelFor(cell.metricKey)}
                         {cell.derived && (
                           <span className="ml-1.5 rounded bg-ink/8 px-1 py-px text-[0.5rem] uppercase tracking-wider text-muted">
                             {t("financials.historyDerived")}

@@ -8,8 +8,6 @@
 
 const en = {
   title: "Due diligence",
-  pageSubtitle:
-    "Your deep qualitative research on {name} — your own notes plus desk research that enters the record only when you accept it.",
   openDiligence: "Due diligence",
   openSignals: "Signals desk",
   tabDiligence: "Due diligence",
@@ -76,8 +74,6 @@ const en = {
 
 const zh: Record<keyof typeof en, string> = {
   title: "尽职调查",
-  pageSubtitle:
-    "你对 {name} 的深度定性研究——你自己的笔记，加上只有经你接受才会进入记录的分析台研究。",
   openDiligence: "尽职调查",
   openSignals: "信号工作台",
   tabDiligence: "尽职调查",

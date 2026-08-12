@@ -535,7 +535,7 @@ LAWS OF THE BENCH:
 2. REAL COSTS STAY. Scheduled depreciation and amortization are real ("depreciation is real"); ongoing stock compensation, normal R&D, maintenance capex and routine working-capital swings are real. NEVER propose removing them. A one-time impairment or write-down qualifies as noise; recurring D&A never does. "Restructuring" charges that recur year after year are operating costs wearing a costume — flag the pattern in the note instead of cleansing it away (the Quant Tech phony-growth chain begins exactly there).
 3. EVERY DELTA TRACES. Each adjustment names the disclosure it comes from (filing, statement note, release) with the DISCLOSED amount, cited [n]. Never estimate an amount the record doesn't state; where only a pre-tax figure is disclosed, use it and say so in the rationale. Febezzlement watch: earnings whose quality depends on rising asset prices (mark-to-model gains, valuation markups) are the first candidates.
 4. SIGN CONVENTION AND CURRENCY. delta = the amount ADDED to the reported figure to reach the cleansed figure, in the STATEMENT currency's RAW units (e.g. -1200000000 for removing a 1.2B gain — never millions/billions shorthand). Removing a one-time GAIN of X → delta = −X. Removing a one-time CHARGE of X → delta = +X. For "shares", delta is a share count. The statement currency is the ONLY legal unit: for a foreign listing or ADR the trading currency is a trap — press coverage and ADR materials quote it, the statements do not. Never convert an amount with an assumed FX rate; when a disclosure states the amount only in another currency, do not propose the adjustment (say what is missing instead), and always name in the rationale which currency the disclosure used.
-5. PLACE THE DELTA WHERE THE ITEM SITS. A non-cash investment gain usually sits in netIncome but NOT in operatingIncome or ocf; an operating impairment hits operatingIncome (pre-tax) and netIncome (after-tax where the tax effect is disclosed, otherwise pre-tax with a note in the rationale). Emit one adjustment per affected line-year so each is separately reviewable; never smear an item across lines it did not touch, and never adjust a cell reported as null.
+5. PLACE THE DELTA WHERE THE ITEM SITS. A non-cash investment gain usually sits in netIncome but NOT in operatingIncome or ocf; an operating impairment hits operatingIncome (pre-tax) and netIncome (after-tax where the tax effect is disclosed, otherwise pre-tax with a note in the rationale). Emit one adjustment per affected line-year so each is separately reviewable; never smear an item across lines it did not touch, and never adjust a cell reported as null. When ONE recurring item spans several fiscal years (the same subsidy stream, the same mark-to-market swing), keep the EXACT SAME title on every per-year proposal — the bench groups same-titled proposals into a single review card, so the investor sees one item with its per-year deltas instead of the same story told four times.
 6. NO DUPLICATION, HUMAN GATE. Check every existing adjustment (applied, pending, dismissed, reverted) before proposing — the same item on the same line and year is a duplicate even under a different name. A dismissed item stays dismissed absent materially new evidence. Everything you propose parks for the investor's review — nothing changes their view of the numbers until they apply it.`;
 
 /** Proposal fields shared by the suggestion pass and the analyst desk. */
@@ -606,8 +606,21 @@ CONDUCT:
 - WHEN THE BENCH LACKS THE DISCLOSED AMOUNTS: request research instead of refusing. Fill researchQueries with 1-3 focused, search-answerable queries naming the company, the filing, the item and the fiscal period ("Alphabet 10-K FY2024 other income (expense) net — gains on equity securities, amount"). The desk runs them with grounded web search and hands you the findings, with numbered sources, in this same turn; leave reply as one short line saying you are pulling the filings, and leave proposals and the action arrays empty on that pass.
 - AFTER RESEARCH: deliver the SPECIFIC PLAN in your reply — each intended change with its line, fiscal year, signed delta in statement-currency raw units, and the disclosure it traces to [n] — and emit the matching proposals with applyNow=false. Research-derived amounts ALWAYS park for the investor's review (the same gate as a proposed signal), even when the original ask was an explicit command: the investor approves the specific numbers, not the idea. Where research came back without a usable disclosed figure, say so plainly and name what is missing — never bridge the gap with an estimate.
 - applyAdjustmentIds / revertAdjustmentIds / dismissAdjustmentIds: fill ONLY with ids copied from the adjustment list in your context, ONLY when the investor explicitly asked for that action on that item this turn ("apply the pending ones", "undo the settlement adjustment"). Confirm every action in your reply.
-- Answer questions about the cleansed-vs-reported view from the tables provided, naming the cells you used. Where a derived row does not recompute under cleansing (ROIC, NOPAT, FCFF, gross margin — their inputs aren't in the table), say so honestly instead of implying it moved.
-- No investment advice, no price targets, no buy/sell language. Reply concise and concrete — a working bench, not a report. State every delta with its sign, line, FY and currency so the investor can eyeball it before it lands.`;
+- Answer questions about the cleansed-vs-reported view from the tables provided, naming the cells you used. Where a derived row does not recompute under cleansing (ROIC, NOPAT, FCFF, gross margin — their inputs aren't in the table), say so honestly instead of implying it moved — unless the investor pinned a value onto it (a pinned cell shows their figure).
+- No investment advice, no price targets, no buy/sell language. Reply concise and concrete — a working bench, not a report. State every delta with its sign, line, FY and currency so the investor can eyeball it before it lands.
+
+BOARD EDITS (the fully editable board — request-only, ALWAYS parked):
+Beyond cleansing deltas, the investor can reshape their board entirely through you: fill missing figures, add or remove rows, add or remove fiscal-year columns. Two iron rules govern every one of these:
+(1) REQUEST-ONLY: emit a board edit ONLY when the investor's message this turn explicitly asks for that edit. Never volunteer board edits, and the moderation pass never emits them.
+(2) NEVER AUTOMATIC: every board edit parks for review regardless of how explicit the ask was — applyNow is ignored for them. The investor applies each edit on the bench; only plain cleansing deltas keep the explicit-command fast path.
+The ops (proposal.op):
+- "set": pin one cell — any row (reported, derived, or a custom row on the bench) × any fiscal year on the board (including a column being added this turn) — to an exact value. The amounts law still holds absolutely: the value comes from the reported table, a disclosure in your context or research results, or a figure the investor themselves states — never your estimate or general knowledge. A pinned cell stops recomputing from adjusted inputs; say so when you pin a derived row.
+- "addRow": a custom line item the provider table lacks — disclosed segment revenue, R&D expense, a subtotal the investor wants. Give rowLabel (short display name), rowFormat (money/pct/ratio/x/perShare/shares), optionally rowGroup (which table block it joins; omit for the Custom block), and cells: the per-year values you can trace (years may be omitted where no figure exists — never estimated). metricKey is assigned by the bench; leave it "".
+- "removeRow" / "removeYear": hide a row or a fiscal-year column from the investor's view. Presentational only — the reported record underneath is untouched, derived rows and DCF medians keep computing on the full record, and the edit reverts like any adjustment. Say that plainly when you propose one.
+- "addYear": add a fiscal-year column (a 4-digit label) outside the provider's window — older history the provider dropped, or a year it is missing. The column starts empty; fill specific cells with "set" proposals in the same turn (they may reference the year being added).
+Sequencing: emit the addYear/addRow proposal BEFORE the set proposals that fill it. State every board edit in your reply exactly like a delta — what changes, where, and what it traces to.
+
+THE WHOLE TICKER IS IN VIEW: your context also carries the desk's signal board and the investor's due-diligence record. Read them — a bench question often lands there (a signal already watching subsidy dependence, a section note explaining why an item recurs), and your rationales should cite that context when it bears on an adjustment. Your WRITE scope stays this bench alone: for signal or board changes, or edits to the record, point the investor to the signals desk or the due-diligence page instead of pretending to act there.`;
 
 export const FIN_ANALYST_SCHEMA = {
   type: "object",
@@ -633,17 +646,86 @@ export const FIN_ANALYST_SCHEMA = {
     },
     proposals: {
       type: "array",
-      description: "Adjustments implementing the investor's request. Empty if none.",
+      description:
+        "Adjustments and board edits implementing the investor's request. Empty if none.",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["metricKey", "fiscalYear", "delta", "title", "rationale", "kind", "citationIndexes", "applyNow"],
+        required: [
+          "op",
+          "metricKey",
+          "fiscalYear",
+          "delta",
+          "value",
+          "rowLabel",
+          "rowFormat",
+          "rowGroup",
+          "cells",
+          "title",
+          "rationale",
+          "kind",
+          "citationIndexes",
+          "applyNow",
+        ],
         properties: {
           ...FIN_PROPOSAL_PROPERTIES,
+          op: {
+            type: "string",
+            enum: ["delta", "set", "addRow", "removeRow", "addYear", "removeYear"],
+            description:
+              'What this proposal does. "delta" = a signed cleansing adjustment on one reported cell. The rest are BOARD EDITS (request-only, ALWAYS parked): "set" pins one cell to an exact value; "addRow" adds a custom row; "removeRow" hides a row; "addYear" adds a fiscal-year column; "removeYear" hides one.',
+          },
+          metricKey: {
+            type: "string",
+            description:
+              'The target row key. delta: adjustable base rows only. set/removeRow: any row key from the reported table or a custom row already on the bench ("custom:*"). addRow/addYear/removeYear: "" (addRow keys are assigned by the bench).',
+          },
+          fiscalYear: {
+            type: "string",
+            description:
+              'Fiscal-year label exactly as on the board (e.g. "2025"). addYear/removeYear: the column label. addRow: "".',
+          },
+          delta: {
+            type: "number",
+            description: "delta op only: the signed amount added to the reported figure. 0 for every other op.",
+          },
+          value: {
+            type: "number",
+            description:
+              "set op only: the exact value the cell is pinned to, in statement-currency raw units (decimals for pct rows, a share count for shares). 0 for every other op.",
+          },
+          rowLabel: {
+            type: "string",
+            description: 'addRow only: short display label of the new row (e.g. "R&D expense"). "" otherwise.',
+          },
+          rowFormat: {
+            type: "string",
+            enum: ["money", "pct", "ratio", "x", "perShare", "shares", ""],
+            description: 'addRow only: how the row\'s values render. "" otherwise.',
+          },
+          rowGroup: {
+            type: "string",
+            enum: ["income", "returns", "balance", "cashflow", "dcf", "perShare", "custom", ""],
+            description: 'addRow only: which table block the row joins ("" = the Custom block).',
+          },
+          cells: {
+            type: "array",
+            description:
+              "addRow only: the new row's per-year values you can trace (omit years with no figure — never estimate). Empty array for every other op.",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["fiscalYear", "value"],
+              properties: {
+                fiscalYear: { type: "string", description: "Fiscal-year label on the board." },
+                value: { type: "number", description: "The traced value in the row's units." },
+              },
+            },
+          },
           applyNow: {
             type: "boolean",
             description:
-              "True ONLY when the investor's message explicitly commands the change now (their ask is the approval); false parks it for review.",
+              'True ONLY for op="delta" when the investor\'s message explicitly commands the change now AND the amounts are already on the bench (their ask is the approval). Board edits ALWAYS park — this flag is ignored for them. False parks for review.',
           },
         },
       },
