@@ -83,7 +83,7 @@ function uaFor(url: string): string {
 
 const hostNextSlot = new Map<string, number>();
 function hostGap(host: string): number {
-  if (host.endsWith("archive.org")) return 1500;
+  if (host.endsWith("archive.org")) return 4000;
   return 400;
 }
 async function politeWait(url: string): Promise<void> {
@@ -344,27 +344,24 @@ async function fetchDocument(m: ManifestEntry, fetchUrl?: string, isFallback = f
 }
 
 /** The index file names the Wayback Machine as the standing fallback for link rot and
- *  bot-shielded hosts — on a blocked fetch, try the closest snapshot of the original URL. */
+ *  bot-shielded hosts — on a blocked fetch, try the closest snapshot of the original URL.
+ *  Uses the web.archive.org/web/<ts>/<url> redirect form directly; the availability API
+ *  rate-limits far more aggressively (429s) than snapshot serving does. */
 async function tryWaybackFallback(m: ManifestEntry, failedUrl: string): Promise<void> {
   const failureNote = m.note;
   const wb = /^https?:\/\/web\.archive\.org\/web\/(\d+)[a-z_]*\/(.+)$/i.exec(failedUrl);
   if (!wb && /(^|\.)archive\.org$/i.test(new URL(failedUrl).hostname)) return; // non-/web/ archive.org URL — nothing to fall back to
   const original = wb ? wb[2] : failedUrl;
-  const tsHint = wb ? wb[1].slice(0, 8) : "2026";
-  const { res, body } = await httpGetText(
-    `https://archive.org/wayback/available?url=${encodeURIComponent(original)}&timestamp=${tsHint}`);
-  if (!res.ok || !body) return;
-  let closest: { available?: boolean; url?: string; timestamp?: string } | undefined;
-  try { closest = JSON.parse(body)?.archived_snapshots?.closest; } catch { return; }
-  if (!closest?.available || !closest.url) return;
-  const snapUrl = closest.url.replace(/^http:/, "https:");
+  // for a dead snapshot, aim near its own timestamp; otherwise take the newest capture
+  const tsHint = wb ? wb[1].slice(0, 8) : "2";
+  const snapUrl = `https://web.archive.org/web/${tsHint}/${original}`;
   if (snapUrl === failedUrl) return;
   await fetchDocument(m, snapUrl, true);
   if (m.status === "fetched" || m.status === "ocr-needed") {
-    m.note = `${m.note ? m.note + "; " : ""}via Wayback snapshot ${closest.timestamp ?? ""}`.trim();
+    m.note = `${m.note ? m.note + "; " : ""}via Wayback fallback`.trim();
   } else {
     m.status = "blocked";
-    m.note = `${failureNote}; Wayback snapshot ${closest.timestamp ?? ""} also unusable`;
+    m.note = `${failureNote}; Wayback fallback also failed (${m.note?.slice(0, 80)})`;
   }
 }
 
