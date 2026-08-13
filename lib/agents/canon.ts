@@ -742,6 +742,26 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "Dividend policy should be based upon average earnings in the past and upon expected average earnings in the future",
     },
   },
+  // Tier 2 addition — Graham/Dodd:
+  {
+    directive:
+      "Back-calculate the expectations the current price implies — the future growth rate the quote assumes — and compare them against the company's actual demonstrated record; a large gap between implied expectations and the record is the finding, whichever direction it runs.",
+    queryShapes: [
+      "<COMPANY> growth rate implied by current valuation vs historical",
+      "<COMPANY> earnings growth record 10 years vs consensus expectations",
+      "<COMPANY> what the market is pricing in analysis",
+    ],
+    sourcePriority:
+      "the company's own multi-year reported record for the demonstrated side; the implied side is arithmetic from the price, never a target",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "two-illustrative-approaches-to-formula-valuations-of-common-stoc",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_approaches_valuation.pdf",
+      quote:
+        "the market often has concepts of future earnings changes which cannot be derived from the companies' past performance",
+    },
+  },
   {
     directive:
       "When the company repurchases stock, check the conduct around it: were dividends maintained, was the repurchase disclosed to all owners, and is management buying from stockholders at prices its own withholding depressed?",
@@ -1692,8 +1712,65 @@ export const CANON_METRICS: CanonMetric[] = [
       quote: "and the truer story told by the successive balance sheets",
     },
   },
+  // Tier 2 additions — Graham/Dodd:
+  {
+    name: "Earnings-yield floor with absolute multiple caps (Graham)",
+    formula:
+      "earnings yield ≥ 2 × the AAA bond yield, bounded by hard caps: never pay above 10× earnings however low rates go, never above 7× when rates run high (above ~7%); companion soundness gate — shareholders' equity ≥ 50% of total assets",
+    reading:
+      "The operational bounds of Graham's central-value test (above): the doubling rule ties what an earnings dollar is worth to the bond alternative, and the caps stop low rates from rationalizing any multiple. His late-career simplified system, reported as standing up under fifty years of his own testing.",
+    benchNotes:
+      "Cleansed EPS as the earnings line; equity and total assets from the bench's balance rows. Price stays in its margin-of-safety role — the caps are refusal bounds, never targets.",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "an-hour-with-mr-graham-hartman-l-butler-jr-interview",
+      url: "http://www.grahamanddoddsville.net/wordpress/Files/Gurus/Benjamin%20Graham/an-hour-ben-graham.pdf",
+      quote:
+        "Basically, I want to double the interest rate in terms of earnings return. However, in most years the interest rate was less than five percent on AAA bonds. Consequently, I have set two limits. A maximum multiple of 10 even when interest rates are under five percent, and a maximum multiple of 7 times even when interest rates are above seven percent as they are now.",
+    },
+  },
+  {
+    name: "Special-situation indicated annual return (Graham)",
+    formula:
+      "indicated annual return = [G×C − L×(100%−C)] ÷ (Y×P), where G = expected gain on success, L = expected loss on failure, C = chance of success, Y = expected holding time in years, P = current price",
+    reading:
+      "Graham's arithmetic for event theses: an expected corporate development is underwritten as a probability-weighted annual return that charges for BOTH the failure case and the time the event takes. The desk's use is analytical — when a thesis rests on a spin-off, reorganization, or distribution (Klarman's catalysts), this is the honest way to state what the event is actually worth, and Graham's narrow-sense gate applies: the development must be under way, not merely hoped for.",
+    benchNotes:
+      "G, L and C must each trace to filed terms and stated reasoning — never invented precision; where they cannot be estimated the formula is not computed (an honest gap). Event context only; price appears in its margin-of-safety role.",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "special-situations",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/05/special-situations.pdf",
+      quote:
+        "By doing so we are able to conceive of these commitments in terms of an expected annual return on the investment.",
+    },
+  },
+  {
+    name: "Worst-year earnings retention (Graham)",
+    formula:
+      "earnings in the worst year of a stress period ÷ earnings in the preceding peak year — the share of earning power the business RETAINED through its hardest stretch",
+    reading:
+      "Graham's stability component: the sharpest single-number read on earnings durability, and the quantitative companion to normal earning power — a company that kept 80% of peak earnings through a recession is a different business from one that kept 20%, whatever their averages say. High-multiple companies in his data earned their premium largely on this measure.",
+    benchNotes:
+      "Computed on the cleansed earnings series over the board's year-columns; the stress period is named (which downturn), pairing with Lynch's recession-spanning streak and Li Lu's cycle-tested window as the three forms of the same law.",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "two-illustrative-approaches-to-formula-valuations-of-common-stoc",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_approaches_valuation.pdf",
+      quote:
+        "Stability—as measured by the greatest shrinkage of profits in the periods 1937-1938 and 1947-1956",
+    },
+  },
 
   // --- 2. John Templeton ---
+  // Tier 2 note (Templeton): his two verified Tier 2 docs (Lancz interview,
+  // 1988 'Uncommon Sense' remarks) add no canon entries — the net-neutral
+  // portfolio, index-level and real-estate material is outside the charter,
+  // and the rest restates Tier 1 entries (cross-market comparison, maximum
+  // pessimism, flexibility). An honest empty.
   {
     name: "Doubling arithmetic at depressed multiples (Templeton)",
     formula:
