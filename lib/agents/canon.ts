@@ -27,6 +27,17 @@
  *
  * Investor order (ledger priority): Graham/Dodd → Templeton → Lynch →
  * Klarman → Li Lu → Schloss → Greenblatt → Pabrai.
+ *
+ * AUDITED 2026-08-13 (adversarial pass, playbook §8-E): 3 random entries per
+ * synthesized investor (seed "scalae-canon-audit-1"), each quote re-verified
+ * against the REFETCHED source document, not just the extraction. 21 of 25
+ * checks (21 originals + 4 supplements for wayback-blocked draws) matched
+ * verbatim in the refetched sources — including 3 image-only PDFs
+ * independently re-OCR'd, converging with the extraction pipeline's OCR —
+ * and every quote fairly represents its surrounding context. 4 original
+ * draws cite web.archive.org sources unreachable from the audit container;
+ * those remain covered by the extraction-verbatim check (tests/) plus the
+ * corpus verify.ts chain. No entries required fixing or deletion.
  */
 
 import type { Lens } from "./framework";
