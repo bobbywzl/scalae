@@ -1654,6 +1654,14 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // One extraction pairing (a 20-year-record minimum supported by an
   // unrelated quote) was rejected on fair-representation grounds. The lens
   // below is his own.
+  // Tier 2 note (Schloss): the seven verified Tier 2 rows resolve to the
+  // same extraction files the Tier 1 pass already mined end-to-end (the
+  // extraction branch processed his whole catalog at once; files unchanged
+  // byte-for-byte since). Re-review confirmed the skips: the reminiscence is
+  // Graham doctrine through memoir; Superinvestors is Buffett's meta-case
+  // for the discipline, not a per-ticker instrument; turnover, fee-structure
+  // and holding-period figures are fund practice the charter keeps out; the
+  // 20-year-record pairing stays rejected. An honest empty.
   {
     title: "Assets Before Earnings (Schloss)",
     question:
@@ -1678,6 +1686,12 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // orphaning mechanics are Klarman's; stocks-as-businesses and patience are
   // the charter. The A/R-inventory divergence sharpens core Lens 9 as a
   // metric below rather than a near-twin lens.
+  // Tier 2 note (Greenblatt): all five verified Tier 2 rows resolve to
+  // extraction files the Tier 1 pass already mined end-to-end (whole catalog
+  // extracted at once; files unchanged byte-for-byte since), and every one
+  // of the five is already cited by a Tier 1 canon entry. The remaining
+  // rows are video/paywall (manual) or hub-page boilerplate (BLOCKED) with
+  // no extractions to mine. An honest empty.
   {
     title: "Cheap AND Good, Never Either Alone (Greenblatt)",
     question:
