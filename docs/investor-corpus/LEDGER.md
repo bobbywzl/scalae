@@ -184,7 +184,7 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `factors-needed-to-make-money-in-the-stock-market` | [Factors Needed to Make Money in the Stock Market](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
+| `factors-needed-to-make-money-in-the-stock-market` | [Factors Needed to Make Money in the Stock Market](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf) | verified | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
 | `sixty-five-years-on-wall-street` | [Sixty-five Years on Wall Street](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Schloss-Sixty-Five-Years.pdf) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
 | `benjamin-graham-and-security-analysis-a-reminiscence` | [Benjamin Graham and Security Analysis: A Reminiscence](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/graham_reminiscence.pdf) | verified | 2026-08-13 |  |
 | `columbia-business-school-upper-level-seminar-in-value-investing` | [Columbia Business School Upper Level Seminar in Value Investing (the "CBS '93" talk)](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_lecture.pdf) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
