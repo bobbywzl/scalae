@@ -1465,6 +1465,11 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   },
 
   // --- 4. Seth Klarman ---
+  // Tier 2 note (Klarman): the one verified Tier 2 doc ('Consistency in a
+  // Bubble') is a compilation of excerpts from the same 1995-2001 Baupost
+  // letters synthesized above — catalysts, discipline-as-bearings and
+  // demand-more-undervaluation are already carried by Catalysts & Duration,
+  // Margin of Safety as Process and the discount-bar metric. An honest empty.
   // Dedup notes: securities-as-business-claims and Mr. Market are the charter
   // itself; the four-part gate's stable-value and able-management criteria are
   // core lenses; the hurdle-rate-on-idle-cash question is the Capital
