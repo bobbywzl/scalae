@@ -197,7 +197,7 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `special-situation-investing-classes-at-columbia-university-busin` | [Special Situation Investing Classes at Columbia University Business School — Greenblatt class notes, 2002–2006](https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf) | fetched | 2026-08-13 |  |
+| `special-situation-investing-classes-at-columbia-university-busin` | [Special Situation Investing Classes at Columbia University Business School — Greenblatt class notes, 2002–2006](https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf) | verified | 2026-08-13 |  169,185 words, read in 19 sequential chunks; 38 quotes spanning all sessions/speakers 2002-2006; no OCR gaps found  |
 | `graham-doddsville-issue-xvi-joel-greenblatt-interview` | [Graham & Doddsville, Issue XVI — Joel Greenblatt interview](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham%20&%20Doddsville%20-%20Issue%2016%20-%20Fall%202012_vFINAL2.pdf) | verified | 2026-08-13 |  |
 | `transcript-joel-greenblatt-masters-in-business` | [Transcript: Joel Greenblatt — Masters in Business](https://ritholtz.com/2018/04/transcript-joel-greenblatt/) | verified | 2026-08-13 |  |
 | `transcript-joel-greenblatt-masters-in-business-relative-value` | [Transcript: Joel Greenblatt — Masters in Business, "Relative Value"](https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/) | verified | 2026-08-13 |  |
