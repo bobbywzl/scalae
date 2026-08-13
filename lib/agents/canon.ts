@@ -1382,6 +1382,11 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   },
 
   // --- 3. Peter Lynch ---
+  // Tier 2 note (Lynch): the one verified Tier 2 doc (the PBS broadcast
+  // script) is soundbites drawn from the Tier 1 on-camera interview —
+  // understandable-business, store-level observation and multi-year patience
+  // are already carried by The Edge, the store-level directive and the
+  // charter's dormancy doctrine. An honest empty.
   // Dedup notes: "great company in a lousy industry" is expressed here as the
   // Low-Cost Survivor lens (an operator test) so it cannot be read against the
   // core industry-dynamics lens's economics-dominate rule; earnings-follow-
