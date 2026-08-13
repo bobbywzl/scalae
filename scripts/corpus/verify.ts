@@ -57,7 +57,9 @@ function parseExtraction(text: string): Parsed | string {
   }
   if (i >= lines.length) return "frontmatter never closed with '---'";
 
-  const sections = Object.fromEntries(SECTIONS.map((s) => [s.key, []])) as Record<SectionKey, string[]>;
+  const sections: Record<SectionKey, string[]> = {
+    quotes: [], questions: [], directives: [], concepts: [], metrics: [], nothing: [],
+  };
   const quoteLines: Parsed["quoteLines"] = [];
   let current: SectionKey | null = null;
   for (i++; i < lines.length; i++) {
