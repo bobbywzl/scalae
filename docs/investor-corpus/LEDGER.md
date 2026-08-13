@@ -85,10 +85,10 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
-| `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | extracted | 2026-08-13 |  |
-| `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | extracted | 2026-08-13 |  |
-| `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | fetched | 2026-08-13 | index page — expanded to 44 document(s) |
+| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | BLOCKED | 2026-08-13 |  cached page (via Wayback fallback after HTTP 403) is entirely C-SPAN site chrome and unrendered template placeholders (`:::title:::`, `:::description:::`, etc.) plus "This program is not available for viewing due to rights restrictions" / "The requested video could not be found" — no transcript text present at all  |
+| `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | verified | 2026-08-13 |  |
+| `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | verified | 2026-08-13 |  |
+| `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | BLOCKED | 2026-08-13 |  index/navigation page listing Lynch's Worth columns with short teasers — no independent primary content; each linked column extracted separately as its own row  |
 | `worth-z9301e01` | [Worth column: 93/01-Besting the Blundering Herd](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9301E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9302e01` | [Worth column: 93/02-Buy American](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9302E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9303e01` | [Worth column: 93/03-IPOs Explained](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html) | fetched | 2026-08-13 |  |
@@ -110,32 +110,32 @@
 | `worth-z9410e03` | [Worth column: 94/10-What Goes Around Turns Around](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9410E03.html) | fetched | 2026-08-13 |  |
 | `worth-z9411e01` | [Worth column: 94/11-Finding Bargains Losers List](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9411E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9501e01` | [Worth column: 95/01-Put Your Broker to Work](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9501E01.html) | fetched | 2026-08-13 |  |
-| `worth-z9502e02` | [Worth column: 95/02-The Next Oil Boom](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9502E02.html) | fetched | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
-| `worth-z9503e02` | [Worth column: 95/03-Catch a Ride](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9503E02.html) | fetched | 2026-08-13 |  |
-| `worth-z9504e02` | [Worth column: 95/04-The Current Thinking](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9504E02.html) | fetched | 2026-08-13 |  |
-| `worth-z9505e01` | [Worth column: 95/05-Bet the Houses](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html) | fetched | 2026-08-13 |  |
-| `worth-z9506e02` | [Worth column: 95/06-Golden Years](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9506E02.html) | fetched | 2026-08-13 |  |
-| `worth-z9508e01` | [Worth column: 95/08-Free at Last](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9508E01.html) | fetched | 2026-08-13 |  |
-| `worth-z9509c01` | [Worth column: 95/09-Fear of Crashing](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9509C01.html) | fetched | 2026-08-13 |  |
-| `worth-z9510f04` | [Worth column: 95/10-Still Tough to Beat](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9510F04.html) | fetched | 2026-08-13 |  |
-| `worth-z9601i06` | [Worth column: 96/01-Peter Lynch By Post](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9601I06.html) | fetched | 2026-08-13 |  |
-| `worth-z9602e01` | [Worth column: 96/02-Mind Your P's and E's](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9602E01.html) | fetched | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
-| `worth-z9604e02` | [Worth column: 96/04-The 5 Percent Solution](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9604E02.html) | extracted | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
-| `worth-z9606f01` | [Worth column: 96/06-In Defense of the Invisible Hand](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9606F01.html) | extracted | 2026-08-13 |  |
-| `worth-z9610e03` | [Worth column: 96/10-Self-Service](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9610E03.html) | extracted | 2026-08-13 |  |
-| `worth-z9701e01` | [Worth column: 97/01-Pain and Gain](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9701E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9703c02` | [Worth column: 97/03-Peter Lynch: Use Your Edge](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9703C02.html) | extracted | 2026-08-13 |  |
-| `worth-z9705e01` | [Worth column: 97/05-Send in the Money!](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9705E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9708e01` | [Worth column: 97/08-The REIT Craze](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9708E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9711e01` | [Worth column: 97/11-Keep Digging](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9711E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9803c01` | [Worth column: 98/03-Best of the Best](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9803C01.html) | extracted | 2026-08-13 |  |
-| `worth-z9806f02` | [Worth column: 98/06-Peter Lynch: Hope You Guess Our Name](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9806F02.html) | extracted | 2026-08-13 |  |
-| `worth-z9810f02` | [Worth column: 98/10-Hidden in Plain Sight](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9810F02.html) | extracted | 2026-08-13 |  |
-| `worth-z9902f02` | [Worth column: 99/02-Winner's Curse](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9902F02.html) | fetched | 2026-08-13 |  |
-| `worth-z9906j01` | [Worth column: 99/06-Lost Time](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9906J01.html) | extracted | 2026-08-13 |  |
-| `from-the-archives-fear-of-crashing` | [From the Archives: Fear of Crashing](https://worth.com/from-the-archives-fear-of-crashing/) | extracted | 2026-08-13 |  |
-| `use-your-edge-by-peter-lynch` | [Use Your Edge by Peter Lynch](https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/) | extracted | 2026-08-13 |  |
-| `lessons-from-an-investing-legend-peter-lynch-secrets-to-success` | [Lessons from an investing legend (Peter Lynch: Secrets to success)](https://web.archive.org/web/20190919130623/https://www.fidelity.com/viewpoints/investing-ideas/peter-lynch-investment-strategy) | extracted | 2026-08-13 |  |
+| `worth-z9502e02` | [Worth column: 95/02-The Next Oil Boom](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9502E02.html) | verified | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
+| `worth-z9503e02` | [Worth column: 95/03-Catch a Ride](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9503E02.html) | verified | 2026-08-13 |  |
+| `worth-z9504e02` | [Worth column: 95/04-The Current Thinking](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9504E02.html) | verified | 2026-08-13 |  |
+| `worth-z9505e01` | [Worth column: 95/05-Bet the Houses](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html) | verified | 2026-08-13 |  |
+| `worth-z9506e02` | [Worth column: 95/06-Golden Years](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9506E02.html) | verified | 2026-08-13 |  |
+| `worth-z9508e01` | [Worth column: 95/08-Free at Last](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9508E01.html) | verified | 2026-08-13 |  |
+| `worth-z9509c01` | [Worth column: 95/09-Fear of Crashing](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9509C01.html) | verified | 2026-08-13 |  |
+| `worth-z9510f04` | [Worth column: 95/10-Still Tough to Beat](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9510F04.html) | verified | 2026-08-13 |  |
+| `worth-z9601i06` | [Worth column: 96/01-Peter Lynch By Post](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9601I06.html) | verified | 2026-08-13 |  |
+| `worth-z9602e01` | [Worth column: 96/02-Mind Your P's and E's](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9602E01.html) | verified | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
+| `worth-z9604e02` | [Worth column: 96/04-The 5 Percent Solution](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9604E02.html) | verified | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
+| `worth-z9606f01` | [Worth column: 96/06-In Defense of the Invisible Hand](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9606F01.html) | verified | 2026-08-13 |  |
+| `worth-z9610e03` | [Worth column: 96/10-Self-Service](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9610E03.html) | verified | 2026-08-13 |  |
+| `worth-z9701e01` | [Worth column: 97/01-Pain and Gain](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9701E01.html) | verified | 2026-08-13 |  |
+| `worth-z9703c02` | [Worth column: 97/03-Peter Lynch: Use Your Edge](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9703C02.html) | verified | 2026-08-13 |  |
+| `worth-z9705e01` | [Worth column: 97/05-Send in the Money!](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9705E01.html) | verified | 2026-08-13 |  |
+| `worth-z9708e01` | [Worth column: 97/08-The REIT Craze](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9708E01.html) | verified | 2026-08-13 |  |
+| `worth-z9711e01` | [Worth column: 97/11-Keep Digging](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9711E01.html) | verified | 2026-08-13 |  |
+| `worth-z9803c01` | [Worth column: 98/03-Best of the Best](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9803C01.html) | verified | 2026-08-13 |  |
+| `worth-z9806f02` | [Worth column: 98/06-Peter Lynch: Hope You Guess Our Name](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9806F02.html) | verified | 2026-08-13 |  |
+| `worth-z9810f02` | [Worth column: 98/10-Hidden in Plain Sight](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9810F02.html) | verified | 2026-08-13 |  |
+| `worth-z9902f02` | [Worth column: 99/02-Winner's Curse](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9902F02.html) | BLOCKED | 2026-08-13 |  cached text is authored by Michael Peltz (a different Worth staff writer; profile of Richard Thaler, "Winner's Curse"), not Peter Lynch, despite being linked from Lynch's column-index page — misattribution, not extracted  |
+| `worth-z9906j01` | [Worth column: 99/06-Lost Time](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9906J01.html) | verified | 2026-08-13 |  |
+| `from-the-archives-fear-of-crashing` | [From the Archives: Fear of Crashing](https://worth.com/from-the-archives-fear-of-crashing/) | verified | 2026-08-13 |  |
+| `use-your-edge-by-peter-lynch` | [Use Your Edge by Peter Lynch](https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/) | verified | 2026-08-13 |  |
+| `lessons-from-an-investing-legend-peter-lynch-secrets-to-success` | [Lessons from an investing legend (Peter Lynch: Secrets to success)](https://web.archive.org/web/20190919130623/https://www.fidelity.com/viewpoints/investing-ideas/peter-lynch-investment-strategy) | verified | 2026-08-13 |  |
 | `peter-lynch-lecture-on-the-stock-market-1997` | [Peter Lynch Lecture On The Stock Market / 1997](https://www.youtube.com/watch?v=myu4Nv0pt0U) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-says-all-in-on-passive-investing-is-all-wrong` | [Peter Lynch Says All-In on Passive Investing Is All Wrong](https://www.bloomberg.com/news/articles/2021-12-07/peter-lynch-says-all-in-on-passive-investing-is-all-wrong) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 
