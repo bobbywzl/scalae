@@ -257,6 +257,120 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "So more than ever before we are searching for shares of companies that will not suffer much from inflation or maybe even would benefit from inflation.",
     },
   },
+
+  // --- 3. Peter Lynch ---
+  {
+    pattern:
+      "Can the desk state, in two minutes and in plain language, why this business will earn materially more in five years — the specific driver, not the valuation?",
+    askWhen:
+      "before any thesis is written or a signal proposed on a new thread; whenever a holding's rationale has drifted into valuation-speak",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "peter-lynch-on-making-money-in-the-u-s-stock-market",
+      url: "https://moiglobal.com/peter-lynch-1994/",
+      quote:
+        "If you can't explain to a 10-year-old in two minutes or less why you own a stock, you shouldn't own it.",
+    },
+  },
+  {
+    pattern:
+      "Something material just moved — ignore the quote: what happened to the STORY? Which stated reason for the thesis is now more true, less true, or dead?",
+    askWhen:
+      "after any large move, surprising quarter, guidance change, or thesis-relevant event — the attribution must name a business cause",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "lessons-from-an-investing-legend-peter-lynch-secrets-to-success",
+      url: "https://web.archive.org/web/20190919130623/https://www.fidelity.com/viewpoints/investing-ideas/peter-lynch-investment-strategy",
+      quote:
+        "The important thing is not the fact that the stock went from $3 to $6. Why did it go up? What happened to the story?",
+    },
+  },
+  {
+    pattern:
+      "How much growing room is actually left — counted from where the company does and does not yet operate — and does the count support or refute the 'nowhere to grow' (or the endless-runway) narrative?",
+    askWhen:
+      "any growth thesis, any saturation claim, and whenever unit growth decelerates two periods running",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9703c02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9703C02.html",
+      quote:
+        "Don't believe them until you check for yourself. Look carefully at where the company does business and at how much growing room is left.",
+    },
+  },
+  {
+    pattern:
+      "Is management exploiting the franchise it owns or diversifying away from it — of the last several capital commitments, which used the same operating skill and reached the same customer as the core?",
+    askWhen:
+      "a new segment, acquisition, or platform initiative is announced; the segment count rises while returns do not",
+    anchor: "culture",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9806f02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9806F02.html",
+      quote:
+        "Block has made some mistakes. In particular, it has occasionally been too attracted to the idea of diversifying its business rather than exploiting its name.",
+    },
+  },
+  {
+    pattern:
+      "Of every reason NOT to own this company, which are genuine worries — with a named observable that would confirm or retire them — and which are bogeymen no evidence would ever settle?",
+    askWhen:
+      "a company with an improving record stays cheap while every conversation repeats the same unfalsifiable fear",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9304e02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9304E02.html",
+      quote:
+        "Many companies give investors a lot to worry about, but there are genuine worries and then there's the \"bogeyman in the closet\" variety.",
+    },
+  },
+  {
+    pattern:
+      "In this offering or secondary, what share of proceeds enters the business versus cashing out existing holders — and which insiders are net sellers at this price?",
+    askWhen:
+      "any issuance, spin-off, conversion, or insider selling into strength — read the use-of-proceeds and selling-shareholder tables",
+    anchor: "culture",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9303e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html",
+      quote:
+        "Whenever I see insiders using the IPO as an excuse to cash out, I ask myself: If they have no faith in the future of their company, why should I?",
+    },
+  },
+  {
+    pattern:
+      "What did management demonstrably GIVE UP to make the claimed transformation real — and if the de-risking or reinvention cost nothing, why believe it happened?",
+    askWhen:
+      "any 'we're not that company anymore' narrative: de-risking, restructuring, quality pivots, culture overhauls",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9505e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html",
+      quote:
+        "By borrowing long and issuing callable debt, it has lessened its earnings in the short run and given up the chance of making the occasional killing when interest rates go its way.",
+    },
+  },
+  {
+    pattern:
+      "The company's end-market has a contested platform or standards war — does this business prosper regardless of which combatant wins, or is its fate tied to one winner?",
+    askWhen:
+      "suppliers, toolmakers and infrastructure providers in industries with unresolved format or share wars",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "use-your-edge-by-peter-lynch",
+      url: "https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/",
+      quote:
+        "This is the old combat theory of investing: When there's a war going on, don't buy the companies that are doing the fighting; buy the companies that sell the bullets.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -451,6 +565,140 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "This takeover mania proves the fact that corporations on the stock exchange are selling for much less than what they are worth.",
     },
   },
+
+  // --- 3. Peter Lynch ---
+  {
+    directive:
+      "Gather store-level and channel evidence before financial evidence: what customers, employees and local coverage say about the actual operation — traffic, queues, service quality, whether new units look like the old ones. The web-scale version of Lynch's mall visit.",
+    queryShapes: [
+      "<COMPANY> customer reviews complaints store locations recent",
+      "<COMPANY> new location openings local press coverage",
+      "<COMPANY> product review vs <COMPETITOR> switching users",
+    ],
+    sourcePriority:
+      "first-hand/consumer/practitioner sources (reviews, local trade press, user forums) for the facts filings don't report; company unit disclosures to check the count; analyst narrative last",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9304e02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9304E02.html",
+      quote:
+        "One of the benefits of visiting a retail outlet is that it brings the numbers alive. You can study a company's earnings potential all day long, but bullish forecasts always seem more believable after you've seen the evidence in person at the mall.",
+    },
+  },
+  {
+    directive:
+      "Identify the one or two industry-specific operating indicators that lead this company's earnings — a physical quantity or realized price, not a forecast — and track those instead of any macro series.",
+    queryShapes: [
+      "<INDUSTRY> inventory levels monthly trend data",
+      "<INDUSTRY> used equipment secondary market prices",
+      "<COMPANY> capacity utilization backlog channel inventory",
+    ],
+    sourcePriority:
+      "trade and industry operating data and first-hand observation, explicitly ahead of economist or strategist forecasts",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "peter-lynch-on-making-money-in-the-u-s-stock-market",
+      url: "https://moiglobal.com/peter-lynch-1994/",
+      quote:
+        "When I own auto stocks, I want to know what's happening to used car prices. When used car prices rise, it's a good indicator.",
+    },
+  },
+  {
+    directive:
+      "Convert every growth story into a countable penetration gap: enumerate units, markets and geographies served versus serviceable from primary disclosures, and refuse both the saturation claim and the endless-TAM claim until the count is done.",
+    queryShapes: [
+      "<COMPANY> store count locations by state 10-K",
+      "<COMPANY> units opened per year expansion plan disclosure",
+      "<INDUSTRY> penetration rate installed base addressable",
+    ],
+    sourcePriority:
+      "the company's own unit/geography disclosures first, trade-association penetration data second, sell-side TAM estimates last (they are the claim under test)",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9703c02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9703C02.html",
+      quote:
+        "Only 10 to 20 percent of the schools have been wired into networks, and don't forget about office buildings, hospitals, and government agencies nationwide. Petsmart is hardly at the end of its rope -- its 320 stores are in only 34 states.",
+    },
+  },
+  {
+    directive:
+      "Pull the segment footnote on any company whose name implies one business and establish which unit actually produces the earnings — hunt for a good business obscured by an unrelated one, and for the separation event that would let the market see it.",
+    queryShapes: [
+      "<COMPANY> segment earnings breakdown 10-K footnote",
+      "<COMPANY> spin-off separation announced terms",
+      "<COMPANY> sum-of-the-parts segment pure-play comparables",
+    ],
+    sourcePriority:
+      "10-K segment reporting and separation filings first; management presentations second",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9810f02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9810F02.html",
+      quote:
+        "This wasn't a retail company; it was a crazy quilt of financial-services outfits stitched to a retail operation.",
+    },
+  },
+  {
+    directive:
+      "In a price-taking industry, research the company's place on the cost curve, not the commodity: cash and total cost per unit versus the industry average, plus the hedge/contract book — the spread is what survives a price collapse.",
+    queryShapes: [
+      "<COMPANY> cash cost total cost per unit produced",
+      "<INDUSTRY> average production cost per unit curve",
+      "<COMPANY> hedging contracts fixed price volumes years",
+    ],
+    sourcePriority:
+      "company operating statistics and filings first, industry cost-curve benchmarks second; commodity price forecasts explicitly excluded",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9711e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9711E01.html",
+      quote:
+        "I mentioned that the average company is now spending $317 to get an ounce of gold out of the ground.",
+    },
+  },
+  {
+    directive:
+      "Read the offering documents for the money trail: use of proceeds, selling shareholders, insider purchases, and the gap between preliminary and final terms — what the people with the most information did with their own position.",
+    queryShapes: [
+      "<COMPANY> prospectus use of proceeds selling shareholders",
+      "<COMPANY> S-1 insider purchases directors officers",
+      "<COMPANY> secondary offering who is selling",
+    ],
+    sourcePriority:
+      "the filings themselves, first and last; underwriter research is an interested party",
+    anchor: "culture",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9303e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html",
+      quote: "A prospectus also tells you what happens to the money that was raised in the stock sale.",
+    },
+  },
+  {
+    directive:
+      "Time-anchor capital-allocation judgment to the industry's worst collective decision: find the period peers reached for yield, leverage or fashionable assets, and document what this company did with the same dollars — costly abstinence during a mania is the highest-grade allocation evidence.",
+    queryShapes: [
+      "<COMPANY> investment portfolio composition vs <INDUSTRY> peers boom years",
+      "<INDUSTRY> writedowns losses which companies avoided",
+      "<COMPANY> annual report criticized conservative policy hindsight",
+    ],
+    sourcePriority:
+      "historical balance-sheet composition and the peers' subsequent impairments from filings; management's retrospective account last",
+    anchor: "culture",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9403e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9403E01.html",
+      quote:
+        "AFLAC took a less sophisticated approach and put the money into boring old Treasury bonds, so today its $12 billion portfolio is one of the strongest and safest on earth.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -566,6 +814,84 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       url: "https://www.franklintempleton.com/forms-literature/download/TL-R16",
       quote:
         "This means the return on invested dollars after taxes and after inflation. This is the only rational objective for most long-term investors.",
+    },
+  },
+
+  // --- 3. Peter Lynch ---
+  // Dedup notes: "great company in a lousy industry" is expressed here as the
+  // Low-Cost Survivor lens (an operator test) so it cannot be read against the
+  // core industry-dynamics lens's economics-dominate rule; earnings-follow-
+  // price convergence and "stocks do well for a reason" ride the desk doctrine
+  // and the Story lens; the vanishing-protection question is already core
+  // Lens 2 evidence ("technology or regulation that forces the moat to be
+  // rebuilt"); blame-asymmetry supplier moats and regulatory "clout" were
+  // judged too narrow for lens rank this pass.
+  {
+    title: "The Story & Its Scoreboard (Lynch)",
+    question:
+      "What is the story of this business — the specific driver of higher earnings — and which two or three trackable operating variables does the whole thing hinge on?",
+    test:
+      "Write the story at a level of detail a stranger could act on: the earnings driver, what must keep being true, and what would end it. Then instrument it — name the reported line or observable channel for each hinge variable, so the desk keeps score on the business itself. Every material change gets attributed to a named business cause ('what happened to the story?'); a thesis that can only be stated in valuation terms, or a move that can only be attributed to 'the market', means the story was never known.",
+    evidence:
+      "The written story and its named hinge variables; the attribution log tying each thesis-relevant change to a business fact; seasonal or periodic reporting checkpoints where the year is effectively settled (Lynch's third-quarter Cedar Fair report); failure mode — a file whose only reference point is the quote.",
+    investor: "Peter Lynch",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9503e02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9503E02.html",
+      quote:
+        "That's the key ingredient in successful investing: finding companies you can keep track of so you've got a point of reference other than the stock price.",
+    },
+  },
+  {
+    title: "The Edge (Lynch)",
+    question:
+      "What does the desk (or the investor) know about this company from proximity — profession, supply chain, customer seat — that the filings and the coverage do not report, and what named fact has that edge actually produced?",
+    test:
+      "The edge is typed and pre-existing: an on-the-job edge (working relationship with the industry) or a consumer's edge (repeated experience as a customer) — never a tip. It must produce a specific, dateable external fact added to the math, not a self-assessment of understanding. And it has a boundary: in binary-outcome businesses (trial results, approvals, contract awards) the edge does not work — insiders and experts handicap those no better than anyone, and the honest verdict is 'too hard'. This is the active half of the circle of competence: competence as an evidence source to be exercised, not only a boundary to respect.",
+    evidence:
+      "The investor's own firsthand exposure (their intake answers, evidence-locker files, channel observations); practitioner and customer facts logged with source and date versus when coverage caught up; an explicit edge-type label on the file; the binary-outcome exclusion applied in writing.",
+    investor: "Peter Lynch",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9301e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9301E01.html",
+      quote:
+        "Actually, there are two kinds of investor's edges: the on-the-job edge, in which you have a working relationship with an industry and the related companies with whom you do business; and the consumer's edge, with which you can capitalize on your experiences in restaurants, airports, and shopping malls.",
+    },
+  },
+  {
+    title: "Category Before Judgment (Lynch)",
+    question:
+      "Which category of business is this — steady grower, cyclical, turnaround, asset play — as the reported record defines it, and are we (and the market) applying the right category's rules?",
+    test:
+      "Assign the category from evidence, not the sector label: the shape of the long reported-EPS series (steady upward slope = grower; wobbling = cyclical) and the purchase-deferral test (do customers postpone this purchase when cash is short?). The category then dictates the analytical regime — a grower is judged on runway, a cyclical on industry conditions and never on peak earnings ('record EPS' in a cyclical is a peril, not a strength), a turnaround on solvency first. Mistaken identity is a mispricing class of its own: a company priced in its old category years after the record shows it changed.",
+    evidence:
+      "Ten-plus years of reported EPS and its shape; streaks that span a recession (category-reclassifying evidence) vs. streaks earned only in an expansion; the deferral behavior of the company's customers in past downturns; gaps between the record and the company's public identity or multiple.",
+    investor: "Peter Lynch",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9309e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9309E01.html",
+      quote:
+        "When the earnings line has a steady upward slope, the way Merck's does, you're dealing with a growth stock. When it wobbles up and down, as Alcoa's does, you're probably dealing with a cyclical.",
+    },
+  },
+  {
+    title: "Low-Cost Survivor in a Depressed Industry (Lynch)",
+    question:
+      "Inside a distressed or commoditized industry, is this the operator whose cost position and contract book let it thrive while competitors struggle to survive?",
+    test:
+      "The investment is the operator, not the commodity, and no price forecast is required: rank the company on the industry cost curve (its total unit cost vs. the industry average — the spread is the margin that survives a price collapse), read the hedge/contract book as an extension of that protection, and treat peer mortality and acquired capacity as the moat evidence. The industry's distress is the entry filter — it is what makes the record go unexamined — but the thesis lives or dies on the operator's cost arithmetic through the trough.",
+    evidence:
+      "Unit-cost disclosures vs. industry benchmarks; capacity closures, bankruptcies and share shifts among peers; the survivor's acquisitions of weaker rivals across the cycle; margin behavior through past troughs; contract/hedge coverage of forward output.",
+    investor: "Peter Lynch",
+    source: {
+      investor: "Peter Lynch",
+      doc: "use-your-edge-by-peter-lynch",
+      url: "https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/",
+      quote:
+        "Sometimes depressed industries can produce high returns. The best companies often thrive even as their competitors struggle to survive.",
     },
   },
 ];
@@ -707,6 +1033,109 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "https://www.franklintempleton.com/forms-literature/download/TL-R16",
       quote:
         "If inflation averages 4%, it will reduce the buying power of a $100,000 portfolio to $68,000 in just 10 years.",
+    },
+  },
+
+  // --- 3. Peter Lynch ---
+  {
+    name: "P/E against the growth rate (Lynch)",
+    formula:
+      "price ÷ diluted EPS, read against the sustainable multi-year growth rate of that same EPS line — favorable when the multiple sits at or below the growth rate it is buying",
+    reading:
+      "A multiple is never high or low in the abstract: a P/E of 20 on a durable 25%-grower is not expensive, and the great compounders rarely ever look cheap. The load-bearing input is growth DURABILITY — the runway count and the category — not the ratio; a low multiple on unsustainable growth is the trap in the other direction.",
+    benchNotes:
+      "Uses the bench's cleansed EPS (a windfall-inflated denominator flatters the ratio); the growth rate is the multi-year cleansed trend, never one year. Price enters in its margin-of-safety role only — the ratio contextualizes, it never becomes a target.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "use-your-edge-by-peter-lynch",
+      url: "https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/",
+      quote:
+        "A key point to remember is that a p/e of 20 is not too much to pay for a company that's growing at 25 percent.",
+    },
+  },
+  {
+    name: "Unit sales-to-build-cost (Lynch)",
+    formula:
+      "annual revenue per unit ÷ capitalized construction cost per new unit (revenue ÷ average unit count; build cost from capex or unit-economics disclosures)",
+    reading:
+      "Lynch's rollout test: above 1.0 is viability, around 2.0 is a genuinely favorable expansion — the number that decides whether replication compounds owner value or merely consumes capital. Read with cohort honesty: do the newest units perform like the old ones?",
+    benchNotes:
+      "Needs unit counts and per-unit build cost from disclosures; where the provider table lacks them the inputs are named as missing, never estimated. Complements the core owner-earnings lens with the per-unit form of the incremental-return question.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9303e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html",
+      quote:
+        "A general rule for investing in restaurants is that annual sales should exceed the cost of construction. A two-to-one margin is quite favorable.",
+    },
+  },
+  {
+    name: "Cash-per-share floor, zero-debt gate (Lynch)",
+    formula:
+      "(cash + equivalents) ÷ diluted shares vs. the share price, applied only where total debt ≈ 0; voided for loss-makers unless the burn rate leaves years of survival",
+    reading:
+      "Lynch's survival clock: a debt-free company with cash per share near the price cannot be forced out of existence before the story has time to work — the operating business comes free and the downside is impairment, not extinction. Distinct from Graham's net-current-asset floor: cash only, no receivables or inventory, gated on zero debt, and read as a bankruptcy-exclusion rule rather than a valuation.",
+    benchNotes:
+      "Pure reported lines (cash, debt, share count) from the bench's balance rows. The burn qualifier uses the cleansed operating cash flow — a loss-maker's floor erodes at its burn rate and must be dated, not assumed.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9601i06",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9601I06.html",
+      quote: "I've never seen a company with a lot of cash and not much debt go bankrupt.",
+    },
+  },
+  {
+    name: "The lender triad (Lynch)",
+    formula:
+      "for any deposit-funded or balance-sheet lender: equity ÷ total assets (≥5% strong), return on assets (≥1% healthy), nonperforming assets ÷ total assets (<0.5% comforting, and the TREND declining), read together with a modest earnings multiple",
+    reading:
+      "Cheapness alone is meaningless in a lender: equity-to-assets is the loss-absorption firepower, ROA the underlying profitability, and the direction of nonperformers — not their level — the early signal. All three must agree; one flattering gauge is a story.",
+    benchNotes:
+      "All reported balance-sheet and income lines where the provider carries them for financials; nonperforming detail often lives only in filings and is named as missing when absent. Sector-scoped: apply to lenders, never generalized.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9510f04",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9510F04.html",
+      quote:
+        "You want the price-to-earnings ratio to be relatively low (last year I suggested p/e's of 10 or below), the equity-to-assets ratio to be relatively high (5 or above), and the percentage of nonperforming assets to be on the decline.",
+    },
+  },
+  {
+    name: "Payout-ratio cushion (Lynch)",
+    formula:
+      "dividends per share ÷ earnings per share; ≤85% is safe, above 90% is the danger zone, ~50% survives an earnings halving",
+    reading:
+      "The dividend-cut early warning: the cushion between earnings and payout is what absorbs a bad year. The complement of Graham's payout-fairness test — Graham polices the payout that is too LOW for the record (owner-treatment), Lynch the payout too HIGH for the cushion (fragility); the same ratio, opposite tails, both culture-and-resilience data.",
+    benchNotes:
+      "Reported dividends over cleansed EPS — a payout ratio computed on windfall-inflated earnings understates the danger, which is exactly the distortion the bench exists to strip.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9504e02",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9504E02.html",
+      quote:
+        "A company that pays $1 in dividends and earns $2 per share has a ratio of 50 percent. Eighty-five percent or below is considered safe. Above 90 percent and you may be in the danger zone.",
+    },
+  },
+  {
+    name: "Consecutive-record streak spanning a recession (Lynch)",
+    formula:
+      "count of consecutive years (or quarters) of rising reported earnings, qualified by whether the streak covers at least one full recession",
+    reading:
+      "The streak is category and durability evidence, not a quality slogan: a record that survived a downturn reclassifies a company out of 'cyclical' (Lynch's Fannie Mae read), while a streak earned entirely inside an expansion proves nothing. Multi-decade streaks (30-40 years of up earnings) marked his durable-operator shortlist.",
+    benchNotes:
+      "Computed on reported (then cleansed) earnings only — a streak maintained by serial 'one-time' addbacks is the exact artifact the bench strips, and a streak that survives cleansing is the real signal. Needs year-depth; the board's addYear columns extend the window where the provider's is short.",
+    anchor: "business-model",
+    source: {
+      investor: "Peter Lynch",
+      doc: "worth-z9505e01",
+      url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html",
+      quote:
+        "Through seven years and one recession, Fannie Mae has turned in 28 consecutive quarters of record earnings.",
     },
   },
 ];
