@@ -17,6 +17,14 @@
  * test/evidence is EXTENDED with the cited addition instead of a near-twin
  * entry being added — the no-overlap rule applied to doctrine itself.
  *
+ * APPLICATION IS CONTEXTUAL, NEVER ROTE (the investor's standing rule): the
+ * canon is a reference library, not a checklist. An entry speaks only when
+ * THIS company's situation — its business model, its industry, its current
+ * events — or the investor's specific query summons it; on most runs, most
+ * of the shelf stays silent, and zero canon items engaged is a normal,
+ * healthy outcome. Nothing here is a static battery to be recited on every
+ * research run, memo, or bench pass.
+ *
  * Investor order (ledger priority): Graham/Dodd → Templeton → Lynch →
  * Klarman → Li Lu → Schloss → Greenblatt → Pabrai.
  */

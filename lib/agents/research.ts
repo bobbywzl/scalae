@@ -243,7 +243,7 @@ Skip stock-price commentary, analyst price-target chatter, and peer-momentum/FOM
 function canonDirectiveBlock(anchor?: "business-model" | "culture"): string {
   const text = canonSearchText(anchor);
   return text
-    ? `\n\nTHE CANON'S SEARCH DIRECTIVES (${anchor ?? "all anchors"} — cited search behaviors from the investor canon): they steer WHERE to look, offer query shapes to adapt to this company, and say which sources each canon investor treated as primary. They add angles and never override the grounding rules above${anchor ? "" : "; apply only the directive(s) whose subject matches this probe, and skip the rest"}:\n${text}`
+    ? `\n\nTHE CANON'S SEARCH DIRECTIVES (${anchor ?? "all anchors"} — cited search behaviors from the investor canon): a situational playbook, NOT a checklist. Apply only the directive(s) that this company's business model, industry, or current events actually summon${anchor ? "" : " for this probe's subject"} — most directives are rightly dormant on any given sweep, and none of them ever overrides the grounding rules above. Those that do apply steer WHERE to look, offer query shapes to adapt to this company, and say which sources that investor treated as primary:\n${text}`
     : "";
 }
 

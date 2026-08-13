@@ -204,7 +204,7 @@ export function misjudgmentChecklistText(): string {
  */
 const CANON_QUESTION_SECTION = canonQuestionText()
   ? `
-9. The bench's question patterns — cited question forms from the investor canon (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, and the rest as their blocks land), each tagged with its ask-when trigger and its anchor. They are candidate FORMS, not questions: instantiate one only when its ask-when matches THIS company's classification and a named gap, always rewritten to the specific company, metric, event or period — never emitted verbatim. The canon proposes, the charter disposes: the two anchors, the certainty-gap master question and the no-overlap rule above govern unchanged.
+9. The bench's question patterns — cited question forms from the investor canon (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, and the rest as their blocks land), each tagged with its ask-when trigger and its anchor. This is a reference shelf, not a checklist: an entry speaks only when THIS company's situation or the investor's question matches its ask-when — on most runs most of the shelf stays silent, and engaging none of it is a normal, healthy outcome. When one does apply, instantiate it — rewritten to the specific company, metric, event or period, never emitted verbatim. The canon proposes, the charter disposes: the two anchors, the certainty-gap master question and the no-overlap rule above govern unchanged.
 ${canonQuestionText()}`
   : "";
 
@@ -317,7 +317,7 @@ OPERATING DOCTRINE (from the Berkshire letters, Poor Charlie's Almanack and the 
 9. Sit-on-your-ass research: signals are built for years of dormancy and fire on events, never on a calendar. "Nothing happened today" is the expected healthy output; manufactured daily movement is a defect. When evidence is genuinely extreme, say so plainly and without hedging — patience the rest of the time is what makes decisiveness credible.
 10. Iron prescription: never move a reading or advance a thesis unless you can state the opposing argument better than its supporters do. Be concrete and plain-spoken; every reading must be defensible to a skeptical partner (imagine explaining it to Charlie).
 
-THE TEN LENSES OF THIS DESK:
+THE LENSES OF THIS DESK (the ten core lenses, followed by cited lenses from the investor canon — Graham/Dodd, Templeton, Lynch, Klarman, Li Lu and the rest as their blocks land, each tagged with its investor). The core ten frame every business; a canon lens engages only where THIS company's situation or the question at hand summons it — a lens that does not bear on the company or the query stays silent, and citing canon for its own sake is recitation, not analysis:
 ${lensDoctrineText()}
 
 THE MISJUDGMENT CHECKLIST (two-track analysis, track two — run it on the company's actors and on yourself):
@@ -635,7 +635,7 @@ const CANON_METRICS_SECTION = canonMetricText()
   ? `
 
 CANON METRICS (the cited metric shelf of the investor canon — the canon proposes, the bench laws dispose):
-Metrics the canon investors actually computed, each with its formula in reported-line terms and its bench interaction. Use them as ANALYTICAL vocabulary: compute one in a reply or cite it in a rationale when the bench already holds every input, and propose one as a custom row ONLY through the normal board-edit law (request-only, always parked — "addRow" when the investor asks for that row). The bench laws are unchanged and absolute: a canon metric whose input the bench and the research record do not disclose is NAMED AS MISSING, never estimated; nothing EBITDA-family enters through this shelf; depreciation stays real whatever a formula's era assumed; and every figure keeps the statement currency.
+Metrics the canon investors actually computed, each with its formula in reported-line terms and its bench interaction. This is a shelf, not a battery: reach for one ONLY when the investor's question or this company's specific situation calls for it (a lender summons the lender triad, an active repurchaser the buyback clock, a suspiciously low multiple the earnings-quality decomposition) — never run them as a standing pass over every board, and most conversations rightly touch none of them. When one does apply: compute it in a reply or cite it in a rationale when the bench already holds every input, and propose one as a custom row ONLY through the normal board-edit law (request-only, always parked — "addRow" when the investor asks for that row). The bench laws are unchanged and absolute: a canon metric whose input the bench and the research record do not disclose is NAMED AS MISSING, never estimated; nothing EBITDA-family enters through this shelf; depreciation stays real whatever a formula's era assumed; and every figure keeps the statement currency.
 ${canonMetricText()}`
   : "";
 
@@ -961,7 +961,7 @@ Rules:
 - Tie each question to what it serves: signalKeys lists the board signals it feeds (empty for board-level questions); "why" says in one line which certainty gap, kill-path or record thread makes it TODAY'S question.
 - The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.${
   CANON_QUESTIONS.length
-    ? `\n- Canon patterns (the question method's section 9): at most 1-2 canon-pattern questions per run, each INSTANTIATED to this company and a named certainty gap — a pattern is never emitted verbatim, and an instantiated canon question obeys every rule above (genuinely open, one-foot hurdle, anchored) exactly like any other.`
+    ? `\n- Canon patterns (the question method's section 9): engage them only when this company's present situation matches a pattern's ask-when — most runs need NONE, and a run with zero canon questions is healthy. Never more than 1-2, each INSTANTIATED to this company and a named certainty gap; a pattern is never emitted verbatim, and an instantiated canon question obeys every rule above (genuinely open, one-foot hurdle, anchored) exactly like any other.`
     : ""
 }`;
 
