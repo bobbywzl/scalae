@@ -4,8 +4,11 @@
  * (docs/investor-corpus/extractions/<investor>/<doc>.md).
  *
  * The extraction files are produced and owned by the corpus-extraction
- * pipeline; on a checkout that does not carry them (e.g. a branch not yet
- * merged with the extraction branch) the test SKIPS rather than fails.
+ * pipeline and land asynchronously (tier by tier); on a checkout that does
+ * not carry them at all the test SKIPS rather than fails, and a cited doc
+ * whose extraction file has not merged into this tree yet is reported as
+ * PENDING rather than failed — but only when the doc slug appears in
+ * docs/investor-corpus/LEDGER.md, so a typo'd slug still fails hard.
  * Point CANON_EXTRACTIONS_DIR at an extractions directory to force the check
  * against a local copy.
  */
@@ -63,6 +66,13 @@ function normalize(s: string): string {
     .trim();
 }
 
+/** The ledger catalogs every doc slug across all tiers; used to tell a
+ *  not-yet-merged extraction (slug present) from a typo'd slug (absent). */
+function ledgerText(): string {
+  const p = path.join(__dirname, "..", "docs", "investor-corpus", "LEDGER.md");
+  return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
+}
+
 test("every canon {doc, quote} pair exists verbatim in an extraction file", (t) => {
   const index = loadExtractionIndex();
   if (!index) {
@@ -71,15 +81,29 @@ test("every canon {doc, quote} pair exists verbatim in an extraction file", (t) 
     );
     return;
   }
+  const ledger = ledgerText();
+  const pending: string[] = [];
   for (const e of ALL) {
     const file = index.get(e.source.doc);
+    if (!file) {
+      // A real catalogued doc whose extraction has not merged into this tree
+      // yet is pending, not failing; anything the ledger has never heard of
+      // is a bad citation.
+      assert.ok(
+        ledger.includes(`\`${e.source.doc}\``),
+        `${e.kind} "${e.label}": no extraction file AND no LEDGER.md row for doc slug "${e.source.doc}"`
+      );
+      pending.push(e.source.doc);
+      continue;
+    }
     assert.ok(
-      file,
-      `${e.kind} "${e.label}": no extraction file found for doc slug "${e.source.doc}"`
-    );
-    assert.ok(
-      normalize(file as string).includes(normalize(e.source.quote)),
+      normalize(file).includes(normalize(e.source.quote)),
       `${e.kind} "${e.label}": quote not found verbatim in extractions/<investor>/${e.source.doc}.md`
+    );
+  }
+  if (pending.length > 0) {
+    t.diagnostic(
+      `${pending.length} citation(s) pending extraction merge (in LEDGER.md, not in this tree): ${[...new Set(pending)].join(", ")}`
     );
   }
 });
