@@ -457,6 +457,64 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "We regard investing as an arrogant act; an investor who buys is effectively saying that he or she knows more than the seller and the same or more than other prospective buyers.",
     },
   },
+
+  // --- 5. Li Lu ---
+  {
+    pattern:
+      "The multiple looks low — but WHY: are the earnings at a cyclical peak, padded with one-time or windfall elements, or genuinely long-term, stable and sustainable? Decompose before the ratio means anything.",
+    askWhen:
+      "any statistically cheap reading — a low multiple on undecomposed earnings is a story, not a fact",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "global-value-investing-in-our-era",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f75703627bd3a927077e_Global%20Value%20Investing%20in%20Our%20Era%20%282024-12-07%29.pdf",
+      quote:
+        "are the earnings cyclical? If the P/E is low, is it because it is at the peak of the cycle, because the earnings include many one-time or cyclical elements, or because the earnings are genuinely long-term, stable, and sustainable?",
+    },
+  },
+  {
+    pattern:
+      "Through this drawdown, has the company's own value-creation series — sales, earnings, book value — kept compounding, or did the business itself break? Do we truly know how much value it created this year?",
+    askWhen:
+      "a holding or watched company falls hard; the desk's understanding is only confirmed when a severe decline forces re-examination and the thesis still holds",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "global-value-investing-in-our-era",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f75703627bd3a927077e_Global%20Value%20Investing%20in%20Our%20Era%20%282024-12-07%29.pdf",
+      quote:
+        "Another example is BYD, which we've held for 22 years. During this time, its stock has dropped by more than 50% at least six times, once even by more than 80%.",
+    },
+  },
+  {
+    pattern:
+      "Whose interest does this company's own pricing structure serve — does it get paid for value delivered to the customer, or paid regardless, the way professional fees reflect the professionals?",
+    askWhen:
+      "fee-based, agency, advisory and intermediary business models; any model where the customer cannot judge product quality",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote:
+        "The pricing structure basically reflects the interests of professionals, and not so much those of the client.",
+    },
+  },
+  {
+    pattern:
+      "Is there behavioral evidence — not claims — that this management treats outside capital like their own family's hard-earned savings? What have they actually done with other people's money when nobody was forcing them?",
+    askWhen:
+      "trust-and-stewardship diligence: related-party history, treatment of minority holders, conduct in past ventures",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote:
+        "Every penny entrusted to you by your client should be treated as though it were the money your parents had worked hard to earn and saved thriftily over their lifetime.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -900,6 +958,83 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "We have identified numerous companies in the midst of asset sales, spin-offs, and share repurchases, and others actively exploring such transactions.",
     },
   },
+
+  // --- 5. Li Lu ---
+  {
+    directive:
+      "Before crediting long-run share performance to the business, decompose the return into the company's own earnings growth versus multiple re-rating — the earnings component is the business, the re-rating component is borrowed from a future buyer.",
+    queryShapes: [
+      "<COMPANY> EPS growth 10 year vs total shareholder return",
+      "<COMPANY> earnings multiple start vs end of period",
+      "<COMPANY> revenue growth vs margin trend same period",
+    ],
+    sourcePriority:
+      "primary financial statements over index-level or narrative return summaries",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote: "The core value of stock lies in the growth of its earnings discounted to present value.",
+    },
+  },
+  {
+    directive:
+      "Read the shareholder register before reading a price move as information: in a market or float dominated by short-horizon holders (Li Lu's home-market base rate — retail-driven, high turnover), swings carry less information per move; check ownership composition and turnover in the company's home-market disclosures.",
+    queryShapes: [
+      "<COMPANY> free float retail vs institutional ownership percentage",
+      "<COMPANY> shareholder register turnover rate",
+      "<COMPANY> home market exchange ownership disclosure",
+    ],
+    sourcePriority:
+      "exchange and registrar ownership disclosures — including the home market's own filings for foreign-listed companies — over sentiment commentary",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote:
+        "70% of the players in the Chinese capital market are retail investors focusing on short trades, even institutional investors.",
+    },
+  },
+  {
+    directive:
+      "Read the litigation record end-to-end, not the coverage of it: download the case files — shareholder complaints, plaintiff statements, resolutions — and read them first page to last; grievance patterns are primary conduct evidence.",
+    queryShapes: [
+      "<COMPANY> shareholder lawsuit complaint filings docket",
+      "<COMPANY> litigation history settlements resolution terms",
+      "<COMPANY> minority shareholder dispute court record",
+    ],
+    sourcePriority:
+      "court dockets and filed case documents over press summaries of them",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "li-lu-s-investing-masterclass-at-columbia-business-school-2006-t",
+      url: "https://roiss.substack.com/p/li-lus-investing-masterclass-at-columbia",
+      quote:
+        "Absolutely. Go and download every single case file and read them carefully from the first to the last page. It is important to have a curious mind, because if you only do it for the money it is hard to dig as deep.",
+    },
+  },
+  {
+    directive:
+      "Research the principals' biographical record the way an embedded observer would: past ventures and how partners fared, community and philanthropic conduct over decades, how long-time associates describe them — character evidence accumulated across a life, not a news cycle.",
+    queryShapes: [
+      "<COMPANY> founder previous ventures outcome partners",
+      "<COMPANY> CEO biography community philanthropy record",
+      "<COMPANY> management long-time associates interviews reputation",
+    ],
+    sourcePriority:
+      "biographical and community records, past-venture filings and long-form interviews over current-cycle press",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "li-lu-s-investing-masterclass-at-columbia-business-school-2006-t",
+      url: "https://roiss.substack.com/p/li-lus-investing-masterclass-at-columbia",
+      quote:
+        "You go to their community, their church or synagogue and integrate yourself into that community. Introduce yourself to their friends and neighbours and spend a few weeks there, it is worth it.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -1150,6 +1285,49 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
       quote:
         "While we frequently invest in stocks with a catalyst for value realization in order to create a portfolio of limited duration, we nevertheless buy only when we are prepared to hold for the long-term.",
+    },
+  },
+
+  // --- 5. Li Lu ---
+  // Dedup notes: stock-as-ownership, Mr. Market, permanent-loss-not-volatility
+  // and inversion are the desk's core doctrine verbatim; circle-of-competence
+  // is core Lens 1 (Lynch's Edge carries its active half, and Li Lu's
+  // drawdown-tested-boundary rides the canon question patterns); the
+  // purchasing-power frame folds into Templeton's Real-Return lens; owner's-
+  // mindset folds into core Lens 5; falsifiable-premise naming is the iron
+  // prescription. The two below are the Li Lu instruments the desk lacks.
+  {
+    title: "True Knowledge vs. Opinion (Li Lu)",
+    question:
+      "Is what the desk holds about this company true knowledge — evidence, logic, and named ignorance — or opinion absorbed from consensus and repetition?",
+    test:
+      "Run the four-part intellectual honesty test on the file: what do we know, what do we not know, what do we not need to know, and where might we not know that we don't know? Knowledge must be earned like an investigative journalist's: primary documents read end-to-end, one-sided answers refused, ideas credited by evidence and reason — never because people agree. A claim that cannot name its evidence chain, or an ignorance that has never been written down, marks the boundary of the circle; the honest file carries its don't-know list as prominently as its thesis.",
+    evidence:
+      "The file's explicit don't-know ledger and how it shrank over time; which claims trace to primary documents read fully versus absorbed narrative; whether contrary evidence was hunted or merely survived; the desk's willingness to say 'not knowable' and stop.",
+    investor: "Li Lu",
+    source: {
+      investor: "Li Lu",
+      doc: "graham-doddsville-interview",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/642e161699ad88498e9c681a_2013-03-28%20Graham%20%26%20Doddsville%20Article_LL.pdf",
+      quote:
+        "The most important thing in our business is intellectual honesty. What I mean is four different things: know what you know, know what you don't know, know what you don't have to know, and realize that there is always a possibility that \"you don't know that you don't know.\"",
+    },
+  },
+  {
+    title: "The Source of Return (Li Lu)",
+    question:
+      "Is this thesis paid by the business's own value creation, or by a counterparty's mistake — and if the latter, why is the desk certain it is the better-informed side?",
+    test:
+      "Classify every expected gain by its source. Returns from the company's compounding — profits growing with a sustainably growing economy — are positive-sum and need no loser; returns from trading behavior are a zero-sum transfer where gains and losses must equal, and claiming them asserts superiority over the specific person on the other side. Prefer theses that need no loser; where a thesis does rest on mispricing, the burden is Klarman's arrogance test, answered in writing. Re-rating hoped for without either source named is speculation wearing a valuation costume.",
+    evidence:
+      "The return decomposition (earnings growth vs. multiple change) on the thesis and on the company's own past decade; whether the projected gain survives with zero re-rating; who the implied counterparty is and what constraint or error the desk believes they are under.",
+    investor: "Li Lu",
+    source: {
+      investor: "Li Lu",
+      doc: "the-practice-of-value-investing",
+      url: "https://www.longriverinv.com/thought/the-practice-of-value-investing-by-li-lu",
+      quote:
+        "If you speculate on other people's short-term trading behaviour, there can only be one result in the end: gains and losses must equal because this is a zero-sum game.",
     },
   },
 ];
@@ -1463,6 +1641,40 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt",
       quote:
         "are hardly one-time when they recur year after year. (These write-offs also result in an overstatement of return on equity; high return on equity is another argument used to justify record stock valuations.)",
+    },
+  },
+
+  // --- 5. Li Lu ---
+  {
+    name: "Return decomposition: earnings vs. re-rating (Li Lu)",
+    formula:
+      "split total shareholder return over the period into (a) growth of earnings per share, (b) change in the multiple, (c) dividends — reported lines and market data, no estimates",
+    reading:
+      "The core value of a stock is its earnings growth; the re-rating component is borrowed from a future buyer and is the zero-sum part of any record. A company (or a thesis) whose historical return was mostly multiple expansion has not demonstrated compounding — it has demonstrated popularity, which Templeton's law says is temporary.",
+    benchNotes:
+      "EPS from the bench's cleansed series; the decomposition is analytical context in the margin-of-safety role and never produces a target. Apply it to the company's own past decade before crediting 'compounder' status.",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote: "The core value of stock lies in the growth of its earnings discounted to present value.",
+    },
+  },
+  {
+    name: "Cycle-tested record window (Li Lu)",
+    formula:
+      "before crediting a multi-year record — management's capital allocation, a strategy, a margin structure — require the window to include a down-or-flat stretch; Li Lu's practical bar is on the order of fifteen years",
+    reading:
+      "A record that spans only a rising tide cannot be told apart from the tide: US stocks went nowhere from 1966 to 1981, and any approach measured only outside such stretches is unproven. Applied to companies: an allocation record, a 'consistent' margin, or a growth story earned entirely inside one favorable regime gets provisional credit only, with the untested regimes named.",
+    benchNotes:
+      "A window-selection rule for reading the bench's own year-columns, not a computed row: state which macro stretch the displayed record spans and what it has never been through (pairs with Lynch's recession-spanning streak, which applies the same law to the earnings series).",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "the-prospect-of-value-investing-in-china",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
+      quote: "But in the ensuing 15 years (1966-1981) stock prices declined rather than grew.",
     },
   },
 ];
