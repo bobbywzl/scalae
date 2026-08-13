@@ -1,7 +1,9 @@
 import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
+import { canonSearchText } from "./canon";
 import { researchSignalBackstory } from "./history";
+import { cleansingBenchContext } from "./context";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
@@ -32,7 +34,7 @@ import {
   insertDigestItem,
   insertProposal,
   insertReading,
-  latestRun,
+  latestDoneRun,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
@@ -198,12 +200,22 @@ export async function startSignalRun(
   return { run, started: true };
 }
 
-/** How fresh a window to research: since the last completed run, else 7 days. */
-async function windowDays(userId: string, symbol: string): Promise<number> {
-  const last = await latestRun(userId, symbol);
-  if (!last?.finishedAt) return 7;
-  const days = Math.ceil((Date.now() - Date.parse(last.finishedAt)) / 86_400_000);
-  return Math.min(14, Math.max(2, days + 1));
+/**
+ * How fresh a window to research: since the last COMPLETED run, else 7 days.
+ * Must read latestDoneRun — startRun has already inserted THIS run's row, so
+ * an unfiltered latest-run read returns it (finishedAt null) and the adaptive
+ * window silently degenerates to a constant 7. `gapDays` carries the true
+ * span since the last completed run so the synthesis can disclose an unswept
+ * stretch (a desk paused for six weeks must say the six weeks weren't read).
+ */
+async function researchWindow(
+  userId: string,
+  symbol: string
+): Promise<{ days: number; gapDays: number | null }> {
+  const last = await latestDoneRun(userId, symbol);
+  if (!last?.finishedAt) return { days: 7, gapDays: null };
+  const gapDays = Math.ceil((Date.now() - Date.parse(last.finishedAt)) / 86_400_000);
+  return { days: Math.min(14, Math.max(2, gapDays + 1)), gapDays };
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -221,6 +233,19 @@ const SCOUT_RULES = `Ground every finding in search results. For each finding ou
 - HEADLINE (date, source)
 - 2-3 sentence factual summary with concrete numbers where available
 Skip stock-price commentary, analyst price-target chatter, and peer-momentum/FOMO framing. Prefer revealed behavior and primary mechanism evidence (filings, transcripts, regulator documents, observed pricing/hiring/insider actions) over narrative retellings, and note when a finding's only source is an interested party (the company itself, its bankers, or paid promotion). Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly — an honest "nothing" beats manufactured news.`;
+
+/**
+ * The canon's search directives for a sweep (§3 wire-in, point 2) — "" until
+ * canon entries land, so pre-canon prompts are byte-identical. Anchored:
+ * the culture sweep gets culture directives, the company sweep business-model
+ * ones; the deep-dive probe gets all and applies whichever matches.
+ */
+function canonDirectiveBlock(anchor?: "business-model" | "culture"): string {
+  const text = canonSearchText(anchor);
+  return text
+    ? `\n\nTHE CANON'S SEARCH DIRECTIVES (${anchor ?? "all anchors"} — cited search behaviors from the investor canon): a situational playbook, NOT a checklist. Apply only the directive(s) that this company's business model, industry, or current events actually summon${anchor ? "" : " for this probe's subject"} — most directives are rightly dormant on any given sweep, and none of them ever overrides the grounding rules above. Those that do apply steer WHERE to look, offer query shapes to adapt to this company, and say which sources that investor treated as primary:\n${text}`
+    : "";
+}
 
 function signalSweepPrompt(symbol: string, name: string, days: number, signals: Signal[]): string {
   const signalBlock = signals
@@ -242,7 +267,7 @@ function broadSweepPrompt(symbol: string, name: string, days: number): string {
 Search the web for company developments from roughly the last ${days} days that a long-term business owner must know: earnings and guidance substance, management changes and statements, capital allocation moves (buybacks, dividends, M&A, big capex), regulatory/legal developments, competitive shifts, customer/product traction, accounting or governance red flags.
 
 ${SCOUT_RULES}
-Do not pad with old background information unless you label it "(context)".`;
+Do not pad with old background information unless you label it "(context)".${canonDirectiveBlock("business-model")}`;
 }
 
 function primarySourcePrompt(symbol: string, name: string, days: number): string {
@@ -260,7 +285,7 @@ Search the web for corporate-culture and conduct evidence from roughly the last 
 
 Hunt the incentive layer specifically (Munger: behavior follows the comp plan, not the mission statement): executive compensation changes and their metrics/horizons (proxy filings), insider buying and selling, buyback timing vs. option vesting, guidance promises made vs. kept, treatment of bad-news messengers and whistleblowers, and any gap between management's adjusted metrics and GAAP.
 
-Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
+Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}${canonDirectiveBlock("culture")}`;
 }
 
 function questionSweepPrompt(
@@ -290,7 +315,7 @@ The desk's analyst reviewed today's field research and commissioned this targete
 QUESTION: ${q.query}
 WHY THE DESK ASKS: ${q.reason}
 
-Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}`;
+Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}${canonDirectiveBlock()}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -519,7 +544,7 @@ export async function executeRun(
       resolveModel("synthesis"),
     ]);
 
-    const days = await windowDays(userId, symbol);
+    const { days, gapDays } = await researchWindow(userId, symbol);
     const bundles = chunk(signals, 5);
 
     // Board context, the due-diligence record and the investor's guidance are
@@ -574,6 +599,11 @@ export async function executeRun(
     const ddBlock = await diligenceRecordBlock(userId, symbol);
     // What past runs answered and established — read BEFORE this run works.
     const ctxBlock = await contextBoardBlock(userId, symbol);
+    // The reported numbers and the investor's cleansed view (FOUNDATION: "one
+    // desk, fully connected" — the chat, compare and diligence surfaces already
+    // carry this; the run that writes the readings must see the same numbers).
+    // Cache-only and position-free: readings stay unbiased by the ledger.
+    const benchBlock = await cleansingBenchContext(userId, symbol).catch(() => "");
 
     // ---- Stage 0: today's focus questions ----
     // The circle-of-competence discipline made operational (FOUNDATION.md):
@@ -820,8 +850,16 @@ ${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame 
     const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
     const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
 
+    // Coverage honesty (FOUNDATION: missing evidence is said plainly): the
+    // sweep window is capped at 14 days, so a desk idle longer than that has
+    // an unswept stretch the brief must own instead of papering over.
+    const unsweptDays = gapDays !== null && gapDays > days ? gapDays - days : 0;
     const task = `Today is ${new Date().toDateString()}. ${quoteLine(quote)}
-
+${
+  unsweptDays > 0
+    ? `\nCOVERAGE HONESTY: the desk's last completed run was ~${gapDays} days ago, but today's sweeps read only the last ${days} days — roughly ${unsweptDays} days in between went UNRESEARCHED. The brief MUST state this plainly in one line (name the unswept span); never present today's picture as continuous coverage.\n`
+    : ""
+}
 INVESTOR FOCUS AREAS:
 ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
 
@@ -831,7 +869,7 @@ ${questionsBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${benchBlock ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (how the investor reads this record — readings that touch the financial record must speak to the same numbers):\n${benchBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -978,6 +1016,9 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
     const missingBackstory = signals.filter((s) => !s.backstory).slice(0, 2);
     for (const s of missingBackstory) {
       try {
+        // The snapshot is minutes old — don't spend a research call enriching
+        // a signal the investor retired while this run was in flight.
+        if ((await getSignal(s.id))?.status !== "active") continue;
         await withDeadline(`backstory:${s.name}`, (signal) =>
           researchSignalBackstory(userId, s.id, signal)
         );

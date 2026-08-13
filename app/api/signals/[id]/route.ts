@@ -30,10 +30,13 @@ export async function PATCH(req: Request, { params }: Params) {
   const action = body.action;
 
   if (action === "approve") {
-    const { retiredId } = await approveSignal(id);
+    // Guarded flip: approval means suggested→active. A proposal that was
+    // dismissed or approved elsewhere between this page's poll and this click
+    // stays as it is — the response carries its true current state.
+    const { approved, retiredId } = await approveSignal(id);
     const ticker = await getTicker(user.id, signal.symbol);
     let onboardedNow = false;
-    if (ticker && !ticker.onboarded) {
+    if (approved && ticker && !ticker.onboarded) {
       await markOnboarded(user.id, signal.symbol);
       onboardedNow = true;
     }

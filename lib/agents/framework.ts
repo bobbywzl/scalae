@@ -18,6 +18,7 @@
  */
 
 import { ADJUSTABLE_METRIC_KEYS } from "../cleansing";
+import { CANON_CONCEPTS, CANON_QUESTIONS, canonMetricText, canonQuestionText } from "./canon";
 
 // ---------------------------------------------------------------------------
 // The ten lenses — each carries Buffett's own screening test and the kinds of
@@ -31,7 +32,7 @@ export interface Lens {
   evidence: string;
 }
 
-export const LENSES: Lens[] = [
+export const CORE_LENSES: Lens[] = [
   {
     title: "Circle of Competence",
     question: "Do we actually understand how this business makes money, and can we say what it will look like in 10-20 years?",
@@ -93,6 +94,23 @@ export const LENSES: Lens[] = [
     evidence: "Aggressive revenue recognition, receivables/inventory outrunning sales, a widening adjusted-vs-GAAP gap, stock-comp treatment in 'adjusted' metrics, serial 'one-time' restructurings, related-party dealings, auditor disputes/changes, mark-to-model earnings, growth sustained by loosened underwriting or credit, leverage and maturity walls, legal/regulatory probes, key-person dependence, promotional guidance.",
   },
 ];
+
+/**
+ * THE CANON PROPOSES, THE CHARTER DISPOSES (governance of the investor canon).
+ * lib/agents/canon.ts carries the quote-cited distillate of the investor
+ * corpus (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, Schloss, Greenblatt,
+ * Pabrai): candidate question patterns, search directives, concepts and
+ * metrics, every one citing a {doc, quote} pair verified against the cached
+ * source text. The canon only ever PROPOSES: the two anchors, the
+ * certainty-gap master question, the no-overlap rule and the human approval
+ * gates in the doctrines above and below still govern everything it feeds.
+ * Where a canon concept duplicates an existing lens, the lens's test/evidence
+ * is extended with the cited addition instead of a near-twin entry being
+ * added — the no-overlap rule applied to doctrine itself. Canon concepts that
+ * ARE distinct join the lens latticework here, so lensDoctrineText() carries
+ * them to every surface with zero extra plumbing.
+ */
+export const LENSES: Lens[] = [...CORE_LENSES, ...CANON_CONCEPTS];
 
 export function lensListText(): string {
   return LENSES.map((l, i) => `${i + 1}. ${l.title} — ${l.question}`).join("\n");
@@ -179,6 +197,17 @@ export function misjudgmentChecklistText(): string {
 // Used by onboarding to interview the investor and design the board.
 // ---------------------------------------------------------------------------
 
+/**
+ * Section 9 of the question method: the canon's cited question forms.
+ * Empty (and absent from the prompt) until canon entries land — the doctrine
+ * string is byte-identical to its pre-canon form when the canon is empty.
+ */
+const CANON_QUESTION_SECTION = canonQuestionText()
+  ? `
+9. The bench's question patterns — cited question forms from the investor canon (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, and the rest as their blocks land), each tagged with its ask-when trigger and its anchor. This is a reference shelf, not a checklist: an entry speaks only when THIS company's situation or the investor's question matches its ask-when — on most runs most of the shelf stays silent, and engaging none of it is a normal, healthy outcome. When one does apply, instantiate it — rewritten to the specific company, metric, event or period, never emitted verbatim. The canon proposes, the charter disposes: the two anchors, the certainty-gap master question and the no-overlap rule above govern unchanged.
+${canonQuestionText()}`
+  : "";
+
 export const QUESTION_METHOD = `HOW TO GENERATE THE RIGHT QUESTIONS FOR THIS SPECIFIC BUSINESS (the Buffett/Munger method):
 1. Classify the business first — the questions follow from the economics, not from a generic checklist:
    - GREAT: enduring moat + high returns on little incremental capital (See's). Central questions become: is the moat being assaulted, is pricing power still untested, where does the excess cash go?
@@ -191,7 +220,7 @@ export const QUESTION_METHOD = `HOW TO GENERATE THE RIGHT QUESTIONS FOR THIS SPE
 5. Invert (Jacobi, via Munger): build the kill list — what would destroy this business: moat breach, balance-sheet stress, competitive-destruction wave, cultural rot, accounting decay, regulatory strike — and track the earliest observable symptom of each, not the disaster itself. Then the kill question's second half, the most important read on management: is management actively diverting the company away from each path — naming it candidly and acting on it — or denying it (steering vs. denial is first-rate culture evidence)? Every board needs its kill-list signals; a board of pure confirmation is a voting machine.
 6. Run the second track: which misjudgment tendencies are most likely operating in THIS company's management, board and industry right now (incentive-caused bias first — read the comp plan; then social proof, commitment escalation, authority, denial, envy)? The strongest culture questions are psychology questions with observable corporate symptoms.
 7. Prefer one-foot hurdles: choose questions that public evidence can actually answer. 'No signal' on an unanswerable question is analytical waste — and where a question genuinely exceeds what public evidence can support, say "too hard" plainly instead of proposing a signal that will only ever guess (in / out / too hard are the three honest baskets).
-8. Distrust projections; demand demonstrated record ('we care about demonstrated consistent earning power; projections are of little interest, and turnarounds seldom turn' — 1988 acquisition criteria). Management's forward numbers are never business evidence — only their accuracy record is (a candor signal).`;
+8. Distrust projections; demand demonstrated record ('we care about demonstrated consistent earning power; projections are of little interest, and turnarounds seldom turn' — 1988 acquisition criteria). Management's forward numbers are never business evidence — only their accuracy record is (a candor signal).${CANON_QUESTION_SECTION}`;
 
 // ---------------------------------------------------------------------------
 // The opening file: how the desk begins a NEW company — assembling the
@@ -288,7 +317,7 @@ OPERATING DOCTRINE (from the Berkshire letters, Poor Charlie's Almanack and the 
 9. Sit-on-your-ass research: signals are built for years of dormancy and fire on events, never on a calendar. "Nothing happened today" is the expected healthy output; manufactured daily movement is a defect. When evidence is genuinely extreme, say so plainly and without hedging — patience the rest of the time is what makes decisiveness credible.
 10. Iron prescription: never move a reading or advance a thesis unless you can state the opposing argument better than its supporters do. Be concrete and plain-spoken; every reading must be defensible to a skeptical partner (imagine explaining it to Charlie).
 
-THE TEN LENSES OF THIS DESK:
+THE LENSES OF THIS DESK (the ten core lenses, followed by cited lenses from the investor canon — Graham/Dodd, Templeton, Lynch, Klarman, Li Lu and the rest as their blocks land, each tagged with its investor). The core ten frame every business; a canon lens engages only where THIS company's situation or the question at hand summons it — a lens that does not bear on the company or the query stays silent, and citing canon for its own sake is recitation, not analysis:
 ${lensDoctrineText()}
 
 THE MISJUDGMENT CHECKLIST (two-track analysis, track two — run it on the company's actors and on yourself):
@@ -597,6 +626,19 @@ export const CLEANSING_SUGGEST_SCHEMA = {
   },
 } as const;
 
+/**
+ * The bench's canon-metric shelf (§3 wire-in, point 4). Empty — and absent
+ * from the doctrine — until canon metric entries land. Fully subordinate to
+ * the bench laws above: the canon proposes, the bench laws dispose.
+ */
+const CANON_METRICS_SECTION = canonMetricText()
+  ? `
+
+CANON METRICS (the cited metric shelf of the investor canon — the canon proposes, the bench laws dispose):
+Metrics the canon investors actually computed, each with its formula in reported-line terms and its bench interaction. This is a shelf, not a battery: reach for one ONLY when the investor's question or this company's specific situation calls for it (a lender summons the lender triad, an active repurchaser the buyback clock, a suspiciously low multiple the earnings-quality decomposition) — never run them as a standing pass over every board, and most conversations rightly touch none of them. When one does apply: compute it in a reply or cite it in a rationale when the bench already holds every input, and propose one as a custom row ONLY through the normal board-edit law (request-only, always parked — "addRow" when the investor asks for that row). The bench laws are unchanged and absolute: a canon metric whose input the bench and the research record do not disclose is NAMED AS MISSING, never estimated; nothing EBITDA-family enters through this shelf; depreciation stays real whatever a formula's era assumed; and every figure keeps the statement currency.
+${canonMetricText()}`
+  : "";
+
 export const FIN_ANALYST_DOCTRINE = `THE FINANCIAL ANALYST DESK (the cleansing bench's working chat):
 You are this desk's financial analyst, seated at the cleansing bench. The investor customizes their view of the reported financials here; your job is to implement their customization requests EXACTLY — precise line, precise fiscal year, precise amount — under the bench laws above.
 
@@ -620,7 +662,7 @@ The ops (proposal.op):
 - "addYear": add a fiscal-year column (a 4-digit label) outside the provider's window — older history the provider dropped, or a year it is missing. The column starts empty; fill specific cells with "set" proposals in the same turn (they may reference the year being added).
 Sequencing: emit the addYear/addRow proposal BEFORE the set proposals that fill it. State every board edit in your reply exactly like a delta — what changes, where, and what it traces to.
 
-THE WHOLE TICKER IS IN VIEW: your context also carries the desk's signal board and the investor's due-diligence record. Read them — a bench question often lands there (a signal already watching subsidy dependence, a section note explaining why an item recurs), and your rationales should cite that context when it bears on an adjustment. Your WRITE scope stays this bench alone: for signal or board changes, or edits to the record, point the investor to the signals desk or the due-diligence page instead of pretending to act there.`;
+THE WHOLE TICKER IS IN VIEW: your context also carries the desk's signal board and the investor's due-diligence record. Read them — a bench question often lands there (a signal already watching subsidy dependence, a section note explaining why an item recurs), and your rationales should cite that context when it bears on an adjustment. Your WRITE scope stays this bench alone: for signal or board changes, or edits to the record, point the investor to the signals desk or the due-diligence page instead of pretending to act there.${CANON_METRICS_SECTION}`;
 
 export const FIN_ANALYST_SCHEMA = {
   type: "object",
@@ -764,6 +806,7 @@ RULES OF THE WEIGHING:
 4. Lollapalooza check both ways: note where several INDEPENDENT readings reinforce one direction on either desk (moat + incentives + culture aligned = say so; the same in decay = say so louder).
 5. "Too close to call" and "too thin to call" are first-class verdicts — deliver them plainly when true rather than manufacturing a winner. The comparison's job is to sharpen the investor's judgment, not replace it.
 6. Never output a buy/sell/size instruction, a price target, or a performance prediction. End with what evidence would flip the ranking — the desks will watch for it.
+7. The investor's position lines are exposure context for the READER only. The weighing is of the two businesses: the investor's cost basis, unrealized gains or losses, and dividends received are never inputs to the ranking, never cited as reasons, and never mentioned in the verdict — that would be the desk running the disposition effect it exists to catch.
 
 OUTPUT (markdown, 250-450 words): lead with the verdict in one plain paragraph (which business the current evidence favors and the single strongest reason — or an honest too-close/too-thin call); then a compact filter-by-filter weighing (understanding, economics/moat, management/culture, price context); then the 2-4 decisive differences; then "What would flip this" — the specific evidence to watch on each side. Refer to signals by their quoted names.`;
 }
@@ -916,7 +959,11 @@ Rules:
 - Invert first: at least one question must hunt evidence that would REFUTE the board's current read or catch a kill-path's earliest observable symptom. Steering-vs-denial questions (is management naming the threat and acting?) are first-rate here.
 - One-foot hurdles only: each question must be answerable from the open web THIS run — name the company, metric, event, actor or period. "Is the moat durable?" is not a question; "did the July price increase hold volume through the EU duty change?" is.
 - Tie each question to what it serves: signalKeys lists the board signals it feeds (empty for board-level questions); "why" says in one line which certainty gap, kill-path or record thread makes it TODAY'S question.
-- The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.`;
+- The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.${
+  CANON_QUESTIONS.length
+    ? `\n- Canon patterns (the question method's section 9): engage them only when this company's present situation matches a pattern's ask-when — most runs need NONE, and a run with zero canon questions is healthy. Never more than 1-2, each INSTANTIATED to this company and a named certainty gap; a pattern is never emitted verbatim, and an instantiated canon question obeys every rule above (genuinely open, one-foot hurdle, anchored) exactly like any other.`
+    : ""
+}`;
 
 /**
  * The context board — the desk's behind-the-scenes memory. Distilled after

@@ -23,7 +23,7 @@ import {
   getTicker,
   insertMessage,
   insertProposal,
-  latestRun,
+  latestDoneRun,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFinAdjustments,
@@ -46,7 +46,7 @@ import { benchLines } from "./context";
 import { diligenceContext } from "../notes";
 import { computeInvolvement, involvementLine } from "../portfolio";
 import type { Lang } from "../i18n/config";
-import type { Attachment, ChatMessage, FocusAreaProposal, SignalProposal } from "../types";
+import type { Attachment, ChatMessage, FocusAreaProposal, Signal, SignalProposal } from "../types";
 
 interface ChatOutput {
   reply: string;
@@ -240,7 +240,19 @@ export async function handleChatTurn(
   userId: string,
   symbol: string,
   userText: string,
-  opts: { retry?: boolean; attachments?: Attachment[]; signalId?: string; lang?: Lang } = {}
+  opts: {
+    retry?: boolean;
+    attachments?: Attachment[];
+    signalId?: string;
+    lang?: Lang;
+    /**
+     * Skip the fast lane and start on the senior analyst. Set by turns whose
+     * whole point is a desk capability the fast lane doesn't have (e.g. the
+     * evidence feed's "track this" drafts a proposal — the fast-lane schema
+     * has no proposals, so answering there silently drops the draft).
+     */
+    forceDeep?: boolean;
+  } = {}
 ): Promise<ChatTurnResult> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
@@ -292,7 +304,10 @@ export async function handleChatTurn(
     listSignals(userId, symbol, "suggested"),
     listSignals(userId, symbol, "dismissed"),
     listSignals(userId, symbol, "retired"),
-    latestRun(userId, symbol),
+    // The last COMPLETED run: a running row carries null brief/dossier, and
+    // reading it would strip the analyst's context mid-run — for minutes,
+    // exactly when the investor is most likely to be chatting.
+    latestDoneRun(userId, symbol),
     getQuote(symbol).catch(() => null),
     computeInvolvement(userId, symbol).catch(() => null),
     // Cache-only: never pay the Yahoo fetch on the chat path (the desk page
@@ -335,9 +350,13 @@ export async function handleChatTurn(
     .join("\n");
 
   const positionLine = involvementLine(involvement);
+  // The unbias guard travels with the position EVERYWHERE the position goes —
+  // FOUNDATION: price/exposure enter only in their margin-of-safety role.
+  const POSITION_GUARD =
+    " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position.";
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
 Market: ${quoteLine(quote)}
-Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position." : ""}
+Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? POSITION_GUARD : ""}
 Focus areas: ${focusAreas.length ? focusAreas.map((f) => `${f.title} — ${f.description}`).join("; ") : "none yet"}
 Active signal board:
 ${boardLines || "(empty)"}
@@ -363,7 +382,7 @@ ${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
     .join("\n");
   const quickContext = `DESK STATE — COMPACT SNAPSHOT (today: ${new Date().toISOString().slice(0, 10)}):
 Market: ${quoteLine(quote)}
-Investor's position in ${symbol}: ${positionLine || "none recorded"}
+Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? POSITION_GUARD : ""}
 Focus areas: ${focusAreas.map((f) => f.title).join("; ") || "none yet"}
 Active signals (${active.length}), latest reading each:
 ${quickBoardLines || "(empty board)"}
@@ -499,7 +518,7 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
   const freshAttachments =
     (opts.attachments?.length ?? 0) > 0 ||
     (opts.retry === true && (lastUser?.attachments?.length ?? 0) > 0);
-  if (mode === "working" && !freshAttachments) {
+  if (mode === "working" && !freshAttachments && opts.forceDeep !== true) {
     const quickLanguageDirective =
       opts.lang === "zh"
         ? `\n\nLANGUAGE: The investor uses Simplified Chinese — write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; give signal names in English quotes, optionally with a short Chinese gloss).`
@@ -635,21 +654,29 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
   const norm = (s: string) => s.toLowerCase().trim();
   let approvedAny = false;
 
+  // Write-scope rule (FOUNDATION: each surface writes only to its own board):
+  // a signal-scoped chat may retire only ITS signal, and approve/dismiss only
+  // proposals that replace it. Everything else belongs to the ticker desk —
+  // the model is told so in its prompt, and the server holds the line here.
+  const inScope = (s: Signal): boolean =>
+    !focusSignal || s.id === focusSignal.id || s.replaces === focusSignal.id;
+
   const pendingNow = await listSignals(userId, symbol, "suggested");
   for (const name of out.approveProposals ?? []) {
     const hit = pendingNow.find((s) => norm(s.name) === norm(name));
-    if (hit) {
-      await approveSignal(hit.id); // retires the replaced signal too, if any
-      approvedAny = true;
+    if (hit && inScope(hit)) {
+      // Guarded flip: a proposal dismissed elsewhere mid-turn stays dismissed.
+      const { approved } = await approveSignal(hit.id); // retires the replaced signal too, if any
+      approvedAny ||= approved;
     }
   }
   for (const name of out.dismissProposals ?? []) {
     const hit = (await listSignals(userId, symbol, "suggested")).find((s) => norm(s.name) === norm(name));
-    if (hit) await setSignalStatus(hit.id, "dismissed");
+    if (hit && inScope(hit)) await setSignalStatus(hit.id, "dismissed");
   }
   for (const name of out.retireSignals ?? []) {
     const hit = (await listSignals(userId, symbol, "active")).find((s) => norm(s.name) === norm(name));
-    if (hit) await setSignalStatus(hit.id, "retired");
+    if (hit && inScope(hit)) await setSignalStatus(hit.id, "retired");
   }
 
   let activatedDesk = false;

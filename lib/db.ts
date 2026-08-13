@@ -717,9 +717,25 @@ export async function setSignalStatus(id: string, status: SignalStatus): Promise
  * the same gesture — the board swaps to the sharper crux signal instead of
  * accreting near-twins. Returns the id of the retired signal, if any.
  */
-export async function approveSignal(id: string): Promise<{ retiredId: string | null }> {
+export async function approveSignal(
+  id: string
+): Promise<{ approved: boolean; retiredId: string | null }> {
+  // Approval means suggested → active, atomically. An unconditional flip let a
+  // proposal dismissed in one surface be approved from another's stale list —
+  // the human gate running backwards. (Archive reactivation is a different
+  // gesture and keeps using setSignalStatus directly.)
+  const flipped = await q<{ id: string }>`
+    UPDATE signals SET status = 'active', "approvedAt" = ${now()}
+    WHERE id = ${id} AND status = 'suggested' RETURNING id`;
+  if (flipped.length === 0) return { approved: false, retiredId: null };
   const signal = await getSignal(id);
-  await setSignalStatus(id, "active");
+  // Activation is the human gate (FOUNDATION) — the approved signal
+  // materializes its focus area here, never chat output on its own.
+  if (signal?.focusArea?.trim()) {
+    await ensureFocusArea(signal.userId ?? "local", signal.symbol, signal.focusArea.trim()).catch(
+      () => {}
+    );
+  }
   let retiredId: string | null = null;
   if (signal?.replaces) {
     const target = await getSignal(signal.replaces);
@@ -731,7 +747,7 @@ export async function approveSignal(id: string): Promise<{ retiredId: string | n
   // A new active signal is a board change — wake the desk from any dormancy
   // backoff so the cron researches it on the normal daily cadence again.
   if (signal) await resetQuietRuns(signal.userId ?? "local", signal.symbol).catch(() => {});
-  return { retiredId };
+  return { approved: true, retiredId };
 }
 
 // ---------- readings ----------
@@ -749,13 +765,23 @@ function parseReading(r: ReadingRow): Reading {
   };
 }
 
-export async function insertReading(r: Omit<Reading, "id">): Promise<Reading> {
+/**
+ * Record a reading — guarded to a signal that is STILL ACTIVE at write time.
+ * A run works from a board snapshot taken minutes earlier; the investor (or
+ * their analyst) may have retired the signal mid-run, and a retired signal
+ * must not accrete fresh evidence dated after its retirement. Returns null
+ * when the write was skipped for that reason.
+ */
+export async function insertReading(r: Omit<Reading, "id">): Promise<Reading | null> {
   const id = uid();
-  await q`INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, "newEvidence", citations)
-          VALUES (${id}, ${r.signalId}, ${r.runId}, ${r.date}, ${r.value}, ${r.valueUnit},
-                  ${r.level}, ${r.delta}, ${r.confidence}, ${r.rationale},
-                  ${r.newEvidence == null ? null : r.newEvidence ? 1 : 0}, ${JSON.stringify(r.citations)})`;
-  return { ...r, id };
+  const rows = await q<{ id: string }>`
+    INSERT INTO readings (id, "signalId", "runId", date, value, "valueUnit", level, delta, confidence, rationale, "newEvidence", citations)
+    SELECT ${id}, ${r.signalId}, ${r.runId}, ${r.date}, ${r.value}, ${r.valueUnit},
+           ${r.level}, ${r.delta}, ${r.confidence}, ${r.rationale},
+           ${r.newEvidence == null ? null : r.newEvidence ? 1 : 0}, ${JSON.stringify(r.citations)}
+    WHERE EXISTS (SELECT 1 FROM signals WHERE id = ${r.signalId} AND status = 'active')
+    RETURNING id`;
+  return rows.length > 0 ? { ...r, id } : null;
 }
 
 export async function readingsForSignal(signalId: string, limit = 30): Promise<Reading[]> {
@@ -993,6 +1019,21 @@ export async function latestRun(userId: string, symbol: string): Promise<Run | u
   return parseRun(rows[0]);
 }
 
+/**
+ * The newest COMPLETED board run — what every reader of the desk's standing
+ * output (dossier, brief, research window, compare snapshots, chat context)
+ * should consume. `latestRun` includes running/failed rows, whose brief and
+ * dossier are null: reading it mid-run makes the desk look like it has no
+ * thesis for the duration of every run.
+ */
+export async function latestDoneRun(userId: string, symbol: string): Promise<Run | undefined> {
+  const rows = await q<RunRow>`
+    SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
+      AND status = 'done'
+    ORDER BY "startedAt" DESC LIMIT 1`;
+  return parseRun(rows[0]);
+}
+
 /** The newest single-signal check for a symbol (any status), if one exists. */
 export async function latestSignalRun(userId: string, symbol: string): Promise<Run | undefined> {
   const rows = await q<RunRow>`
@@ -1007,9 +1048,14 @@ export async function runningRun(userId: string, symbol: string): Promise<Run | 
   return parseRun(rows[0]);
 }
 
-/** Mark runs stuck in `running` for over 15 minutes as failed (e.g. instance died mid-run). */
+/**
+ * Mark runs stuck in `running` as failed (e.g. instance died mid-run). The
+ * cutoff sits just above the route's 300s maxDuration: a platform-killed run
+ * can never outlive that, and every extra minute here is a minute the zombie
+ * row holds the one-run-per-desk lock with the banner frozen on a dead stage.
+ */
 export async function reapStuckRuns(userId: string, symbol: string): Promise<void> {
-  const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+  const cutoff = new Date(Date.now() - 6 * 60_000).toISOString();
   await q`UPDATE runs SET status = 'error',
           error = 'Run interrupted (server restarted mid-run). Start it again.',
           "finishedAt" = ${now()}
@@ -1089,7 +1135,13 @@ export async function listMessages(
   }));
 }
 
-/** Messages including full attachment data — for building model requests only. */
+/**
+ * Messages including full attachment data — for building model requests only.
+ * The limit keeps the NEWEST rows (an ASC LIMIT would freeze the thread on its
+ * first N messages forever — the analyst answering last month's question while
+ * ignoring today's); the inner DESC window is re-sorted so callers still get
+ * chronological order.
+ */
 export async function listMessagesWithAttachments(
   userId: string,
   symbol: string,
@@ -1099,18 +1151,25 @@ export async function listMessagesWithAttachments(
   let rows: MessageRow[];
   if (scope?.signalId === undefined) {
     rows = await q<MessageRow>`
-      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt" FROM (
+        SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt", seq
+        FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol}
+        ORDER BY "createdAt" DESC, seq DESC LIMIT ${limit}
+      ) newest ORDER BY "createdAt" ASC, seq ASC`;
   } else if (scope.signalId === null) {
     rows = await q<MessageRow>`
-      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
-      ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt" FROM (
+        SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt", seq
+        FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" IS NULL
+        ORDER BY "createdAt" DESC, seq DESC LIMIT ${limit}
+      ) newest ORDER BY "createdAt" ASC, seq ASC`;
   } else {
     rows = await q<MessageRow>`
-      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt"
-      FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" = ${scope.signalId}
-      ORDER BY "createdAt" ASC, seq ASC LIMIT ${limit}`;
+      SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt" FROM (
+        SELECT id, symbol, role, content, "proposalIds", attachments, "signalId", "createdAt", seq
+        FROM messages WHERE "userId" = ${userId} AND symbol = ${symbol} AND "signalId" = ${scope.signalId}
+        ORDER BY "createdAt" DESC, seq DESC LIMIT ${limit}
+      ) newest ORDER BY "createdAt" ASC, seq ASC`;
   }
   return rows.map(parseMessage);
 }

@@ -319,7 +319,7 @@ export default function DeskPage() {
     }
   }, [desk, startRun]);
 
-  async function sendChat(text: string, attachments: Attachment[] = []) {
+  async function sendChat(text: string, attachments: Attachment[] = [], opts?: { deep?: boolean }) {
     setSending(true);
     setChatError(null);
     // optimistic user bubble (attachment data included so thumbnails render)
@@ -348,7 +348,7 @@ export default function DeskPage() {
     try {
       await api(`/api/tickers/${encodeURIComponent(symbol)}/chat`, {
         method: "POST",
-        body: JSON.stringify({ message: text, attachments }),
+        body: JSON.stringify({ message: text, attachments, ...(opts?.deep ? { deep: true } : {}) }),
         signal: controller.signal,
       });
     } catch (e) {
@@ -1001,7 +1001,11 @@ export default function DeskPage() {
               {dossierOpen && (
                 <div className="mt-2">
                   <Annotatable surfaceId="dossier">
-                    <Markdown onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}>
+                    {/* Keyed on the text: the annotation painter splits and wraps
+                        this subtree's DOM text nodes, so an in-place React patch
+                        (run finishing, language switch) can garble around the
+                        marks — a text change must remount wholesale instead. */}
+                    <Markdown key={latestRun.dossier} onOpenSignal={(id) => signalsById.has(id) && setDetailId(id)}>
                       {dossierToMarkdown(
                         linkCitations(latestRun.dossier, latestRun.sources),
                         (id) => {
@@ -1067,7 +1071,8 @@ export default function DeskPage() {
             {latestRun?.brief ? (
               <div className="mt-2">
                 <Annotatable surfaceId="brief">
-                  <Markdown>{linkCitations(latestRun.brief, latestRun.sources)}</Markdown>
+                  {/* Keyed on the text — same painter-vs-React rule as the dossier. */}
+                  <Markdown key={latestRun.brief}>{linkCitations(latestRun.brief, latestRun.sources)}</Markdown>
                 </Annotatable>
               </div>
             ) : (
@@ -1087,12 +1092,17 @@ export default function DeskPage() {
                     onDelete={deleteDigest}
                     onClip={(d: DigestItem) => setClipItem(d)}
                     onTrackStory={(d: DigestItem) =>
+                      // Drafting a signal needs the deep lane's proposal
+                      // powers — the fast lane's schema has none, and a quick
+                      // answer would silently drop the promised draft.
                       sendChat(
                         t("desk.trackStoryMsg", {
                           headline: d.headline,
                           summary: d.summary,
                           url: d.url ? t("desk.trackStoryUrl", { url: d.url }) : "",
-                        })
+                        }),
+                        [],
+                        { deep: true }
                       )
                     }
                   />

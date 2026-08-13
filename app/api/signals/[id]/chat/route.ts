@@ -8,7 +8,7 @@ import {
   handleChatTurn,
 } from "@/lib/agents/chat";
 import { friendlyAIError } from "@/lib/ai/claude";
-import { executeRun, startRun } from "@/lib/agents/research";
+import { executeSignalRun, startSignalRun } from "@/lib/agents/research";
 import { getSignal, listMessages, setSetting } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
@@ -66,8 +66,11 @@ export async function POST(req: Request, { params }: Params) {
       lang: await requestLang(user.id),
     });
     if (result.startResearch) {
-      const { run, started } = await startRun(user.id, signal.symbol);
-      if (started) after(() => executeRun(user.id, run.id, signal.symbol));
+      // A research ask inside one signal's desk runs the SIGNAL-SCOPED check,
+      // not the full board pipeline — asking "check this now" here should
+      // spend one focused pass, and the desk's surfaces stay untouched.
+      const { run, started } = await startSignalRun(user.id, signal.symbol, id);
+      if (started) after(() => executeSignalRun(user.id, run.id, signal.symbol, id));
     }
     return NextResponse.json({
       reply: result.message,

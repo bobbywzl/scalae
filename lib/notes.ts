@@ -322,40 +322,68 @@ export function diligenceContext(
     if (!evidenceBySection.has(e.sectionId)) evidenceBySection.set(e.sectionId, []);
     evidenceBySection.get(e.sectionId)!.push(e);
   }
-  const lines: string[] = [];
+  // Excerpting must stay HONEST: every cut is marked where it happens, and
+  // sections that don't fit the budget are named rather than silently dropped
+  // — an agent told this block is "the record" will otherwise contradict or
+  // re-propose exactly the thinking that fell off the cliff.
+  const cut = (text: string, max: number): string => {
+    const flat = text.replace(/\s+/g, " ").trim();
+    if (flat.length <= max) return flat;
+    return `${flat.slice(0, max)}… [cut — ${flat.length - max} more chars in the record]`;
+  };
+  const blocks: string[] = [];
   if (synthesis?.content) {
-    lines.push(
-      `Standing synthesis (refreshed ${synthesis.updatedAt.slice(0, 10)}): ${synthesis.content
-        .replace(/\s+/g, " ")
-        .slice(0, 600)}`
+    blocks.push(
+      `Standing synthesis (refreshed ${synthesis.updatedAt.slice(0, 10)}): ${cut(synthesis.content, 600)}`
     );
   }
   for (const s of sections) {
     const ns = bySection.get(s.id) ?? [];
     const accepted = acceptedBySection.get(s.id) ?? [];
     const filed = evidenceBySection.get(s.id) ?? [];
-    lines.push(`## ${s.title}`);
+    const lines = [`## ${s.title}`];
     if (ns.length === 0 && accepted.length === 0 && filed.length === 0) {
       lines.push(`- (section opened, nothing written yet)`);
+      blocks.push(lines.join("\n"));
       continue;
     }
     for (const r of accepted.slice(0, 2)) {
-      lines.push(`- desk research (${r.createdAt.slice(0, 10)}, accepted): ${r.insights!.replace(/\s+/g, " ").slice(0, 300)}`);
+      lines.push(`- desk research (${r.createdAt.slice(0, 10)}, accepted): ${cut(r.insights!, 300)}`);
     }
+    if (accepted.length > 2) lines.push(`- (+${accepted.length - 2} more accepted memos not shown)`);
     for (const n of ns) {
-      const text = docToPlainText(n.content).replace(/\s+/g, " ").slice(0, 280);
+      const text = cut(docToPlainText(n.content), 280);
       if (text) lines.push(`- ${n.title ? `${n.title}: ` : ""}${text}`);
     }
     // Filed evidence appears by caption — the investor's own words about what
     // each file shows (payloads are read only by the section's memo agent).
     for (const e of filed.slice(0, 6)) {
       lines.push(
-        `- filed evidence: ${e.caption ? `"${e.caption.replace(/\s+/g, " ").slice(0, 160)}"` : "(no caption)"} [${e.name}]`
+        `- filed evidence: ${e.caption ? `"${cut(e.caption, 160)}"` : "(no caption)"} [${e.name}]`
       );
     }
+    if (filed.length > 6) lines.push(`- (+${filed.length - 6} more filed items not shown)`);
+    blocks.push(lines.join("\n"));
   }
-  if (lines.length === 0) return "";
-  let out = lines.join("\n");
-  if (out.length > maxChars) out = out.slice(0, maxChars) + "…";
-  return `INVESTOR'S DUE-DILIGENCE RECORD (their thinking + accepted desk research, verbatim — the map of their current understanding. Reference it, steer signal proposals by it per the circle-of-competence loop, never contradict it silently; you cannot edit it):\n${out}`;
+  if (blocks.length === 0) return "";
+  // Whole SECTIONS drop at the budget, never mid-sentence — and the dropped
+  // ones are named so the agent knows the record continues beyond its view.
+  const kept: string[] = [];
+  const omitted: string[] = [];
+  let used = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    if (used + blocks[i].length + 1 <= maxChars || kept.length === 0) {
+      kept.push(blocks[i]);
+      used += blocks[i].length + 1;
+    } else {
+      const title = blocks[i].match(/^## (.+)$/m)?.[1];
+      if (title) omitted.push(title);
+    }
+  }
+  if (omitted.length > 0) {
+    kept.push(
+      `[Record continues beyond this excerpt — ${omitted.length} section(s) not shown: ${omitted.map((t) => `"${t}"`).join(", ")}. Do not treat them as unexamined.]`
+    );
+  }
+  return `INVESTOR'S DUE-DILIGENCE RECORD (their thinking + accepted desk research, excerpted — cuts are marked inline. The map of their current understanding: reference it, steer signal proposals by it per the circle-of-competence loop, never contradict it silently; you cannot edit it):\n${kept.join("\n")}`;
 }
