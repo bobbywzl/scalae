@@ -320,7 +320,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `briefing-book-joel-greenblatt-intelligent-investing-with-steve-f` | [Briefing Book: Joel Greenblatt — Intelligent Investing with Steve Forbes](https://images.forbes.com/media/pdfs/2010/04/Joel_Greenblatt_Briefing_Book.pdf) | fetched | 2026-08-13 |  |
+| `briefing-book-joel-greenblatt-intelligent-investing-with-steve-f` | [Briefing Book: Joel Greenblatt — Intelligent Investing with Steve Forbes](https://images.forbes.com/media/pdfs/2010/04/Joel_Greenblatt_Briefing_Book.pdf) | verified | 2026-08-13 |  |
 | `greenblatt-strategy-change` | [Greenblatt: Strategy Change](https://wealthtrack.com/greenblatt-strategy-change/) | BLOCKED | 2026-08-13 |  WealthTrack page -- cached text explicitly states "This transcript will be available soon"; only nav chrome and episode metadata captured, zero Greenblatt quotes  |
 | `greenblatt-hybrid-investing` | [Greenblatt: Hybrid Investing](https://wealthtrack.com/greenblatt-hybrid-investing/) | BLOCKED | 2026-08-13 |  WealthTrack page -- transcript is behind a WEALTHTRACK PREMIUM paywall, not captured; only nav chrome and episode teaser present  |
 | `a-legendary-value-investor-mixes-passive-with-active-to-overcome` | [A Legendary Value Investor Mixes Passive with Active to Overcome Destructive Investor Behavior](https://wealthtrack.com/a-legendary-value-investor-mixes-passive-with-active-to-overcome-destructive-investor-behavior/) | verified | 2026-08-13 |  |
