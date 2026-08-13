@@ -523,6 +523,34 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "Every penny entrusted to you by your client should be treated as though it were the money your parents had worked hard to earn and saved thriftily over their lifetime.",
     },
   },
+
+  // --- 6. Walter Schloss ---
+  {
+    pattern:
+      "Who protects the assets while the thesis waits — does management own enough stock that dissipating the company's substance would be self-harm, and is their fairness to outside holders on the record?",
+    askWhen:
+      "asset-anchored theses with long, uncertain waits; depressed companies where the danger is the assets leaking away before value is recognized",
+    anchor: "culture",
+    source: {
+      investor: "Walter Schloss",
+      doc: "the-right-stuff-why-walter-schloss-is-such-a-great-investor",
+      url: "https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Walter%20Schloss%20-%20The%20Right%20Stuff%20-%20Barrons%20-%2002-25-85.pdf",
+      quote: "And the management owned a lot of the stock, and they were not going to throw it down the drain.",
+    },
+  },
+  {
+    pattern:
+      "If this thesis buys earnings rather than assets, does the desk actually carry the much-heavier knowledge burden earnings demand — and would the thesis survive on asset value alone?",
+    askWhen:
+      "any valuation resting on earnings persistence; whenever the earnings story outruns what the desk demonstrably knows about competitive position and durability",
+    anchor: "business-model",
+    source: {
+      investor: "Walter Schloss",
+      doc: "factors-needed-to-make-money-in-the-stock-market",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
+      quote: "One has to know much more about a company if one buys earnings.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -1043,6 +1071,26 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "You go to their community, their church or synagogue and integrate yourself into that community. Introduce yourself to their friends and neighbours and spend a few weeks there, it is worth it.",
     },
   },
+
+  // --- 6. Walter Schloss ---
+  {
+    directive:
+      "Work the company from its filed figures before any narrative or access: the long balance-sheet and annual-report record read cold, with no management meetings and no story — a desk without access loses nothing when the figures are the source, and gains immunity from charmed narratives.",
+    queryShapes: [
+      "<COMPANY> annual report balance sheet ten year record",
+      "<COMPANY> book value per share history filings",
+      "<COMPANY> capital structure debt equity history 10-K",
+    ],
+    sourcePriority:
+      "the filed record itself — balance sheets, annual reports, proxies — read before and weighted above management meetings, calls, and access-driven narrative (Schloss's practice: the figures told the story)",
+    anchor: "business-model",
+    source: {
+      investor: "Walter Schloss",
+      doc: "columbia-business-school-upper-level-seminar-in-value-investing",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_lecture.pdf",
+      quote: "ben graham didn't visit managements because he thought the figures told the story.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -1336,6 +1384,33 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       url: "https://www.longriverinv.com/thought/the-practice-of-value-investing-by-li-lu",
       quote:
         "If you speculate on other people's short-term trading behaviour, there can only be one result in the end: gains and losses must equal because this is a zero-sum game.",
+    },
+  },
+
+  // --- 6. Walter Schloss ---
+  // Dedup notes: Schloss is Graham's most direct disciple, so most of his
+  // frame is already in canon through his teacher — working-capital floors
+  // (Graham's NCAV), groceries-not-perfume contrarianism (Templeton),
+  // buy-from-forced-sellers (Klarman), fear-and-greed discipline (the
+  // misjudgment checklist), simplicity and roughly-right (core doctrine).
+  // One extraction pairing (a 20-year-record minimum supported by an
+  // unrelated quote) was rejected on fair-representation grounds. The lens
+  // below is his own.
+  {
+    title: "Assets Before Earnings (Schloss)",
+    question:
+      "Is this thesis anchored on assets, which change slowly, or on earnings, which can change dramatically — and does the desk carry the heavier knowledge burden an earnings anchor demands?",
+    test:
+      "Prefer the anchor that matches what is actually known: book value as the starting point of value, asset discounts as the classic protection, because buying earnings requires knowing much more — competitive position, margin durability, the future — and that knowledge must be demonstrated, not assumed. An earnings-anchored thesis that cannot show the deeper work steps back to the asset floor or steps away. Watch the quality of the anchor itself: goodwill in book value, assets whose stated worth would not survive liquidation, and debt against the equity that funds them.",
+    evidence:
+      "Book value per share and its trend; asset composition (hard assets vs. goodwill and intangibles); the spread between asset-anchored and earnings-anchored value for the same company; which anchor the desk's past theses on this company actually rested on and how each fared.",
+    investor: "Walter Schloss",
+    source: {
+      investor: "Walter Schloss",
+      doc: "factors-needed-to-make-money-in-the-stock-market",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
+      quote:
+        "Try to buy assets at a discount than to buy earnings. Earnings can change dramatically in a short time.",
     },
   },
 ];
@@ -1683,6 +1758,41 @@ export const CANON_METRICS: CanonMetric[] = [
       doc: "the-prospect-of-value-investing-in-china",
       url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf",
       quote: "But in the ensuing 15 years (1966-1981) stock prices declined rather than grew.",
+    },
+  },
+
+  // --- 6. Walter Schloss ---
+  {
+    name: "Debt-below-equity gate (Schloss)",
+    formula:
+      "total debt < 100% of shareholders' equity, straight from the balance sheet — with a standing preference for far less",
+    reading:
+      "Schloss's simplest resilience gate: an asset-anchored thesis with heavy leverage is on a clock it does not control, and low debt is what makes patience affordable (his average hold ran about four years, with the position usually falling first). Not a fine-grained coverage ratio — a coarse gate applied before any deeper work.",
+    benchNotes:
+      "Pure reported balance rows (total debt, total equity). Complements Graham's total-deductions coverage (flow-based) with the stock-based gate; where the provider table lacks a debt split, the input is named as missing.",
+    anchor: "business-model",
+    source: {
+      investor: "Walter Schloss",
+      doc: "factors-needed-to-make-money-in-the-stock-market",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
+      quote: "Be sure that debt does not equal 100% of the equity.",
+    },
+  },
+  {
+    name: "Multi-year price range as vulnerability memory (Schloss)",
+    formula:
+      "the current quote read against the stock's range over roughly the past decade — with the LOW end treated as the market's remembered stress verdict on this business",
+    reading:
+      "Schloss's caution: a fall from 125 to 60 looks attractive until the 20 from three years earlier shows the vulnerability the business actually carries. The range is a memory of what stress did to this company's valuation, and the conditions that produced the extremes are the evidence to retrieve — never a pattern to trade.",
+    benchNotes:
+      "Price enters ONLY in its margin-of-safety role: this is context for judging a discount's adequacy and a prompt for the history lens (what happened at the extremes), never a signal input, a target, or chart analysis. The business conditions at the range's ends matter; the shape of the path does not.",
+    anchor: "business-model",
+    source: {
+      investor: "Walter Schloss",
+      doc: "factors-needed-to-make-money-in-the-stock-market",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
+      quote:
+        "A stock may go as igh as 125 and then decline to 60 and you think it attractive. 3 years before the stock sold at 20 which shows that there is some vulnerability in it.",
     },
   },
 ];
