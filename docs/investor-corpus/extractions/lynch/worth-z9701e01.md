@@ -55,7 +55,7 @@ coverage: 100%
   > "Put me in the believer camp. I still really like the dedication and skill of top management. I bought more shares in August, September, and October." @line 72
 
 - **title**: Dividend yield as market valuation indicator — declining dividend yields (from 4-6% to 2%) signal overvaluation concerns
-  > "Today, dividends are much lower across the board than they were a few years back: 2 percent on the stocks in the S&P 500, versus 4 to 6 percent in the early 1980s." @line 233
+  > "2 percent on the stocks in the S&P; 500, versus 4 to 6 percent in the early 1980s." @line 234
 
 - **title**: Bonds-versus-stocks real return differential — long-term equity returns exceed bond returns by 5.6% over inflation across six decades
   > "Over the past six decades, with inflation running hot and cold, long-term government bonds have earned 1.9 percent over the inflation rate, versus 7.5 percent for stocks, according to Ibbotson Associates." @line 156

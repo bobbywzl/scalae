@@ -83,10 +83,10 @@ coverage: 100%
   > "Historically, corporate profits have grown about eight percent a year. Eight percent a year. They double every nine years. They quadruple every 18. They go up six-fold every 25 years." @line 608
 
 - **name**: Market volatility frequency — formula: 53 corrections of 10%+ in 95 years = approximately once every two years; 15 bear markets of 25%+ = approximately once every six years
-  > "The market itself is very volatile. We've had 95 years completed this century. In the 95 years so far, we've had 53 declines in the market of 10 percent or more." @line 569
+  > "The market itself is very volatile. We've had 95 years completed this century. We're in the middle of 1996 and we're close to a 10 percent decline. In the 95 years so far, we've had 53 declines in the market of 10 percent or more." @line 569
 
 - **name**: Timing impact on returns — benchmark: investing at market high every year for 30 years yields 10.6% return; investing at market low every year yields 11.7% return; difference across 30 years is marginal compared to holding discipline
-  > "In the 30 years, 1965 to 1995, if you had invested a thousand dollars, you had incredible good luck, you invested a the low of the year, your return would have been 11.7 compounded." @line 679
+  > "In the 30 years, 1965 to 1995, if you had invested a thousand dollars, you had incredible good luck, you invested a the low of the year, you picked the low day of the year, you put your thousand dollars in, your return would have been 11.7 compounded." @line 679
 
 ## Nothing-found notes
 

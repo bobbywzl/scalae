@@ -9,7 +9,7 @@ coverage: 100%
 
 ## Verbatim quotes
 
-- > "One of the oldest sayings on Wall Street is Let your winners run, and cut your losers." @line 265
+- > "One of the oldest sayings on Wall Street is "Let your winners run, and cut your losers."" @line 265
 
 - > "If you're lucky enough to have one golden egg in your portfolio, it may not matter if you have a couple of rotten ones in there with it." @line 285
 
@@ -25,22 +25,22 @@ coverage: 100%
 
 - > "A key point to remember is that a p/e of 20 is not too much to pay for a company that's growing at 25 percent." @line 661
 
-- > "These nowhere to grow stories come up quite often and should be viewed skeptically." @line 713
+- > "These "nowhere to grow" stories come up quite often and should be viewed skeptically." @line 713
 
-- > "Sometimes depressed industries can produce high returns." @line 787
+- > "Sometimes depressed industries can produce high returns. The best companies often thrive even as their competitors struggle to survive." @line 787
 
-- > "The best companies often thrive even as their competitors struggle to survive." @line 791
-
-- > "Stocks do well for a reason, and do poorly for a reason." @line 1151
+- > "Stocks do well for a reason, and poorly for a reason." @line 1157
 
 - > "When yields on long-term government bonds exceed the dividend yield on the S&P 500 by 6 percent or more, sell stocks and buy bonds." @line 1105
 
 - > "Enter early but not too early. I often think of investing in growth companies in terms of baseball." @line 1225
 
+- > "Try to join the game in the third inning, because a company has proved itself by then." @line 1231
+
 ## Question patterns
 
 - **pattern**: Can amateurs successfully outperform the Street even without professional management? — askWhen: evaluating personal investment approach, anchor: personal-advantage
-  > "amateurs can not only succeed on their own but beat the Street" @line 191
+  > "amateurs can not only succeed on their own but beat the Street by (a) taking advantage of the fact that they are amateurs and (b) taking advantage of their personal edge." @line 191
 
 - **pattern**: What domain of personal knowledge creates an investable competitive edge? — askWhen: stock screening and opportunity identification, anchor: edge-identification
   > "What is it that you know a lot about? Maybe your edge comes from your profession or a hobby." @line 357
@@ -57,7 +57,7 @@ coverage: 100%
   > "Sometimes depressed industries can produce high returns. The best companies often thrive even as their competitors struggle to survive." @line 787
 
 - **directive**: Identify "nowhere to grow" narratives; validate geographic/operational expansion runway via ground-truthing, not analyst consensus. — queryShapes: "mature company expansion potential", "geographic saturation myth", "mature company growth"; sourcePriority: on-site observation, management disclosures, direct customer research
-  > "These nowhere to grow stories come up quite often and should be viewed skeptically. Don't believe them until you check for yourself." @line 713
+  > "These "nowhere to grow" stories come up quite often and should be viewed skeptically. Don't believe them until you check for yourself." @line 713
 
 ## Concepts
 
