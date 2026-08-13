@@ -147,7 +147,7 @@
 | `mit-remarks-october-20-2007` | [MIT Remarks, October 20, 2007](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf) | verified | 2026-08-13 |  |
 | `the-forgotten-lessons-of-2008` | [The Forgotten Lessons of 2008](https://fs.blog/the-forgotten-lessons-of-2008/) | verified | 2026-08-13 |  |
 | `seth-klarman-on-the-painful-decision-to-hold-cash` | [Seth Klarman on the Painful Decision to Hold Cash](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/klarman_cash.pdf) | verified | 2026-08-13 |  |
-| `the-baupost-fund-shareholder-letter-fy1999-form-n-30d` | [The Baupost Fund shareholder letter, FY1999 (Form N-30D)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt) | fetched | 2026-08-13 |  |
+| `the-baupost-fund-shareholder-letter-fy1999-form-n-30d` | [The Baupost Fund shareholder letter, FY1999 (Form N-30D)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1996-02-28` | [The Baupost Fund N-30D (filed 1996-02-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000082.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1996-06-28` | [The Baupost Fund N-30D (filed 1996-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000430.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1996-12-30` | [The Baupost Fund N-30D (filed 1996-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt) | verified | 2026-08-13 |  |
