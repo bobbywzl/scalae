@@ -143,23 +143,23 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `opportunities-for-patient-investors` | [Opportunities for Patient Investors](https://rpc.cfainstitute.org/research/financial-analysts-journal/2010/opportunities-for-patient-investors) | fetched | 2026-08-13 |  |
-| `mit-remarks-october-20-2007` | [MIT Remarks, October 20, 2007](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf) | fetched | 2026-08-13 |  |
-| `the-forgotten-lessons-of-2008` | [The Forgotten Lessons of 2008](https://fs.blog/the-forgotten-lessons-of-2008/) | fetched | 2026-08-13 |  |
-| `seth-klarman-on-the-painful-decision-to-hold-cash` | [Seth Klarman on the Painful Decision to Hold Cash](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/klarman_cash.pdf) | fetched | 2026-08-13 |  |
+| `opportunities-for-patient-investors` | [Opportunities for Patient Investors](https://rpc.cfainstitute.org/research/financial-analysts-journal/2010/opportunities-for-patient-investors) | verified | 2026-08-13 |  |
+| `mit-remarks-october-20-2007` | [MIT Remarks, October 20, 2007](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf) | verified | 2026-08-13 |  |
+| `the-forgotten-lessons-of-2008` | [The Forgotten Lessons of 2008](https://fs.blog/the-forgotten-lessons-of-2008/) | verified | 2026-08-13 |  |
+| `seth-klarman-on-the-painful-decision-to-hold-cash` | [Seth Klarman on the Painful Decision to Hold Cash](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/klarman_cash.pdf) | verified | 2026-08-13 |  |
 | `the-baupost-fund-shareholder-letter-fy1999-form-n-30d` | [The Baupost Fund shareholder letter, FY1999 (Form N-30D)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1996-02-28` | [The Baupost Fund N-30D (filed 1996-02-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000082.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1996-06-28` | [The Baupost Fund N-30D (filed 1996-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000430.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1996-12-30` | [The Baupost Fund N-30D (filed 1996-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1997-06-30` | [The Baupost Fund N-30D (filed 1997-06-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-000936.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1996-02-28` | [The Baupost Fund N-30D (filed 1996-02-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000082.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-1996-06-28` | [The Baupost Fund N-30D (filed 1996-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000430.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-1996-12-30` | [The Baupost Fund N-30D (filed 1996-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-1997-06-30` | [The Baupost Fund N-30D (filed 1997-06-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-000936.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1997-12-30` | [The Baupost Fund N-30D (filed 1997-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-001392.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1998-06-29` | [The Baupost Fund N-30D (filed 1998-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1998-12-23` | [The Baupost Fund N-30D (filed 1998-12-23)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-006396.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-1999-06-29` | [The Baupost Fund N-30D (filed 1999-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-2000-06-28` | [The Baupost Fund N-30D (filed 2000-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-000708.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1998-06-29` | [The Baupost Fund N-30D (filed 1998-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-1998-12-23` | [The Baupost Fund N-30D (filed 1998-12-23)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-006396.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-1999-06-29` | [The Baupost Fund N-30D (filed 1999-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-2000-06-28` | [The Baupost Fund N-30D (filed 2000-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-000708.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-2000-12-28` | [The Baupost Fund N-30D (filed 2000-12-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-2001-06-26` | [The Baupost Fund N-30D (filed 2001-06-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-500662.txt) | fetched | 2026-08-13 |  |
-| `baupost-n30d-2001-12-26` | [The Baupost Fund N-30D (filed 2001-12-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-501240.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2001-06-26` | [The Baupost Fund N-30D (filed 2001-06-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-500662.txt) | verified | 2026-08-13 |  |
+| `baupost-n30d-2001-12-26` | [The Baupost Fund N-30D (filed 2001-12-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-501240.txt) | verified | 2026-08-13 |  |
 | `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | fetched | 2026-08-13 |  |
 | `timeless-value-investing-capital-allocators-ep-328` | [Timeless Value Investing (Capital Allocators EP.328)](https://www.capitalallocators.com/podcast/timeless-value-investing/) | manual |  | video/audio — needs ASR or an official transcript |
 
