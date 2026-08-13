@@ -24,7 +24,7 @@ import {
   getDiligenceSynthesis,
   getNoteSection,
   getTicker,
-  latestRun,
+  latestDoneRun,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
@@ -126,7 +126,15 @@ async function loadSectionEvidence(
   const lines: string[] = [];
   for (const e of rows) {
     const readable = e.kind !== "file" && e.data.length <= budget;
-    lines.push(`${evidenceLine(e)}${readable ? "" : " — not machine-readable here; judge it from its caption"}`);
+    // Honesty in the file's status line: an unsupported TYPE is genuinely not
+    // machine-readable, but a readable file that merely missed this pass's
+    // budget must not be described as unreadable — the memo would repeat the
+    // false claim to the investor about their own filing.
+    const skipNote =
+      e.kind === "file"
+        ? " — file type not machine-readable; judge it from its caption"
+        : " — readable, but over this pass's reading budget (not read this time); judge it from its caption";
+    lines.push(`${evidenceLine(e)}${readable ? "" : skipNote}`);
     if (!readable) continue;
     budget -= e.data.length;
     // Caption travels immediately before its file so the model can pair them.
@@ -373,7 +381,7 @@ export async function refreshDiligenceSynthesis(
     listDiligenceEvidence(userId, symbol),
     listSignals(userId, symbol, "active"),
     listFocusAreas(userId, symbol),
-    latestRun(userId, symbol),
+    latestDoneRun(userId, symbol),
     cleansingBenchContext(userId, symbol).catch(() => ""),
   ]);
   if (sections.length === 0) throw new Error("Open at least one section before synthesizing.");
@@ -470,7 +478,7 @@ export async function suggestDiligenceSections(
     listNoteSections(userId, symbol),
     listSignals(userId, symbol, "active"),
     listFocusAreas(userId, symbol),
-    latestRun(userId, symbol),
+    latestDoneRun(userId, symbol),
     getDiligenceSynthesis(userId, symbol),
     cleansingBenchContext(userId, symbol).catch(() => ""),
   ]);

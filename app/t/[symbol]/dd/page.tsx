@@ -502,22 +502,33 @@ function EvidenceCard({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileUrl = `/api/diligence/evidence/${evidence.id}/file`;
 
-  // Debounced caption autosave, the notepad-title idiom.
-  function queueCaption(v: string) {
-    setCaption(v);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
+  // Debounced caption autosave, the notepad-title idiom — including its
+  // flush-on-unmount (type a caption and navigate within a second: the words
+  // must land, not evaporate with the debounce timer).
+  const pendingCaption = useRef<string | null>(null);
+  const saveCaption = useCallback(
+    (v: string) =>
       api(`/api/diligence/evidence/${evidence.id}`, {
         method: "PATCH",
         body: JSON.stringify({ caption: v }),
-      }).catch(() => {});
+      }).catch(() => {}),
+    [evidence.id]
+  );
+  function queueCaption(v: string) {
+    setCaption(v);
+    pendingCaption.current = v;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      pendingCaption.current = null;
+      saveCaption(v);
     }, 1000);
   }
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
+      if (pendingCaption.current !== null) saveCaption(pendingCaption.current);
     },
-    []
+    [saveCaption]
   );
 
   async function remove() {
@@ -642,6 +653,20 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
     },
     [flush]
   );
+
+  // Another surface can move this note server-side while the card holds
+  // mount-time state — the clip tool appends from the signals desk, and the
+  // 30s poll delivers the new content to a card that would otherwise show
+  // (and, on the next keystroke, SAVE OVER) the stale copy. Adopt the server
+  // copy whenever this card is clean: read mode, nothing pending. An open
+  // editor is left alone — see the concurrency note in the findings ledger.
+  // (Render-time adoption, the React "adjust state when props change" idiom —
+  // setSavedAt extinguishes the condition, so this settles in one re-render.)
+  if (!editing && saveState === "saved" && note.updatedAt > savedAt) {
+    setTitle(note.title);
+    setContent(note.content);
+    setSavedAt(note.updatedAt);
+  }
 
   async function remove() {
     if (!confirm(t("notes.deleteNotepadConfirm", { title: title || t("notes.untitledNotepad") })))

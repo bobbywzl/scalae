@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "./PrefsProvider";
 import { api, timeAgo } from "./util";
 import type { TKey } from "@/lib/i18n/dictionaries";
@@ -124,6 +124,15 @@ export function FinancialsSection({
   const [showTable, setShowTable] = useState(true);
   const [copied, setCopied] = useState(false);
   const [view, setView] = useState<"cleansed" | "reported">(cleansed ? "cleansed" : "reported");
+  // The initializer runs once per mount — when the FIRST adjustment is applied
+  // on an already-open page, `cleansed` flips null → view, and the human gate
+  // the investor just operated must visibly move the table. Only that
+  // transition switches automatically; their manual toggle is otherwise kept.
+  const hadCleansed = useRef(cleansed != null);
+  useEffect(() => {
+    if (cleansed != null && !hadCleansed.current) setView("cleansed");
+    hadCleansed.current = cleansed != null;
+  }, [cleansed]);
 
   const c = data.currency ?? "USD";
   const cleansedActive = view === "cleansed" && cleansed != null;

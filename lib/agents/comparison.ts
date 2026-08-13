@@ -3,7 +3,7 @@ import { CLAUDE_OVERLOAD_FALLBACK } from "../ai/fallback";
 import { resolveModel } from "../ai/models";
 import { comparisonPersona } from "./framework";
 import { withDeadline } from "./research";
-import { getTicker, latestRun, listFocusAreas, listSignals, readingsForSignal } from "../db";
+import { getTicker, latestDoneRun, listFocusAreas, listSignals, readingsForSignal } from "../db";
 import type { Lang } from "../i18n/config";
 import { getQuote, quoteLine } from "../market";
 import { computeInvolvement, involvementLine } from "../portfolio";
@@ -37,7 +37,9 @@ async function deskSnapshot(userId: string, symbol: string): Promise<string> {
   if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
   const [active, run, quote, focusAreas, involvement] = await Promise.all([
     listSignals(userId, symbol, "active"),
-    latestRun(userId, symbol),
+    // The last COMPLETED run: a mid-run desk otherwise reads as "(no dossier
+    // yet)" and the verdict quietly discounts a business whose thesis exists.
+    latestDoneRun(userId, symbol),
     getQuote(symbol).catch(() => null),
     listFocusAreas(userId, symbol),
     computeInvolvement(userId, symbol).catch(() => null),
@@ -60,7 +62,7 @@ async function deskSnapshot(userId: string, symbol: string): Promise<string> {
   const position = involvementLine(involvement);
   return `TICKER: ${ticker.name} (${symbol})
 Market: ${quoteLine(quote)}
-Investor's position: ${position || "none recorded"}
+Investor's position: ${position || "none recorded"}${position ? " — exposure context for the reader ONLY: the ranking weighs the two businesses, and the investor's cost basis, gains or losses must never tilt it or be cited as a reason." : ""}
 Focus areas: ${focusAreas.map((f) => f.title).join("; ") || "(none)"}
 Last research run: ${run ? `${run.startedAt.slice(0, 10)} (${run.status})` : "never"}
 

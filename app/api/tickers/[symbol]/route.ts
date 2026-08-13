@@ -22,6 +22,11 @@ import { requestLang } from "@/lib/i18n/server";
 import { localizeDeskPayload, localizeRun } from "@/lib/i18n/translate";
 import type { DeskPayload, Signal, SignalWithReadings } from "@/lib/types";
 
+// The zh display path can pay a cold translation pass (several model batches
+// after a fresh run) — the only content route without an explicit budget
+// would otherwise ride the platform default and die mid-translation.
+export const maxDuration = 120;
+
 type Params = { params: Promise<{ symbol: string }> };
 
 export async function GET(_req: Request, { params }: Params) {

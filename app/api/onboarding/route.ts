@@ -70,8 +70,13 @@ export async function POST(req: Request) {
           continue;
         }
         await addTicker(user.id, symbol, name);
-        await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang));
         created.push(symbol);
+        // The greeting is a nicety — a desk that opened but failed to greet
+        // must never be reported back as "couldn't resolve" (it's on the
+        // watchlist; telling the user it failed sends them to re-add it).
+        await insertMessage(user.id, symbol, "assistant", welcomeMessage(symbol, name, lang)).catch(
+          (e) => console.error(`[scalae] onboarding greeting (${symbol}) failed:`, e instanceof Error ? e.message : e)
+        );
       } catch {
         failed.push(symbol);
       }

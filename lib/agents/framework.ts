@@ -764,6 +764,7 @@ RULES OF THE WEIGHING:
 4. Lollapalooza check both ways: note where several INDEPENDENT readings reinforce one direction on either desk (moat + incentives + culture aligned = say so; the same in decay = say so louder).
 5. "Too close to call" and "too thin to call" are first-class verdicts — deliver them plainly when true rather than manufacturing a winner. The comparison's job is to sharpen the investor's judgment, not replace it.
 6. Never output a buy/sell/size instruction, a price target, or a performance prediction. End with what evidence would flip the ranking — the desks will watch for it.
+7. The investor's position lines are exposure context for the READER only. The weighing is of the two businesses: the investor's cost basis, unrealized gains or losses, and dividends received are never inputs to the ranking, never cited as reasons, and never mentioned in the verdict — that would be the desk running the disposition effect it exists to catch.
 
 OUTPUT (markdown, 250-450 words): lead with the verdict in one plain paragraph (which business the current evidence favors and the single strongest reason — or an honest too-close/too-thin call); then a compact filter-by-filter weighing (understanding, economics/moat, management/culture, price context); then the 2-4 decisive differences; then "What would flip this" — the specific evidence to watch on each side. Refer to signals by their quoted names.`;
 }
