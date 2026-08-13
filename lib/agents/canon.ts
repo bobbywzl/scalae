@@ -199,6 +199,64 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "We pay ourselves salaries on. the order of $25,000 and $15,000, and we also have a profit-sharing plan under which after a $40-a-share dividend is earned and paid in any year the management as a whole receives 20 percent of the additional amount earned and paid.",
     },
   },
+
+  // --- 2. John Templeton ---
+  {
+    pattern:
+      "Is the pessimism around this company (or its industry) permanent or temporary — which specific evidence separates structural impairment (obsolescence, wrecked balance sheet, broken cost position) from a cycle, a sentiment swing, or forced selling?",
+    askWhen:
+      "the company or its industry is deeply out of favor and priced far below its own record's normal relation to earnings or assets",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "successful-investing-methods-address-to-the-empire-club-of-canad",
+      url: "https://empireclubfoundation.org/speech/succesful-investing-methods/",
+      quote:
+        "We search for those areas that are unpopular and then we study them to see if that unpopularity is permanent.",
+    },
+  },
+  {
+    pattern:
+      "Is the product line still in favor with the customers it serves — does the company's cost or technology advantage still attach to something customers actually want more of each year?",
+    askWhen:
+      "moat-durability review, especially for low-cost producers and technology leaders whose advantage presumes the product itself stays wanted",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "16-rules-for-investment-success",
+      url: "https://www.franklintempleton.com/forms-literature/download/TL-R16",
+      quote:
+        "A company may be the low-cost producer, for example, but it is not a quality stock if its product line is falling out of favor with customers.",
+    },
+  },
+  {
+    pattern:
+      "Is the read on this company unanimous — and if every source tells the same story, which unexamined assumption is everyone repeating, and what evidence would test it?",
+    askWhen:
+      "the desk's evidence sources converge on one narrative, or a thesis rests on what 'everyone knows' about the company",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "successful-investing-methods-address-to-the-empire-club-of-canad",
+      url: "https://empireclubfoundation.org/speech/succesful-investing-methods/",
+      quote:
+        "If you get the same answer from twelve security analysts about which stock to buy you can be pretty sure it's the wrong stock.",
+    },
+  },
+  {
+    pattern:
+      "How does this business fare under sustained inflation — can it reprice faster than its costs rise, or does inflation quietly confiscate its margins and its replacement capex?",
+    askWhen:
+      "inflationary periods, pricing-power reviews, or capital-intensive models whose depreciation understates replacement cost",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "successful-investing-methods-address-to-the-empire-club-of-canad",
+      url: "https://empireclubfoundation.org/speech/succesful-investing-methods/",
+      quote:
+        "So more than ever before we are searching for shares of companies that will not suffer much from inflation or maybe even would benefit from inflation.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -315,6 +373,84 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "To withhold the owners' money from them by suspending dividends, and then to use this same money to buy back their stock at the abnormally low price thus created, comes perilously close to sharp practice.",
     },
   },
+
+  // --- 2. John Templeton ---
+  {
+    directive:
+      "Compare the same business across every market where it (or its closest comparable) is listed before judging cheapness or dearness — the estimate of value is worldwide, and the best comparable often trades in another country's market.",
+    queryShapes: [
+      "<COMPANY> valuation vs closest comparables listed in other markets",
+      "<INDUSTRY> price to earnings by country listed peers",
+      "<COMPANY> dual listing ADR vs home market disclosure differences",
+    ],
+    sourcePriority:
+      "primary filings and disclosures across ALL listings, including the foreign comparable's home-market documents — never one market's narrative about another",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon",
+      url: "https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson",
+      quote:
+        "We are worldwide bargain hunters. We search all over the world and make estimates of the values of each corporation and buy those shares that have the lowest market price at the time in relation to our estimated value.",
+    },
+  },
+  {
+    directive:
+      "Work the corners other analysts are not working: local-language disclosures, subsidiary and segment filings, small trade journals, regulator dockets nobody summarizes — evidence found where no one is looking moves the value estimate most.",
+    queryShapes: [
+      "<COMPANY> local language regulatory filing detail",
+      "<COMPANY> subsidiary annual report segment disclosure",
+      "<INDUSTRY> specialist trade journal coverage <COMPANY>",
+    ],
+    sourcePriority:
+      "under-read primary documents (local filings, subsidiary reports, niche trade press) over the widely-circulated coverage everyone already holds",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon",
+      url: "https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson",
+      quote:
+        "But since the best results are obtained by [buying] in those areas where other security analysts were not working, we just say we would buy the best bargains we can find and later find out what nation it's in.",
+    },
+  },
+  {
+    directive:
+      "When the company or its industry is deeply out of favor, gather the evidence that decides whether the unpopularity is permanent: demand trend (structural vs. cyclical), substitution threat, worst-case survivability of the balance sheet, and cost position through a trough.",
+    queryShapes: [
+      "<INDUSTRY> demand trend structural decline vs cyclical trough evidence",
+      "<COMPANY> balance sheet survivability downturn scenario",
+      "<INDUSTRY> substitution threat adoption data",
+    ],
+    sourcePriority:
+      "industry volume/price data and the company's filed balance sheet over sentiment coverage; the pessimists' own strongest documents, read directly",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "successful-investing-methods-address-to-the-empire-club-of-canad",
+      url: "https://empireclubfoundation.org/speech/succesful-investing-methods/",
+      quote:
+        "We search for nations or industries where the stock prices are extremely low and they are only extremely low when there are good reasons for it.",
+    },
+  },
+  {
+    directive:
+      "Track the company's own buying as revealed valuation opinion: repurchase pace and prices, insider purchases, and credible strategic-acquirer interest — the people with the most information voting with cash rather than words.",
+    queryShapes: [
+      "<COMPANY> share repurchase pace and average price paid",
+      "<COMPANY> insider open-market purchases record",
+      "<COMPANY> strategic acquirer takeover interest reported terms",
+    ],
+    sourcePriority:
+      "repurchase disclosures, insider-transaction filings and deal documents over commentary about them",
+    anchor: "culture",
+    source: {
+      investor: "John Templeton",
+      doc: "john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon",
+      url: "https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson",
+      quote:
+        "This takeover mania proves the fact that corporations on the stock exchange are selling for much less than what they are worth.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -389,6 +525,47 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       doc: "security-analysis-2nd-edition-principles-and-technique",
       url: "https://archive.org/details/dli.ernet.7983",
       quote: "the typical American stockholder is the most docile and apathetic animal in captivity.",
+    },
+  },
+
+  // --- 2. John Templeton ---
+  // Dedup notes: contrarian independence of the DESK's own reasoning already
+  // lives in the misjudgment checklist (social proof, availability); the
+  // market-of-stocks principle is the charter itself; stewardship-of-capital
+  // overlaps Graham's Stockholder Trusteeship. The two below are Templeton
+  // instruments no core lens or earlier entry carries.
+  {
+    title: "Maximum Pessimism & the Permanence Test (Templeton)",
+    question:
+      "Is this business being read (and priced) at maximum pessimism or maximum popularity — and is the prevailing mood about it permanent or temporary?",
+    test:
+      "Unpopularity is only ever a reason to STUDY, never by itself a verdict: extremely low valuations exist for reasons, and the work is separating permanent impairment (obsolescence, broken cost position, wrecked balance sheet) from a cycle, a fashion, or forced selling. The symmetric law holds at the top — popularity always proves temporary, and when lost it won't return for many years, so a popularity premium on the company is a wasting asset. The extreme of pessimism arrives while investors still EXPECT bad news, before it clears; the extreme of optimism while they expect only good.",
+    evidence:
+      "What the pessimists' (or promoters') own strongest documents actually claim vs. the filed record; structural-vs-cyclical demand evidence; substitution data; worst-case survivability arithmetic; who is selling or buying and why (forced sellers, the company's own repurchases); how far the current mood's premium or discount has drifted from the record's normal relation.",
+    investor: "John Templeton",
+    source: {
+      investor: "John Templeton",
+      doc: "the-22-maxims-of-john-templeton-the-time-tested-maxims-of-the-te",
+      url: "https://novelinvestor.com/maxims-john-templeton/",
+      quote:
+        "If a particular industry or type of security becomes popular with investors, that popularity will always prove temporary and, when lost, won't return for many years.",
+    },
+  },
+  {
+    title: "Real-Return & Inflation Resilience (Templeton)",
+    question:
+      "Does this business preserve and grow purchasing power — the only return that counts is after taxes and after inflation?",
+    test:
+      "Apply the real-return arithmetic to the business itself: 4% inflation cuts a third of purchasing power in a decade, so a company whose pricing lags its cost inflation, or whose historical-cost depreciation understates replacement capex, is shrinking in real terms while reporting nominal growth. The standard is the company that will not suffer much from inflation or would even benefit — repricing faster than costs, with assets that do not silently demand ever-more nominal capital to stand still.",
+    evidence:
+      "Price-increase cadence vs. input-cost inflation, with the lag measured; replacement capex vs. depreciation over time; the revenue and earnings record deflated against the period's inflation (real growth vs. nominal); margin behavior through past inflationary episodes.",
+    investor: "John Templeton",
+    source: {
+      investor: "John Templeton",
+      doc: "16-rules-for-investment-success",
+      url: "https://www.franklintempleton.com/forms-literature/download/TL-R16",
+      quote:
+        "This means the return on invested dollars after taxes and after inflation. This is the only rational objective for most long-term investors.",
     },
   },
 ];
@@ -477,6 +654,59 @@ export const CANON_METRICS: CanonMetric[] = [
       doc: "security-analysis-2nd-edition-principles-and-technique",
       url: "https://archive.org/details/dli.ernet.7983",
       quote: "and the truer story told by the successive balance sheets",
+    },
+  },
+
+  // --- 2. John Templeton ---
+  {
+    name: "Doubling arithmetic at depressed multiples (Templeton)",
+    formula:
+      "years to double ≈ price ÷ earnings per share when earnings hold — at under 5× earnings, retained net worth plus dividends double the owner's stake inside five years",
+    reading:
+      "Templeton's maximum-pessimism arithmetic: at a sub-5 multiple the business itself repays the price in under five years without any re-rating, so the thesis needs only earnings persistence, not sentiment recovery. The honest companion question is whether the earnings ARE persistent (the normalization test) — a depressed multiple on unsustainable earnings is no bargain.",
+    benchNotes:
+      "Computed on the bench's CLEANSED earnings per share, never the reported figure a windfall inflated; price enters only in this margin-of-safety role, never as a target. Where the cleansed series shows the current rate is abnormal, use the normalized figure and say which.",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "templeton-letter-the-templeton-letters-the-upside-of-a-down-marke",
+      url: "https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/06/17/the-templeton-letters-the-upside-of-a-down-market-part-2/",
+      quote:
+        "If the current rate of earnings is maintained, the net worth of his shares plus the dividends received will cause the value of his investment to double in less than five years.",
+    },
+  },
+  {
+    name: "Multi-metric bargain convergence (Templeton)",
+    formula:
+      "read four independent lenses on the same figures — price ÷ earnings, price ÷ liquidation value, price ÷ free cash flow, and dividend yield — and require them to AGREE before calling the record cheap",
+    reading:
+      "Templeton's Royal Dutch test: four times earnings, under half of liquidation value, three times free cash flow, and a dividend — independent lenses converging is what a real bargain looks like; one flattering ratio alone is a story, and divergence between the lenses is itself the finding to investigate (which lens is lying, and why?).",
+    benchNotes:
+      "Earnings and FCF come from the bench's cleansed rows; liquidation value needs the current-asset split and is named as missing where the provider table lacks it. Convergence is analytical context in the margin-of-safety role — never a target, and no EBITDA-family substitute in any of the four lenses.",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon",
+      url: "https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson",
+      quote:
+        "At the present price, it's selling for only four times what we think it will earn this year and we estimate that in the long run, it will earn more, and it's selling for less than half what they could liquidate for, and only about three times its present annual free cash flow and pays a little dividend.",
+    },
+  },
+  {
+    name: "Real-return deflation of the record (Templeton)",
+    formula:
+      "real growth = nominal growth of revenue/earnings minus the period's inflation; purchasing-power check: at 4% inflation a figure must grow 47% per decade merely to stand still",
+    reading:
+      "Templeton's only-rational-objective arithmetic applied to the company: deflate the multi-year revenue and earnings record and read whether the business grew in purchasing power or only in nominal dollars. A record that looks like compounding but deflates to a standstill is inflation wearing a growth costume — and the pattern usually shows first in pricing lag and rising replacement capex.",
+    benchNotes:
+      "An analytical overlay on the bench's existing rows — nothing is adjusted, converted, or estimated; inflation rates come from cited public sources, and the statement currency stays the only unit (its own inflation series, never an FX translation).",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "16-rules-for-investment-success",
+      url: "https://www.franklintempleton.com/forms-literature/download/TL-R16",
+      quote:
+        "If inflation averages 4%, it will reduce the buying power of a $100,000 portfolio to $68,000 in just 10 years.",
     },
   },
 ];
