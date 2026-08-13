@@ -29,7 +29,6 @@ import type {
   FocusArea,
   Note,
   NoteSection,
-  NoteVisual,
   Order,
   OrderStatus,
   Reading,
@@ -41,7 +40,6 @@ import type {
   Ticker,
   Trade,
   User,
-  VisualSpec,
 } from "./types";
 
 /**
@@ -362,21 +360,6 @@ export const SCHEMA_STATEMENTS: string[] = [
     "createdAt" TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_annotations_user ON annotations("userId", symbol)`,
-  // ---- note visuals: the highlight toolkit's visualizer — a chart/diagram
-  // spec drawn from a highlighted passage against the whole notebook, kept
-  // beneath its notepad only on the investor's explicit keep. ----
-  `CREATE TABLE IF NOT EXISTS note_visuals (
-    id TEXT PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    symbol TEXT NOT NULL,
-    "noteId" TEXT NOT NULL,
-    "selectedText" TEXT NOT NULL,
-    ask TEXT NOT NULL DEFAULT '',
-    spec TEXT NOT NULL,
-    "createdAt" TEXT NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_note_visuals_user ON note_visuals("userId", symbol)`,
-  `CREATE INDEX IF NOT EXISTS idx_note_visuals_note ON note_visuals("noteId", "createdAt")`,
   // ---- due diligence: deep-research memos per section (accept-gated) and the
   // standing synthesis of core insights across the record (one per ticker). ----
   `CREATE TABLE IF NOT EXISTS dd_research (
@@ -1310,9 +1293,6 @@ export async function renameNoteSection(userId: string, id: string, title: strin
 
 /** Deleting a section deletes its notepads, research and evidence with it — the page confirms first. */
 export async function deleteNoteSection(userId: string, id: string): Promise<void> {
-  // Kept visuals follow their notepads (before the notes rows go).
-  await q`DELETE FROM note_visuals WHERE "userId" = ${userId}
-          AND "noteId" IN (SELECT id FROM notes WHERE "sectionId" = ${id} AND "userId" = ${userId})`;
   await q`DELETE FROM notes WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
   await q`DELETE FROM dd_research WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
   await q`DELETE FROM dd_evidence WHERE "sectionId" = ${id} AND "userId" = ${userId}`;
@@ -1379,53 +1359,7 @@ export async function updateNote(
 }
 
 export async function deleteNote(userId: string, id: string): Promise<void> {
-  await q`DELETE FROM note_visuals WHERE "noteId" = ${id} AND "userId" = ${userId}`;
   await q`DELETE FROM notes WHERE id = ${id} AND "userId" = ${userId}`;
-}
-
-// ---------- note visuals (the highlight toolkit's visualizer) ----------
-
-interface NoteVisualRow extends Omit<NoteVisual, "spec"> {
-  spec: string;
-}
-
-function parseNoteVisual(r: NoteVisualRow): NoteVisual | null {
-  try {
-    return { ...r, spec: JSON.parse(r.spec) as VisualSpec };
-  } catch {
-    return null; // malformed row — never break the record page over a visual
-  }
-}
-
-export async function listNoteVisuals(userId: string, symbol: string): Promise<NoteVisual[]> {
-  const rows = await q<NoteVisualRow>`
-    SELECT id, "noteId", symbol, "selectedText", ask, spec, "createdAt"
-    FROM note_visuals WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
-  return rows.map(parseNoteVisual).filter((v): v is NoteVisual => v !== null);
-}
-
-/** Keep a generated visual beneath its notepad (the investor's explicit gesture). */
-export async function createNoteVisual(
-  userId: string,
-  note: Note,
-  input: { selectedText: string; ask: string; spec: VisualSpec }
-): Promise<NoteVisual> {
-  const v: NoteVisual = {
-    id: uid(),
-    noteId: note.id,
-    symbol: note.symbol,
-    selectedText: input.selectedText.trim().slice(0, 2000),
-    ask: input.ask.trim().slice(0, 500),
-    spec: input.spec,
-    createdAt: now(),
-  };
-  await q`INSERT INTO note_visuals (id, "userId", symbol, "noteId", "selectedText", ask, spec, "createdAt")
-          VALUES (${v.id}, ${userId}, ${v.symbol}, ${v.noteId}, ${v.selectedText}, ${v.ask}, ${JSON.stringify(v.spec)}, ${v.createdAt})`;
-  return v;
-}
-
-export async function deleteNoteVisual(userId: string, id: string): Promise<void> {
-  await q`DELETE FROM note_visuals WHERE id = ${id} AND "userId" = ${userId}`;
 }
 
 // ---------- due diligence (deep-research memos + standing synthesis) ----------

@@ -11,14 +11,11 @@ import { NOTE_EXTENSIONS, NoteEditor, parseNoteDoc } from "@/components/NoteEdit
 import { useT } from "@/components/PrefsProvider";
 import { fmtBytes, processEvidenceFile } from "@/components/attach";
 import { api, localizeError, timeAgo } from "@/components/util";
-import { VisualCard } from "@/components/VisualCard";
-import { VisualizeDialog } from "@/components/VisualizeDialog";
 import { docIsEmpty, docToPlainText } from "@/lib/notes";
 import type {
   DiligenceEvidence,
   DiligencePayload,
   Note,
-  NoteVisual,
   SectionSuggestion,
 } from "@/lib/types";
 
@@ -338,12 +335,7 @@ function SectionBlock({
       ) : (
         <div className="mt-3 space-y-4">
           {section.notes.map((n) => (
-            <NotepadCard
-              key={n.id}
-              note={n}
-              visuals={(section.visuals ?? []).filter((v) => v.noteId === n.id)}
-              onChanged={onChanged}
-            />
+            <NotepadCard key={n.id} note={n} onDeleted={onChanged} />
           ))}
         </div>
       )}
@@ -606,24 +598,13 @@ function EvidenceCard({
  * can't be painted into a live ProseMirror view). A brand-new empty notepad
  * opens straight into edit mode.
  */
-function NotepadCard({
-  note,
-  visuals,
-  onChanged,
-}: {
-  note: Note;
-  /** Kept visuals attached beneath this notepad (the visualizer tool's output). */
-  visuals: NoteVisual[];
-  onChanged: () => Promise<unknown>;
-}) {
+function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise<unknown> }) {
   const { t } = useT();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [editing, setEditing] = useState(() => docIsEmpty(note.content));
   const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
   const [savedAt, setSavedAt] = useState(note.updatedAt);
-  /** Selection handed over by the highlight toolkit's Visualize tool. */
-  const [vizSelection, setVizSelection] = useState<string | null>(null);
   const pending = useRef<{ title?: string; content?: string }>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Saves are serialized on this chain: at most one PATCH in flight, and the
@@ -691,13 +672,7 @@ function NotepadCard({
     if (!confirm(t("notes.deleteNotepadConfirm", { title: title || t("notes.untitledNotepad") })))
       return;
     await api(`/api/notes/${note.id}`, { method: "DELETE" }).catch(() => {});
-    onChanged();
-  }
-
-  async function removeVisual(id: string) {
-    if (!confirm(t("notes.vizDeleteConfirm"))) return;
-    await api(`/api/visuals/${id}`, { method: "DELETE" }).catch(() => {});
-    onChanged();
+    onDeleted();
   }
 
   function finishEditing() {
@@ -781,10 +756,7 @@ function NotepadCard({
             {t("notes.emptyNotepad")}
           </p>
         ) : (
-          <Annotatable
-            surfaceId={`note:${note.id}`}
-            onVisualize={({ selectedText }) => setVizSelection(selectedText)}
-          >
+          <Annotatable surfaceId={`note:${note.id}`}>
             <div
               onDoubleClick={() => setEditing(true)}
               className="note-prose text-[0.9375rem] leading-relaxed"
@@ -793,30 +765,6 @@ function NotepadCard({
           </Annotatable>
         )}
       </div>
-
-      {/* Kept visuals live BESIDE the investor's words, never inside them. */}
-      {visuals.length > 0 && (
-        <div className="mt-3 space-y-2.5">
-          {visuals.map((v) => (
-            <div key={v.id} className="rounded-xl border border-hairline bg-ink/3 p-3.5">
-              <VisualCard
-                spec={v.spec}
-                meta={{ ask: v.ask, createdAt: v.createdAt }}
-                onDelete={() => removeVisual(v.id)}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {vizSelection && (
-        <VisualizeDialog
-          note={{ id: note.id, title }}
-          selectedText={vizSelection}
-          onClose={() => setVizSelection(null)}
-          onKept={() => void onChanged()}
-        />
-      )}
     </div>
   );
 }

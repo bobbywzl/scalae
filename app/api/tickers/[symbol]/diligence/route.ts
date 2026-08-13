@@ -7,7 +7,6 @@ import {
   listFocusAreas,
   listNoteSections,
   listNotes,
-  listNoteVisuals,
   listSignals,
   reapStaleEvidenceUploads,
   reapStuckDiligence,
@@ -30,13 +29,12 @@ export async function GET(_req: Request, { params }: Params) {
 
   await reapStuckDiligence(user.id, symbol);
   await reapStaleEvidenceUploads(user.id, symbol).catch(() => {});
-  const [sections, notes, research, evidence, visuals, synthesis, focusAreas, activeSignals] =
+  const [sections, notes, research, evidence, synthesis, focusAreas, activeSignals] =
     await Promise.all([
       listNoteSections(user.id, symbol),
       listNotes(user.id, symbol),
       listDiligenceResearch(user.id, symbol),
       listDiligenceEvidence(user.id, symbol),
-      listNoteVisuals(user.id, symbol),
       getDiligenceSynthesis(user.id, symbol),
       listFocusAreas(user.id, symbol),
       listSignals(user.id, symbol, "active"),
@@ -45,24 +43,12 @@ export async function GET(_req: Request, { params }: Params) {
   const byId = new Map(
     sections.map((s) => [
       s.id,
-      {
-        ...s,
-        notes: [] as typeof notes,
-        research: [] as typeof research,
-        evidence: [] as typeof evidence,
-        visuals: [] as typeof visuals,
-      },
+      { ...s, notes: [] as typeof notes, research: [] as typeof research, evidence: [] as typeof evidence },
     ])
   );
   for (const n of notes) byId.get(n.sectionId)?.notes.push(n);
   for (const r of research) byId.get(r.sectionId)?.research.push(r);
   for (const e of evidence) byId.get(e.sectionId)?.evidence.push(e);
-  // Visuals hang off notepads; resolve each to its section through its note.
-  const sectionOfNote = new Map(notes.map((n) => [n.id, n.sectionId]));
-  for (const v of visuals) {
-    const sid = sectionOfNote.get(v.noteId);
-    if (sid) byId.get(sid)?.visuals.push(v);
-  }
 
   // Staleness is shown, never acted on: the record changed after the synthesis
   // was written (new section, edited note, accepted memo, filed evidence) —
