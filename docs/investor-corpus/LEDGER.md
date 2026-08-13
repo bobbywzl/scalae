@@ -160,7 +160,7 @@
 | `baupost-n30d-2000-12-28` | [The Baupost Fund N-30D (filed 2000-12-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt) | fetched | 2026-08-13 |  |
 | `baupost-n30d-2001-06-26` | [The Baupost Fund N-30D (filed 2001-06-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-500662.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-2001-12-26` | [The Baupost Fund N-30D (filed 2001-12-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-501240.txt) | verified | 2026-08-13 |  |
-| `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | fetched | 2026-08-13 |  |
+| `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | verified | 2026-08-13 |  |
 | `timeless-value-investing-capital-allocators-ep-328` | [Timeless Value Investing (Capital Allocators EP.328)](https://www.capitalallocators.com/podcast/timeless-value-investing/) | manual |  | video/audio — needs ASR or an official transcript |
 
 ### 5. Li Lu
