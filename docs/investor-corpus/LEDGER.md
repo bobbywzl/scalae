@@ -264,7 +264,7 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `betting-on-the-market-tapes-transcripts-full-episode-script` | [Betting On The Market — Tapes & Transcripts (full episode script)](https://www.pbs.org/wgbh/pages/frontline/shows/betting/etal/script.html) | fetched | 2026-08-13 |  |
+| `betting-on-the-market-tapes-transcripts-full-episode-script` | [Betting On The Market — Tapes & Transcripts (full episode script)](https://www.pbs.org/wgbh/pages/frontline/shows/betting/etal/script.html) | verified | 2026-08-13 |  |
 | `wall-street-week-with-guests-peter-lynch-and-john-templeton-04-0` | [Wall Street Week with guests Peter Lynch and John Templeton, 04-08-1994](https://www.youtube.com/watch?v=SniSmpFI4is) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-25-years-later-it-s-not-just-invest-in-what-you-know` | [Peter Lynch, 25 Years Later: It's Not Just 'Invest in What You Know'](https://www.wsj.com/articles/peter-lynch-25-years-later-its-not-just-invest-in-what-you-know-1449459922) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 | `legendary-investor-peter-lynch-on-stock-picking-the-sucker-s-goi` | [Legendary investor Peter Lynch on stock picking: 'The sucker's going up' is not a good reason](https://www.youtube.com/watch?v=U-6fv09KCDw) | manual |  | video/audio — needs ASR or an official transcript |
@@ -272,7 +272,7 @@
 | `a-conversation-about-the-economy-with-peter-lynch-charlie-rose` | [A conversation about the economy with Peter Lynch (Charlie Rose)](https://web.archive.org/web/20090815113616/http://www.charlierose.com/shows/1997/10/28/2/a-conversation-about-the-economy-with-peter-lynch) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
 | `peter-lynch-gbh-interview` | [Peter Lynch GBH Interview](https://www.youtube.com/watch?v=UnKaNT8m80c) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-s-national-business-hall-of-fame-speech` | [Peter Lynch's National Business Hall Of Fame Speech](https://www.youtube.com/watch?v=8RrHR0uIRzw) | manual |  | video/audio — needs ASR or an official transcript |
-| `peter-lynch-library-worth-column-pdfs` | [Peter Lynch Library — Worth column PDFs](https://www.bishoprockcap.com/library/peter-lynch) | fetched | 2026-08-13 |  |
+| `peter-lynch-library-worth-column-pdfs` | [Peter Lynch Library — Worth column PDFs](https://www.bishoprockcap.com/library/peter-lynch) | BLOCKED | 2026-08-13 |  index/library-listing page (bishoprockcap.com) -- only article titles and publication dates pointing to external PDFs, no substantive Lynch quotes of its own  |
 
 ### 4. Seth Klarman
 
