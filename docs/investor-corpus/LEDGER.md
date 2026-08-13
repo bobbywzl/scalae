@@ -89,27 +89,27 @@
 | `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | verified | 2026-08-13 |  |
 | `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | verified | 2026-08-13 |  |
 | `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | BLOCKED | 2026-08-13 |  index/navigation page listing Lynch's Worth columns with short teasers — no independent primary content; each linked column extracted separately as its own row  |
-| `worth-z9301e01` | [Worth column: 93/01-Besting the Blundering Herd](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9301E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9302e01` | [Worth column: 93/02-Buy American](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9302E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9303e01` | [Worth column: 93/03-IPOs Explained](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9304e02` | [Worth column: 93/04-A Fad With Staying Power](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9304E02.html) | extracted | 2026-08-13 |  |
-| `worth-z9305e01` | [Worth column: 93/05-Bestowing Gifts](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9305E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9306e01` | [Worth column: 93/06-Of Betting on Biotech](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9306E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9308e01` | [Worth column: 93/08-A Chicken's Guide to Biotech](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9308E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9309e01` | [Worth column: 93/09-What Goes Around...](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9309E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9310e01` | [Worth column: 93/10-Investing on the House](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9310E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9311e01` | [Worth column: 93/11-Detroit's Comeback](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9311E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9401e03` | [Worth column: 94/01-Prospecting in California](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9401E03.html) | extracted | 2026-08-13 |  |
-| `worth-z9402e03` | [Worth column: 94/02-Making a Bid for Sotheby's](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9402E03.html) | extracted | 2026-08-13 |  |
-| `worth-z9403e01` | [Worth column: 94/03-Company After My Own Heart](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9403E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9404c01` | [Worth column: 94/04-Bank On It](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9404C01.html) | extracted | 2026-08-13 |  |
-| `worth-z9405e01` | [Worth column: 94/05-Charlie Silk's 150-Bagger](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9405E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9406e01` | [Worth column: 94/06-The Second Half Effect](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9406E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9408e02` | [Worth column: 94/08-The Stock Market Hit Parade](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9408E02.html) | extracted | 2026-08-13 |  |
-| `worth-z9409e02` | [Worth column: 94/09-Wall Street v. Five-Line Family](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9409E02.html) | extracted | 2026-08-13 |  |
-| `worth-z9410e03` | [Worth column: 94/10-What Goes Around Turns Around](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9410E03.html) | extracted | 2026-08-13 |  |
-| `worth-z9411e01` | [Worth column: 94/11-Finding Bargains Losers List](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9411E01.html) | extracted | 2026-08-13 |  |
-| `worth-z9501e01` | [Worth column: 95/01-Put Your Broker to Work](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9501E01.html) | extracted | 2026-08-13 |  |
+| `worth-z9301e01` | [Worth column: 93/01-Besting the Blundering Herd](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9301E01.html) | verified | 2026-08-13 |  |
+| `worth-z9302e01` | [Worth column: 93/02-Buy American](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9302E01.html) | verified | 2026-08-13 |  |
+| `worth-z9303e01` | [Worth column: 93/03-IPOs Explained](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9303E01.html) | verified | 2026-08-13 |  |
+| `worth-z9304e02` | [Worth column: 93/04-A Fad With Staying Power](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9304E02.html) | verified | 2026-08-13 |  |
+| `worth-z9305e01` | [Worth column: 93/05-Bestowing Gifts](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9305E01.html) | verified | 2026-08-13 |  |
+| `worth-z9306e01` | [Worth column: 93/06-Of Betting on Biotech](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9306E01.html) | verified | 2026-08-13 |  |
+| `worth-z9308e01` | [Worth column: 93/08-A Chicken's Guide to Biotech](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9308E01.html) | verified | 2026-08-13 |  |
+| `worth-z9309e01` | [Worth column: 93/09-What Goes Around...](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9309E01.html) | verified | 2026-08-13 |  |
+| `worth-z9310e01` | [Worth column: 93/10-Investing on the House](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9310E01.html) | verified | 2026-08-13 |  |
+| `worth-z9311e01` | [Worth column: 93/11-Detroit's Comeback](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9311E01.html) | verified | 2026-08-13 |  |
+| `worth-z9401e03` | [Worth column: 94/01-Prospecting in California](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9401E03.html) | verified | 2026-08-13 |  |
+| `worth-z9402e03` | [Worth column: 94/02-Making a Bid for Sotheby's](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9402E03.html) | verified | 2026-08-13 |  |
+| `worth-z9403e01` | [Worth column: 94/03-Company After My Own Heart](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9403E01.html) | verified | 2026-08-13 |  |
+| `worth-z9404c01` | [Worth column: 94/04-Bank On It](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9404C01.html) | verified | 2026-08-13 |  |
+| `worth-z9405e01` | [Worth column: 94/05-Charlie Silk's 150-Bagger](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9405E01.html) | verified | 2026-08-13 |  |
+| `worth-z9406e01` | [Worth column: 94/06-The Second Half Effect](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9406E01.html) | verified | 2026-08-13 |  |
+| `worth-z9408e02` | [Worth column: 94/08-The Stock Market Hit Parade](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9408E02.html) | verified | 2026-08-13 |  |
+| `worth-z9409e02` | [Worth column: 94/09-Wall Street v. Five-Line Family](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9409E02.html) | verified | 2026-08-13 |  |
+| `worth-z9410e03` | [Worth column: 94/10-What Goes Around Turns Around](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9410E03.html) | verified | 2026-08-13 |  |
+| `worth-z9411e01` | [Worth column: 94/11-Finding Bargains Losers List](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9411E01.html) | verified | 2026-08-13 |  |
+| `worth-z9501e01` | [Worth column: 95/01-Put Your Broker to Work](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9501E01.html) | verified | 2026-08-13 |  |
 | `worth-z9502e02` | [Worth column: 95/02-The Next Oil Boom](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9502E02.html) | verified | 2026-08-13 | fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; via Wayback fallback |
 | `worth-z9503e02` | [Worth column: 95/03-Catch a Ride](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9503E02.html) | verified | 2026-08-13 |  |
 | `worth-z9504e02` | [Worth column: 95/04-The Current Thinking](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9504E02.html) | verified | 2026-08-13 |  |
