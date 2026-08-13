@@ -240,8 +240,8 @@
 | `toward-a-science-of-security-analysis` | ["Toward a Science of Security Analysis"](https://valuehunter.wordpress.com/wp-content/uploads/2009/05/toward-science-security-analysis.pdf) | verified | 2026-08-13 |  |
 | `special-situations` | ["Special Situations"](https://valuehunter.wordpress.com/wp-content/uploads/2009/05/special-situations.pdf) | verified | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
 | `should-security-analysts-have-a-professional-rating-the-affirmat` | ["Should Security Analysts Have a Professional Rating? The Affirmative Case"](https://valuehunter.wordpress.com/wp-content/uploads/2009/05/professional-rating.pdf) | verified | 2026-08-13 |  |
-| `two-illustrative-approaches-to-formula-valuations-of-common-stoc` | ["Two Illustrative Approaches to Formula Valuations of Common Stocks"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_approaches_valuation.pdf) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
-| `valuehunter-resources-page-hub` | [valuehunter "Resources" page (hub)](https://valuehunter.wordpress.com/resources/) | fetched | 2026-08-13 |  |
+| `two-illustrative-approaches-to-formula-valuations-of-common-stoc` | ["Two Illustrative Approaches to Formula Valuations of Common Stocks"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_approaches_valuation.pdf) | verified | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
+| `valuehunter-resources-page-hub` | [valuehunter "Resources" page (hub)](https://valuehunter.wordpress.com/resources/) | BLOCKED | 2026-08-13 |  index/hub page (WordPress blog "Resources" listing) -- only navigation links and document titles, no substantive Graham/Dodd content of its own  |
 | `david-l-dodd-stock-watering-the-judicial-valuation-of-property-f` | [David L. Dodd, *Stock Watering: The Judicial Valuation of Property for Stock-Issue Purposes*](https://catalog.hathitrust.org/Record/006565650) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
 
 ### 2. John Templeton
