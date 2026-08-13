@@ -38,6 +38,16 @@
  * draws cite web.archive.org sources unreachable from the audit container;
  * those remain covered by the extraction-verbatim check (tests/) plus the
  * corpus verify.ts chain. No entries required fixing or deletion.
+ *
+ * TIER 2 AUDIT EXTENSION 2026-08-13: all 8 Tier 2 additions (not a sample)
+ * re-verified against freshly refetched sources — 8 of 8 quotes present
+ * (one confirmed by page-image inspection where this container's OCR
+ * misread one character the printed page shows plainly) and fairly
+ * represented. One fix from the fair-representation read: the earnings-
+ * yield metric had blended a companion equity gate and a testing-duration
+ * claim belonging to the-simplest-way-to-select-bargain-stocks into an
+ * entry citing an-hour-with-mr-graham; the gate is now its own metric with
+ * its own verified citation, and the duration claim now matches its source.
  */
 
 import type { Lens } from "./framework";
@@ -1816,11 +1826,11 @@ export const CANON_METRICS: CanonMetric[] = [
   {
     name: "Earnings-yield floor with absolute multiple caps (Graham)",
     formula:
-      "earnings yield ≥ 2 × the AAA bond yield, bounded by hard caps: never pay above 10× earnings however low rates go, never above 7× when rates run high (above ~7%); companion soundness gate — shareholders' equity ≥ 50% of total assets",
+      "earnings yield ≥ 2 × the AAA bond yield, bounded by hard caps: never pay above 10× earnings however low rates go, never above 7× when rates run high (above ~7%)",
     reading:
-      "The operational bounds of Graham's central-value test (above): the doubling rule ties what an earnings dollar is worth to the bond alternative, and the caps stop low rates from rationalizing any multiple. His late-career simplified system, reported as standing up under fifty years of his own testing.",
+      "The operational bounds of Graham's central-value test (above): the doubling rule ties what an earnings dollar is worth to the bond alternative, and the caps stop low rates from rationalizing any multiple. His late-career simplified system — which he reported, after sixty years of experience, stood up under every test he made of it.",
     benchNotes:
-      "Cleansed EPS as the earnings line; equity and total assets from the bench's balance rows. Price stays in its margin-of-safety role — the caps are refusal bounds, never targets.",
+      "Cleansed EPS as the earnings line. Price stays in its margin-of-safety role — the caps are refusal bounds, never targets. Pairs with the own-twice-what-it-owes soundness gate (next) as the two halves of the same late system.",
     anchor: "business-model",
     source: {
       investor: "Benjamin Graham & David Dodd",
@@ -1828,6 +1838,22 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "http://www.grahamanddoddsville.net/wordpress/Files/Gurus/Benjamin%20Graham/an-hour-ben-graham.pdf",
       quote:
         "Basically, I want to double the interest rate in terms of earnings return. However, in most years the interest rate was less than five percent on AAA bonds. Consequently, I have set two limits. A maximum multiple of 10 even when interest rates are under five percent, and a maximum multiple of 7 times even when interest rates are above seven percent as they are now.",
+    },
+  },
+  {
+    name: "Own twice what it owes — equity-to-assets floor (Graham)",
+    formula:
+      "shareholders' equity ÷ total assets ≥ 50% — equivalently, the company owns at least twice what it owes",
+    reading:
+      "The soundness half of Graham's late simplified system: the earnings-yield test (above) prices the earning power, and this balance-sheet gate refuses the leverage that makes cheap earning power fragile. A one-line test computable from any balance sheet.",
+    benchNotes:
+      "Equity and total assets straight from the bench's balance rows, no adjustments. Financial-sector balance sheets read under their own conventions instead (deposit funding is not industrial debt — see the lender's gauge). Distinct from the fixed-charges coverage test: that reads the income statement's ability to carry the debt, this reads the capital structure itself.",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "the-simplest-way-to-select-bargain-stocks",
+      url: "https://alphaarchitect.com/wp-content/uploads/2011/04/Simple-and-Easy-Approach-Medical-Economics-Graham-1976.pdf",
+      quote: "A company should own at least twice what It owes.",
     },
   },
   {
