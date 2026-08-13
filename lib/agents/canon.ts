@@ -371,6 +371,92 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "This is the old combat theory of investing: When there's a war going on, don't buy the companies that are doing the fighting; buy the companies that sell the bullets.",
     },
   },
+
+  // --- 4. Seth Klarman ---
+  {
+    pattern:
+      "Not only IS this security undervalued, but WHY is it undervalued — who is selling, under what constraint, and is their reason about the business or about themselves?",
+    askWhen:
+      "any thesis that begins from cheapness; whenever a discount widens without business news",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-2000-06-28",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-000708.txt",
+      quote:
+        "Because investing is a highly competitive activity, we consider for each of our investments not only whether a security is undervalued but why it is undervalued.",
+    },
+  },
+  {
+    pattern:
+      "What specific, nameable event converts this discount into realized value within a year or two — and if none exists, why won't today's multi-year low simply become a deeper one?",
+    askWhen:
+      "any thesis whose principal support is price history ('cheapest in a decade') rather than a dated realization path",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "masters-in-business-seth-klarman-full-transcript",
+      url: "https://ritholtz.com/2026/06/transcript-seth-klarman/",
+      quote:
+        "If we can't make an argument for why it's turned around in the next year or two, it might be nice that it's trading at a five-year low, but that doesn't mean it's not going to be at a seven-year low and a ten-year low.",
+    },
+  },
+  {
+    pattern:
+      "If conditions got materially worse than the bear case — a depression-grade outcome — would this company still be okay on its own balance sheet and contracts? Survival is an entry condition, not a scenario weight.",
+    askWhen:
+      "underwriting any position during dislocation, and whenever the bear case is drawn only from a benign post-war sample",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "masters-in-business-seth-klarman-full-transcript",
+      url: "https://ritholtz.com/2026/06/transcript-seth-klarman/",
+      quote:
+        "in every case we were stress-testing: hey, if the world got even worse, if this turned out to be 1933, will this investment be okay?",
+    },
+  },
+  {
+    pattern:
+      "How much of this company's smooth, meets-or-beats record is manufactured — write-ups and write-downs, accounting-policy changes, actuarial-assumption revisions, one-time items — and what ownership base is applying the pressure to smooth?",
+    askWhen:
+      "any long meets-or-beats streak or unusually low earnings variability, especially with a relative-performance-driven shareholder register",
+    anchor: "culture",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote:
+        "there is enormous pressure on managements to smooth their results and pull the occasional rabbit out of a hat to deliver the desired quarterly outcomes.",
+    },
+  },
+  {
+    pattern:
+      "Whose earnings per share are these — how many shares can be issued to management at fixed prices, and what do the per-share figures look like on a fully-loaded count?",
+    askWhen:
+      "option-heavy issuers, and whenever per-share arithmetic anchors a valuation or a compensation claim",
+    anchor: "culture",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1998-06-29",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt",
+      quote:
+        "Reported earnings per share are potentially overstated to the extent that additional shares can be issued to management at fixed prices.",
+    },
+  },
+  {
+    pattern:
+      "The arrogance test: buying asserts we know more than the seller and as much or more than every other prospective buyer — what, specifically, is that knowledge for this company, stated in writing?",
+    askWhen:
+      "the desk's final honesty check before any conviction is recorded; whenever a thesis cannot name its informational or analytical edge",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1996-12-30",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt",
+      quote:
+        "We regard investing as an arrogant act; an investor who buys is effectively saying that he or she knows more than the seller and the same or more than other prospective buyers.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -699,6 +785,121 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "AFLAC took a less sophisticated approach and put the money into boring old Treasury bonds, so today its $12 billion portfolio is one of the strongest and safest on earth.",
     },
   },
+
+  // --- 4. Seth Klarman ---
+  {
+    directive:
+      "When the company's securities are falling, establish whether holders are exiting under a RULE (rating breach, index removal, size or mandate criteria, redemptions, tax calendar) or on new information about the business — mechanical selling is the mispricing source, informed selling is a stop sign.",
+    queryShapes: [
+      "<COMPANY> credit rating downgrade below investment grade date",
+      "<COMPANY> index removal deletion announcement",
+      "<COMPANY> largest holders exited 13F mandate change",
+    ],
+    sourcePriority:
+      "rating-agency actions and index-committee announcements first; covenant and holder disclosures second; sentiment commentary last",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "masters-in-business-seth-klarman-full-transcript",
+      url: "https://ritholtz.com/2026/06/transcript-seth-klarman/",
+      quote:
+        "They were responding to credit downgrades, so it wasn't just nervousness that things are going to be bad — this bond is no longer investment grade, and maybe my mandate is I can only own investment-grade bonds; or this bond has defaulted and I can no longer hold it.",
+    },
+  },
+  {
+    directive:
+      "Watch for orphaning events around the company: spin-off distributions to holders who never chose them, index deletions, market-cap threshold exits, evaporating analyst coverage — a shareholder base being mechanically disqualified while the market position stays intact.",
+    queryShapes: [
+      "<COMPANY> spin-off Form 10 information statement selling pressure",
+      "<COMPANY> market capitalization index criteria exit",
+      "<COMPANY> analyst coverage dropped orphaned",
+    ],
+    sourcePriority:
+      "SEC Form 10/spin-off registration statements and index-reconstitution announcements over sell-side notes (missing coverage is the condition itself)",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote:
+        "Selling pressure has turned this market leader into a micro-capitalization stock, forcing many holders to exit because it no longer meets their size criteria.",
+    },
+  },
+  {
+    directive:
+      "Do the analysis others won't: read the hard filings end-to-end — multi-segment footnotes, subsidiary structures, plans of reorganization, unusual capital structures — because the difficulty is why the information is still unpriced. The circle of competence still governs: complexity is opportunity only where it is genuinely analyzable.",
+    queryShapes: [
+      "<COMPANY> 10-K footnotes subsidiary structure exhibits",
+      "<COMPANY> plan of reorganization disclosure statement",
+      "<COMPANY> holding company structure dual class stub",
+    ],
+    sourcePriority:
+      "primary filings read in full over any summary or screen — the summary is where the complexity (and the payoff) gets discarded",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1997-12-30",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-001392.txt",
+      quote: "The payoff to fundamental analysis rises proportionately with the difficulty of performing it.",
+    },
+  },
+  {
+    directive:
+      "Run the smoothing-forensics checklist on the filings: accounting-principle changes and their cumulative effects, pension and actuarial assumption revisions, write-ups and write-downs, 'one-time' items — the named techniques by which a meets-or-beats record is manufactured.",
+    queryShapes: [
+      "<COMPANY> 10-K change in accounting principle cumulative effect",
+      "<COMPANY> pension discount rate actuarial assumption change",
+      "<COMPANY> restructuring charge reversal non-recurring items history",
+    ],
+    sourcePriority:
+      "10-K accounting-policy and pension footnotes and restatement disclosures over the earnings release and any 'adjusted' presentation",
+    anchor: "culture",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote:
+        "A great many companies meet or exceed estimates only with a great deal of accounting legerdemain: write-ups and write-downs, changes in accounting procedures, modifications to actuarial assumptions, one time charges or gains and other forms of chicanery.",
+    },
+  },
+  {
+    directive:
+      "Read the whole capital structure as evidence on the equity: where the debt trades, what the indentures and credit agreements actually permit, and where in the stack the business's value runs out — the debt market's read on survivability often leads the equity narrative.",
+    queryShapes: [
+      "<COMPANY> bonds trading price yield distressed",
+      "<COMPANY> credit agreement covenants indenture terms",
+      "<COMPANY> debt maturity schedule refinancing 10-K",
+    ],
+    sourcePriority:
+      "indentures, credit agreements and debt schedules from filings; bond-market pricing where public; equity narrative last",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-2000-12-28",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt",
+      quote:
+        "Today, we are again finding opportunities to buy stable, cash-generating assets of overleveraged companies at very substantial discounts to their underlying value through the purchase of senior debt securities.",
+    },
+  },
+  {
+    directive:
+      "Keep a live catalyst inventory for the company: asset sales, spin-offs, repurchase authorizations, restructurings — announced, in progress, or under exploration — each with its stage and expected timing; these are the dated events that close value gaps.",
+    queryShapes: [
+      "<COMPANY> announced asset sale divestiture strategic alternatives",
+      "<COMPANY> share repurchase authorization remaining amount",
+      "<COMPANY> spin-off separation timeline announced",
+    ],
+    sourcePriority:
+      "8-K filings, board authorizations and proxies first; call transcripts for 'exploring' language; press retellings last",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1998-06-29",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt",
+      quote:
+        "We have identified numerous companies in the midst of asset sales, spin-offs, and share repurchases, and others actively exploring such transactions.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -892,6 +1093,63 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       url: "https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/",
       quote:
         "Sometimes depressed industries can produce high returns. The best companies often thrive even as their competitors struggle to survive.",
+    },
+  },
+
+  // --- 4. Seth Klarman ---
+  // Dedup notes: securities-as-business-claims and Mr. Market are the charter
+  // itself; the four-part gate's stable-value and able-management criteria are
+  // core lenses; the hurdle-rate-on-idle-cash question is the Capital
+  // Allocation lens's opportunity-cost master test; cash-level, hedging and
+  // client-base material is out of the desk's scope entirely.
+  {
+    title: "Forced & Uneconomic Selling (Klarman)",
+    question:
+      "Is the price of this security being set by someone who MUST transact — mandate breach, index deletion, size criteria, redemptions, tax calendar — rather than by someone who knows something about the business?",
+    test:
+      "Down-in-price is never bargain-priced by itself: undervaluation is determined only by price against an independently derived value, never against price history. Identify the seller class and its constraint; the wider the gap between the seller's reason and the company's fundamentals, the better the evidence — and informed selling is a stop sign, not an opportunity. Contrarianism is never blind: being extremely early is tantamount to being wrong, so gauge whether the constrained holders have largely finished exiting before concluding the discount is actionable evidence.",
+    evidence:
+      "Rating actions, index reconstitutions, spin-off distribution mechanics and mandate-driven holder turnover around the company's securities; who is still selling and their remaining capacity; the independent value work the discount is measured against; the company's own buying on the other side of the forced flow.",
+    investor: "Seth Klarman",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote: "Frequently, we attempt to profit by providing liquidity to urgent sellers.",
+    },
+  },
+  {
+    title: "Margin of Safety as Process (Klarman)",
+    question:
+      "Where, specifically, does the safety in this thesis come from — and does it survive the key assumptions each being wrong in the unfavorable direction?",
+    test:
+      "The margin of safety is constructed per situation and sized to the analyst's own estimation error, not set as a market view: stress-test every load-bearing assumption with sensitivity analysis, write the downside case before computing any return (risk is underwritten first), and require survival of a depression-grade outcome as an entry condition. Risk is not inherent in an asset — it is always relative to the price paid — and uncertainty is not the same as risk: great uncertainty at a low enough price is often the safer purchase. A harder-to-value business demands a wider cushion.",
+    evidence:
+      "The written sensitivity work and downside case; which assumption breaks the thesis first and at what magnitude; the price-relative framing of every risk claim; conviction that survives stress rather than narrative confidence; the desk's honesty about estimation error in hard-to-value situations.",
+    investor: "Seth Klarman",
+    source: {
+      investor: "Seth Klarman",
+      doc: "mit-remarks-october-20-2007",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf",
+      quote:
+        "Buying at a discount creates a margin of safety for the investor—room for imprecision, error, bad luck or the vicissitudes of volatile markets and economies.",
+    },
+  },
+  {
+    title: "Catalysts & Duration (Klarman)",
+    question:
+      "Stocks are perpetuities with no maturity date — what identifiable event caps this thesis's holding period, and would the position still be worth holding if the event slipped?",
+    test:
+      "Map each realization event — spin-off completion, asset sale, repurchase program, restructuring, litigation resolution — with its stage and expected timing; a partial or full catalyst converts an open-ended claim into a limited-duration one and reduces dependence on the market ever agreeing. The discipline cuts both ways: buy only what passes on a hold-forever basis, so the catalyst shortens duration without becoming the load-bearing reason to own; and a thesis with no conceivable realization path is a bet on sentiment, however cheap.",
+    evidence:
+      "The catalyst inventory and its stages; buyback pace as a self-generated realization clock; management's control over (and incentive toward) each event; what happened to comparable gaps that had no catalyst; the thesis re-stated with every catalyst assumed to slip a year.",
+    investor: "Seth Klarman",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote:
+        "While we frequently invest in stocks with a catalyst for value realization in order to create a portfolio of limited duration, we nevertheless buy only when we are prepared to hold for the long-term.",
     },
   },
 ];
@@ -1136,6 +1394,75 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html",
       quote:
         "Through seven years and one recession, Fannie Mae has turned in 28 consecutive quarters of record earnings.",
+    },
+  },
+
+  // --- 4. Seth Klarman ---
+  {
+    name: "Discount to underlying / private-market value (Klarman)",
+    formula:
+      "(independently estimated underlying value − market price) ÷ estimated value, the estimate built from reported balance-sheet lines and segment-level private-market comparables — never from a hoped-for re-rating",
+    reading:
+      "Klarman's bar for 'compelling' sat at a 30-50%+ discount — a mid-teens gap is inside the estimate's own error band, not a margin of safety. The discount must be substantial, independently derived, and paired with the why-is-it-cheap answer before it counts as evidence.",
+    benchNotes:
+      "The value estimate uses the bench's cleansed figures and disclosed segment data; private-market comparables are cited [n] or the input is named as missing. Price appears only in this margin-of-safety role.",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1999-06-29",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt",
+      quote:
+        "Values in this portion of the portfolio are particularly compelling, with prices at discounts of 30% to 50% or more from our estimate of underlying asset values.",
+    },
+  },
+  {
+    name: "Depressed-earnings multiple, cash-flow cross-check (Klarman)",
+    formula:
+      "price ÷ CURRENT depressed after-tax earnings (deliberately not normalized upward), read beside price ÷ pretax cash flow — the spread between the two multiples is the diagnostic",
+    reading:
+      "Klarman's anti-optimism convention: underwrite the trough print so cheapness never depends on a recovery assumed into existence — the mirror of Graham's normalization, which works the other direction (normalize DOWN from booms; refuse to normalize UP from troughs). A wide spread between the earnings multiple and the cash-flow multiple flags capital-structure and tax artifacts in a leveraged or freshly separated entity worth understanding, not adjusting away.",
+    benchNotes:
+      "The pretax-cash-flow multiple is a capital-structure diagnostic ONLY — it never substitutes for earnings (nothing EBITDA-family enters as an earnings claim, and depreciation stays real). Both multiples run on reported-then-cleansed lines; the depressed-vs-normalized choice is stated explicitly whenever either is quoted.",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote:
+        "the shares have slumped to around 10 times currently depressed after-tax earnings and about 5.5 times pretax cash flow.",
+    },
+  },
+  {
+    name: "Buyback pace as a realization clock (Klarman)",
+    formula:
+      "shares repurchased per year ÷ shares outstanding at period start (from the equity roll-forward), read against the price paid relative to value",
+    reading:
+      "Beyond the core allocation test (pace vs. price), Klarman read the repurchase RATE as duration: at a deep discount, a ~10%-a-year retirement is the clock on value realization with no external event and no re-rating required — the company is the thesis's own catalyst. The same pace at a rich price runs the clock in reverse.",
+    benchNotes:
+      "Reported lines only (repurchase amounts from the cash-flow statement, share counts from the cover/equity roll-forward). Feeds the catalyst inventory; never a cleansing adjustment.",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "the-baupost-fund-shareholder-letter-fy1999-form-n-30d",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt",
+      quote: "The company is currently buying back around 10% of its stock per year.",
+    },
+  },
+  {
+    name: "Recurring 'one-time' write-offs and the ROE they overstate (Klarman)",
+    formula:
+      "sum of extraordinary/restructuring/'one-time' charges over a multi-year window ÷ sum of reported earnings over the same window; then restate return on equity with the written-off equity added back to the denominator and the recurring charges treated as operating costs",
+    reading:
+      "Charges that recur year after year are operating costs wearing a costume — and their second-order effect is the one that flatters: write-offs shrink the equity base, so the resulting high ROE is an artifact then used to justify the valuation. Klarman measured the era's write-offs at over 10% of reported earnings — the ratio tells you how much of the record is real.",
+    benchNotes:
+      "Bench-native on both sides: the recurring-charge pattern is exactly what bench law 2 flags as a culture datum instead of cleansing away, and the ROE restatement uses the board's own equity and earnings rows. Where charge detail is undisclosed, the missing input is named, never estimated.",
+    anchor: "business-model",
+    source: {
+      investor: "Seth Klarman",
+      doc: "baupost-n30d-1998-06-29",
+      url: "https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt",
+      quote:
+        "are hardly one-time when they recur year after year. (These write-offs also result in an overstatement of return on equity; high return on equity is another argument used to justify record stock valuations.)",
     },
   },
 ];
