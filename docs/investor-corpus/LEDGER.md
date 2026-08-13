@@ -15,66 +15,83 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `graham-lectures-1946-47-lecture-01` | [Current Problems in Security Analysis — Lecture 1](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture1.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-02` | [Current Problems in Security Analysis — Lecture 2](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture2.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-03` | [Current Problems in Security Analysis — Lecture 3](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture3.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-04` | [Current Problems in Security Analysis — Lecture 4](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture4.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-05` | [Current Problems in Security Analysis — Lecture 5](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture5.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-06` | [Current Problems in Security Analysis — Lecture 6](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture6.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-07` | [Current Problems in Security Analysis — Lecture 7](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture7.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-08` | [Current Problems in Security Analysis — Lecture 8](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture8.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-09` | [Current Problems in Security Analysis — Lecture 9](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture9.pdf) | pending |  |  |
-| `graham-lectures-1946-47-lecture-10` | [Current Problems in Security Analysis — Lecture 10](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture10.pdf) | pending |  |  |
-| `security-analysis-1st-edition` | [Security Analysis, 1st edition](https://archive.org/details/securityanalysis0000grah) | pending |  |  |
-| `security-analysis-2nd-edition-principles-and-technique` | [Security Analysis, 2nd edition ("Principles and Technique")](https://archive.org/details/dli.ernet.7983) | pending |  |  |
-| `the-intelligent-investor` | [The Intelligent Investor](https://archive.org/details/intelligentinves0000grah) | pending |  |  |
+| `graham-lectures-1946-47-lecture-01` | [Current Problems in Security Analysis — Lecture 1](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture1.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-02` | [Current Problems in Security Analysis — Lecture 2](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture2.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-03` | [Current Problems in Security Analysis — Lecture 3](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture3.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-04` | [Current Problems in Security Analysis — Lecture 4](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture4.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-05` | [Current Problems in Security Analysis — Lecture 5](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture5.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-06` | [Current Problems in Security Analysis — Lecture 6](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture6.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-07` | [Current Problems in Security Analysis — Lecture 7](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture7.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-08` | [Current Problems in Security Analysis — Lecture 8](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture8.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-09` | [Current Problems in Security Analysis — Lecture 9](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture9.pdf) | fetched | 2026-08-13 |  |
+| `graham-lectures-1946-47-lecture-10` | [Current Problems in Security Analysis — Lecture 10](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham_Sept1946Feb1947_CurrentProblemsinSecurityAnalysis_Lecture10.pdf) | fetched | 2026-08-13 |  |
+| `security-analysis-1st-edition` | [Security Analysis, 1st edition](https://archive.org/details/securityanalysis0000grah) | manual | 2026-08-13 | archive.org controlled lending (borrow-only) — no bulk text; borrow/purchase by hand |
+| `security-analysis-2nd-edition-principles-and-technique` | [Security Analysis, 2nd edition ("Principles and Technique")](https://archive.org/details/dli.ernet.7983) | fetched | 2026-08-13 |  |
+| `the-intelligent-investor` | [The Intelligent Investor](https://archive.org/details/intelligentinves0000grah) | manual | 2026-08-13 | archive.org controlled lending (borrow-only) — no bulk text; borrow/purchase by hand |
 | `stock-market-study-senate-banking-currency-committee-hearings-fu` | [Stock Market Study — Senate Banking & Currency Committee hearings (Fulbright), Graham testimony](https://books.google.com/books/about/Stock_Market_Study.html?id=AqctAvEQAQYC) | manual |  | Google Books free ebook — download EPUB/PDF by hand |
-| `securities-in-an-insecure-world-annotated-transcript-by-jason-zw` | ["Securities in an Insecure World" — annotated transcript by Jason Zweig](https://jasonzweig.com/a-rediscovered-masterpiece-by-benjamin-graham/) | pending |  |  |
-| `a-conversation-with-benjamin-graham` | ["A Conversation with Benjamin Graham"](http://www.grahamanddoddsville.net/wordpress/Files/Gurus/Benjamin%20Graham/A%20Conversation%20with%20Ben%20Graham%20-%20Financial%20Analysts%20Journal%20-%201976.pdf) | pending |  |  |
-| `forbes-series-i-inflated-treasuries-and-deflated-stockholders` | [Forbes series I: "Inflated Treasuries and Deflated Stockholders"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_3.pdf) | pending |  |  |
-| `forbes-series-ii-should-rich-corporations-return-stockholders-ca` | [Forbes series II: "Should Rich Corporations Return Stockholders' Cash?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_return_cash.pdf) | pending |  |  |
-| `forbes-series-iii-should-rich-but-losing-corporations-be-liquida` | [Forbes series III: "Should Rich but Losing Corporations Be Liquidated?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_liq_1932.pdf) | pending |  |  |
-| `graham-newman-letter-1946` | [Graham-Newman Corp. letter to stockholders, 1946](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1946.PDF) | pending |  |  |
-| `graham-newman-letter-1947` | [Graham-Newman Corp. letter to stockholders, 1947](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1947.PDF) | pending |  |  |
-| `graham-newman-letter-1948` | [Graham-Newman Corp. letter to stockholders, 1948](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1948.PDF) | pending |  |  |
-| `graham-newman-letter-1949` | [Graham-Newman Corp. letter to stockholders, 1949](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1949.PDF) | pending |  |  |
-| `graham-newman-letter-1950` | [Graham-Newman Corp. letter to stockholders, 1950](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1950.PDF) | pending |  |  |
-| `graham-newman-letter-1951` | [Graham-Newman Corp. letter to stockholders, 1951](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1951.PDF) | pending |  |  |
-| `graham-newman-letter-1952` | [Graham-Newman Corp. letter to stockholders, 1952](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1952.PDF) | pending |  |  |
-| `graham-newman-letter-1953` | [Graham-Newman Corp. letter to stockholders, 1953](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1953.PDF) | pending |  |  |
-| `graham-newman-letter-1954` | [Graham-Newman Corp. letter to stockholders, 1954](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1954.PDF) | pending |  |  |
-| `graham-newman-letter-1955` | [Graham-Newman Corp. letter to stockholders, 1955](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1955.PDF) | pending |  |  |
-| `graham-newman-letter-1956` | [Graham-Newman Corp. letter to stockholders, 1956](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1956.PDF) | pending |  |  |
-| `graham-newman-letter-1957` | [Graham-Newman Corp. letter to stockholders, 1957](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1957.PDF) | pending |  |  |
-| `graham-newman-letter-1958` | [Graham-Newman Corp. letter to stockholders, 1958](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1958.PDF) | pending |  |  |
-| `warren-buffett-the-superinvestors-of-graham-and-doddsville` | [Warren Buffett, "The Superinvestors of Graham-and-Doddsville"](https://business.columbia.edu/insights/chazen-global-insights/superinvestors-graham-and-doddsville) | pending |  |  |
+| `securities-in-an-insecure-world-annotated-transcript-by-jason-zw` | ["Securities in an Insecure World" — annotated transcript by Jason Zweig](https://jasonzweig.com/a-rediscovered-masterpiece-by-benjamin-graham/) | fetched | 2026-08-13 |  |
+| `a-conversation-with-benjamin-graham` | ["A Conversation with Benjamin Graham"](http://www.grahamanddoddsville.net/wordpress/Files/Gurus/Benjamin%20Graham/A%20Conversation%20with%20Ben%20Graham%20-%20Financial%20Analysts%20Journal%20-%201976.pdf) | fetched | 2026-08-13 |  |
+| `forbes-series-i-inflated-treasuries-and-deflated-stockholders` | [Forbes series I: "Inflated Treasuries and Deflated Stockholders"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_3.pdf) | fetched | 2026-08-13 |  |
+| `forbes-series-ii-should-rich-corporations-return-stockholders-ca` | [Forbes series II: "Should Rich Corporations Return Stockholders' Cash?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_return_cash.pdf) | fetched | 2026-08-13 |  |
+| `forbes-series-iii-should-rich-but-losing-corporations-be-liquida` | [Forbes series III: "Should Rich but Losing Corporations Be Liquidated?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_liq_1932.pdf) | fetched | 2026-08-13 |  |
+| `graham-newman-letter-1946` | [Graham-Newman Corp. letter to stockholders, 1946](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1946.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1947` | [Graham-Newman Corp. letter to stockholders, 1947](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1947.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1948` | [Graham-Newman Corp. letter to stockholders, 1948](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1948.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1949` | [Graham-Newman Corp. letter to stockholders, 1949](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1949.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1950` | [Graham-Newman Corp. letter to stockholders, 1950](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1950.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1951` | [Graham-Newman Corp. letter to stockholders, 1951](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1951.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1952` | [Graham-Newman Corp. letter to stockholders, 1952](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1952.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1953` | [Graham-Newman Corp. letter to stockholders, 1953](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1953.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1954` | [Graham-Newman Corp. letter to stockholders, 1954](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1954.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1955` | [Graham-Newman Corp. letter to stockholders, 1955](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1955.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1956` | [Graham-Newman Corp. letter to stockholders, 1956](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1956.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1957` | [Graham-Newman Corp. letter to stockholders, 1957](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1957.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1958` | [Graham-Newman Corp. letter to stockholders, 1958](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1958.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `warren-buffett-the-superinvestors-of-graham-and-doddsville` | [Warren Buffett, "The Superinvestors of Graham-and-Doddsville"](https://business.columbia.edu/insights/chazen-global-insights/superinvestors-graham-and-doddsville) | BLOCKED (HTTP 403) | 2026-08-13 |  |
 
 ### 2. John Templeton
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `16-rules-for-investment-success` | [16 Rules for Investment Success](https://www.franklintempleton.com/forms-literature/download/TL-R16) | pending |  |  |
-| `the-templeton-letters-series-hub` | [The Templeton Letters (series hub)](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/category/templeton-letters/) | pending |  |  |
-| `the-templeton-letters-the-first-time-investor-1945-letter` | [The Templeton Letters: The First-Time Investor (1945 letter)](https://web.archive.org/web/20190922194957/https://sirjohntempleton.org/2010/04/15/the-templeton-letters-the-average-investor/) | pending |  |  |
-| `john-templeton-s-letter-to-clients-circa-1954` | [John Templeton's Letter to Clients, circa 1954](https://www.templetonandphillips.com/s/TempletonLetter1954.PDF) | pending |  |  |
-| `the-idealism-of-free-competition-letter-to-clients-circa-1961` | ["The Idealism of Free Competition" — Letter to Clients, circa 1961](https://www.templetonandphillips.com/s/Freedom-John-Templeton-Letter.pdf) | pending |  |  |
-| `successful-investing-methods-address-to-the-empire-club-of-canad` | ["Successful Investing Methods" — Address to the Empire Club of Canada](https://empireclubfoundation.org/speech/succesful-investing-methods/) | pending |  |  |
-| `financial-chaos-memorandum` | ["Financial Chaos" memorandum](https://www.huffpost.com/entry/sir-john-templeton-financ_b_507981) | pending |  |  |
-| `john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon` | [John Templeton, Warren Buffett and Robert Wilson — Adam Smith's Money World, transcripts](https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson) | pending |  |  |
-| `john-templeton-charlie-rose` | [John Templeton — Charlie Rose](https://charlierose.com/videos/7388) | pending |  |  |
-| `the-22-maxims-of-john-templeton-the-time-tested-maxims-of-the-te` | [The 22 Maxims of John Templeton ("The Time-Tested Maxims of the Templeton Touch")](https://novelinvestor.com/maxims-john-templeton/) | pending |  |  |
+| `16-rules-for-investment-success` | [16 Rules for Investment Success](https://www.franklintempleton.com/forms-literature/download/TL-R16) | fetched | 2026-08-13 |  |
+| `the-templeton-letters-series-hub` | [The Templeton Letters (series hub)](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/category/templeton-letters/) | fetched | 2026-08-13 | index page — expanded to 17 document(s) |
+| `templeton-letter-article-from-the-wilson-college-bulletin-on-john` | [Templeton letters post: Article from the Wilson College Bulletin on John Templeton](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2011/03/08/article-from-the-wilson-college-bulletin-on-john-templeton/) | fetched | 2026-08-13 |  |
+| `templeton-letter-find-a-need-and-fill-it` | [Templeton letters post: Find a Need and Fill It](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/03/22/find-a-need-and-fill-it/) | fetched | 2026-08-13 |  |
+| `templeton-letter-how-strong-personal-character-defines-investment` | [Templeton letters post: How Strong Personal Character Defines Investment Decisions](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/03/27/how-strong-personal-character-defines-investment-decisions/) | fetched | 2026-08-13 |  |
+| `templeton-letter-lauren-templeton-and-scott-phillips-on-how-to-ke` | [Templeton letters post: Lauren Templeton and Scott Phillips on How to Keep a Client Happy](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/06/03/lauren-templeton-and-scott-phillips-on-how-to-keep-a-client-happy/) | fetched | 2026-08-13 |  |
+| `templeton-letter-lauren-templeton-and-scott-phillips-on-planned-i` | [Templeton letters post: Lauren Templeton and Scott Phillips on Planned Investment, Part 1](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/05/06/lauren-templeton-and-scott-phillips-on-planned-investment/) | BLOCKED (HTTP 404) | 2026-08-13 |  |
+| `templeton-letter-lauren-templeton-and-scott-phillips-on-the-upsid` | [Templeton letters post: Lauren Templeton and Scott Phillips on the Upside of a Down Market](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/07/06/lauren-templeton-and-scott-phillips-on-the-upside-of-a-down-market/) | fetched | 2026-08-13 |  |
+| `templeton-letter-lauren-templeton-on-noble-purpose` | [Templeton letters post: Lauren Templeton on Noble Purpose](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/02/25/lauren-templeton-on-noble-purpose/) | fetched | 2026-08-13 |  |
+| `templeton-letter-new-video-links-for-sir-john-templeton-on-the-19` | [Templeton letters post: New Video Links for Sir John Templeton on the 1987 Market Crash](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2011/06/09/new-video-links-for-sir-john-templeton-on-the-1987-market-crash/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-a-new-feature-on-what-woul` | [Templeton letters post: The Templeton Letters: A New Feature on What Would John Templeton Say?](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/13/the-templeton-letters-a-new-feature-on-what-would-john-templeton-say/) | BLOCKED (HTTP 404) | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-investment-success` | [Templeton letters post: The Templeton Letters: Investment Success](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/29/the-templeton-letters-investment-success/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-keeping-a-client-happy` | [Templeton letters post: The Templeton Letters: Keeping a Client Happy](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/05/13/the-templeton-letters-keeping-a-client-happy/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-keeping-a-client-happy-par` | [Templeton letters post: The Templeton Letters: Keeping a Client Happy, Part 4](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/05/26/the-templeton-letters-keeping-a-client-happy-part-iv/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-keeping-a-client-happy-par` | [Templeton letters post: The Templeton Letters: Keeping a Client Happy, Part 3](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/05/20/the-templeton-letters-keeping-a-client-happy-part-iii/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-the-average-investor` | [Templeton letters post: The Templeton Letters: The First-Time Investor](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/15/the-templeton-letters-the-average-investor/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-the-backbone-of-personal-i` | [Templeton letters post: The Templeton Letters: The Backbone of Personal Investment](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/22/the-templeton-letters-the-backbone-of-personal-investment/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-the-upside-of-a-down-marke` | [Templeton letters post: The Templeton Letters: The Upside of a Down Market, Part 2](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/06/17/the-templeton-letters-the-upside-of-a-down-market-part-2/) | fetched | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-the-value-of-investment-pl` | [Templeton letters post: The Templeton Letters: The Value of Investment Planning](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/27/the-templeton-letters-the-value-of-investment-planning/) | fetched | 2026-08-13 |  |
+| `the-templeton-letters-the-first-time-investor-1945-letter` | [The Templeton Letters: The First-Time Investor (1945 letter)](https://web.archive.org/web/20190922194957/https://sirjohntempleton.org/2010/04/15/the-templeton-letters-the-average-investor/) | fetched | 2026-08-13 |  |
+| `john-templeton-s-letter-to-clients-circa-1954` | [John Templeton's Letter to Clients, circa 1954](https://www.templetonandphillips.com/s/TempletonLetter1954.PDF) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
+| `the-idealism-of-free-competition-letter-to-clients-circa-1961` | ["The Idealism of Free Competition" — Letter to Clients, circa 1961](https://www.templetonandphillips.com/s/Freedom-John-Templeton-Letter.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
+| `successful-investing-methods-address-to-the-empire-club-of-canad` | ["Successful Investing Methods" — Address to the Empire Club of Canada](https://empireclubfoundation.org/speech/succesful-investing-methods/) | fetched | 2026-08-13 |  |
+| `financial-chaos-memorandum` | ["Financial Chaos" memorandum](https://www.huffpost.com/entry/sir-john-templeton-financ_b_507981) | BLOCKED (HTTP 406) | 2026-08-13 |  |
+| `john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon` | [John Templeton, Warren Buffett and Robert Wilson — Adam Smith's Money World, transcripts](https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `john-templeton-charlie-rose` | [John Templeton — Charlie Rose](https://charlierose.com/videos/7388) | fetched | 2026-08-13 |  |
+| `the-22-maxims-of-john-templeton-the-time-tested-maxims-of-the-te` | [The 22 Maxims of John Templeton ("The Time-Tested Maxims of the Templeton Touch")](https://novelinvestor.com/maxims-john-templeton/) | fetched | 2026-08-13 |  |
 
 ### 3. Peter Lynch
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | pending |  |  |
-| `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | pending |  |  |
-| `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | pending |  |  |
-| `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | pending |  |  |
-| `from-the-archives-fear-of-crashing` | [From the Archives: Fear of Crashing](https://worth.com/from-the-archives-fear-of-crashing/) | pending |  |  |
-| `use-your-edge-by-peter-lynch` | [Use Your Edge by Peter Lynch](https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/) | pending |  |  |
-| `lessons-from-an-investing-legend-peter-lynch-secrets-to-success` | [Lessons from an investing legend (Peter Lynch: Secrets to success)](https://web.archive.org/web/20190919130623/https://www.fidelity.com/viewpoints/investing-ideas/peter-lynch-investment-strategy) | pending |  |  |
+| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | fetched | 2026-08-13 |  |
+| `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | fetched | 2026-08-13 |  |
+| `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | fetched | 2026-08-13 | index page — expanded to 0 document(s) |
+| `from-the-archives-fear-of-crashing` | [From the Archives: Fear of Crashing](https://worth.com/from-the-archives-fear-of-crashing/) | fetched | 2026-08-13 |  |
+| `use-your-edge-by-peter-lynch` | [Use Your Edge by Peter Lynch](https://www.rbcpa.com/commentary-archive/use-your-edge-by-peter-lynch/) | fetched | 2026-08-13 |  |
+| `lessons-from-an-investing-legend-peter-lynch-secrets-to-success` | [Lessons from an investing legend (Peter Lynch: Secrets to success)](https://web.archive.org/web/20190919130623/https://www.fidelity.com/viewpoints/investing-ideas/peter-lynch-investment-strategy) | fetched | 2026-08-13 |  |
 | `peter-lynch-lecture-on-the-stock-market-1997` | [Peter Lynch Lecture On The Stock Market / 1997](https://www.youtube.com/watch?v=myu4Nv0pt0U) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-says-all-in-on-passive-investing-is-all-wrong` | [Peter Lynch Says All-In on Passive Investing Is All Wrong](https://www.bloomberg.com/news/articles/2021-12-07/peter-lynch-says-all-in-on-passive-investing-is-all-wrong) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 
@@ -82,57 +99,69 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `opportunities-for-patient-investors` | [Opportunities for Patient Investors](https://rpc.cfainstitute.org/research/financial-analysts-journal/2010/opportunities-for-patient-investors) | pending |  |  |
-| `mit-remarks-october-20-2007` | [MIT Remarks, October 20, 2007](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf) | pending |  |  |
-| `the-forgotten-lessons-of-2008` | [The Forgotten Lessons of 2008](https://fs.blog/the-forgotten-lessons-of-2008/) | pending |  |  |
-| `seth-klarman-on-the-painful-decision-to-hold-cash` | [Seth Klarman on the Painful Decision to Hold Cash](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/klarman_cash.pdf) | pending |  |  |
-| `the-baupost-fund-shareholder-letter-fy1999-form-n-30d` | [The Baupost Fund shareholder letter, FY1999 (Form N-30D)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt) | pending |  |  |
-| `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | pending |  |  |
+| `opportunities-for-patient-investors` | [Opportunities for Patient Investors](https://rpc.cfainstitute.org/research/financial-analysts-journal/2010/opportunities-for-patient-investors) | fetched | 2026-08-13 |  |
+| `mit-remarks-october-20-2007` | [MIT Remarks, October 20, 2007](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/seth_klarman_mit_speech.pdf) | fetched | 2026-08-13 |  |
+| `the-forgotten-lessons-of-2008` | [The Forgotten Lessons of 2008](https://fs.blog/the-forgotten-lessons-of-2008/) | fetched | 2026-08-13 |  |
+| `seth-klarman-on-the-painful-decision-to-hold-cash` | [Seth Klarman on the Painful Decision to Hold Cash](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/klarman_cash.pdf) | fetched | 2026-08-13 |  |
+| `the-baupost-fund-shareholder-letter-fy1999-form-n-30d` | [The Baupost Fund shareholder letter, FY1999 (Form N-30D)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000307.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1996-02-28` | [The Baupost Fund N-30D (filed 1996-02-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000082.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1996-06-28` | [The Baupost Fund N-30D (filed 1996-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000430.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1996-12-30` | [The Baupost Fund N-30D (filed 1996-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1997-06-30` | [The Baupost Fund N-30D (filed 1997-06-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-000936.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1997-12-30` | [The Baupost Fund N-30D (filed 1997-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-001392.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1998-06-29` | [The Baupost Fund N-30D (filed 1998-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1998-12-23` | [The Baupost Fund N-30D (filed 1998-12-23)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-006396.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1999-06-29` | [The Baupost Fund N-30D (filed 1999-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2000-06-28` | [The Baupost Fund N-30D (filed 2000-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-000708.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2000-12-28` | [The Baupost Fund N-30D (filed 2000-12-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2001-06-26` | [The Baupost Fund N-30D (filed 2001-06-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-500662.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2001-12-26` | [The Baupost Fund N-30D (filed 2001-12-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-501240.txt) | fetched | 2026-08-13 |  |
+| `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | fetched | 2026-08-13 |  |
 | `timeless-value-investing-capital-allocators-ep-328` | [Timeless Value Investing (Capital Allocators EP.328)](https://www.capitalallocators.com/podcast/timeless-value-investing/) | manual |  | video/audio — needs ASR or an official transcript |
 
 ### 5. Li Lu
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `the-prospect-of-value-investing-in-china` | [The Prospect of Value Investing in China](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf) | pending |  |  |
-| `prospect-of-value-investing-in-china-zh` | [价值投资在中国的展望 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0936c4321954706fa9eca2_%E4%BB%B7%E5%80%BC%E6%8A%95%E8%B5%84%E5%9C%A8%E4%B8%AD%E5%9B%BD%E7%9A%84%E5%B1%95%E6%9C%9B-%E6%9D%8E%E5%BD%952015-10-23%E5%8C%97%E5%A4%A7%E6%BC%94%E8%AE%B2.pdf) | pending |  |  |
-| `the-practice-of-value-investing` | ["The Practice of Value Investing"](https://www.longriverinv.com/thought/the-practice-of-value-investing-by-li-lu) | pending |  |  |
-| `global-value-investing-in-our-era` | [Global Value Investing in Our Era](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f75703627bd3a927077e_Global%20Value%20Investing%20in%20Our%20Era%20%282024-12-07%29.pdf) | pending |  |  |
-| `global-value-investing-in-our-era-zh` | [全球价值投资与时代 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f8e8160103c8a74017a7_%E5%85%A8%E7%90%83%E4%BB%B7%E5%80%BC%E6%8A%95%E8%B5%84%E4%B8%8E%E6%97%B6%E4%BB%A32024%E5%B9%B412%E6%9C%88.pdf) | pending |  |  |
+| `the-prospect-of-value-investing-in-china` | [The Prospect of Value Investing in China](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b46a7e659977_The%20Prospect%20of%20Value%20Investing%20in%20China%20English%20Translation.pdf) | fetched | 2026-08-13 |  |
+| `prospect-of-value-investing-in-china-zh` | [价值投资在中国的展望 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0936c4321954706fa9eca2_%E4%BB%B7%E5%80%BC%E6%8A%95%E8%B5%84%E5%9C%A8%E4%B8%AD%E5%9B%BD%E7%9A%84%E5%B1%95%E6%9C%9B-%E6%9D%8E%E5%BD%952015-10-23%E5%8C%97%E5%A4%A7%E6%BC%94%E8%AE%B2.pdf) | fetched | 2026-08-13 |  |
+| `the-practice-of-value-investing` | ["The Practice of Value Investing"](https://www.longriverinv.com/thought/the-practice-of-value-investing-by-li-lu) | fetched | 2026-08-13 |  |
+| `global-value-investing-in-our-era` | [Global Value Investing in Our Era](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f75703627bd3a927077e_Global%20Value%20Investing%20in%20Our%20Era%20%282024-12-07%29.pdf) | fetched | 2026-08-13 |  |
+| `global-value-investing-in-our-era-zh` | [全球价值投资与时代 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/67a4f8e8160103c8a74017a7_%E5%85%A8%E7%90%83%E4%BB%B7%E5%80%BC%E6%8A%95%E8%B5%84%E4%B8%8E%E6%97%B6%E4%BB%A32024%E5%B9%B412%E6%9C%88.pdf) | fetched | 2026-08-13 |  |
 | `li-lu-columbia-business-2006-greenwald-video` | [Li Lu, Columbia Business 2006 — Greenwald (video)](https://www.youtube.com/watch?v=-jF5au0-JiY) | manual |  | video/audio — needs ASR or an official transcript |
-| `li-lu-s-investing-masterclass-at-columbia-business-school-2006-t` | [Li Lu's Investing Masterclass at Columbia Business School (2006 transcript)](https://roiss.substack.com/p/li-lus-investing-masterclass-at-columbia) | pending |  |  |
-| `foreword-to-the-chinese-edition-of-poor-charlie-s-almanack` | [Foreword to the Chinese Edition of Poor Charlie's Almanack](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b4440a659983_Li%20Lu%20-%20Foreword%20to%20Chinese%20Edition%20of%20PCA%20%28English%20translation%29.pdf) | pending |  |  |
-| `pca-foreword-zh` | [《穷查理宝典》中文版序 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0936f9d3ce59738af03b4d_PCAF_Chinese_2011.pdf) | pending |  |  |
-| `remembering-my-teacher-charlie-munger` | [Remembering My Teacher Charlie Munger](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/656a8ceee9e7fe82b04f1156_Remember%20my%20teacher%20Charlie%20Munger%20Nov%2030%202023.pdf) | pending |  |  |
-| `remembering-charlie-munger-zh` | [追念恩师查理·芒格 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/656a90a8013607f02556e6bf_%E8%BF%BD%E5%BF%B5%E6%81%A9%E5%B8%88%E6%9F%A5%E7%90%86%E8%8A%92%E6%A0%BC.pdf) | pending |  |  |
-| `graham-doddsville-interview` | [Graham & Doddsville Interview](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/642e161699ad88498e9c681a_2013-03-28%20Graham%20%26%20Doddsville%20Article_LL.pdf) | pending |  |  |
+| `li-lu-s-investing-masterclass-at-columbia-business-school-2006-t` | [Li Lu's Investing Masterclass at Columbia Business School (2006 transcript)](https://roiss.substack.com/p/li-lus-investing-masterclass-at-columbia) | fetched | 2026-08-13 |  |
+| `foreword-to-the-chinese-edition-of-poor-charlie-s-almanack` | [Foreword to the Chinese Edition of Poor Charlie's Almanack](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b4440a659983_Li%20Lu%20-%20Foreword%20to%20Chinese%20Edition%20of%20PCA%20%28English%20translation%29.pdf) | fetched | 2026-08-13 |  |
+| `pca-foreword-zh` | [《穷查理宝典》中文版序 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0936f9d3ce59738af03b4d_PCAF_Chinese_2011.pdf) | fetched | 2026-08-13 |  |
+| `remembering-my-teacher-charlie-munger` | [Remembering My Teacher Charlie Munger](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/656a8ceee9e7fe82b04f1156_Remember%20my%20teacher%20Charlie%20Munger%20Nov%2030%202023.pdf) | fetched | 2026-08-13 |  |
+| `remembering-charlie-munger-zh` | [追念恩师查理·芒格 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/656a90a8013607f02556e6bf_%E8%BF%BD%E5%BF%B5%E6%81%A9%E5%B8%88%E6%9F%A5%E7%90%86%E8%8A%92%E6%A0%BC.pdf) | ocr-needed | 2026-08-13 | image-only scan (26 words in text layer) |
+| `graham-doddsville-interview` | [Graham & Doddsville Interview](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/642e161699ad88498e9c681a_2013-03-28%20Graham%20%26%20Doddsville%20Article_LL.pdf) | fetched | 2026-08-13 |  |
 
 ### 6. Walter Schloss
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `factors-needed-to-make-money-in-the-stock-market` | [Factors Needed to Make Money in the Stock Market](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf) | pending |  |  |
-| `sixty-five-years-on-wall-street` | [Sixty-five Years on Wall Street](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Schloss-Sixty-Five-Years.pdf) | pending |  |  |
-| `benjamin-graham-and-security-analysis-a-reminiscence` | [Benjamin Graham and Security Analysis: A Reminiscence](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/graham_reminiscence.pdf) | pending |  |  |
-| `columbia-business-school-upper-level-seminar-in-value-investing` | [Columbia Business School Upper Level Seminar in Value Investing (the "CBS '93" talk)](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_lecture.pdf) | pending |  |  |
-| `why-we-invest-the-way-we-do` | [Why We Invest the Way We Do](https://web.archive.org/web/20201108184717/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Why%20We%20Invest%20the%20Way%20We%20Do.pdf) | pending |  |  |
+| `factors-needed-to-make-money-in-the-stock-market` | [Factors Needed to Make Money in the Stock Market](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
+| `sixty-five-years-on-wall-street` | [Sixty-five Years on Wall Street](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Schloss-Sixty-Five-Years.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
+| `benjamin-graham-and-security-analysis-a-reminiscence` | [Benjamin Graham and Security Analysis: A Reminiscence](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/graham_reminiscence.pdf) | fetched | 2026-08-13 |  |
+| `columbia-business-school-upper-level-seminar-in-value-investing` | [Columbia Business School Upper Level Seminar in Value Investing (the "CBS '93" talk)](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_lecture.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
+| `why-we-invest-the-way-we-do` | [Why We Invest the Way We Do](https://web.archive.org/web/20201108184717/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Why%20We%20Invest%20the%20Way%20We%20Do.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
 | `2008-ivey-value-investing-classes-guest-speaker-walter-j-schloss` | [2008 Ivey Value Investing Classes Guest Speaker: Walter J. Schloss](https://www.youtube.com/watch?v=E8UzNEapdek) | manual |  | video/audio — needs ASR or an official transcript |
-| `the-right-stuff-why-walter-schloss-is-such-a-great-investor` | [The Right Stuff: Why Walter Schloss Is Such a Great Investor](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Walter%20Schloss%20-%20The%20Right%20Stuff%20-%20Barrons%20-%2002-25-85.pdf) | pending |  |  |
-| `the-superinvestors-of-graham-and-doddsville-warren-e-buffett` | [The Superinvestors of Graham-and-Doddsville (Warren E. Buffett)](https://web.archive.org/web/20151119203729/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Buffett1984.pdf) | pending |  |  |
+| `the-right-stuff-why-walter-schloss-is-such-a-great-investor` | [The Right Stuff: Why Walter Schloss Is Such a Great Investor](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Walter%20Schloss%20-%20The%20Right%20Stuff%20-%20Barrons%20-%2002-25-85.pdf) | ocr-needed | 2026-08-13 | image-only scan (104 words in text layer) |
+| `the-superinvestors-of-graham-and-doddsville-warren-e-buffett` | [The Superinvestors of Graham-and-Doddsville (Warren E. Buffett)](https://web.archive.org/web/20151119203729/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Buffett1984.pdf) | ocr-needed | 2026-08-13 | image-only scan (0 words in text layer) |
 
 ### 7. Joel Greenblatt
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `special-situation-investing-classes-at-columbia-university-busin` | [Special Situation Investing Classes at Columbia University Business School — Greenblatt class notes, 2002–2006](https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf) | pending |  |  |
-| `graham-doddsville-issue-xvi-joel-greenblatt-interview` | [Graham & Doddsville, Issue XVI — Joel Greenblatt interview](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham%20&%20Doddsville%20-%20Issue%2016%20-%20Fall%202012_vFINAL2.pdf) | pending |  |  |
-| `transcript-joel-greenblatt-masters-in-business` | [Transcript: Joel Greenblatt — Masters in Business](https://ritholtz.com/2018/04/transcript-joel-greenblatt/) | pending |  |  |
-| `transcript-joel-greenblatt-masters-in-business-relative-value` | [Transcript: Joel Greenblatt — Masters in Business, "Relative Value"](https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/) | pending |  |  |
+| `special-situation-investing-classes-at-columbia-university-busin` | [Special Situation Investing Classes at Columbia University Business School — Greenblatt class notes, 2002–2006](https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf) | fetched | 2026-08-13 |  |
+| `graham-doddsville-issue-xvi-joel-greenblatt-interview` | [Graham & Doddsville, Issue XVI — Joel Greenblatt interview](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham%20&%20Doddsville%20-%20Issue%2016%20-%20Fall%202012_vFINAL2.pdf) | fetched | 2026-08-13 |  |
+| `transcript-joel-greenblatt-masters-in-business` | [Transcript: Joel Greenblatt — Masters in Business](https://ritholtz.com/2018/04/transcript-joel-greenblatt/) | fetched | 2026-08-13 |  |
+| `transcript-joel-greenblatt-masters-in-business-relative-value` | [Transcript: Joel Greenblatt — Masters in Business, "Relative Value"](https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/) | fetched | 2026-08-13 |  |
 | `the-little-book-that-beats-the-market-joel-greenblatt-talks-at-g` | [The Little Book that Beats the Market / Joel Greenblatt / Talks at Google](https://www.youtube.com/watch?v=bZfPJCAVQg0) | manual |  | video/audio — needs ASR or an official transcript |
-| `rwh003-how-to-win-the-investing-game-w-joel-greenblatt` | [RWH003: How To Win The Investing Game w/ Joel Greenblatt](https://www.theinvestorspodcast.com/richer-wiser-happier/how-to-win-the-investing-game-w-joel-greenblatt/) | pending |  |  |
-| `howard-marks-in-conversation-with-joel-greenblatt-wharton` | [Howard Marks in Conversation with Joel Greenblatt (Wharton)](https://moiglobal.com/howard-marks-interviews-joel-greenblatt/) | pending |  |  |
+| `rwh003-how-to-win-the-investing-game-w-joel-greenblatt` | [RWH003: How To Win The Investing Game w/ Joel Greenblatt](https://www.theinvestorspodcast.com/richer-wiser-happier/how-to-win-the-investing-game-w-joel-greenblatt/) | fetched | 2026-08-13 |  |
+| `howard-marks-in-conversation-with-joel-greenblatt-wharton` | [Howard Marks in Conversation with Joel Greenblatt (Wharton)](https://moiglobal.com/howard-marks-interviews-joel-greenblatt/) | fetched | 2026-08-13 |  |
 | `joel-greenblatt-investing-off-the-beaten-path` | [Joel Greenblatt — Investing Off the Beaten Path](https://valueinvestingwithlegends.libsyn.com/leon-greenblatt-investing-off-the-beaten-path) | manual |  | video/audio — needs ASR or an official transcript |
-| `great-value-investor-joel-greenblatt-reveals-the-2-secrets-to-be` | [Great Value Investor Joel Greenblatt Reveals the 2 Secrets to Beating the Market](https://wealthtrack.com/great-value-investor-joel-greenblatt-reveals-the-2-secrets-to-beating-the-market/) | pending |  |  |
+| `great-value-investor-joel-greenblatt-reveals-the-2-secrets-to-be` | [Great Value Investor Joel Greenblatt Reveals the 2 Secrets to Beating the Market](https://wealthtrack.com/great-value-investor-joel-greenblatt-reveals-the-2-secrets-to-beating-the-market/) | fetched | 2026-08-13 |  |
 | `how-the-small-investor-can-beat-the-market` | [How the small investor can beat the market](https://jpm.pm-research.com/content/7/4/48) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 
 ### 8. Mohnish Pabrai
@@ -145,12 +174,12 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `graham-doddsville` | [Graham & Doddsville](https://business.columbia.edu/heilbrunn/resources/graham-and-doddsville-newsletter) | pending |  |  |
-| `heilbrunn-center-archives` | [Heilbrunn Center Archives](https://business.columbia.edu/heilbrunn/resources/archives) | pending |  |  |
-| `value-investing-with-legends` | [Value Investing with Legends](https://business.columbia.edu/heilbrunn/resources/value-investing-legends-podcast) | pending |  |  |
+| `graham-doddsville` | [Graham & Doddsville](https://business.columbia.edu/heilbrunn/resources/graham-and-doddsville-newsletter) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `heilbrunn-center-archives` | [Heilbrunn Center Archives](https://business.columbia.edu/heilbrunn/resources/archives) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `value-investing-with-legends` | [Value Investing with Legends](https://business.columbia.edu/heilbrunn/resources/value-investing-legends-podcast) | BLOCKED (HTTP 403) | 2026-08-13 |  |
 | `talks-at-google-youtube` | [Talks at Google (YouTube)](https://www.youtube.com/watch?v=bZfPJCAVQg0) | manual |  | video/audio — needs ASR or an official transcript |
-| `wealthtrack-with-consuelo-mack` | [WealthTrack with Consuelo Mack](https://wealthtrack.com) | pending |  |  |
-| `csinvesting-org` | [csinvesting.org](http://csinvesting.org) | pending |  |  |
+| `wealthtrack-with-consuelo-mack` | [WealthTrack with Consuelo Mack](https://wealthtrack.com) | fetched | 2026-08-13 |  |
+| `csinvesting-org` | [csinvesting.org](http://csinvesting.org) | BLOCKED (HTTP 403) | 2026-08-13 |  |
 
 ## Tier 2 — Important
 

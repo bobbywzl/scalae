@@ -12,6 +12,7 @@
 // Later stages advance rows to extracted / verified / synthesized via verify.ts + LEDGER.md.
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -27,6 +28,15 @@ const SEC_UA = "scalae-corpus-fetch/0.1 (research cache; contact robertwzl311@gm
 
 const MIN_PDF_WORDS = 150; // below this a PDF is an image-only scan → ocr-needed
 const MIN_PAGE_WORDS = 60; // below this an HTML page is a bot-shell/interstitial → blocked
+const MAX_OCR_PAGES = 40;  // auto-OCR cap; larger scans stay ocr-needed for a manual pass
+
+/** CJK text has no space-delimited words — count ideographs so Chinese PDFs
+ *  aren't misread as image-only scans. Thresholds only; manifest wordCount
+ *  stays the plain whitespace-token count that verify.ts recomputes. */
+function effectiveWords(s: string): number {
+  const cjk = (s.match(/[㐀-鿿]/g) ?? []).length;
+  return countWords(s) + Math.floor(cjk / 2);
+}
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -62,6 +72,7 @@ function parseArgs(argv: string[]): Args {
 // ---------------------------------------------------------------------------
 
 const HAVE_CURL = spawnSync("curl", ["--version"], { stdio: "ignore" }).status === 0;
+const HAVE_TESSERACT = spawnSync("tesseract", ["--version"], { stdio: "ignore" }).status === 0;
 
 interface HttpResult { ok: boolean; http: number; contentType: string; err?: string }
 
@@ -184,6 +195,78 @@ function pdfToText(pdfPath: string, txtPath: string): { ok: boolean; err?: strin
   return { ok: true };
 }
 
+function pdfPageCount(pdfPath: string): number | null {
+  const r = spawnSync("pdfinfo", [pdfPath], { encoding: "utf8" });
+  if (r.status !== 0) return null;
+  const m = /^Pages:\s+(\d+)/m.exec(r.stdout ?? "");
+  return m ? Number(m[1]) : null;
+}
+
+/** Rasterize + tesseract for image-only scans (playbook §4: “OCR via tesseract where
+ *  the catalog's ingestion notes flag image-only scans”). English models only — [zh]
+ *  scans stay ocr-needed for a language-aware pass. */
+function ocrPdf(pdfPath: string): string | null {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "corpus-ocr-"));
+  try {
+    const r = spawnSync("pdftoppm", ["-r", "300", "-gray", "-png", pdfPath, path.join(tmpDir, "pg")],
+      { timeout: 300_000 });
+    if (r.status !== 0) return null;
+    const pages = fs.readdirSync(tmpDir).filter((f) => f.endsWith(".png")).sort();
+    let out = "";
+    for (const p of pages) {
+      const t = spawnSync("tesseract", [path.join(tmpDir, p), "stdout", "--psm", "3"],
+        { encoding: "utf8", timeout: 180_000, maxBuffer: 16 * 1024 * 1024 });
+      if (t.status === 0) out += t.stdout + "\n";
+    }
+    return out.trim() || null;
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+/** Shared PDF pipeline: pdftotext, then a tesseract fallback for image-only scans. */
+function extractPdf(m: ManifestEntry, pdfPath: string, txtPath: string): void {
+  m.sha256 = sha256(pdfPath);
+  m.file = rel(pdfPath);
+  const x = pdfToText(pdfPath, txtPath);
+  const layerText = x.ok && fs.existsSync(txtPath) ? fs.readFileSync(txtPath, "utf8") : "";
+  const layerEff = effectiveWords(layerText);
+  if (layerEff >= MIN_PDF_WORDS) {
+    m.wordCount = countWords(layerText);
+    m.textFile = rel(txtPath);
+    m.status = "fetched";
+    m.note = undefined;
+    return;
+  }
+  if (HAVE_TESSERACT) {
+    const pages = pdfPageCount(pdfPath);
+    if (pages !== null && pages > MAX_OCR_PAGES) {
+      m.status = "ocr-needed";
+      m.note = `image-only scan, ${pages} pp. — beyond auto-OCR cap of ${MAX_OCR_PAGES}`;
+      return;
+    }
+    const ocr = ocrPdf(pdfPath);
+    if (ocr && effectiveWords(ocr) > Math.max(layerEff, 100)) {
+      fs.writeFileSync(txtPath, ocr + "\n");
+      m.wordCount = countWords(ocr);
+      m.textFile = rel(txtPath);
+      m.status = "fetched";
+      m.note = "no text layer — OCR via tesseract; expect scan artifacts";
+      return;
+    }
+  }
+  m.status = "ocr-needed";
+  m.note = x.ok
+    ? `image-only scan (${countWords(layerText)} words in text layer${HAVE_TESSERACT ? "; OCR attempt yielded too little" : ""})`
+    : `PDF cached; text extraction failed (${x.err})`;
+  if (layerText && x.ok) {
+    m.wordCount = countWords(layerText);
+    m.textFile = rel(txtPath);
+  }
+}
+
 function sha256(file: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
@@ -200,21 +283,31 @@ function cachePaths(entry: { investor: string; slug: string }): { dir: string; b
 
 function rel(p: string): string { return path.relative(CACHE_DIR, p); }
 
-async function fetchDocument(m: ManifestEntry, fetchUrl?: string): Promise<void> {
+async function fetchDocument(m: ManifestEntry, fetchUrl?: string, isFallback = false): Promise<void> {
   const url = fetchUrl ?? m.url;
   m.fetchedAt = new Date().toISOString();
+  const { base } = cachePaths(m);
+
+  // OCR retry: an ocr-needed PDF is already cached — reprocess it, no re-download
+  if (!isFallback && !fetchUrl && m.status === "ocr-needed" && m.file?.endsWith(".pdf")) {
+    const cached = path.join(CACHE_DIR, m.file);
+    if (fs.existsSync(cached)) {
+      extractPdf(m, cached, `${base}.txt`);
+      return;
+    }
+  }
 
   // archive.org /details/ pages: check lending status via the metadata API
   const iaMatch = /^https?:\/\/archive\.org\/details\/([^/?#]+)/.exec(url);
   if (iaMatch) return fetchArchiveOrgItem(m, iaMatch[1]);
 
-  const { dir, base } = cachePaths(m);
   const rawTmp = `${base}.download`;
   const res = await httpGet(url, rawTmp);
   if (!res.ok) {
     fs.rmSync(rawTmp, { force: true });
     m.status = "blocked";
     m.note = res.err ? `fetch error: ${res.err}` : `HTTP ${res.http}`;
+    if (!isFallback) await tryWaybackFallback(m, url);
     return;
   }
 
@@ -223,47 +316,55 @@ async function fetchDocument(m: ManifestEntry, fetchUrl?: string): Promise<void>
   if (isPdf) {
     const pdfPath = `${base}.pdf`;
     fs.renameSync(rawTmp, pdfPath);
-    const txtPath = `${base}.txt`;
-    const x = pdfToText(pdfPath, txtPath);
-    m.sha256 = sha256(pdfPath);
-    m.file = rel(pdfPath);
-    if (!x.ok) {
-      m.status = "ocr-needed";
-      m.note = `PDF cached; text extraction failed (${x.err})`;
-      return;
-    }
-    const words = countWords(fs.readFileSync(txtPath, "utf8"));
-    m.wordCount = words;
-    m.textFile = rel(txtPath);
-    if (words < MIN_PDF_WORDS) {
-      m.status = "ocr-needed";
-      m.note = `image-only scan (${words} words in text layer)`;
-    } else {
-      m.status = "fetched";
-      m.note = undefined;
-    }
+    extractPdf(m, pdfPath, `${base}.txt`);
     return;
   }
 
-  // HTML or plain text
+  // HTML or plain text (EDGAR .txt is SGML-ish; tag-strip is safe for both)
   const text = decodeBuffer(buf, res.contentType);
   const looksHtml = /html/i.test(res.contentType) || /^\s*<(!doctype|html|head|body)/i.test(text);
   const rawPath = looksHtml ? `${base}.html` : `${base}.raw.txt`;
   fs.renameSync(rawTmp, rawPath);
   m.sha256 = sha256(rawPath);
   m.file = rel(rawPath);
-  const extracted = looksHtml ? htmlToText(text) : htmlToText(text); // EDGAR .txt is SGML-ish; tag-strip is safe for both
+  const extracted = htmlToText(text);
   const txtPath = `${base}.txt`;
   fs.writeFileSync(txtPath, extracted + "\n");
   const words = countWords(extracted);
   m.wordCount = words;
   m.textFile = rel(txtPath);
-  if (words < MIN_PAGE_WORDS) {
+  if (effectiveWords(extracted) < MIN_PAGE_WORDS) {
     m.status = "blocked";
     m.note = `page fetched but near-empty (${words} words) — bot shell or JS-rendered`;
+    if (!isFallback) await tryWaybackFallback(m, url);
   } else {
     m.status = "fetched";
-    m.note = undefined;
+    m.note = isFallback ? m.note : undefined;
+  }
+}
+
+/** The index file names the Wayback Machine as the standing fallback for link rot and
+ *  bot-shielded hosts — on a blocked fetch, try the closest snapshot of the original URL. */
+async function tryWaybackFallback(m: ManifestEntry, failedUrl: string): Promise<void> {
+  const failureNote = m.note;
+  const wb = /^https?:\/\/web\.archive\.org\/web\/(\d+)[a-z_]*\/(.+)$/i.exec(failedUrl);
+  if (!wb && /(^|\.)archive\.org$/i.test(new URL(failedUrl).hostname)) return; // non-/web/ archive.org URL — nothing to fall back to
+  const original = wb ? wb[2] : failedUrl;
+  const tsHint = wb ? wb[1].slice(0, 8) : "2026";
+  const { res, body } = await httpGetText(
+    `https://archive.org/wayback/available?url=${encodeURIComponent(original)}&timestamp=${tsHint}`);
+  if (!res.ok || !body) return;
+  let closest: { available?: boolean; url?: string; timestamp?: string } | undefined;
+  try { closest = JSON.parse(body)?.archived_snapshots?.closest; } catch { return; }
+  if (!closest?.available || !closest.url) return;
+  const snapUrl = closest.url.replace(/^http:/, "https:");
+  if (snapUrl === failedUrl) return;
+  await fetchDocument(m, snapUrl, true);
+  if (m.status === "fetched" || m.status === "ocr-needed") {
+    m.note = `${m.note ? m.note + "; " : ""}via Wayback snapshot ${closest.timestamp ?? ""}`.trim();
+  } else {
+    m.status = "blocked";
+    m.note = `${failureNote}; Wayback snapshot ${closest.timestamp ?? ""} also unusable`;
   }
 }
 
@@ -315,6 +416,18 @@ function anchorPairs(html: string): { href: string; text: string }[] {
   return out;
 }
 
+/** Resolve an href against its page (1990s captures use relative links, which Wayback
+ *  leaves relative) and force the https://web.archive.org origin. */
+function resolveWayback(href: string, pageUrl: string): string | null {
+  try {
+    const u = new URL(href, pageUrl);
+    if (!/(^|\.)web\.archive\.org$/i.test(u.hostname)) return null;
+    return `https://web.archive.org${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
 /** ~46 Worth columns behind the Wayback capture of worth.com's PL0.html index. */
 async function expandWorthColumns(parent: ManifestEntry): Promise<ChildSpec[]> {
   const seenPages = new Set<string>();
@@ -327,10 +440,11 @@ async function expandWorthColumns(parent: ManifestEntry): Promise<ChildSpec[]> {
     const { res, body } = await httpGetText(pageUrl);
     if (!res.ok) continue;
     for (const { href, text } of anchorPairs(body)) {
-      const w = /^(?:https?:\/\/web\.archive\.org)?(\/web\/\d+(?:[a-z_]+)?\/)(https?:\/\/(?:www\.)?worth\.com\/articles\/([A-Za-z0-9]+)\.html)/i.exec(href);
+      const full = resolveWayback(href, pageUrl);
+      if (!full) continue;
+      const w = /\/web\/\d+(?:[a-z_]+)?\/https?:\/\/(?:www\.)?worth\.com\/articles\/([A-Za-z0-9]+)\.html$/i.exec(full);
       if (!w) continue;
-      const code = w[3].toUpperCase();
-      const full = `https://web.archive.org${w[1]}${w[2]}`;
+      const code = w[1].toUpperCase();
       if (/^PL\d+$/i.test(code)) {
         if (!seenPages.has(full)) queue.push(full);
       } else if (/^Z/i.test(code) && !columns.has(code)) {
@@ -357,21 +471,21 @@ async function expandTempletonLetters(parent: ManifestEntry): Promise<ChildSpec[
     const { res, body } = await httpGetText(pageUrl);
     if (!res.ok) continue;
     for (const { href, text } of anchorPairs(body)) {
-      const m = /^(?:https?:\/\/web\.archive\.org)?(\/web\/\d+(?:[a-z_]+)?\/)(https?:\/\/(?:www\.)?sirjohntempleton\.org\/(\d{4})\/\d{2}\/\d{2}\/([^/"'?#]+)\/?)/i.exec(href);
+      const full = resolveWayback(href, pageUrl);
+      if (!full) continue;
+      const m = /\/web\/\d+(?:[a-z_]+)?\/https?:\/\/(?:www\.)?sirjohntempleton\.org\/\d{4}\/\d{2}\/\d{2}\/([^/"'?#]+)\/?$/i.exec(full);
       if (m) {
-        const key = m[4];
+        const key = m[1];
         if (!posts.has(key)) {
           posts.set(key, {
             slug: `templeton-letter-${slugify(key).slice(0, 48)}`,
             title: text && text.length > 4 ? `Templeton letters post: ${text}` : `Templeton letters post: ${key}`,
-            url: `https://web.archive.org${m[1]}${m[2]}`,
+            url: full,
           });
         }
         continue;
       }
-      const pg = /^(?:https?:\/\/web\.archive\.org)?(\/web\/\d+(?:[a-z_]+)?\/)(https?:\/\/(?:www\.)?sirjohntempleton\.org\/category\/templeton-letters\/page\/\d+\/?)/i.exec(href);
-      if (pg) {
-        const full = `https://web.archive.org${pg[1]}${pg[2]}`;
+      if (/\/web\/\d+(?:[a-z_]+)?\/https?:\/\/(?:www\.)?sirjohntempleton\.org\/category\/templeton-letters\/page\/\d+\/?$/i.test(full)) {
         if (!seenPages.has(full)) queue.push(full);
       }
     }
@@ -571,6 +685,10 @@ async function main(): Promise<void> {
     const catalogBySlug = new Map(entries.map((e) => [e.slug, e]));
     const needsFetch = (m: ManifestEntry): boolean => {
       if (m.status === "manual") return false;
+      // a hub whose expansion produced no children yet must re-run the expansion
+      if (catalogBySlug.get(m.slug)?.expand && !manifest.some((x) => x.parent === m.slug)) return true;
+      // ocr-needed PDFs are reprocessed (from cache) whenever tesseract is available
+      if (m.status === "ocr-needed" && HAVE_TESSERACT && m.file?.endsWith(".pdf")) return true;
       if (!args.force && (m.status === "fetched" || m.status === "ocr-needed") && m.file &&
         fs.existsSync(path.join(CACHE_DIR, m.file))) return false;
       return true;
