@@ -39,15 +39,19 @@
  * those remain covered by the extraction-verbatim check (tests/) plus the
  * corpus verify.ts chain. No entries required fixing or deletion.
  *
- * TIER 2 AUDIT EXTENSION 2026-08-13: all 8 Tier 2 additions (not a sample)
- * re-verified against freshly refetched sources — 8 of 8 quotes present
+ * TIER 2 AUDIT EXTENSION 2026-08-13: all 11 Tier 2 additions (not a
+ * sample; 8 first-wave + 3 from the late Schloss/Greenblatt close-outs)
+ * re-verified against freshly refetched sources — 11 of 11 quotes present
  * (one confirmed by page-image inspection where this container's OCR
- * misread one character the printed page shows plainly) and fairly
- * represented. One fix from the fair-representation read: the earnings-
- * yield metric had blended a companion equity gate and a testing-duration
- * claim belonging to the-simplest-way-to-select-bargain-stocks into an
- * entry citing an-hour-with-mr-graham; the gate is now its own metric with
- * its own verified citation, and the duration claim now matches its source.
+ * misread one character the printed page shows plainly; the Schloss
+ * liquidation memo's page image also confirms the 15-20% range its OCR
+ * renders as "15.20%", and carries Schloss's handwritten worked example of
+ * Graham's special-situation formula) and fairly represented. One fix from
+ * the fair-representation read: the earnings-yield metric had blended a
+ * companion equity gate and a testing-duration claim belonging to
+ * the-simplest-way-to-select-bargain-stocks into an entry citing
+ * an-hour-with-mr-graham; the gate is now its own metric with its own
+ * verified citation, and the duration claim now matches its source.
  */
 
 import type { Lens } from "./framework";
@@ -698,6 +702,21 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "most of schooling is done with inputs, meaning, well, if we get this teacher and they have this much experience and we get whatever, but if you’re measuring outputs, which is, are the kids learning?",
     },
   },
+  // Tier 2 addition — Greenblatt:
+  {
+    pattern:
+      "Today's news hands the desk an obvious reason not to touch this cheap name — has that reason been judged temporary or permanent, knowing a newspaper-legible repellent is the expected signature of a real bargain, not by itself a disqualifier?",
+    askWhen:
+      "a statistically cheap candidate feels uncomfortable because of a current, well-publicized problem; the behavioral half of the lens's nothing-is-cheap-for-no-reason rule (and the name-level cousin of Templeton's market-level maximum-pessimism entries)",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "briefing-book-joel-greenblatt-intelligent-investing-with-steve-f",
+      url: "https://images.forbes.com/media/pdfs/2010/04/Joel_Greenblatt_Briefing_Book.pdf",
+      quote:
+        "if you go through the whole list of top-ranked companies, there is a reason, and you know it because you just read the paper, why you wouldn't buy any one of them.",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -1336,6 +1355,26 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "No private equity firm buys a business because it’s a low price book or little price sales. They’re really looking at cash flows.",
     },
   },
+  // Tier 2 addition — Greenblatt:
+  {
+    directive:
+      "When a company's figures screen as an extreme outlier — spectacularly cheap, impossibly profitable — verify the underlying data against primary filings before trusting the finding, especially outside the largest and best-covered markets: bad data concentrates in exactly the outliers any ranking surfaces.",
+    queryShapes: [
+      "<COMPANY> annual report primary filing figures vs aggregator discrepancy",
+      "<COMPANY> restatement correction historical financials",
+      "<MARKET> fundamentals data vendor reliability coverage gaps",
+    ],
+    sourcePriority:
+      "the company's own filings in its home market, cross-checked against a second independent source, over any single data vendor's figures",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "briefing-book-joel-greenblatt-intelligent-investing-with-steve-f",
+      url: "https://images.forbes.com/media/pdfs/2010/04/Joel_Greenblatt_Briefing_Book.pdf",
+      quote:
+        "if you use bad data, garbage in, garbage out, you'll have some of the outliers coming to the top.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -1664,14 +1703,21 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // One extraction pairing (a 20-year-record minimum supported by an
   // unrelated quote) was rejected on fair-representation grounds. The lens
   // below is his own.
-  // Tier 2 note (Schloss): the seven verified Tier 2 rows resolve to the
-  // same extraction files the Tier 1 pass already mined end-to-end (the
-  // extraction branch processed his whole catalog at once; files unchanged
-  // byte-for-byte since). Re-review confirmed the skips: the reminiscence is
-  // Graham doctrine through memoir; Superinvestors is Buffett's meta-case
-  // for the discipline, not a per-ticker instrument; turnover, fee-structure
-  // and holding-period figures are fund practice the charter keeps out; the
-  // 20-year-record pairing stays rejected. An honest empty.
+  // Tier 2 note (Schloss): his Tier 2 block resolved 3 verified of 10 (the
+  // rest BLOCKED — wayback-only PDFs and hub pages unreachable from the
+  // extraction container). The Berkshire 2006 tribute and the Bottom Line
+  // exit interview are manager-practice and biography: fee structures,
+  // loss-make-up terms, position counts and the 2001 quit call are fund
+  // practice and market-level timing the charter keeps out, and the
+  // permanent-loss risk definition, no-projection humility and greed
+  // discipline are core doctrine or his Tier 1 lens already. The
+  // Graham-Newman liquidation-criteria memo is the real find: it yields the
+  // liquidation work-out gates metric (in CANON_METRICS), the operational
+  // companion to Graham's special-situation formula. (An earlier revision of
+  // this note misread the ledger's Tier 1 block as Tier 2; its re-review of
+  // the Tier 1 files — reminiscence as Graham-through-memoir, Superinvestors
+  // as meta-case, fund-practice figures excluded, the 20-year pairing
+  // rejected — stands, recorded in the Tier 1 dedup notes above.)
   {
     title: "Assets Before Earnings (Schloss)",
     question:
@@ -1696,12 +1742,19 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // orphaning mechanics are Klarman's; stocks-as-businesses and patience are
   // the charter. The A/R-inventory divergence sharpens core Lens 9 as a
   // metric below rather than a near-twin lens.
-  // Tier 2 note (Greenblatt): all five verified Tier 2 rows resolve to
-  // extraction files the Tier 1 pass already mined end-to-end (whole catalog
-  // extracted at once; files unchanged byte-for-byte since), and every one
-  // of the five is already cited by a Tier 1 canon entry. The remaining
-  // rows are video/paywall (manual) or hub-page boilerplate (BLOCKED) with
-  // no extractions to mine. An honest empty.
+  // Tier 2 note (Greenblatt): his Tier 2 block resolved 2 verified of 12
+  // (the rest BLOCKED paywalls/hub chrome or manual video). The WealthTrack
+  // page carried no transcript — teaser only, nothing to mine. The Forbes
+  // briefing book mostly restates the Tier 1 class-notes material: the
+  // combined rank, both formula legs, the self-limiting edge and the
+  // periodic-underperformance defense are already the Cheap AND Good lens
+  // and its metrics; basket sizing, the 60% hit rate and the 20-30-name
+  // floor are portfolio allocation the charter refuses. Two additions ride
+  // CANON_QUESTIONS (discomfort-as-signal — the behavioral half of
+  // nothing-is-cheap-for-no-reason) and CANON_DIRECTIVES (outlier data
+  // verification). (An earlier revision of this note misread the ledger's
+  // Tier 1 block as Tier 2; the five files it described were and remain the
+  // Tier 1 corpus, all cited by Tier 1 entries.)
   {
     title: "Cheap AND Good, Never Either Alone (Greenblatt)",
     question:
@@ -2187,6 +2240,24 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
       quote:
         "A stock may go as igh as 125 and then decline to 60 and you think it attractive. 3 years before the stock sold at 20 which shows that there is some vulnerability in it.",
+    },
+  },
+  // Tier 2 addition — Schloss:
+  {
+    name: "Liquidation work-out gates (Schloss)",
+    formula:
+      "three gates on a declared liquidation before Graham's special-situation arithmetic is trusted: indicated return ≥ 15-20% per annum on the estimated time and payments (the scan's OCR renders the memo's range as '15.20%'); the claim held is first in line for payment, never a junior security; and if litigation extends the clock, the issue must earn — or at least not lose — money while the desk waits",
+    reading:
+      "Schloss's Graham-Newman operating criteria for liquidation work-outs, the operational companion to Graham's indicated-annual-return formula (which the memo itself invokes): the hurdle charges for time, seniority protects the claim if the estimate is wrong, and the earnings condition stops the waiting period itself from consuming the value being collected.",
+    benchNotes:
+      "Declared events only — a liquidation actually resolved upon, Graham's narrow-sense gate. The memo's own warning travels with it: when specialists crowd the field, indicated returns compress, so the hurdle is checked against current work-out pricing, not assumed from history. Event context; price appears only in its margin-of-safety role.",
+    anchor: "business-model",
+    source: {
+      investor: "Walter Schloss",
+      doc: "criteria-for-liquidations-where-money-is-held-by-company",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_liquidations.pdf",
+      quote:
+        "Percent profit should be minimum 15.20% per annum based on estimate of time and payments to be made.",
     },
   },
 
