@@ -157,7 +157,7 @@
 | `baupost-n30d-1998-12-23` | [The Baupost Fund N-30D (filed 1998-12-23)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-006396.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1999-06-29` | [The Baupost Fund N-30D (filed 1999-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-2000-06-28` | [The Baupost Fund N-30D (filed 2000-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-000708.txt) | verified | 2026-08-13 |  |
-| `baupost-n30d-2000-12-28` | [The Baupost Fund N-30D (filed 2000-12-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-2000-12-28` | [The Baupost Fund N-30D (filed 2000-12-28)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-00-001065.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-2001-06-26` | [The Baupost Fund N-30D (filed 2001-06-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-500662.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-2001-12-26` | [The Baupost Fund N-30D (filed 2001-12-26)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-01-501240.txt) | verified | 2026-08-13 |  |
 | `masters-in-business-seth-klarman-full-transcript` | [Masters in Business: Seth Klarman (full transcript)](https://ritholtz.com/2026/06/transcript-seth-klarman/) | verified | 2026-08-13 |  |
