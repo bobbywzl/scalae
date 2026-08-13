@@ -534,6 +534,49 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "Every penny entrusted to you by your client should be treated as though it were the money your parents had worked hard to earn and saved thriftily over their lifetime.",
     },
   },
+  // Tier 2 additions — Li Lu:
+  {
+    pattern:
+      "Can the desk state this company's WORST CASE ten years out — and if it cannot, does it actually understand the business at all? Understanding is verified by the downside forecast, not the upside story.",
+    askWhen:
+      "the desk's understanding check on any thesis; directly serves the certainty-gap master question's ten-year horizon",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "q-a-with-li-lu",
+      url: "https://www.longriverinv.com/thought/qampa-with-li-lu",
+      quote:
+        "if they really understand a company they're researching, then they must be able to say what will be the worst case for that company after ten years",
+    },
+  },
+  {
+    pattern:
+      "Toward strangers with no tie to management — minority shareholders, anonymous customers, arms-length suppliers — does this company act with the honesty it shows insiders and relationship partners? The untested stranger edge is where trustworthiness shows first.",
+    askWhen:
+      "relationship-driven, founder-led or family-controlled businesses, where conduct toward the five insider relationships tells you little about conduct toward the sixth",
+    anchor: "culture",
+    source: {
+      investor: "Li Lu",
+      doc: "a-discussion-of-modernization",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b403eb659976_Li%20Lu%20on%20Discussion%20of%20Modernization%202016%20Final.pdf",
+      quote:
+        "So how should a righteous, trustworthy, loving and respectful person treat a complete stranger? I feel the best answer is with honesty.",
+    },
+  },
+  {
+    pattern:
+      "If this company (or its home market) were cut off from the largest open market it trades in — restrictions, delisting, sanctions, decoupling — how fast would it fall behind, and is that isolation trend currently widening or narrowing?",
+    askWhen:
+      "cross-border businesses and geopolitically exposed tickers; isolation costs compound (lost idea-exchange, not just lost revenue), which is what makes this a kill-path with a clock",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "a-discussion-of-modernization",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b403eb659976_Li%20Lu%20on%20Discussion%20of%20Modernization%202016%20Final.pdf",
+      quote:
+        "The best way to fall behind is to close itself off from other countries. Such is the Iron Law of Civilization 3.0.",
+    },
+  },
 
   // --- 6. Walter Schloss ---
   {
@@ -1185,6 +1228,26 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
         "You go to their community, their church or synagogue and integrate yourself into that community. Introduce yourself to their friends and neighbours and spend a few weeks there, it is worth it.",
     },
   },
+  // Tier 2 addition — Li Lu:
+  {
+    directive:
+      "Before crediting management skill for growth earned in a state-active market, decompose the business into the portion competing in the open international market versus the portion operating under domestic protection or subsidy — and for the protected portion, ask whether a planner could plausibly have authorized both this company's rise and its displaced rival's fall; only the openly-competed portion is evidence of durable skill a policy shift cannot revoke.",
+    queryShapes: [
+      "<COMPANY> government subsidy OR tax incentive OR state support disclosure",
+      "<COMPANY> export vs domestic revenue segment breakdown filing",
+      "<COMPANY> industry state-owned competitor protection licensing",
+    ],
+    sourcePriority:
+      "primary filings and segment disclosures over management commentary or sell-side narrative on the same growth",
+    anchor: "business-model",
+    source: {
+      investor: "Li Lu",
+      doc: "a-discussion-of-modernization",
+      url: "https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b403eb659976_Li%20Lu%20on%20Discussion%20of%20Modernization%202016%20Final.pdf",
+      quote:
+        "Chinese foreign trade is in fact just a part of the international trade operating on essentially free market principles.",
+    },
+  },
 
   // --- 6. Walter Schloss ---
   {
@@ -1568,6 +1631,19 @@ export const CANON_CONCEPTS: CanonConcept[] = [
         "If you speculate on other people's short-term trading behaviour, there can only be one result in the end: gains and losses must equal because this is a zero-sum game.",
     },
   },
+  // Tier 2 note (Li Lu): the five Tier 2 documents resolved to +3 question
+  // patterns and +1 directive above; zero new concepts or metrics. The two
+  // Sino-US relations pieces and the John Jay speech are civilizational/
+  // geopolitical treatises and biography — macro forecasting the charter
+  // refuses, with no company-level instrument to extract. From the
+  // modernization lectures and the Q&A: the drawdown-tested circle boundary,
+  // refute-better-than-confirm, roughly-right-over-precisely-wrong, and the
+  // 5-10-companies concentration frame are already carried by Tier 1 entries
+  // or core doctrine; the sixth-cardinal-relationship honesty test and the
+  // Iron Law isolation risk ride CANON_QUESTIONS rather than standing as
+  // lenses (each is one question, not a repeatable test battery); the
+  // visible-vs-invisible-hand decomposition rides CANON_DIRECTIVES with the
+  // creative-destruction planner test folded in.
 
   // --- 6. Walter Schloss ---
   // Dedup notes: Schloss is Graham's most direct disciple, so most of his
