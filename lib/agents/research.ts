@@ -1,6 +1,7 @@
 import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
+import { canonSearchText } from "./canon";
 import { researchSignalBackstory } from "./history";
 import { cleansingBenchContext } from "./context";
 import { withDomain } from "../citations";
@@ -233,6 +234,19 @@ const SCOUT_RULES = `Ground every finding in search results. For each finding ou
 - 2-3 sentence factual summary with concrete numbers where available
 Skip stock-price commentary, analyst price-target chatter, and peer-momentum/FOMO framing. Prefer revealed behavior and primary mechanism evidence (filings, transcripts, regulator documents, observed pricing/hiring/insider actions) over narrative retellings, and note when a finding's only source is an interested party (the company itself, its bankers, or paid promotion). Never speculate or fill gaps from background knowledge unless labeled "(context)". If genuinely nothing notable was found, say so plainly — an honest "nothing" beats manufactured news.`;
 
+/**
+ * The canon's search directives for a sweep (§3 wire-in, point 2) — "" until
+ * canon entries land, so pre-canon prompts are byte-identical. Anchored:
+ * the culture sweep gets culture directives, the company sweep business-model
+ * ones; the deep-dive probe gets all and applies whichever matches.
+ */
+function canonDirectiveBlock(anchor?: "business-model" | "culture"): string {
+  const text = canonSearchText(anchor);
+  return text
+    ? `\n\nTHE CANON'S SEARCH DIRECTIVES (${anchor ?? "all anchors"} — cited search behaviors from the investor canon): they steer WHERE to look, offer query shapes to adapt to this company, and say which sources each canon investor treated as primary. They add angles and never override the grounding rules above${anchor ? "" : "; apply only the directive(s) whose subject matches this probe, and skip the rest"}:\n${text}`
+    : "";
+}
+
 function signalSweepPrompt(symbol: string, name: string, days: number, signals: Signal[]): string {
   const signalBlock = signals
     .map((s, i) => `${i + 1}. "${s.name}" — ${s.measurementPlan} (scale: ${s.scale})`)
@@ -253,7 +267,7 @@ function broadSweepPrompt(symbol: string, name: string, days: number): string {
 Search the web for company developments from roughly the last ${days} days that a long-term business owner must know: earnings and guidance substance, management changes and statements, capital allocation moves (buybacks, dividends, M&A, big capex), regulatory/legal developments, competitive shifts, customer/product traction, accounting or governance red flags.
 
 ${SCOUT_RULES}
-Do not pad with old background information unless you label it "(context)".`;
+Do not pad with old background information unless you label it "(context)".${canonDirectiveBlock("business-model")}`;
 }
 
 function primarySourcePrompt(symbol: string, name: string, days: number): string {
@@ -271,7 +285,7 @@ Search the web for corporate-culture and conduct evidence from roughly the last 
 
 Hunt the incentive layer specifically (Munger: behavior follows the comp plan, not the mission statement): executive compensation changes and their metrics/horizons (proxy filings), insider buying and selling, buyback timing vs. option vesting, guidance promises made vs. kept, treatment of bad-news messengers and whistleblowers, and any gap between management's adjusted metrics and GAAP.
 
-Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}`;
+Distinguish documented fact from rumor — label anything unverified "(unverified)". ${SCOUT_RULES}${canonDirectiveBlock("culture")}`;
 }
 
 function questionSweepPrompt(
@@ -301,7 +315,7 @@ The desk's analyst reviewed today's field research and commissioned this targete
 QUESTION: ${q.query}
 WHY THE DESK ASKS: ${q.reason}
 
-Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}`;
+Research it thoroughly: search from multiple angles, prefer primary sources (filings, transcripts, company statements, regulator documents) over aggregators, and cross-check numbers between sources. Report every relevant fact with its date, source and concrete figures. Explicitly state what could NOT be verified — an honest "couldn't confirm" is valuable. ${SCOUT_RULES}${canonDirectiveBlock()}`;
 }
 
 // ---------------------------------------------------------------------------
