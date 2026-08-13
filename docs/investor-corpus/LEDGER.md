@@ -298,7 +298,7 @@
 | `li-lu-value-investing-in-china-full-transcript` | [Li Lu: Value Investing in China, Full Transcript](https://latticeworkinvesting.com/2021/04/13/li-lu-value-investing-in-china-full-transcript/) | BLOCKED (fetch error: curl exit 60: curl: (60) SSL: no alternative certificate subject name matches target host name 'latticeworkinvesting.com'
 More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
 | `li-lu-s-2010-lecture-at-columbia` | [Li Lu's 2010 Lecture at Columbia](https://www.gurufocus.com/news/98407/li-lus-2010-lecture-at-columbia) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
-| `transcript-of-li-lu-s-speech-at-john-jay-award-dinner` | [Transcript of Li Lu's Speech at John Jay Award Dinner](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b4dfa6659979_Li%20Lu%20John%20Jay%20Award%202012%20Speech.pdf) | fetched | 2026-08-13 |  |
+| `transcript-of-li-lu-s-speech-at-john-jay-award-dinner` | [Transcript of Li Lu's Speech at John Jay Award Dinner](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b4dfa6659979_Li%20Lu%20John%20Jay%20Award%202012%20Speech.pdf) | verified | 2026-08-13 |  |
 | `annual-book-review-2019-koo-zh` | [李录2019年年度书评《大衰退年代》 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f09347783851614276c3fdb_%E6%9D%8E%E5%BD%952019%E5%B9%B4%E5%B9%B4%E5%BA%A6%E4%B9%A6%E8%AF%84%202019.11.19.pdf) | fetched | 2026-08-13 |  |
 
 ### 6. Walter Schloss
