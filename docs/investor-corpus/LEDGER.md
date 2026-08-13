@@ -199,7 +199,7 @@
 |---|---|---|---|---|
 | `special-situation-investing-classes-at-columbia-university-busin` | [Special Situation Investing Classes at Columbia University Business School — Greenblatt class notes, 2002–2006](https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf) | fetched | 2026-08-13 |  |
 | `graham-doddsville-issue-xvi-joel-greenblatt-interview` | [Graham & Doddsville, Issue XVI — Joel Greenblatt interview](https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham%20&%20Doddsville%20-%20Issue%2016%20-%20Fall%202012_vFINAL2.pdf) | verified | 2026-08-13 |  |
-| `transcript-joel-greenblatt-masters-in-business` | [Transcript: Joel Greenblatt — Masters in Business](https://ritholtz.com/2018/04/transcript-joel-greenblatt/) | fetched | 2026-08-13 |  |
+| `transcript-joel-greenblatt-masters-in-business` | [Transcript: Joel Greenblatt — Masters in Business](https://ritholtz.com/2018/04/transcript-joel-greenblatt/) | verified | 2026-08-13 |  |
 | `transcript-joel-greenblatt-masters-in-business-relative-value` | [Transcript: Joel Greenblatt — Masters in Business, "Relative Value"](https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/) | verified | 2026-08-13 |  |
 | `the-little-book-that-beats-the-market-joel-greenblatt-talks-at-g` | [The Little Book that Beats the Market / Joel Greenblatt / Talks at Google](https://www.youtube.com/watch?v=bZfPJCAVQg0) | manual |  | video/audio — needs ASR or an official transcript |
 | `rwh003-how-to-win-the-investing-game-w-joel-greenblatt` | [RWH003: How To Win The Investing Game w/ Joel Greenblatt](https://www.theinvestorspodcast.com/richer-wiser-happier/how-to-win-the-investing-game-w-joel-greenblatt/) | verified | 2026-08-13 |  |
