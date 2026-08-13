@@ -551,6 +551,89 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
       quote: "One has to know much more about a company if one buys earnings.",
     },
   },
+
+  // --- 7. Joel Greenblatt ---
+  {
+    pattern:
+      "How good a business is this, measured before anything else: what pre-tax return does it earn on the tangible capital actually tied up in it — and what would incremental capital earn?",
+    askWhen:
+      "the first read on any company, before valuation; whenever growth spending is being credited as value creation",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "The first thing I look at ROIC = EBIT/ (NWC + Net Equipment). How good a business is this?",
+    },
+  },
+  {
+    pattern:
+      "Can normalized earnings three or four years out be estimated with real confidence — and if they cannot, is the honest verdict 'pass' rather than a dressed-up guess?",
+    askWhen:
+      "every valuation exercise; fashion-driven, patent-cliff, or opaque businesses where normalization is the whole question",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "If I am unable to normalize earnings, then pass on the opportunity or set aside.",
+    },
+  },
+  {
+    pattern:
+      "Can the desk name the causal mechanism tying this signal to THIS company's future cash flows — or is the case resting on a correlation that may be cyclical, crowded, or already arbitraged away?",
+    askWhen:
+      "any thesis justified mainly by a screen, factor label, or historical pattern rather than a company-specific mechanism",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "transcript-joel-greenblatt-masters-in-business-relative-value",
+      url: "https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/",
+      quote:
+        "although it’s correlated with good returns in the past, that’s not what I would continue doing even though it’s correlated. I’m looking for causation.",
+    },
+  },
+  {
+    pattern:
+      "Follow the money through this transaction's structure: what exactly is in it for the insiders — ownership, option strikes, fees — and does their payoff align with outside holders or come at their expense?",
+    askWhen:
+      "spin-offs, recapitalizations, mergers, rights offerings — any structured transaction whose documents disclose who gets what",
+    anchor: "culture",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote:
+        "FOLLOW THE MONEY! No matter how a transaction is structured, if you can figure out what is in it for the insiders, you will have discovered one of the most important keys to selecting the best spin-off opportunities.",
+    },
+  },
+  {
+    pattern:
+      "How many more units at this return — can the demonstrated unit economics actually be replicated a thousand times, and at what point does the marginal return decay toward the cost of capital?",
+    askWhen:
+      "any replication growth thesis (stores, branches, plants, cohorts) — growth is part of value only at high incremental returns",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "rwh003-how-to-win-the-investing-game-w-joel-greenblatt",
+      url: "https://www.theinvestorspodcast.com/richer-wiser-happier/how-to-win-the-investing-game-w-joel-greenblatt/",
+      quote: "The real question is, can I open a thousand of those stores that earn 30%?",
+    },
+  },
+  {
+    pattern:
+      "Does this management measure itself on outputs — what customers actually got — or on inputs (spend, headcount, credentials, effort), and which do its own reported success metrics track?",
+    askWhen:
+      "reading management's self-chosen KPIs, incentive metrics, and progress narratives",
+    anchor: "culture",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "rwh003-how-to-win-the-investing-game-w-joel-greenblatt",
+      url: "https://www.theinvestorspodcast.com/richer-wiser-happier/how-to-win-the-investing-game-w-joel-greenblatt/",
+      quote:
+        "most of schooling is done with inputs, meaning, well, if we get this teacher and they have this much experience and we get whatever, but if you’re measuring outputs, which is, are the kids learning?",
+    },
+  },
 ];
 
 export const CANON_DIRECTIVES: CanonSearchDirective[] = [
@@ -1091,6 +1174,64 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
       quote: "ben graham didn't visit managements because he thought the figures told the story.",
     },
   },
+
+  // --- 7. Joel Greenblatt ---
+  {
+    directive:
+      "When any structured transaction is announced (spin-off, recap, merger, rights offering), read the transaction documents themselves for the insider economics: ownership stakes, incentive-option strike timing, fees, and who ends up holding what — the structure tells you whose transaction it is.",
+    queryShapes: [
+      "<COMPANY> Form 10 information statement insider ownership incentive options",
+      "<COMPANY> merger proxy consideration insider payments fees",
+      "<COMPANY> spin-off management equity plan strike price timing",
+    ],
+    sourcePriority:
+      "the SEC transaction filings (Form 10, DEFM14A/S-4, 8-K) read directly — the insider economics live in the documents, not the coverage",
+    anchor: "culture",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote:
+        "The to-be-spun-off company must file form-10 with the SEC. For the trained eyes, there is a lot of good information there to facilitate detailed research.",
+    },
+  },
+  {
+    directive:
+      "Hunt the maintenance-vs-growth capex split: MD&A disclosures, per-unit refurbishment cycles, management's own explanation of the number — companies usually understate maintenance capex, and the understatement flatters owner earnings.",
+    queryShapes: [
+      "<COMPANY> 10-K maintenance capital expenditures disclosure",
+      "<COMPANY> capex new units vs existing base breakdown",
+      "<INDUSTRY> refurbishment cycle cost per unit",
+    ],
+    sourcePriority:
+      "10-K/10-Q MD&A and capex footnotes, then management's direct explanation of the split; treat undisclosed splits as a named gap",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "I ask for an explanation for mcx and how do they get there. Usually the company understates mcx.",
+    },
+  },
+  {
+    directive:
+      "Rebuild any cheapness claim the way a whole-business buyer would: from the cash flows and from prices actually paid for comparable businesses and assets — never from a ratio label like low price-to-book or price-to-sales that no acquirer relies on.",
+    queryShapes: [
+      "<INDUSTRY> comparable transaction acquisition multiples paid",
+      "<COMPANY> asset sale price vs implied valuation",
+      "<COMPANY> free cash flow basis private buyer valuation",
+    ],
+    sourcePriority:
+      "completed transaction terms and the company's own cash-flow record over screen labels and factor classifications",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "transcript-joel-greenblatt-masters-in-business-relative-value",
+      url: "https://ritholtz.com/2020/10/transcript-joel-greenblatt-2/",
+      quote:
+        "No private equity firm buys a business because it’s a low price book or little price sales. They’re really looking at cash flows.",
+    },
+  },
 ];
 
 export const CANON_CONCEPTS: CanonConcept[] = [
@@ -1411,6 +1552,45 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
       quote:
         "Try to buy assets at a discount than to buy earnings. Earnings can change dramatically in a short time.",
+    },
+  },
+
+  // --- 7. Joel Greenblatt ---
+  // Dedup notes: temporary-vs-permanent problems is Templeton's permanence
+  // test; buyback-price discipline is core Lens 6 verbatim; spin-off
+  // orphaning mechanics are Klarman's; stocks-as-businesses and patience are
+  // the charter. The A/R-inventory divergence sharpens core Lens 9 as a
+  // metric below rather than a near-twin lens.
+  {
+    title: "Cheap AND Good, Never Either Alone (Greenblatt)",
+    question:
+      "Is this business BOTH good — high pre-tax returns on the tangible capital tied up in it — and cheap — a high earnings yield on the whole enterprise? One without the other is how the two classic mistakes get made.",
+    test:
+      "Judge quality and price jointly: return on tangible capital (EBIT over net working capital plus net fixed assets) answers how good, earnings yield (EBIT over enterprise value, against a floor of ~6% however low rates go) answers how cheap. Cheapness alone buys value traps — and nothing is ever cheap for no reason, so the reason must be found and judged temporary or permanent. Quality alone overpays — the degree-of-difficulty is not compensated. The discipline's returns persist precisely because it periodically underperforms: value works because it doesn't always work.",
+    evidence:
+      "Pre-tax return on tangible capital, level and trend, with 20%+ marking a genuinely good business; earnings yield vs. the floor rate; the named reason the price is low; mean-reversion pressure on unusually high or low returns and what management is doing about it.",
+    investor: "Joel Greenblatt",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "We sought companies with high ROIC and a high earnings yield. It doesn't sound that complicated.",
+    },
+  },
+  {
+    title: "Time Arbitrage (Greenblatt)",
+    question:
+      "Why does this mispricing exist and why would it persist — is the capital that should correct it structurally unable to wait, judged on one-to-three-year windows by allocators who are not the ones doing the investing?",
+    test:
+      "The durable edge is the horizon, and it is durable because of an agency problem: institutional capital cannot look wrong for long, so mispricings that need years to resolve stay available to whoever can wait. For any gap the desk identifies, name who is structurally unable to hold through it and why; a mispricing every horizon can exploit is probably not one. The other side of the coin is the guarantee's shape: good valuation work gets paid, but on the market's schedule, not the desk's — a couple of weeks or two to three years.",
+    evidence:
+      "The holder base's constraints and evaluation windows; how long comparable gaps in this security or sector have historically taken to close; whether the thesis survives being marked wrong for two years; what would force the desk itself to abandon it early.",
+    investor: "Joel Greenblatt",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "graham-doddsville-issue-xvi-joel-greenblatt-interview",
+      url: "https://business.columbia.edu/sites/default/files-efs/imce-uploads/Graham%20&%20Doddsville%20-%20Issue%2016%20-%20Fall%202012_vFINAL2.pdf",
+      quote: "I think time arbitrage will be the \"last man standing,\" pretty clearly.",
     },
   },
 ];
@@ -1793,6 +1973,74 @@ export const CANON_METRICS: CanonMetric[] = [
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
       quote:
         "A stock may go as igh as 125 and then decline to 60 and you think it attractive. 3 years before the stock sold at 20 which shows that there is some vulnerability in it.",
+    },
+  },
+
+  // --- 7. Joel Greenblatt ---
+  {
+    name: "Return on tangible capital (Greenblatt)",
+    formula:
+      "EBIT ÷ (net working capital + net fixed assets) — pre-tax operating earnings over the tangible capital the business actually needs, goodwill excluded",
+    reading:
+      "The 'good' half of the discipline: how well the business converts the working capital and equipment tied up in it into earnings. 20%+ pre-tax marks a genuinely good business; the same arithmetic on INCREMENTAL capital (new units, new capacity) is the growth question — a 50% return store is worth replicating, a 2.5% one is not, whatever the growth narrative.",
+    benchNotes:
+      "EBIT, never EBITDA — depreciation stays deducted, exactly the bench's law. Tangible capital from reported balance rows; where the provider table lacks the working-capital split, the input is named as missing. Goodwill exclusion measures the business, not the acquisition prices paid for it — read beside Klarman's write-off-restated ROE when goodwill history matters.",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "The first thing I look at ROIC = EBIT/ (NWC + Net Equipment). How good a business is this?",
+    },
+  },
+  {
+    name: "Earnings yield — EBIT to enterprise value (Greenblatt)",
+    formula:
+      "EBIT ÷ enterprise value, where EV = market capitalization + net interest-bearing debt − genuinely excess cash; compared against a hurdle never set below ~6% however low riskless rates go",
+    reading:
+      "The 'cheap' half: what the whole enterprise's pre-tax earnings stream yields a buyer of the entire capital structure — immune to the leverage distortions that make P/E and P/S incomparable across companies. Read on NORMALIZED EBIT (the bench's cleansed figure), and always jointly with return on tangible capital — cheapness alone is the classic trap.",
+    benchNotes:
+      "EBIT never EBITDA; price enters only in the margin-of-safety role. EV inputs are reported lines (market cap, debt including current portion, cash); the excess-cash judgment is stated, not silently assumed.",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "transcript-joel-greenblatt-masters-in-business",
+      url: "https://ritholtz.com/2018/04/transcript-joel-greenblatt/",
+      quote:
+        "we really rank companies based on a simple metric that was earnings before interest and taxes to enterprise value",
+    },
+  },
+  {
+    name: "Maintenance capex and true owner earnings (Greenblatt)",
+    formula:
+      "split reported capex into maintenance (what keeps current earnings power flat — including amortized periodic refurbishments) and growth; owner earnings ≈ EBIT computed with maintenance capex in place of depreciation where the two diverge materially",
+    reading:
+      "Greenblatt's hotel arithmetic: $25/year of routine capex plus a $400 refurbishment every five years is $105/year of true maintenance spending, not $25 — and managements usually understate the number. The maintenance share is the capital intensity the business cannot escape; growth capex is a choice to be judged on its incremental return.",
+    benchNotes:
+      "Deepens the bench's real-costs law (maintenance capex is real, like depreciation): where the split is disclosed it refines owner earnings; where it is not, the gap is named — never estimated — and management's own explanation of the number is itself candor evidence.",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote: "Maintenance capex what it would take to keep earnings the same amount in the year you are looking at.",
+    },
+  },
+  {
+    name: "A/R and inventory divergence (Greenblatt)",
+    formula:
+      "year-over-year growth of accounts receivable and of inventory vs. growth of sales; within inventory, the finished-goods vs. raw-materials/WIP split — finished goods rising while WIP falls is the negative divergence",
+    reading:
+      "Greenblatt's best single predictor of coming downward earnings revisions: receivables outrunning sales flags pulled-forward or padded revenue; a negative inventory divergence flags production already slowing behind unsold goods. The divergences lead the announcement — that is the point.",
+    benchNotes:
+      "Pure reported balance and income lines, computable on the bench per fiscal year; the inventory split lives in footnotes and is named as missing where undisclosed. Sharpens core Lens 9's receivables/inventory red flag into a computed early-warning pair; findings feed signals and rationales, never cleansing adjustments.",
+    anchor: "business-model",
+    source: {
+      investor: "Joel Greenblatt",
+      doc: "special-situation-investing-classes-at-columbia-university-busin",
+      url: "https://focusedcompounding.com/wp-content/uploads/2018/03/Joel-Greenblatt-Class.pdf",
+      quote:
+        "The best method I have ever discovered to predict future downwards earnings revisions by Wall Street security analysts-is a careful analysis of A/R and inventories.",
     },
   },
 ];
