@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "node scripts/migrate-sqlite-to-neon.mjs"
+    "db:migrate": "node scripts/migrate-sqlite-to-neon.mjs",
+    "corpus:fetch": "node scripts/corpus/fetch.ts",
+    "corpus:verify": "node scripts/corpus/verify.ts",
+    "corpus:ledger": "node scripts/corpus/fetch.ts --ledger"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
