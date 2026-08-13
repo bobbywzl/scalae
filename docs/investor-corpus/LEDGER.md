@@ -152,7 +152,7 @@
 | `baupost-n30d-1996-06-28` | [The Baupost Fund N-30D (filed 1996-06-28)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-000430.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1996-12-30` | [The Baupost Fund N-30D (filed 1996-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-96-001136.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1997-06-30` | [The Baupost Fund N-30D (filed 1997-06-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-000936.txt) | verified | 2026-08-13 |  |
-| `baupost-n30d-1997-12-30` | [The Baupost Fund N-30D (filed 1997-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-001392.txt) | fetched | 2026-08-13 |  |
+| `baupost-n30d-1997-12-30` | [The Baupost Fund N-30D (filed 1997-12-30)](https://www.sec.gov/Archives/edgar/data/865827/0000903893-97-001392.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1998-06-29` | [The Baupost Fund N-30D (filed 1998-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-004072.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1998-12-23` | [The Baupost Fund N-30D (filed 1998-12-23)](https://www.sec.gov/Archives/edgar/data/865827/0000950135-98-006396.txt) | verified | 2026-08-13 |  |
 | `baupost-n30d-1999-06-29` | [The Baupost Fund N-30D (filed 1999-06-29)](https://www.sec.gov/Archives/edgar/data/865827/0001072613-99-000039.txt) | verified | 2026-08-13 |  |
