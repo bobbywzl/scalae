@@ -260,7 +260,7 @@ function extractPdf(m: ManifestEntry, pdfPath: string, txtPath: string): void {
   m.status = "ocr-needed";
   m.note = x.ok
     ? `image-only scan (${countWords(layerText)} words in text layer${HAVE_TESSERACT ? "; OCR attempt yielded too little" : ""})`
-    : `PDF cached; text extraction failed (${x.err})`;
+    : `PDF cached; text extraction failed (${x.err})${HAVE_TESSERACT ? "; OCR attempt failed" : ""}`;
   if (layerText && x.ok) {
     m.wordCount = countWords(layerText);
     m.textFile = rel(txtPath);
@@ -684,8 +684,10 @@ async function main(): Promise<void> {
       if (m.status === "manual") return false;
       // a hub whose expansion produced no children yet must re-run the expansion
       if (catalogBySlug.get(m.slug)?.expand && !manifest.some((x) => x.parent === m.slug)) return true;
-      // ocr-needed PDFs are reprocessed (from cache) whenever tesseract is available
-      if (m.status === "ocr-needed" && HAVE_TESSERACT && m.file?.endsWith(".pdf")) return true;
+      // ocr-needed PDFs are reprocessed (from cache) when tesseract is available and
+      // hasn't already been tried on this exact cached file
+      if (m.status === "ocr-needed" && HAVE_TESSERACT && m.file?.endsWith(".pdf") &&
+        !/OCR/.test(m.note ?? "")) return true;
       if (!args.force && (m.status === "fetched" || m.status === "ocr-needed") && m.file &&
         fs.existsSync(path.join(CACHE_DIR, m.file))) return false;
       return true;

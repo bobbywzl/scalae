@@ -34,20 +34,20 @@
 | `forbes-series-i-inflated-treasuries-and-deflated-stockholders` | [Forbes series I: "Inflated Treasuries and Deflated Stockholders"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_3.pdf) | fetched | 2026-08-13 |  |
 | `forbes-series-ii-should-rich-corporations-return-stockholders-ca` | [Forbes series II: "Should Rich Corporations Return Stockholders' Cash?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_1932_return_cash.pdf) | fetched | 2026-08-13 |  |
 | `forbes-series-iii-should-rich-but-losing-corporations-be-liquida` | [Forbes series III: "Should Rich but Losing Corporations Be Liquidated?"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_forbes_liq_1932.pdf) | fetched | 2026-08-13 |  |
-| `graham-newman-letter-1946` | [Graham-Newman Corp. letter to stockholders, 1946](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1946.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1947` | [Graham-Newman Corp. letter to stockholders, 1947](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1947.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1948` | [Graham-Newman Corp. letter to stockholders, 1948](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1948.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1949` | [Graham-Newman Corp. letter to stockholders, 1949](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1949.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1950` | [Graham-Newman Corp. letter to stockholders, 1950](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1950.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1951` | [Graham-Newman Corp. letter to stockholders, 1951](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1951.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1952` | [Graham-Newman Corp. letter to stockholders, 1952](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1952.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1953` | [Graham-Newman Corp. letter to stockholders, 1953](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1953.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1954` | [Graham-Newman Corp. letter to stockholders, 1954](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1954.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1955` | [Graham-Newman Corp. letter to stockholders, 1955](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1955.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1956` | [Graham-Newman Corp. letter to stockholders, 1956](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1956.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1957` | [Graham-Newman Corp. letter to stockholders, 1957](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1957.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `graham-newman-letter-1958` | [Graham-Newman Corp. letter to stockholders, 1958](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1958.PDF) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `warren-buffett-the-superinvestors-of-graham-and-doddsville` | [Warren Buffett, "The Superinvestors of Graham-and-Doddsville"](https://business.columbia.edu/insights/chazen-global-insights/superinvestors-graham-and-doddsville) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-newman-letter-1946` | [Graham-Newman Corp. letter to stockholders, 1946](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1946.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `graham-newman-letter-1947` | [Graham-Newman Corp. letter to stockholders, 1947](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1947.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1948` | [Graham-Newman Corp. letter to stockholders, 1948](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1948.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `graham-newman-letter-1949` | [Graham-Newman Corp. letter to stockholders, 1949](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1949.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1950` | [Graham-Newman Corp. letter to stockholders, 1950](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1950.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1951` | [Graham-Newman Corp. letter to stockholders, 1951](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1951.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1952` | [Graham-Newman Corp. letter to stockholders, 1952](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1952.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1953` | [Graham-Newman Corp. letter to stockholders, 1953](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1953.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `graham-newman-letter-1954` | [Graham-Newman Corp. letter to stockholders, 1954](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1954.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `graham-newman-letter-1955` | [Graham-Newman Corp. letter to stockholders, 1955](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1955.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `graham-newman-letter-1956` | [Graham-Newman Corp. letter to stockholders, 1956](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1956.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1957` | [Graham-Newman Corp. letter to stockholders, 1957](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1957.PDF) | ocr-needed | 2026-08-13 | PDF cached; text extraction failed (pdftotext exit 1); via Wayback fallback |
+| `graham-newman-letter-1958` | [Graham-Newman Corp. letter to stockholders, 1958](https://business.columbia.edu/sites/default/files-efs/imce-uploads/1958.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts; via Wayback fallback |
+| `warren-buffett-the-superinvestors-of-graham-and-doddsville` | [Warren Buffett, "The Superinvestors of Graham-and-Doddsville"](https://business.columbia.edu/insights/chazen-global-insights/superinvestors-graham-and-doddsville) | BLOCKED (HTTP 403; Wayback fallback also failed (HTTP 403) — same essay is cached from a different host as schloss/the-superinvestors-of-graham-and-doddsville-warren-e-buffett) | 2026-08-13 |  |
 
 ### 2. John Templeton
 
@@ -59,11 +59,11 @@
 | `templeton-letter-find-a-need-and-fill-it` | [Templeton letters post: Find a Need and Fill It](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/03/22/find-a-need-and-fill-it/) | fetched | 2026-08-13 |  |
 | `templeton-letter-how-strong-personal-character-defines-investment` | [Templeton letters post: How Strong Personal Character Defines Investment Decisions](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/03/27/how-strong-personal-character-defines-investment-decisions/) | fetched | 2026-08-13 |  |
 | `templeton-letter-lauren-templeton-and-scott-phillips-on-how-to-ke` | [Templeton letters post: Lauren Templeton and Scott Phillips on How to Keep a Client Happy](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/06/03/lauren-templeton-and-scott-phillips-on-how-to-keep-a-client-happy/) | fetched | 2026-08-13 |  |
-| `templeton-letter-lauren-templeton-and-scott-phillips-on-planned-i` | [Templeton letters post: Lauren Templeton and Scott Phillips on Planned Investment, Part 1](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/05/06/lauren-templeton-and-scott-phillips-on-planned-investment/) | BLOCKED (HTTP 404) | 2026-08-13 |  |
+| `templeton-letter-lauren-templeton-and-scott-phillips-on-planned-i` | [Templeton letters post: Lauren Templeton and Scott Phillips on Planned Investment, Part 1](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/05/06/lauren-templeton-and-scott-phillips-on-planned-investment/) | BLOCKED (HTTP 404; Wayback fallback also failed (HTTP 404)) | 2026-08-13 |  |
 | `templeton-letter-lauren-templeton-and-scott-phillips-on-the-upsid` | [Templeton letters post: Lauren Templeton and Scott Phillips on the Upside of a Down Market](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/07/06/lauren-templeton-and-scott-phillips-on-the-upside-of-a-down-market/) | fetched | 2026-08-13 |  |
 | `templeton-letter-lauren-templeton-on-noble-purpose` | [Templeton letters post: Lauren Templeton on Noble Purpose](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2013/02/25/lauren-templeton-on-noble-purpose/) | fetched | 2026-08-13 |  |
 | `templeton-letter-new-video-links-for-sir-john-templeton-on-the-19` | [Templeton letters post: New Video Links for Sir John Templeton on the 1987 Market Crash](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2011/06/09/new-video-links-for-sir-john-templeton-on-the-1987-market-crash/) | fetched | 2026-08-13 |  |
-| `templeton-letter-the-templeton-letters-a-new-feature-on-what-woul` | [Templeton letters post: The Templeton Letters: A New Feature on What Would John Templeton Say?](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/13/the-templeton-letters-a-new-feature-on-what-would-john-templeton-say/) | BLOCKED (HTTP 404) | 2026-08-13 |  |
+| `templeton-letter-the-templeton-letters-a-new-feature-on-what-woul` | [Templeton letters post: The Templeton Letters: A New Feature on What Would John Templeton Say?](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/13/the-templeton-letters-a-new-feature-on-what-would-john-templeton-say/) | BLOCKED (HTTP 404; Wayback fallback also failed (HTTP 404)) | 2026-08-13 |  |
 | `templeton-letter-the-templeton-letters-investment-success` | [Templeton letters post: The Templeton Letters: Investment Success](https://web.archive.org/web/20190922183859/https://sirjohntempleton.org/2010/04/29/the-templeton-letters-investment-success/) | fetched | 2026-08-13 |  |
 | `templeton-letter-the-templeton-letters-keeping-a-client-happy` | [Templeton letters post: The Templeton Letters: Keeping a Client Happy](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/05/13/the-templeton-letters-keeping-a-client-happy/) | fetched | 2026-08-13 |  |
 | `templeton-letter-the-templeton-letters-keeping-a-client-happy-par` | [Templeton letters post: The Templeton Letters: Keeping a Client Happy, Part 3](https://web.archive.org/web/20191207125622/https://sirjohntempleton.org/2010/05/20/the-templeton-letters-keeping-a-client-happy-part-iii/) | fetched | 2026-08-13 |  |
@@ -75,8 +75,8 @@
 | `john-templeton-s-letter-to-clients-circa-1954` | [John Templeton's Letter to Clients, circa 1954](https://www.templetonandphillips.com/s/TempletonLetter1954.PDF) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
 | `the-idealism-of-free-competition-letter-to-clients-circa-1961` | ["The Idealism of Free Competition" — Letter to Clients, circa 1961](https://www.templetonandphillips.com/s/Freedom-John-Templeton-Letter.pdf) | fetched | 2026-08-13 | no text layer — OCR via tesseract; expect scan artifacts |
 | `successful-investing-methods-address-to-the-empire-club-of-canad` | ["Successful Investing Methods" — Address to the Empire Club of Canada](https://empireclubfoundation.org/speech/succesful-investing-methods/) | fetched | 2026-08-13 |  |
-| `financial-chaos-memorandum` | ["Financial Chaos" memorandum](https://www.huffpost.com/entry/sir-john-templeton-financ_b_507981) | BLOCKED (HTTP 406) | 2026-08-13 |  |
-| `john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon` | [John Templeton, Warren Buffett and Robert Wilson — Adam Smith's Money World, transcripts](https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `financial-chaos-memorandum` | ["Financial Chaos" memorandum](https://www.huffpost.com/entry/sir-john-templeton-financ_b_507981) | fetched | 2026-08-13 | HTTP 406; via Wayback fallback |
+| `john-templeton-warren-buffett-and-robert-wilson-adam-smith-s-mon` | [John Templeton, Warren Buffett and Robert Wilson — Adam Smith's Money World, transcripts](https://www.gurufocus.com/news/611156/a-rare-interview-of-john-templeton-warren-buffett-and-robert-wilson) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
 | `john-templeton-charlie-rose` | [John Templeton — Charlie Rose](https://charlierose.com/videos/7388) | fetched | 2026-08-13 |  |
 | `the-22-maxims-of-john-templeton-the-time-tested-maxims-of-the-te` | [The 22 Maxims of John Templeton ("The Time-Tested Maxims of the Templeton Touch")](https://novelinvestor.com/maxims-john-templeton/) | fetched | 2026-08-13 |  |
 
@@ -84,7 +84,7 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `u-s-economic-investments-national-press-club-address` | [U.S. Economic Investments (National Press Club address)](https://www.c-span.org/program/national-press-club/us-economic-investments/163874) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
 | `peter-lynch-on-making-money-in-the-u-s-stock-market` | [Peter Lynch on Making Money in the U.S. Stock Market](https://moiglobal.com/peter-lynch-1994/) | fetched | 2026-08-13 |  |
 | `interview-with-peter-lynch-betting-on-the-market` | [Interview With Peter Lynch — Betting On The Market](https://www.pbs.org/wgbh/pages/frontline/shows/betting/pros/lynch.html) | fetched | 2026-08-13 |  |
 | `peter-lynch-worth-column-archive-index-pl0-html` | [Peter Lynch Worth-column archive index (PL0.html)](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/PL0.html) | fetched | 2026-08-13 | index page — expanded to 44 document(s) |
@@ -112,7 +112,7 @@
 | `worth-z9502e02` | [Worth column: 95/02-The Next Oil Boom](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9502E02.html) | fetched | 2026-08-13 |  |
 | `worth-z9503e02` | [Worth column: 95/03-Catch a Ride](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9503E02.html) | fetched | 2026-08-13 |  |
 | `worth-z9504e02` | [Worth column: 95/04-The Current Thinking](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9504E02.html) | fetched | 2026-08-13 |  |
-| `worth-z9505e01` | [Worth column: 95/05-Bet the Houses](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer) | 2026-08-13 |  |
+| `worth-z9505e01` | [Worth column: 95/05-Bet the Houses](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9505E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9506e02` | [Worth column: 95/06-Golden Years](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9506E02.html) | fetched | 2026-08-13 |  |
 | `worth-z9508e01` | [Worth column: 95/08-Free at Last](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9508E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9509c01` | [Worth column: 95/09-Fear of Crashing](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9509C01.html) | fetched | 2026-08-13 |  |
@@ -122,7 +122,7 @@
 | `worth-z9604e02` | [Worth column: 96/04-The 5 Percent Solution](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9604E02.html) | fetched | 2026-08-13 |  |
 | `worth-z9606f01` | [Worth column: 96/06-In Defense of the Invisible Hand](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9606F01.html) | fetched | 2026-08-13 |  |
 | `worth-z9610e03` | [Worth column: 96/10-Self-Service](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9610E03.html) | fetched | 2026-08-13 |  |
-| `worth-z9701e01` | [Worth column: 97/01-Pain and Gain](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9701E01.html) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer) | 2026-08-13 |  |
+| `worth-z9701e01` | [Worth column: 97/01-Pain and Gain](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9701E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9703c02` | [Worth column: 97/03-Peter Lynch: Use Your Edge](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9703C02.html) | fetched | 2026-08-13 |  |
 | `worth-z9705e01` | [Worth column: 97/05-Send in the Money!](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9705E01.html) | fetched | 2026-08-13 |  |
 | `worth-z9708e01` | [Worth column: 97/08-The REIT Craze](https://web.archive.org/web/20000815201628/http://www.worth.com/articles/Z9708E01.html) | fetched | 2026-08-13 |  |
@@ -217,12 +217,12 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `graham-doddsville` | [Graham & Doddsville](https://business.columbia.edu/heilbrunn/resources/graham-and-doddsville-newsletter) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `heilbrunn-center-archives` | [Heilbrunn Center Archives](https://business.columbia.edu/heilbrunn/resources/archives) | BLOCKED (HTTP 403) | 2026-08-13 |  |
-| `value-investing-with-legends` | [Value Investing with Legends](https://business.columbia.edu/heilbrunn/resources/value-investing-legends-podcast) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `graham-doddsville` | [Graham & Doddsville](https://business.columbia.edu/heilbrunn/resources/graham-and-doddsville-newsletter) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
+| `heilbrunn-center-archives` | [Heilbrunn Center Archives](https://business.columbia.edu/heilbrunn/resources/archives) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
+| `value-investing-with-legends` | [Value Investing with Legends](https://business.columbia.edu/heilbrunn/resources/value-investing-legends-podcast) | fetched | 2026-08-13 | HTTP 403; via Wayback fallback |
 | `talks-at-google-youtube` | [Talks at Google (YouTube)](https://www.youtube.com/watch?v=bZfPJCAVQg0) | manual |  | video/audio — needs ASR or an official transcript |
 | `wealthtrack-with-consuelo-mack` | [WealthTrack with Consuelo Mack](https://wealthtrack.com) | fetched | 2026-08-13 |  |
-| `csinvesting-org` | [csinvesting.org](http://csinvesting.org) | BLOCKED (HTTP 403) | 2026-08-13 |  |
+| `csinvesting-org` | [csinvesting.org](http://csinvesting.org) | BLOCKED (HTTP 403; Wayback fallback also failed (HTTP 403)) | 2026-08-13 |  |
 
 ## Tier 2 — Important
 
