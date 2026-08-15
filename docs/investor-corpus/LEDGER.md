@@ -397,14 +397,14 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `seth-klarman-quotes-sourced-collection` | [Seth Klarman Quotes (sourced collection)](https://novelinvestor.com/quote-author/seth-klarman/) | fetched | 2026-08-15 |  |
+| `seth-klarman-quotes-sourced-collection` | [Seth Klarman Quotes (sourced collection)](https://novelinvestor.com/quote-author/seth-klarman/) | verified | 2026-08-15 |  |
 | `seth-klarman-interview-at-harvard-business-school-2006-the-psych` | [Seth Klarman: interview at Harvard Business School 2006 (The Psychology of Leadership)](https://www.youtube.com/watch?v=VEAGT7X010M) | manual |  | video/audio — needs ASR or an official transcript |
 | `interview-with-seth-klarman-mba-1982-margin-of-safety` | [Interview with Seth Klarman, MBA 1982 — Margin of Safety](https://www.youtube.com/watch?v=LoA9QPyKYSg) | manual |  | video/audio — needs ASR or an official transcript |
 | `seth-klarman-on-the-critical-value-of-the-long-view` | [Seth Klarman on the Critical Value of the Long View](https://www.alumni.hbs.edu/stories/Pages/story-bulletin.aspx?num=6901) | BLOCKED (page fetched but near-empty (0 words) — bot shell or JS-rendered; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 | `a-quiet-giant-of-investing-weighs-in-on-trump` | [A Quiet Giant of Investing Weighs In on Trump](https://www.nytimes.com/2017/02/06/business/dealbook/sorkin-seth-klarman-trump-investors.html) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 | `a-note-from-the-chairman` | [A note from the chairman](https://blogs.timesofisrael.com/a-note-from-the-chairman/) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
-| `learngive-tv-seth-klarman-exclusive-interview-part-ii` | [LearnGive TV: Seth Klarman Exclusive Interview (Part II)](https://learningbygivingfoundation.org/blogs/learngive-library/learngive-tv-seth-klarman-exclusive-interview-part-ii) | fetched | 2026-08-15 |  |
-| `baupost-group-llc-13f-hr-filings` | [Baupost Group LLC 13F-HR filings](https://www.sec.gov/Archives/edgar/data/1061768/000106176825000002/0001061768-25-000002-index-headers.html) | fetched | 2026-08-15 |  |
+| `learngive-tv-seth-klarman-exclusive-interview-part-ii` | [LearnGive TV: Seth Klarman Exclusive Interview (Part II)](https://learningbygivingfoundation.org/blogs/learngive-library/learngive-tv-seth-klarman-exclusive-interview-part-ii) | BLOCKED | 2026-08-15 |  landing/navigation stub only -- 89 lines of pure HTML nav/footer markup, zero interview transcript content captured  |
+| `baupost-group-llc-13f-hr-filings` | [Baupost Group LLC 13F-HR filings](https://www.sec.gov/Archives/edgar/data/1061768/000106176825000002/0001061768-25-000002-index-headers.html) | BLOCKED | 2026-08-15 |  SEC EDGAR filing-index header page (accession numbers, filing dates, company registration info) -- 13F-HR is a quarterly holdings-disclosure table, not written investor commentary; no quotable prose present  |
 
 ### 5. Li Lu
 
