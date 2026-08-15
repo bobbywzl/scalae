@@ -437,11 +437,11 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `joel-greenblatt-s-little-stock-market-book` | [Joel Greenblatt's 'Little' Stock Market Book](https://www.npr.org/2005/12/02/5036846/joel-greenblatts-little-stock-market-book) | fetched | 2026-08-15 |  |
+| `joel-greenblatt-s-little-stock-market-book` | [Joel Greenblatt's 'Little' Stock Market Book](https://www.npr.org/2005/12/02/5036846/joel-greenblatts-little-stock-market-book) | BLOCKED | 2026-08-15 |  NPR show-description page -- only a two-sentence segment blurb, no audio transcript or substantive Greenblatt excerpt captured  |
 | `where-joel-greenblatt-sees-value-now` | [Where Joel Greenblatt sees value now](https://www.youtube.com/watch?v=V8Zuw8Mnc-I) | manual |  | video/audio — needs ASR or an official transcript |
 | `google-apple-are-relatively-good-value-stocks-investor-joel-gree` | [Google, Apple are relatively good value stocks: Investor Joel Greenblatt](https://www.youtube.com/watch?v=JyNTjLuqOh0) | manual |  | video/audio — needs ASR or an official transcript |
-| `value-investors-club` | [Value Investors Club](https://www.valueinvestorsclub.com/) | fetched | 2026-08-15 |  |
-| `gotham-funds-principals-strategy` | [Gotham Funds — Principals & Strategy](https://www.gothamfunds.com/Principals) | fetched | 2026-08-15 |  |
+| `value-investors-club` | [Value Investors Club](https://www.valueinvestorsclub.com/) | BLOCKED | 2026-08-15 |  website homepage (valueinvestorsclub.com) -- only navigation/login-prompt/marketing chrome, no substantive Greenblatt content  |
+| `gotham-funds-principals-strategy` | [Gotham Funds — Principals & Strategy](https://www.gothamfunds.com/Principals) | BLOCKED | 2026-08-15 |  corporate About/Team page -- only bio blurbs (credentials, book titles) and standard SEC/legal disclaimers, no substantive investment philosophy prose  |
 | `exclusive-interview-joel-greenblatt-talks-about-his-new-book` | [Exclusive Interview: Joel Greenblatt Talks About His New Book](https://hedgefundalpha.com/joel-greenblatt-new-book-education/) | BLOCKED (HTTP 404; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 
 ### 8. Mohnish Pabrai
