@@ -10,7 +10,7 @@ import type { NextRequest } from "next/server";
  */
 
 const PUBLIC_PAGES = new Set(["/signin"]);
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/"];
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/", "/api/health"];
 
 export function proxy(request: NextRequest) {
   const authOn = !!(
