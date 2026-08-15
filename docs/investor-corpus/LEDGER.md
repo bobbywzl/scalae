@@ -384,7 +384,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `bear-market-musings` | [Bear Market Musings](https://www.pbs.org/wgbh/pages/frontline/shows/betting/musings/) | fetched | 2026-08-15 |  |
+| `bear-market-musings` | [Bear Market Musings](https://www.pbs.org/wgbh/pages/frontline/shows/betting/musings/) | verified | 2026-08-15 |  3120 words (full multi-interviewee FRONTLINE page); extraction scoped to Peter Lynch's own portion only (lines 63-89), excluding 7 other contributors on the same page  |
 | `peter-lynch-ten-most-dangerous-things-people-say-about-stocks` | [Peter Lynch — Ten Most Dangerous Things People Say About Stocks](https://www.youtube.com/watch?v=oMmocnLnVgQ) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-talks-about-bottom-fishing-on-wall-street-week` | [Peter Lynch talks about bottom-fishing on Wall Street Week](https://www.youtube.com/watch?v=f74MweTRICM) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-on-bottom-fishing-in-the-stock-market-1982` | [Peter Lynch On Bottom Fishing In The Stock Market / 1982](https://www.youtube.com/watch?v=sWu2ISVBZ48) | manual |  | video/audio — needs ASR or an official transcript |
