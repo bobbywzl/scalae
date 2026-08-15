@@ -378,7 +378,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 | `sir-john-templeton-official-biography-page` | [Sir John Templeton — official biography page](https://www.templeton.org/about/sir-john-templeton) | BLOCKED | 2026-08-15 |  official Templeton Foundation biography page -- ~69% site navigation/HTML chrome; the biographical content is mostly Foundation-authored narrative plus third-party obituary tributes (WSJ, The Economist, Nature), only 8 substantive direct Templeton quotes found, below the 10-quote minimum  |
 | `views-values-vision-memorial-booklet` | ["Views, Values & Vision" memorial booklet](https://web.archive.org/web/20121018172456/http://www.sirjohntempleton.org/pdf/sir_john_booklet_web.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 | `john-templeton-wikiquote` | [John Templeton — Wikiquote](https://en.wikiquote.org/wiki/John_Templeton) | verified | 2026-08-15 |  |
-| `john-templeton-resource-page` | [John Templeton Resource Page](https://hedgefundalpha.com/john-templeton/) | fetched | 2026-08-15 |  |
+| `john-templeton-resource-page` | [John Templeton Resource Page](https://hedgefundalpha.com/john-templeton/) | BLOCKED | 2026-08-15 |  resource/index page (hedgefundalpha.com) -- mostly biography/philosophy paraphrase plus article/video link lists and nav chrome; only 9 verbatim Templeton quotes >=8 words present, one short of the 10-quote minimum  |
 
 ### 3. Peter Lynch
 
