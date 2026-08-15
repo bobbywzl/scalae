@@ -232,6 +232,21 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
         "We pay ourselves salaries on. the order of $25,000 and $15,000, and we also have a profit-sharing plan under which after a $40-a-share dividend is earned and paid in any year the management as a whole receives 20 percent of the additional amount earned and paid.",
     },
   },
+  // Tier 3 addition — Graham/Dodd:
+  {
+    pattern:
+      "Does the source arguing this valuation or policy case disclose its own financial stake and its disputes with the subject's management — and does the argument still stand once that interest is priced in? Graham disclosed his own; a source that doesn't has already answered a character question.",
+    askWhen:
+      "weighing an analyst note, activist letter, short report, or any advocacy piece that argues for a specific valuation, transaction, or corporate-policy outcome",
+    anchor: "culture",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "the-rediscovered-benjamin-graham-lectures-compiled-text-of-the-1",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham-lectures.pdf",
+      quote:
+        "my investment company has an interest in the New Amsterdam Casualty Company, and I have had a dispute with the management as to proper dividend policy.",
+    },
+  },
 
   // --- 2. John Templeton ---
   {
@@ -288,6 +303,21 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
       url: "https://empireclubfoundation.org/speech/succesful-investing-methods/",
       quote:
         "So more than ever before we are searching for shares of companies that will not suffer much from inflation or maybe even would benefit from inflation.",
+    },
+  },
+  // Tier 3 addition — Templeton:
+  {
+    pattern:
+      "Where does this thesis depend on a historically reliable regularity failing to apply this once — a peak capitalized as the new normal, a cycle declared dead, a valuation law suspended for this company — and has that exceptionalism claim been priced as the extraordinary claim it is?",
+    askWhen:
+      "any thesis (bull or bear) whose load-bearing step is 'this time is different'; boom-margin extrapolations, 'the cycle is structurally over' arguments, category exemptions from valuation discipline",
+    anchor: "business-model",
+    source: {
+      investor: "John Templeton",
+      doc: "john-templeton-wikiquote",
+      url: "https://en.wikiquote.org/wiki/John_Templeton",
+      quote:
+        "The four most expensive words in the English language are \"this time it's different.\"",
     },
   },
 
@@ -1451,6 +1481,19 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       quote: "the typical American stockholder is the most docile and apathetic animal in captivity.",
     },
   },
+  // Tier 3 note (Graham/Dodd): five verified Tier 3 docs resolved to +1
+  // question pattern (advocacy-stake disclosure) and +2 metrics (dividend
+  // round-trip, hidden-equity add-back), all in their arrays. Skips: the
+  // compiled 1946-47 lectures restate the ten per-lecture Tier 1 extractions
+  // — the earning-power-horizon and retention-reason candidates are already
+  // carried by the boom-earnings and retained-dollar QPs, net-deductions
+  // coverage and the speculative-component split are Tier 1 entries, and the
+  // capital-deployment-drift check rides the retained-dollar QP's evidence;
+  // 'Mysteries of the Stock Market' restates founding doctrine (the weighing
+  // machine, sentiment multipliers); 'The Flexible Work Year' is labor-policy
+  // macro the charter refuses; 'How to Handle Your Money' is personal-finance
+  // allocation, its enterprise test and below-working-capital rule already
+  // core and NCAV respectively.
 
   // --- 2. John Templeton ---
   // Dedup notes: contrarian independence of the DESK's own reasoning already
@@ -1943,6 +1986,41 @@ export const CANON_METRICS: CanonMetric[] = [
         "Stability—as measured by the greatest shrinkage of profits in the periods 1937-1938 and 1947-1956",
     },
   },
+  // Tier 3 additions — Graham/Dodd:
+  {
+    name: "Dividend round-trip — net owner cash flow (Graham)",
+    formula:
+      "over a multi-year window: cash dividends paid OUT to common holders − cash raised BACK from them and their transferees (rights offerings, DRIPs, convertible exchanges, and the modern equivalent: issuance that settles stock compensation) — the NET flow to owners as a class",
+    reading:
+      "Graham's circular-financing catch: A.T.&T. paid $1,800 million in dividends across seven years while collecting nearly $2,700 million from the same stockholders — owners as a class financed their own dividend and paid personal tax on the round trip. A near-zero or negative net flow means the distribution is cosmetic: the payout ratio looks healthy while the capital loop destroys value through taxes and issuance costs.",
+    benchNotes:
+      "Cash-flow-statement rows only: dividends paid vs. equity issued (all forms), netted over 5-7 years. Pairs with the payout-vs-normalized-earnings metric (which polices the level) — this polices the loop. A company paying dividends while stock compensation quietly re-issues the shares is the contemporary A.T.&T. pattern.",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "stock-dividends-two-part-series",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/05/stock-dividends-part-1.pdf",
+      quote:
+        "A.T. & T. paid out $1,800 million in cash dividends at its traditional $9 rate. During the same seven years it received from its stockholders (and their transferees) nearly $2,700 million",
+    },
+  },
+  {
+    name: "Hidden equity — look-through earnings add-back (Graham)",
+    formula:
+      "reported EPS + (ownership % × investee's undistributed earnings per share) for stakes the income statement does not consolidate or equity-account, + income of off-income-statement asset departments — the look-through earning power of the whole position",
+    reading:
+      "Graham's Northern Pacific demonstration: reported earnings roughly doubled once the 48.5% Burlington stake's undistributed profits and the land-department income were added back — value the market never saw because the income statement never carried it. The modern homes of the pattern: sub-20% strategic stakes carried at cost or fair value, cross-shareholdings, and holdcos whose investees retain most of what they earn.",
+    benchNotes:
+      "Investee annual reports for the undistributed-earnings series; the add-back is computed and shown SEPARATELY from reported EPS, never blended silently — the bench states both figures and which the thesis uses. Where equity-method accounting already passes the share through, there is no hidden equity and no add-back (an honest zero).",
+    anchor: "business-model",
+    source: {
+      investor: "Benjamin Graham & David Dodd",
+      doc: "the-rediscovered-benjamin-graham-lectures-compiled-text-of-the-1",
+      url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham-lectures.pdf",
+      quote:
+        "Thus you find that there is what used to be called a “hidden equity” of about $26 a share additional in those five years, making a total of about $53 that has gone back into the stockholders’ account for Northern Pacific as compared with the pre-war period.",
+    },
+  },
 
   // --- 2. John Templeton ---
   // Tier 2 note (Templeton): his two verified Tier 2 docs (Lancz interview,
@@ -1950,6 +2028,11 @@ export const CANON_METRICS: CanonMetric[] = [
   // portfolio, index-level and real-estate material is outside the charter,
   // and the rest restates Tier 1 entries (cross-market comparison, maximum
   // pessimism, flexibility). An honest empty.
+  // Tier 3 note (Templeton): the one verified Tier 3 doc (the Wikiquote
+  // collection) yields +1 question pattern — the 'this time it's different'
+  // exceptionalism gate (in CANON_QUESTIONS). The rest is theology,
+  // biography, and portfolio practice (humility-to-diversification, advice
+  // hit rates) outside the charter's per-ticker scope.
   {
     name: "Doubling arithmetic at depressed multiples (Templeton)",
     formula:
