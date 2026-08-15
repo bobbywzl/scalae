@@ -410,11 +410,11 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `li-lu-s-recommended-book-list` | [Li Lu's Recommended Book List](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f08fb64066bae2514ad82da_Li%20Lu%20Recommended%20Book%20List.pdf) | fetched | 2026-08-15 |  |
+| `li-lu-s-recommended-book-list` | [Li Lu's Recommended Book List](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f08fb64066bae2514ad82da_Li%20Lu%20Recommended%20Book%20List.pdf) | BLOCKED | 2026-08-15 |  bare bibliography (categorized book titles/authors/publishers) -- no substantive Li Lu commentary or reasoning about why he recommends them  |
 | `li-lu-s-speech-at-peking-university-s-tenth-anniversary-value-in` | [Li Lu's speech at Peking University's tenth-anniversary value investing course (video)](https://www.youtube.com/watch?v=vvRmR_RlYx0) | manual |  | video/audio — needs ASR or an official transcript |
-| `himalaya-capital-publications-english-hub` | [Himalaya Capital — Publications (English hub)](https://www.himcap.com/publications) | fetched | 2026-08-15 |  |
-| `himcap-publications-zh-hub` | [李录先生文章、采访及演讲实录 [zh] (Chinese hub)](https://www.himcap.com/cn/publications) | fetched | 2026-08-15 |  |
-| `himalaya-capital-management-llc-sec-13f-filings-cik-0001709323` | [Himalaya Capital Management LLC — SEC 13F filings (CIK 0001709323)](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001709323&type=13F&dateb=&owner=include&count=40) | fetched | 2026-08-15 |  |
+| `himalaya-capital-publications-english-hub` | [Himalaya Capital — Publications (English hub)](https://www.himcap.com/publications) | BLOCKED | 2026-08-15 |  navigation/index hub page listing links to other Li Lu publications (titles, dates, "view document" links) -- no substantive Li Lu prose of its own  |
+| `himcap-publications-zh-hub` | [李录先生文章、采访及演讲实录 [zh] (Chinese hub)](https://www.himcap.com/cn/publications) | BLOCKED | 2026-08-15 |  Chinese-language navigation/index hub page, same pattern as its English sibling -- only publication titles, dates, links, and nav elements, no substantive prose  |
+| `himalaya-capital-management-llc-sec-13f-filings-cik-0001709323` | [Himalaya Capital Management LLC — SEC 13F filings (CIK 0001709323)](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001709323&type=13F&dateb=&owner=include&count=40) | BLOCKED | 2026-08-15 |  SEC EDGAR filing-index page listing 36 quarterly 13F-HR filing dates/accession numbers -- 13F is a holdings-disclosure form, not investor prose; no quotable commentary present  |
 | `q-a-follow-up-longriver-s-2015-speech-translation-the-prospects` | [Q&A follow-up: LONGRIVER's 2015-speech translation "The Prospects for Value Investing in China"](https://www.longriverinv.com/blog/li-lus-2015-speech-at-peking-u) | BLOCKED (HTTP 404; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 
 ### 6. Walter Schloss
