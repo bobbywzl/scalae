@@ -1537,6 +1537,11 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   },
 
   // --- 3. Peter Lynch ---
+  // Tier 3 note (Lynch): the one verified Tier 3 doc (his section of PBS's
+  // multi-contributor 'Bear Market Musings' page) is market-decline base
+  // rates, stomach-over-brain temperament, and horizon suitability — index-
+  // level statistics and investor practice the charter keeps out; the
+  // temperament half is the misjudgment checklist's ground. An honest empty.
   // Tier 2 note (Lynch): the one verified Tier 2 doc (the PBS broadcast
   // script) is soundbites drawn from the Tier 1 on-camera interview —
   // understandable-business, store-level observation and multi-year patience
@@ -1620,6 +1625,12 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   },
 
   // --- 4. Seth Klarman ---
+  // Tier 3 note (Klarman): the one verified Tier 3 doc (the sourced quote
+  // collection) restates entries this canon already carries from primary
+  // documents — room-to-be-wrong is Margin of Safety as Process, 50-cent
+  // dollars is the discount-bar metric's own figure, risk-relative-to-price
+  // and preservation-first are the charter itself, and cash-in-absence-of-
+  // opportunity is portfolio practice. An honest empty.
   // Tier 2 note (Klarman): the one verified Tier 2 doc ('Consistency in a
   // Bubble') is a compilation of excerpts from the same 1995-2001 Baupost
   // letters synthesized above — catalysts, discipline-as-bearings and
@@ -1723,6 +1734,14 @@ export const CANON_CONCEPTS: CanonConcept[] = [
         "If you speculate on other people's short-term trading behaviour, there can only be one result in the end: gains and losses must equal because this is a zero-sum game.",
     },
   },
+  // Tier 3 note (Li Lu): his Tier 3 block resolved with zero extractable
+  // docs (book list, hub pages and 13F filings BLOCKED or out of charter —
+  // holdings disclosures are portfolio-copying, not doctrine; the Peking
+  // speech is manual video). Separately, the Chinese modernization lecture
+  // (a Tier 2 row unblocked late) was extracted and read: it is the same
+  // lecture as the English sibling mined in Tier 2 — its Iron Law and
+  // visible-hand material already ride the Tier 2 entries, the rest is the
+  // civilizational treatise the charter skips. Zero additions.
   // Tier 2 note (Li Lu): the five Tier 2 documents resolved to +3 question
   // patterns and +1 directive above; zero new concepts or metrics. The two
   // Sino-US relations pieces and the John Jay speech are civilizational/
@@ -1785,6 +1804,12 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // orphaning mechanics are Klarman's; stocks-as-businesses and patience are
   // the charter. The A/R-inventory divergence sharpens core Lens 9 as a
   // metric below rather than a near-twin lens.
+  // Tier 3 note (Greenblatt): his Tier 3 block resolved with zero
+  // extractable docs — the NPR interview and hedgefundalpha page BLOCKED,
+  // Value Investors Club and Gotham Funds are hub/product pages, the rest
+  // manual video. His four books sit as manual rows; if purchased texts are
+  // ever dropped into corpus-cache they would be the richest remaining
+  // Greenblatt sources. An honest empty.
   // Tier 2 note (Greenblatt): his Tier 2 block resolved 2 verified of 12
   // (the rest BLOCKED paywalls/hub chrome or manual video). The WealthTrack
   // page carried no transcript — teaser only, nothing to mine. The Forbes
