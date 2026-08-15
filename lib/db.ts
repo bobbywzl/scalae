@@ -637,6 +637,16 @@ export async function listSignals(userId: string, symbol: string, status?: Signa
   return q<Signal>`SELECT * FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY "createdAt" ASC`;
 }
 
+/**
+ * Status count only. Signal rows carry fat text (thesis, backstory) — polls
+ * that need a number must not pay row egress for it.
+ */
+export async function countSignals(userId: string, symbol: string, status: SignalStatus): Promise<number> {
+  const rows = await q<{ n: number }>`
+    SELECT count(*)::int AS n FROM signals WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = ${status}`;
+  return rows[0]?.n ?? 0;
+}
+
 export async function getSignal(id: string): Promise<Signal | undefined> {
   const rows = await q<Signal>`SELECT * FROM signals WHERE id = ${id}`;
   return rows[0];
@@ -1046,6 +1056,16 @@ export async function runningRun(userId: string, symbol: string): Promise<Run | 
   const rows = await q<RunRow>`
     SELECT * FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' ORDER BY "startedAt" DESC LIMIT 1`;
   return parseRun(rows[0]);
+}
+
+/**
+ * Existence probe for polls: run rows carry the dossier payload, and a poll
+ * that needs a boolean must not pay that egress.
+ */
+export async function hasRunningRun(userId: string, symbol: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    SELECT id FROM runs WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' LIMIT 1`;
+  return rows.length > 0;
 }
 
 /**

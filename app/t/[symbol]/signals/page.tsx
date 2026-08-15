@@ -141,10 +141,22 @@ export default function DeskPage() {
   const bgChatError =
     !sending && !remoteBusy && lastMsg?.role === "user" ? (desk?.analystError ?? null) : null;
 
-  // Poll fast while the agents are working, slowly otherwise.
+  // Poll fast while the agents are working, slowly otherwise — and not at
+  // all in a hidden tab (long-lived open desks were draining the database's
+  // transfer quota). Returning to the tab refreshes immediately.
   useEffect(() => {
-    const timer = setInterval(load, anyRunning || sending || remoteBusy ? 2500 : 30_000);
-    return () => clearInterval(timer);
+    const busy = anyRunning || sending || remoteBusy;
+    const timer = setInterval(() => {
+      if (!document.hidden) load();
+    }, busy ? 2500 : 60_000);
+    const onVisibility = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load, anyRunning, sending, remoteBusy]);
 
   const startRun = useCallback(async () => {

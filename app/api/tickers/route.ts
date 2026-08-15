@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import {
   addTicker,
+  countSignals,
   getTicker,
+  hasRunningRun,
   insertMessage,
-  listSignals,
   listTickers,
   reapStuckRuns,
-  runningRun,
 } from "@/lib/db";
 import { getQuote, resolveSymbol } from "@/lib/market";
 import { requireUser } from "@/lib/auth";
@@ -24,11 +24,13 @@ export async function GET() {
   const rows: WatchlistRow[] = await Promise.all(
     tickers.map(async (t) => {
       await reapStuckRuns(user.id, t.symbol);
-      const [quote, active, suggested, running, position] = await Promise.all([
+      // Counts and an existence bit — never the fat rows (signal backstories,
+      // run dossiers) this poll used to drag out of the database each tick.
+      const [quote, activeCount, suggestedCount, running, position] = await Promise.all([
         getQuote(t.symbol),
-        listSignals(user.id, t.symbol, "active"),
-        listSignals(user.id, t.symbol, "suggested"),
-        runningRun(user.id, t.symbol),
+        countSignals(user.id, t.symbol, "active"),
+        countSignals(user.id, t.symbol, "suggested"),
+        hasRunningRun(user.id, t.symbol),
         computeInvolvement(user.id, t.symbol).catch(() => null),
       ]);
       const stale =
@@ -38,9 +40,9 @@ export async function GET() {
       return {
         ticker: t,
         quote,
-        activeCount: active.length,
-        suggestedCount: suggested.length,
-        running: !!running,
+        activeCount,
+        suggestedCount,
+        running,
         stale,
         position,
       };

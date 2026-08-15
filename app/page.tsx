@@ -84,8 +84,21 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 45_000);
-    return () => clearInterval(t);
+    // Egress-aware polling: a hidden tab polls nothing (long-lived open tabs
+    // were quietly draining the database's transfer quota), and an idle
+    // watchlist needs freshness in minutes, not seconds. Returning to the
+    // tab refreshes immediately.
+    const t = setInterval(() => {
+      if (!document.hidden) load();
+    }, 120_000);
+    const onVisibility = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load]);
 
   useEffect(() => {
