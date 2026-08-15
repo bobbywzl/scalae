@@ -52,6 +52,16 @@
  * the-simplest-way-to-select-bargain-stocks into an entry citing
  * an-hour-with-mr-graham; the gate is now its own metric with its own
  * verified citation, and the duration claim now matches its source.
+ *
+ * TIER 3 AUDIT 2026-08-15: all 4 Tier 3 additions (Graham/Dodd's
+ * advocacy-stake QP, dividend round-trip and hidden-equity metrics;
+ * Templeton's this-time-it's-different QP) verified verbatim against
+ * freshly refetched sources at synthesis time — the two lecture citations
+ * against the compiled PDF's clean text layer with context matching the
+ * Northern Pacific figures line by line, the round-trip quote via
+ * independent OCR of both stock-dividend scans, the Wikiquote page live.
+ * The other five investors' Tier 3 blocks resolved to documented honest
+ * empties; Pabrai remains blocked on his missing catalog.
  */
 
 import type { Lens } from "./framework";
@@ -1765,6 +1775,15 @@ export const CANON_CONCEPTS: CanonConcept[] = [
   // One extraction pairing (a 20-year-record minimum supported by an
   // unrelated quote) was rejected on fair-representation grounds. The lens
   // below is his own.
+  // Tier 3 note (Schloss): his two verified Tier 3 docs (the Ivey
+  // Athanassakos discussion summary, the not-trying-to-be-Buffett column)
+  // are practice and temperament: the new-lows-then-verify habit is carried
+  // by Templeton's pessimism entries plus the filed-figures directive; the
+  // no-management-visits point IS the filed-figures directive; style-fit,
+  // diversification-as-ignorance-defense and never-short-the-US are
+  // portfolio practice and country allocation the charter keeps out; the
+  // eight remaining rows BLOCKED (six wayback-only, as in Tier 2). An
+  // honest empty — and the tier's close.
   // Tier 2 note (Schloss): his Tier 2 block resolved 3 verified of 10 (the
   // rest BLOCKED — wayback-only PDFs and hub pages unreachable from the
   // extraction container). The Berkshire 2006 tribute and the Bottom Line
