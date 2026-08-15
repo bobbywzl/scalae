@@ -212,7 +212,7 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `pabrai-catalog-missing` | 07-mohnish-pabrai.md (all tiers) | BLOCKED (catalog file missing from repo — never committed; add it and rerun `--ledger`) | 2026-08-13 | rows for this investor cannot be generated |
+| `pabrai-catalog-missing` | 07-mohnish-pabrai.md (all tiers) | BLOCKED (catalog file missing from repo — never committed; add it and rerun `--ledger`) | 2026-08-15 | rows for this investor cannot be generated |
 
 ### 9. Shared archives
 
@@ -290,8 +290,8 @@
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `a-discussion-of-modernization` | [A Discussion of Modernization](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b403eb659976_Li%20Lu%20on%20Discussion%20of%20Modernization%202016%20Final.pdf) | verified | 2026-08-13 |  33,555 words, read in 4 sequential chunks; 34 quotes spanning all 16 chapters  |
-| `discussion-of-modernization-zh` | [李录谈现代化（全文） [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0935ee7646e6ff74f6d311_%E6%9D%8E%E5%BD%95%E8%B0%88%E7%8E%B0%E4%BB%A3%E5%8C%96%20%EF%BC%88%E5%85%A8%E6%96%87%EF%BC%89%E5%A4%A7%E5%AD%97%E5%8F%B7.pdf) | verified | 2026-08-13 |  3014 whitespace-tokens across 2188 lines; succeeded on retry using multi-line-passage quotes (531 valid 6-16-line windows found spanning all 16 chapters) after an initial attempt failed for an unrelated formatting reason (embedded newlines inside quotes broke verify.ts's per-line parser, not a fundamental CJK impossibility)  |
+| `a-discussion-of-modernization` | [A Discussion of Modernization](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b403eb659976_Li%20Lu%20on%20Discussion%20of%20Modernization%202016%20Final.pdf) | verified | 2026-08-13 | 33,555 words, read in 4 sequential chunks; 34 quotes spanning all 16 chapters |
+| `discussion-of-modernization-zh` | [李录谈现代化（全文） [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0935ee7646e6ff74f6d311_%E6%9D%8E%E5%BD%95%E8%B0%88%E7%8E%B0%E4%BB%A3%E5%8C%96%20%EF%BC%88%E5%85%A8%E6%96%87%EF%BC%89%E5%A4%A7%E5%AD%97%E5%8F%B7.pdf) | verified | 2026-08-13 | 3014 whitespace-tokens across 2188 lines; succeeded on retry using multi-line-passage quotes (531 valid 6-16-line windows found spanning all 16 chapters) after an initial attempt failed for an unrelated formatting reason (embedded newlines inside quotes broke verify.ts's per-line parser, not a fundamental CJK impossibility) |
 | `discussions-about-modernization-a-look-at-the-future-of-sino-us` | [Discussions About Modernization — A Look at the Future of Sino-US Relations (Part Two)](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5ef3c7300432b4f82e659975_Discussions%20About%20Modernization%20-%20A%20Look%20at%20the%20Future%20of%20Sino-US%20Relations.pdf) | verified | 2026-08-13 |  |
 | `sino-us-relations-zh` | [李录谈现代化——从人类文明史角度看当今中美关系走向 [zh]](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f0934f93967fc62fa42c844_%E6%9D%8E%E5%BD%95%E8%B0%88%E7%8E%B0%E4%BB%A3%E5%8C%96-%E4%BB%8E%E4%BA%BA%E7%B1%BB%E6%96%87%E6%98%8E%E5%8F%B2%E8%A7%92%E5%BA%A6%E7%9C%8B%E5%BD%93%E4%BB%8A%E4%B8%AD%E7%BE%8E%E5%85%B3%E7%B3%BB%E8%B5%B0%E5%90%91.pdf) | verified | 2026-08-13 |  |
 | `q-a-with-li-lu` | [Q&A With Li Lu](https://www.longriverinv.com/thought/qampa-with-li-lu) | verified | 2026-08-13 |  |
@@ -306,7 +306,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
 | `schloss-archives-for-value-investing-heilbrunn-center-hub` | [Schloss Archives for Value Investing — Heilbrunn Center hub](https://web.archive.org/web/20160304083124/http://www8.gsb.columbia.edu/valueinvesting/research/schlossarchives) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
-| `berkshire-hathaway-2006-chairman-s-letter-buffett-s-tribute-to-w` | [Berkshire Hathaway 2006 Chairman's Letter — Buffett's tribute to Walter Schloss](https://www.berkshirehathaway.com/letters/2006ltr.pdf) | verified | 2026-08-13 |  14,331 words (full letter); extraction scoped to the Schloss tribute passage at lines 1454-1494 only  |
+| `berkshire-hathaway-2006-chairman-s-letter-buffett-s-tribute-to-w` | [Berkshire Hathaway 2006 Chairman's Letter — Buffett's tribute to Walter Schloss](https://www.berkshirehathaway.com/letters/2006ltr.pdf) | verified | 2026-08-13 | 14,331 words (full letter); extraction scoped to the Schloss tribute passage at lines 1454-1494 only |
 | `experience-lessons-from-walter-schloss` | [Experience: Lessons From Walter Schloss](https://www.forbes.com/forbes/2008/0211/048.html) | BLOCKED | 2026-08-13 |  Forbes profile (2008) -- only 11 direct Schloss-attributed quotes in the cached text, and only 4 of those meet the >=8-word minimum; the rest are brief exclamations/one-liners ('Look at that hawk!', 'Why should I pay?') that capture his character but are too short to quote under the schema's mechanical floor  |
 | `making-money-out-of-junk` | [Making Money Out of Junk](https://web.archive.org/web/20181009143449/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Making%20Money%20Out%20of%20Junk.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-13 |  |
 | `going-out-on-top-walter-edwin-schloss` | [Going Out on Top: Walter & Edwin Schloss](https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Bottom%20Line%20April%2017%20-%20Walter%20Schloss.pdf) | verified | 2026-08-13 |  |
@@ -337,7 +337,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-13 | |
+| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-15 | |
 
 ### 9. Shared archives
 
@@ -357,15 +357,15 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `money-as-pure-commodity` | ["Money as Pure Commodity"](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/money_as_pure_commodity.pdf) | pending |  |  |
-| `stock-dividends-two-part-series` | ["Stock Dividends" (two-part series)](https://valuehunter.wordpress.com/wp-content/uploads/2009/05/stock-dividends-part-1.pdf) | pending |  |  |
-| `the-flexible-work-year-an-answer-to-unemployment` | ["The Flexible Work Year: An Answer to Unemployment"](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/flex_work_year.pdf) | pending |  |  |
-| `how-to-handle-your-money` | ["How to Handle Your Money"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_interview.pdf) | pending |  |  |
-| `graham-the-mysteries-of-the-stock-market` | [Graham: The Mysteries of the Stock Market](https://novelinvestor.com/graham-mysteries-stock-market/) | pending |  |  |
-| `the-rediscovered-benjamin-graham-lectures-compiled-text-of-the-1` | ["The Rediscovered Benjamin Graham Lectures" (compiled text of the 1946–47 series)](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham-lectures.pdf) | pending |  |  |
-| `david-l-dodd-out-of-ben-graham-s-shadow-james-russell-kelly-fina` | ["David L. Dodd: Out of Ben Graham's Shadow" (James Russell Kelly, *Financial History*)](http://www.fordhamgabellicenter.org/wp-content/uploads/2020/08/David-Dodd-Out-of-Ben-Grahams-Shadow-Financial-History-Summer-2020.pdf) | pending |  |  |
-| `value-investing-history` | [Value Investing History](https://business.columbia.edu/heilbrunn/about/valueinvestinghistory) | pending |  |  |
-| `ben-graham-collection-ben-graham-centre-for-value-investing` | [Ben Graham Collection, Ben Graham Centre for Value Investing](https://www.ivey.uwo.ca/bengrahaminvesting/resources/ben-graham-collection/) | pending |  |  |
+| `money-as-pure-commodity` | ["Money as Pure Commodity"](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/money_as_pure_commodity.pdf) | fetched | 2026-08-15 | no text layer — OCR via tesseract; expect scan artifacts |
+| `stock-dividends-two-part-series` | ["Stock Dividends" (two-part series)](https://valuehunter.wordpress.com/wp-content/uploads/2009/05/stock-dividends-part-1.pdf) | fetched | 2026-08-15 | no text layer — OCR via tesseract; expect scan artifacts |
+| `the-flexible-work-year-an-answer-to-unemployment` | ["The Flexible Work Year: An Answer to Unemployment"](https://valuehunter.wordpress.com/wp-content/uploads/2009/04/flex_work_year.pdf) | fetched | 2026-08-15 | no text layer — OCR via tesseract; expect scan artifacts |
+| `how-to-handle-your-money` | ["How to Handle Your Money"](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_interview.pdf) | fetched | 2026-08-15 | no text layer — OCR via tesseract; expect scan artifacts |
+| `graham-the-mysteries-of-the-stock-market` | [Graham: The Mysteries of the Stock Market](https://novelinvestor.com/graham-mysteries-stock-market/) | fetched | 2026-08-15 |  |
+| `the-rediscovered-benjamin-graham-lectures-compiled-text-of-the-1` | ["The Rediscovered Benjamin Graham Lectures" (compiled text of the 1946–47 series)](https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham-lectures.pdf) | fetched | 2026-08-15 |  |
+| `david-l-dodd-out-of-ben-graham-s-shadow-james-russell-kelly-fina` | ["David L. Dodd: Out of Ben Graham's Shadow" (James Russell Kelly, *Financial History*)](http://www.fordhamgabellicenter.org/wp-content/uploads/2020/08/David-Dodd-Out-of-Ben-Grahams-Shadow-Financial-History-Summer-2020.pdf) | fetched | 2026-08-15 |  |
+| `value-investing-history` | [Value Investing History](https://business.columbia.edu/heilbrunn/about/valueinvestinghistory) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `ben-graham-collection-ben-graham-centre-for-value-investing` | [Ben Graham Collection, Ben Graham Centre for Value Investing](https://www.ivey.uwo.ca/bengrahaminvesting/resources/ben-graham-collection/) | fetched | 2026-08-15 |  |
 | `david-dodd-93-dies-professor-of-business` | ["David Dodd, 93, Dies; Professor of Business"](https://www.nytimes.com/1988/09/20/obituaries/david-dodd-93-dies-professor-of-business.html) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
 
 ### 2. John Templeton
@@ -375,16 +375,16 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 | `sir-john-templeton-contrarian-documentary` | [Sir John Templeton – Contrarian / Documentary](https://www.youtube.com/watch?v=K__WTucylzk) | manual |  | video/audio — needs ASR or an official transcript |
 | `investing-titans-john-templeton-rare-interview` | [Investing Titans: John Templeton Rare Interview](https://www.youtube.com/watch?v=pDJmNXgs3fE) | manual |  | video/audio — needs ASR or an official transcript |
 | `dinner-with-peter-lynch-and-sir-john-templeton` | [Dinner with Peter Lynch and Sir John Templeton](https://www.youtube.com/watch?v=QG-b2nqpB2A) | manual |  | video/audio — needs ASR or an official transcript |
-| `sir-john-templeton-official-biography-page` | [Sir John Templeton — official biography page](https://www.templeton.org/about/sir-john-templeton) | pending |  |  |
-| `views-values-vision-memorial-booklet` | ["Views, Values & Vision" memorial booklet](https://web.archive.org/web/20121018172456/http://www.sirjohntempleton.org/pdf/sir_john_booklet_web.pdf) | pending |  |  |
-| `john-templeton-wikiquote` | [John Templeton — Wikiquote](https://en.wikiquote.org/wiki/John_Templeton) | pending |  |  |
-| `john-templeton-resource-page` | [John Templeton Resource Page](https://hedgefundalpha.com/john-templeton/) | pending |  |  |
+| `sir-john-templeton-official-biography-page` | [Sir John Templeton — official biography page](https://www.templeton.org/about/sir-john-templeton) | fetched | 2026-08-15 |  |
+| `views-values-vision-memorial-booklet` | ["Views, Values & Vision" memorial booklet](https://web.archive.org/web/20121018172456/http://www.sirjohntempleton.org/pdf/sir_john_booklet_web.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `john-templeton-wikiquote` | [John Templeton — Wikiquote](https://en.wikiquote.org/wiki/John_Templeton) | fetched | 2026-08-15 |  |
+| `john-templeton-resource-page` | [John Templeton Resource Page](https://hedgefundalpha.com/john-templeton/) | fetched | 2026-08-15 |  |
 
 ### 3. Peter Lynch
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `bear-market-musings` | [Bear Market Musings](https://www.pbs.org/wgbh/pages/frontline/shows/betting/musings/) | pending |  |  |
+| `bear-market-musings` | [Bear Market Musings](https://www.pbs.org/wgbh/pages/frontline/shows/betting/musings/) | fetched | 2026-08-15 |  |
 | `peter-lynch-ten-most-dangerous-things-people-say-about-stocks` | [Peter Lynch — Ten Most Dangerous Things People Say About Stocks](https://www.youtube.com/watch?v=oMmocnLnVgQ) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-talks-about-bottom-fishing-on-wall-street-week` | [Peter Lynch talks about bottom-fishing on Wall Street Week](https://www.youtube.com/watch?v=f74MweTRICM) | manual |  | video/audio — needs ASR or an official transcript |
 | `peter-lynch-on-bottom-fishing-in-the-stock-market-1982` | [Peter Lynch On Bottom Fishing In The Stock Market / 1982](https://www.youtube.com/watch?v=sWu2ISVBZ48) | manual |  | video/audio — needs ASR or an official transcript |
@@ -397,69 +397,69 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `seth-klarman-quotes-sourced-collection` | [Seth Klarman Quotes (sourced collection)](https://novelinvestor.com/quote-author/seth-klarman/) | pending |  |  |
+| `seth-klarman-quotes-sourced-collection` | [Seth Klarman Quotes (sourced collection)](https://novelinvestor.com/quote-author/seth-klarman/) | fetched | 2026-08-15 |  |
 | `seth-klarman-interview-at-harvard-business-school-2006-the-psych` | [Seth Klarman: interview at Harvard Business School 2006 (The Psychology of Leadership)](https://www.youtube.com/watch?v=VEAGT7X010M) | manual |  | video/audio — needs ASR or an official transcript |
 | `interview-with-seth-klarman-mba-1982-margin-of-safety` | [Interview with Seth Klarman, MBA 1982 — Margin of Safety](https://www.youtube.com/watch?v=LoA9QPyKYSg) | manual |  | video/audio — needs ASR or an official transcript |
-| `seth-klarman-on-the-critical-value-of-the-long-view` | [Seth Klarman on the Critical Value of the Long View](https://www.alumni.hbs.edu/stories/Pages/story-bulletin.aspx?num=6901) | pending |  |  |
+| `seth-klarman-on-the-critical-value-of-the-long-view` | [Seth Klarman on the Critical Value of the Long View](https://www.alumni.hbs.edu/stories/Pages/story-bulletin.aspx?num=6901) | BLOCKED (page fetched but near-empty (0 words) — bot shell or JS-rendered; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 | `a-quiet-giant-of-investing-weighs-in-on-trump` | [A Quiet Giant of Investing Weighs In on Trump](https://www.nytimes.com/2017/02/06/business/dealbook/sorkin-seth-klarman-trump-investors.html) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
-| `a-note-from-the-chairman` | [A note from the chairman](https://blogs.timesofisrael.com/a-note-from-the-chairman/) | pending |  |  |
-| `learngive-tv-seth-klarman-exclusive-interview-part-ii` | [LearnGive TV: Seth Klarman Exclusive Interview (Part II)](https://learningbygivingfoundation.org/blogs/learngive-library/learngive-tv-seth-klarman-exclusive-interview-part-ii) | pending |  |  |
-| `baupost-group-llc-13f-hr-filings` | [Baupost Group LLC 13F-HR filings](https://www.sec.gov/Archives/edgar/data/1061768/000106176825000002/0001061768-25-000002-index-headers.html) | pending |  |  |
+| `a-note-from-the-chairman` | [A note from the chairman](https://blogs.timesofisrael.com/a-note-from-the-chairman/) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `learngive-tv-seth-klarman-exclusive-interview-part-ii` | [LearnGive TV: Seth Klarman Exclusive Interview (Part II)](https://learningbygivingfoundation.org/blogs/learngive-library/learngive-tv-seth-klarman-exclusive-interview-part-ii) | fetched | 2026-08-15 |  |
+| `baupost-group-llc-13f-hr-filings` | [Baupost Group LLC 13F-HR filings](https://www.sec.gov/Archives/edgar/data/1061768/000106176825000002/0001061768-25-000002-index-headers.html) | fetched | 2026-08-15 |  |
 
 ### 5. Li Lu
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `li-lu-s-recommended-book-list` | [Li Lu's Recommended Book List](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f08fb64066bae2514ad82da_Li%20Lu%20Recommended%20Book%20List.pdf) | pending |  |  |
+| `li-lu-s-recommended-book-list` | [Li Lu's Recommended Book List](https://cdn.prod.website-files.com/5ef3c7300432b40ed865991a/5f08fb64066bae2514ad82da_Li%20Lu%20Recommended%20Book%20List.pdf) | fetched | 2026-08-15 |  |
 | `li-lu-s-speech-at-peking-university-s-tenth-anniversary-value-in` | [Li Lu's speech at Peking University's tenth-anniversary value investing course (video)](https://www.youtube.com/watch?v=vvRmR_RlYx0) | manual |  | video/audio — needs ASR or an official transcript |
-| `himalaya-capital-publications-english-hub` | [Himalaya Capital — Publications (English hub)](https://www.himcap.com/publications) | pending |  |  |
-| `himcap-publications-zh-hub` | [李录先生文章、采访及演讲实录 [zh] (Chinese hub)](https://www.himcap.com/cn/publications) | pending |  |  |
-| `himalaya-capital-management-llc-sec-13f-filings-cik-0001709323` | [Himalaya Capital Management LLC — SEC 13F filings (CIK 0001709323)](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001709323&type=13F&dateb=&owner=include&count=40) | pending |  |  |
-| `q-a-follow-up-longriver-s-2015-speech-translation-the-prospects` | [Q&A follow-up: LONGRIVER's 2015-speech translation "The Prospects for Value Investing in China"](https://www.longriverinv.com/blog/li-lus-2015-speech-at-peking-u) | pending |  |  |
+| `himalaya-capital-publications-english-hub` | [Himalaya Capital — Publications (English hub)](https://www.himcap.com/publications) | fetched | 2026-08-15 |  |
+| `himcap-publications-zh-hub` | [李录先生文章、采访及演讲实录 [zh] (Chinese hub)](https://www.himcap.com/cn/publications) | fetched | 2026-08-15 |  |
+| `himalaya-capital-management-llc-sec-13f-filings-cik-0001709323` | [Himalaya Capital Management LLC — SEC 13F filings (CIK 0001709323)](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001709323&type=13F&dateb=&owner=include&count=40) | fetched | 2026-08-15 |  |
+| `q-a-follow-up-longriver-s-2015-speech-translation-the-prospects` | [Q&A follow-up: LONGRIVER's 2015-speech translation "The Prospects for Value Investing in China"](https://www.longriverinv.com/blog/li-lus-2015-speech-at-peking-u) | BLOCKED (HTTP 404; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 
 ### 6. Walter Schloss
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `the-hippocratic-method-in-security-analysis` | [The Hippocratic Method in Security Analysis](https://web.archive.org/web/20210127141151/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/The%20Hippocratic%20Method%20in%20Security%20Analysis.pdf) | pending |  |  |
-| `the-dow-jones-industrial-average-amended` | [The Dow Jones Industrial Average Amended](https://web.archive.org/web/20210127140123/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/The%20Dow%20Jones%20Industrial%20Average%20Amended.pdf) | pending |  |  |
-| `in-defense-of-stock-dividends` | [In Defense of Stock Dividends](https://web.archive.org/web/20210127142844/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/In%20Defense%20of%20Stock%20Dividends.pdf) | pending |  |  |
-| `from-the-thoughtful-businessman-letter-to-harvard-business-revie` | [From the Thoughtful Businessman (letter to Harvard Business Review)](https://web.archive.org/web/20210127143810/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/From%20the%20Thoughtful%20Businessman.pdf) | pending |  |  |
-| `intrinsic-value-is-key-factor` | [Intrinsic Value Is Key Factor](https://web.archive.org/web/20210127143956/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Intrinsic%20Value%20is%20Key%20Factor.pdf) | pending |  |  |
-| `walter-j-schloss-searching-for-value` | [Walter J. Schloss: Searching for Value](https://web.archive.org/web/20210127141541/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Walter%20J.%20Schloss_Searching%20for%20Value.pdf) | pending |  |  |
-| `a-discussion-of-dr-george-athanassakos-with-mr-walter-schloss` | [A Discussion of Dr. George Athanassakos with Mr. Walter Schloss](https://www.ivey.uwo.ca/media/2809324/schloss-2008.pdf) | pending |  |  |
-| `yes-you-can-beat-the-market-with-value-stocks` | [Yes, You Can Beat the Market (with value stocks)](http://money.cnn.com/magazines/fortune/fortune_archive/1995/04/03/224106/index.htm) | pending |  |  |
-| `aim-report-notes-from-the-editor-s-cuff` | [AIM Report — Notes from the Editor's Cuff](https://web.archive.org/web/20210127125840/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/AIM%20Report.pdf) | pending |  |  |
-| `deep-value-master-walter-schloss-csinvesting-collection-post` | [Deep Value Master, Walter Schloss (csinvesting collection post)](http://csinvesting.org/2014/10/13/deep-value-master-walter-schloss/) | pending |  |  |
-| `walter-schloss-on-not-trying-to-be-warren-buffett` | [Walter Schloss on Not Trying to Be Warren Buffett](https://novelinvestor.com/walter-schloss-trying-warren-buffett/) | pending |  |  |
+| `the-hippocratic-method-in-security-analysis` | [The Hippocratic Method in Security Analysis](https://web.archive.org/web/20210127141151/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/The%20Hippocratic%20Method%20in%20Security%20Analysis.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `the-dow-jones-industrial-average-amended` | [The Dow Jones Industrial Average Amended](https://web.archive.org/web/20210127140123/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/The%20Dow%20Jones%20Industrial%20Average%20Amended.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `in-defense-of-stock-dividends` | [In Defense of Stock Dividends](https://web.archive.org/web/20210127142844/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/In%20Defense%20of%20Stock%20Dividends.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `from-the-thoughtful-businessman-letter-to-harvard-business-revie` | [From the Thoughtful Businessman (letter to Harvard Business Review)](https://web.archive.org/web/20210127143810/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/From%20the%20Thoughtful%20Businessman.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `intrinsic-value-is-key-factor` | [Intrinsic Value Is Key Factor](https://web.archive.org/web/20210127143956/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Intrinsic%20Value%20is%20Key%20Factor.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `walter-j-schloss-searching-for-value` | [Walter J. Schloss: Searching for Value](https://web.archive.org/web/20210127141541/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/Walter%20J.%20Schloss_Searching%20for%20Value.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `a-discussion-of-dr-george-athanassakos-with-mr-walter-schloss` | [A Discussion of Dr. George Athanassakos with Mr. Walter Schloss](https://www.ivey.uwo.ca/media/2809324/schloss-2008.pdf) | fetched | 2026-08-15 |  |
+| `yes-you-can-beat-the-market-with-value-stocks` | [Yes, You Can Beat the Market (with value stocks)](http://money.cnn.com/magazines/fortune/fortune_archive/1995/04/03/224106/index.htm) | BLOCKED (HTTP 503; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `aim-report-notes-from-the-editor-s-cuff` | [AIM Report — Notes from the Editor's Cuff](https://web.archive.org/web/20210127125840/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/AIM%20Report.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `deep-value-master-walter-schloss-csinvesting-collection-post` | [Deep Value Master, Walter Schloss (csinvesting collection post)](http://csinvesting.org/2014/10/13/deep-value-master-walter-schloss/) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `walter-schloss-on-not-trying-to-be-warren-buffett` | [Walter Schloss on Not Trying to Be Warren Buffett](https://novelinvestor.com/walter-schloss-trying-warren-buffett/) | fetched | 2026-08-15 |  |
 
 ### 7. Joel Greenblatt
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `joel-greenblatt-s-little-stock-market-book` | [Joel Greenblatt's 'Little' Stock Market Book](https://www.npr.org/2005/12/02/5036846/joel-greenblatts-little-stock-market-book) | pending |  |  |
+| `joel-greenblatt-s-little-stock-market-book` | [Joel Greenblatt's 'Little' Stock Market Book](https://www.npr.org/2005/12/02/5036846/joel-greenblatts-little-stock-market-book) | fetched | 2026-08-15 |  |
 | `where-joel-greenblatt-sees-value-now` | [Where Joel Greenblatt sees value now](https://www.youtube.com/watch?v=V8Zuw8Mnc-I) | manual |  | video/audio — needs ASR or an official transcript |
 | `google-apple-are-relatively-good-value-stocks-investor-joel-gree` | [Google, Apple are relatively good value stocks: Investor Joel Greenblatt](https://www.youtube.com/watch?v=JyNTjLuqOh0) | manual |  | video/audio — needs ASR or an official transcript |
-| `value-investors-club` | [Value Investors Club](https://www.valueinvestorsclub.com/) | pending |  |  |
-| `gotham-funds-principals-strategy` | [Gotham Funds — Principals & Strategy](https://www.gothamfunds.com/Principals) | pending |  |  |
-| `exclusive-interview-joel-greenblatt-talks-about-his-new-book` | [Exclusive Interview: Joel Greenblatt Talks About His New Book](https://hedgefundalpha.com/joel-greenblatt-new-book-education/) | pending |  |  |
+| `value-investors-club` | [Value Investors Club](https://www.valueinvestorsclub.com/) | fetched | 2026-08-15 |  |
+| `gotham-funds-principals-strategy` | [Gotham Funds — Principals & Strategy](https://www.gothamfunds.com/Principals) | fetched | 2026-08-15 |  |
+| `exclusive-interview-joel-greenblatt-talks-about-his-new-book` | [Exclusive Interview: Joel Greenblatt Talks About His New Book](https://hedgefundalpha.com/joel-greenblatt-new-book-education/) | BLOCKED (HTTP 404; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 
 ### 8. Mohnish Pabrai
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-13 | |
+| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-15 | |
 
 ### 9. Shared archives
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `fraser-st-louis-fed-digital-library` | [FRASER (St. Louis Fed digital library)](https://fraser.stlouisfed.org) | pending |  |  |
-| `novel-investor-quote-library` | [Novel Investor quote library](https://novelinvestor.com/quotes/) | pending |  |  |
-| `worth-magazine-peter-lynch-author-page` | [Worth magazine — Peter Lynch author page](https://worth.com/plynch/) | pending |  |  |
-| `american-archive-of-public-broadcasting-wall-treet-week-catalog` | [American Archive of Public Broadcasting — Wall $treet Week catalog search](https://americanarchive.org/catalog?q=%22wall+street+week%22) | pending |  |  |
+| `fraser-st-louis-fed-digital-library` | [FRASER (St. Louis Fed digital library)](https://fraser.stlouisfed.org) | BLOCKED (fetch error: curl exit 92: curl: (92) HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR (err 2); Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
+| `novel-investor-quote-library` | [Novel Investor quote library](https://novelinvestor.com/quotes/) | fetched | 2026-08-15 |  |
+| `worth-magazine-peter-lynch-author-page` | [Worth magazine — Peter Lynch author page](https://worth.com/plynch/) | fetched | 2026-08-15 |  |
+| `american-archive-of-public-broadcasting-wall-treet-week-catalog` | [American Archive of Public Broadcasting — Wall $treet Week catalog search](https://americanarchive.org/catalog?q=%22wall+street+week%22) | fetched | 2026-08-15 |  |
 | `financial-analysts-journal-cfa-institute-via-taylor-francis` | [Financial Analysts Journal (CFA Institute, via Taylor & Francis)](https://www.tandfonline.com/journals/ufaj20) | manual |  | [paywall] — drop purchased text into corpus-cache/ by hand |
-| `jasonzweig-com` | [JasonZweig.com](https://jasonzweig.com/a-rediscovered-masterpiece-by-benjamin-graham/) | pending |  |  |
+| `jasonzweig-com` | [JasonZweig.com](https://jasonzweig.com/a-rediscovered-masterpiece-by-benjamin-graham/) | fetched | 2026-08-15 |  |
 
 ## Manual / Books
 
@@ -531,5 +531,5 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 
 | Doc slug | Title / URL | Status | Date | Notes |
 |---|---|---|---|---|
-| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-13 | |
+| `pabrai-catalog-missing` | 07-mohnish-pabrai.md | BLOCKED (see Tier 1) | 2026-08-15 | |
 
