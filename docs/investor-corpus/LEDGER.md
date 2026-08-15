@@ -431,7 +431,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 | `yes-you-can-beat-the-market-with-value-stocks` | [Yes, You Can Beat the Market (with value stocks)](http://money.cnn.com/magazines/fortune/fortune_archive/1995/04/03/224106/index.htm) | BLOCKED (HTTP 503; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 | `aim-report-notes-from-the-editor-s-cuff` | [AIM Report — Notes from the Editor's Cuff](https://web.archive.org/web/20210127125840/https://www8.gsb.columbia.edu/sites/valueinvesting/files/files/AIM%20Report.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
 | `deep-value-master-walter-schloss-csinvesting-collection-post` | [Deep Value Master, Walter Schloss (csinvesting collection post)](http://csinvesting.org/2014/10/13/deep-value-master-walter-schloss/) | BLOCKED (HTTP 403; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
-| `walter-schloss-on-not-trying-to-be-warren-buffett` | [Walter Schloss on Not Trying to Be Warren Buffett](https://novelinvestor.com/walter-schloss-trying-warren-buffett/) | fetched | 2026-08-15 |  |
+| `walter-schloss-on-not-trying-to-be-warren-buffett` | [Walter Schloss on Not Trying to Be Warren Buffett](https://novelinvestor.com/walter-schloss-trying-warren-buffett/) | verified | 2026-08-15 |  |
 
 ### 7. Joel Greenblatt
 
