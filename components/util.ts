@@ -114,6 +114,20 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    // A dead session leaves its cookie behind: the proxy only checks cookie
+    // PRESENCE, so pages still render while every API call 401s — and pages
+    // that swallow fetch errors spin forever. Route the browser to sign-in
+    // instead. The admin console has its own gate and stays out of this.
+    if (
+      res.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/admin") &&
+      window.location.pathname !== "/signin"
+    ) {
+      window.location.assign("/signin");
+    }
+    throw new Error(data?.error || `Request failed (${res.status})`);
+  }
   return data;
 }
