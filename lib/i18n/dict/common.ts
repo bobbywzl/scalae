@@ -41,6 +41,7 @@ const en = {
   settings: "Settings",
   profile: "Profile",
   signOut: "Sign out",
+  signIn: "Sign in",
   notAdvice: "Educational research tool — not investment advice.",
 
   // Reading levels (signal health vocabulary, shared everywhere)
@@ -114,6 +115,7 @@ const zh: Record<keyof typeof en, string> = {
   settings: "设置",
   profile: "个人资料",
   signOut: "退出登录",
+  signIn: "登录",
   notAdvice: "教育性研究工具——不构成投资建议。",
 
   level_strong: "强劲",

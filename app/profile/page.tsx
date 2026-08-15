@@ -200,23 +200,38 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Account actions */}
-        {data?.authEnabled && user && (
+        {/* Account actions: sign out when signed in, sign in when the session
+            is gone (auth on, no valid user — e.g. an expired session). */}
+        {data?.authEnabled && (
           <section className="rounded-2xl bg-card border border-hairline px-5 py-4">
             <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold mb-3">
               {t("settings.sectionAccount")}
             </p>
-            <a
-              href="/api/auth/logout"
-              className="inline-flex items-center gap-2 rounded-xl border border-loss/30 bg-loss/8 px-3.5 py-2 text-xs font-semibold text-loss hover:bg-loss/15 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {t("common.signOut")}
-            </a>
-            <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("settings.signOutDesc")}</p>
+            {user ? (
+              <>
+                <a
+                  href="/api/auth/logout"
+                  className="inline-flex items-center gap-2 rounded-xl border border-loss/30 bg-loss/8 px-3.5 py-2 text-xs font-semibold text-loss hover:bg-loss/15 transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {t("common.signOut")}
+                </a>
+                <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("settings.signOutDesc")}</p>
+              </>
+            ) : (
+              <>
+                <a
+                  href="/signin"
+                  className="inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/8 px-3.5 py-2 text-xs font-semibold text-accent hover:bg-accent/15 transition-colors"
+                >
+                  {t("common.signIn")}
+                </a>
+                <p className="text-[0.6875rem] text-muted mt-2 leading-snug">{t("common.errSignIn")}</p>
+              </>
+            )}
           </section>
         )}
 

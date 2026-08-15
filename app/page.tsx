@@ -262,6 +262,11 @@ export default function WatchlistPage() {
                   {t("common.signOut")}
                 </a>
               )}
+              {me?.authEnabled && !me.user && (
+                <a href="/signin" className="text-[0.6875rem] font-semibold text-accent hover:underline">
+                  {t("common.signIn")}
+                </a>
+              )}
             </div>
             <div className="mt-2.5 flex items-center gap-3">
               {me?.authEnabled && me.user?.picture ? (
@@ -277,7 +282,8 @@ export default function WatchlistPage() {
                   {me?.user?.name || profile?.name || "Scalae"}
                 </p>
                 <p className="text-[0.6875rem] text-muted truncate">
-                  {me?.user?.email || t("watchlist.dashSingleUser")}
+                  {me?.user?.email ||
+                    (me?.authEnabled ? t("watchlist.dashSignedOut") : t("watchlist.dashSingleUser"))}
                 </p>
               </div>
             </div>
