@@ -431,6 +431,83 @@ ${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame 
     .map((q) => ({ question: q.question.trim(), why: (q.why ?? "").trim() }));
 }
 
+/**
+ * Re-frame PART of the question sheet during steering review: suggest
+ * additional questions beyond the ones the investor is keeping, or a
+ * replacement for one they discarded. Same doctrine and desk context as
+ * frameRunQuestions, plus a hard no-duplication contract against the kept
+ * sheet — the charter's no-overlap rule applied to the sheet itself.
+ */
+export async function reframeRunQuestions(
+  userId: string,
+  symbol: string,
+  opts: { keep: string[]; replacing?: string; count?: number }
+): Promise<FramedQuestion[]> {
+  const ticker = await getTicker(userId, symbol);
+  if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
+  const signals = await listSignals(userId, symbol, "active");
+  if (signals.length === 0) throw new Error("Approve at least one signal before running research.");
+  const triageModel = await resolveModel("triage");
+
+  const keep = opts.keep.map((q) => q.trim()).filter(Boolean).slice(0, 8);
+  const replacing = opts.replacing?.trim() ?? "";
+  const count = Math.max(1, Math.min(3, Math.floor(opts.count ?? 1)));
+
+  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock] = await Promise.all([
+    Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
+    listFocusAreas(userId, symbol),
+    investorGuidance(userId, symbol),
+    diligenceRecordBlock(userId, symbol),
+    contextBoardBlock(userId, symbol),
+  ]);
+
+  const keptBlock = keep.length
+    ? `QUESTIONS ALREADY ON TODAY'S SHEET (the investor is keeping these — do NOT duplicate, rephrase, or near-twin any of them; the no-overlap rule applies to the sheet):\n${keep.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+    : "QUESTIONS ALREADY ON TODAY'S SHEET: (none kept — the sheet is empty)";
+
+  const task = replacing
+    ? `TASK: The investor discarded this question from the sheet and asked for a different one in its place:\n"${replacing}"\nFrame exactly ${count} fresh question${count > 1 ? "s" : ""} per the question-framing doctrine — a genuinely different angle, not a rephrase of the discarded question, and distinct from every kept question above.`
+    : `TASK: Frame exactly ${count} ADDITIONAL question${count > 1 ? "s" : ""} per the question-framing doctrine — the most valuable open angle${count > 1 ? "s" : ""} the kept sheet leaves unaddressed, distinct from every kept question above.`;
+
+  const framed = await withDeadline("questions", (signal) =>
+    claudeJSON<QuestionsOutput>({
+      model: triageModel,
+      signal,
+      system: [
+        { text: DESK_DOCTRINE, cache: true },
+        { text: `${deskIdentity(symbol, ticker.name)}\n\n${QUESTION_METHOD}\n\n${RUN_QUESTIONS_DOCTRINE}` },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `DESK STATE (today: ${new Date().toDateString()}):
+
+ACTIVE SIGNAL BOARD (with previous readings):
+${boardLines.join("\n")}
+
+INVESTOR FOCUS AREAS:
+${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none recorded)"}
+
+RECENT INVESTOR GUIDANCE (newest last):
+${guidance || "(none)"}
+
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${keptBlock}
+
+${task}`,
+        },
+      ],
+      schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
+      maxTokens: 1500,
+      effort: "low",
+      meta: { userId, feature: "questions" },
+    })
+  );
+  return (framed.questions ?? [])
+    .filter((q) => q.question?.trim())
+    .slice(0, count)
+    .map((q) => ({ question: q.question.trim(), why: (q.why ?? "").trim() }));
+}
+
 // ---------------------------------------------------------------------------
 // The context board refresher — the background pass after every run.
 // ---------------------------------------------------------------------------

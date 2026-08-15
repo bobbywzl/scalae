@@ -300,6 +300,64 @@ export default function DeskPage() {
     }
   }, [steer, steerBusy, symbol, clearSteer, load, t]);
 
+  // Re-framing on the open sheet: swap one question for a fresh angle, or
+  // suggest an addition — both framed against the kept questions so the
+  // suggestor never duplicates what's already on the sheet.
+  const [steerRowBusy, setSteerRowBusy] = useState<number | null>(null);
+  const [steerSuggesting, setSteerSuggesting] = useState(false);
+  const steerFrameBusy = steerBusy || steerSuggesting || steerRowBusy !== null;
+
+  const regenSteerQuestion = useCallback(
+    async (idx: number) => {
+      if (!steer || steerFrameBusy) return;
+      setSteerRowBusy(idx);
+      setSteerError(null);
+      try {
+        const { questions } = await api<{ questions: { question: string; why: string }[] }>(
+          `/api/tickers/${encodeURIComponent(symbol)}/run`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              frame: true,
+              existing: steer.filter((_, j) => j !== idx).map((q) => q.question.trim()).filter(Boolean),
+              replacing: steer[idx]?.question.trim() || undefined,
+            }),
+          }
+        );
+        if (questions[0])
+          setSteer((s) => s?.map((x, j) => (j === idx ? questions[0] : x)) ?? s);
+      } catch (e) {
+        setSteerError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+      } finally {
+        setSteerRowBusy(null);
+      }
+    },
+    [steer, steerFrameBusy, symbol, t]
+  );
+
+  const suggestSteerQuestion = useCallback(async () => {
+    if (!steer || steerFrameBusy || steer.length >= 6) return;
+    setSteerSuggesting(true);
+    setSteerError(null);
+    try {
+      const { questions } = await api<{ questions: { question: string; why: string }[] }>(
+        `/api/tickers/${encodeURIComponent(symbol)}/run`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            frame: true,
+            existing: steer.map((q) => q.question.trim()).filter(Boolean),
+          }),
+        }
+      );
+      if (questions.length) setSteer((s) => (s ? [...s, ...questions] : s));
+    } catch (e) {
+      setSteerError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+    } finally {
+      setSteerSuggesting(false);
+    }
+  }, [steer, steerFrameBusy, symbol, t]);
+
   // Daily regeneration: when a set-up desk is opened and its research is stale,
   // run it — unless the global auto-research switch is off (the token lever).
   useEffect(() => {
@@ -927,6 +985,16 @@ export default function DeskPage() {
                       )}
                     </div>
                     <button
+                      onClick={() => regenSteerQuestion(i)}
+                      disabled={steerFrameBusy}
+                      title={t("desk.steerRegen")}
+                      className={`mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-accent disabled:opacity-40 transition-colors ${
+                        steerRowBusy === i ? "animate-pulse text-accent" : ""
+                      }`}
+                    >
+                      ↻
+                    </button>
+                    <button
                       onClick={() => setSteer((s) => s?.filter((_, j) => j !== i) ?? s)}
                       title={t("common.dismiss")}
                       className="mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors"
@@ -946,6 +1014,14 @@ export default function DeskPage() {
                 >
                   {t("desk.steerAdd")}
                 </button>
+                <button
+                  onClick={suggestSteerQuestion}
+                  disabled={steerFrameBusy || steer.length >= 6}
+                  title={steer.length >= 6 ? t("desk.steerSuggestCap") : undefined}
+                  className="rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 disabled:opacity-40 text-xs font-medium px-3 py-1.5 transition-colors"
+                >
+                  {steerSuggesting ? t("desk.steerSuggesting") : t("desk.steerSuggest")}
+                </button>
                 <span className="flex-1" />
                 <button
                   onClick={clearSteer}
@@ -956,7 +1032,7 @@ export default function DeskPage() {
                 </button>
                 <button
                   onClick={startSteered}
-                  disabled={steerBusy}
+                  disabled={steerFrameBusy}
                   className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
                 >
                   {steerBusy ? t("desk.steerStarting") : t("desk.steerStart")}

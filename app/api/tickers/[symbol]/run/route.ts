@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { cancelRunningRun, getTicker, listSignals, runningRun } from "@/lib/db";
-import { executeRun, frameRunQuestions, startRun } from "@/lib/agents/research";
+import { executeRun, frameRunQuestions, reframeRunQuestions, startRun } from "@/lib/agents/research";
 import { friendlyAIError } from "@/lib/ai/claude";
 import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
@@ -22,6 +22,11 @@ type Params = { params: Promise<{ symbol: string }> };
  *  - { frame: true }         → STEERING, step 1: run ONLY the question
  *                              suggestor and return its questions for the
  *                              investor to review/edit. No run starts.
+ *                              With existing: string[] (even empty), the
+ *                              suggestor instead frames ADDITIONS to that
+ *                              kept sheet — or, with replacing: string, a
+ *                              replacement for one discarded question —
+ *                              never duplicating what's kept.
  *  - { questions: string[] } → STEERING, step 2: start the run with exactly
  *                              the submitted questions (possibly none) —
  *                              stage 0's framing call is skipped.
@@ -39,7 +44,13 @@ export async function POST(req: Request, { params }: Params) {
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as { frame?: boolean; questions?: unknown };
+  const body = (await req.json().catch(() => ({}))) as {
+    frame?: boolean;
+    questions?: unknown;
+    existing?: unknown;
+    replacing?: unknown;
+    count?: unknown;
+  };
 
   if (body.frame === true) {
     if (await runningRun(user.id, symbol)) {
@@ -49,7 +60,19 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
     try {
-      const questions = await frameRunQuestions(user.id, symbol);
+      const questions = Array.isArray(body.existing)
+        ? await reframeRunQuestions(user.id, symbol, {
+            keep: body.existing
+              .filter((q): q is string => typeof q === "string" && q.trim().length > 0)
+              .map((q) => q.trim().slice(0, 300))
+              .slice(0, 8),
+            replacing:
+              typeof body.replacing === "string" && body.replacing.trim()
+                ? body.replacing.trim().slice(0, 300)
+                : undefined,
+            count: typeof body.count === "number" ? body.count : 1,
+          })
+        : await frameRunQuestions(user.id, symbol);
       return NextResponse.json({ questions });
     } catch (e) {
       console.error(`[scalae] question framing (${symbol}) failed:`, e instanceof Error ? e.message : e);
