@@ -377,7 +377,7 @@ More details here: https://curl.se/docs/sslcerts.htm; Wayback fallback also fail
 | `dinner-with-peter-lynch-and-sir-john-templeton` | [Dinner with Peter Lynch and Sir John Templeton](https://www.youtube.com/watch?v=QG-b2nqpB2A) | manual |  | video/audio — needs ASR or an official transcript |
 | `sir-john-templeton-official-biography-page` | [Sir John Templeton — official biography page](https://www.templeton.org/about/sir-john-templeton) | fetched | 2026-08-15 |  |
 | `views-values-vision-memorial-booklet` | ["Views, Values & Vision" memorial booklet](https://web.archive.org/web/20121018172456/http://www.sirjohntempleton.org/pdf/sir_john_booklet_web.pdf) | BLOCKED (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer; Wayback fallback also failed (fetch error: curl exit 35: curl: (35) Recv failure: Connection reset by peer)) | 2026-08-15 |  |
-| `john-templeton-wikiquote` | [John Templeton — Wikiquote](https://en.wikiquote.org/wiki/John_Templeton) | fetched | 2026-08-15 |  |
+| `john-templeton-wikiquote` | [John Templeton — Wikiquote](https://en.wikiquote.org/wiki/John_Templeton) | verified | 2026-08-15 |  |
 | `john-templeton-resource-page` | [John Templeton Resource Page](https://hedgefundalpha.com/john-templeton/) | fetched | 2026-08-15 |  |
 
 ### 3. Peter Lynch
