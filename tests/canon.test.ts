@@ -15,6 +15,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  CLEANSING_DOCTRINE,
   CORE_LENSES,
   LENSES,
   QUESTION_METHOD,
@@ -41,6 +42,12 @@ const ALL_ENTRIES: { kind: string; label: string; source: CanonSource }[] = [
 
 test("§3 test 1 — each doctrine string carries its canon section exactly when populated", () => {
   // Question suggestor surface (QUESTION_METHOD + RUN_QUESTIONS_DOCTRINE).
+  // Moderation suggest surface (CLEANSING_DOCTRINE's normalization shelf).
+  assert.equal(
+    CLEANSING_DOCTRINE.includes("THE CANON'S NORMALIZATION CONVENTIONS"),
+    CANON_METRICS.length > 0,
+    "CLEANSING_DOCTRINE canon section must appear iff canon metrics exist"
+  );
   assert.equal(
     QUESTION_METHOD.includes("9. The bench's question patterns"),
     CANON_QUESTIONS.length > 0,
