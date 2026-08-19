@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import {
   CLEANSING_DOCTRINE,
   CORE_LENSES,
+  DESK_DOCTRINE,
   LENSES,
   QUESTION_METHOD,
   RUN_QUESTIONS_DOCTRINE,
@@ -42,6 +43,15 @@ const ALL_ENTRIES: { kind: string; label: string; source: CanonSource }[] = [
 
 test("§3 test 1 — each doctrine string carries its canon section exactly when populated", () => {
   // Question suggestor surface (QUESTION_METHOD + RUN_QUESTIONS_DOCTRINE).
+  // Canon self-awareness (DESK_DOCTRINE names its inheritance so agents
+  // can describe their value-investor grounding instead of denying it).
+  const canonTotal =
+    CANON_QUESTIONS.length + CANON_CONCEPTS.length + CANON_DIRECTIVES.length + CANON_METRICS.length;
+  assert.equal(
+    DESK_DOCTRINE.includes("THE DESK'S INHERITED CANON"),
+    canonTotal > 0,
+    "DESK_DOCTRINE provenance section must appear iff the canon has entries"
+  );
   // Moderation suggest surface (CLEANSING_DOCTRINE's normalization shelf).
   assert.equal(
     CLEANSING_DOCTRINE.includes("THE CANON'S NORMALIZATION CONVENTIONS"),
