@@ -31,6 +31,7 @@ const en = {
   steerPlaceholder: "A concrete, answerable question for today's sweeps…",
   steerEmptyHint: "No questions — the run will sweep broadly without focus steering.",
   questionsTitle: "What this run set out to answer",
+  qaRecorded: "Recorded in:",
   questionsAnsweredNote:
     "The brief below reports what each question found — an honest “no evidence” included.",
   errRunning: "Research is already running on this ticker.",
@@ -188,6 +189,7 @@ const zh: Record<keyof typeof en, string> = {
   steerPlaceholder: "一个具体、可通过检索回答的问题……",
   steerEmptyHint: "没有问题——本次运行将进行广泛扫描，不设焦点问题。",
   questionsTitle: "本次运行要回答的问题",
+  qaRecorded: "已记录于：",
   questionsAnsweredNote: "下方晨报逐一汇报每个问题的发现——包括诚实的“未找到证据”。",
   errRunning: "该股票的研究正在进行中。",
 

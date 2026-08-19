@@ -1143,17 +1143,41 @@ export default function DeskPage() {
                 <p className="text-[0.625rem] uppercase tracking-wider text-muted font-semibold">
                   {t("desk.questionsTitle")}
                 </p>
-                <ol className="mt-1.5 space-y-1">
-                  {(latestRun.questions ?? []).map((q, i) => (
-                    <li key={i} className="flex gap-2 text-[0.8125rem] leading-relaxed text-emph">
-                      <span className="shrink-0 text-muted tabular-nums">Q{i + 1}</span>
-                      <span>
-                        <SigRefText text={q} active={desk.active} onOpen={setDetailId} />
-                      </span>
-                    </li>
-                  ))}
+                <ol className="mt-1.5 space-y-2.5">
+                  {(latestRun.questions ?? []).map((q, i) => {
+                    const qa = latestRun.questionAnswers?.[i];
+                    return (
+                      <li key={i} className="flex gap-2 text-[0.8125rem] leading-relaxed text-emph">
+                        <span className="shrink-0 text-muted tabular-nums">Q{i + 1}</span>
+                        <div className="min-w-0">
+                          <SigRefText text={q} active={desk.active} onOpen={setDetailId} />
+                          {qa?.answer && (
+                            <div className="mt-1 border-l-2 border-accent/30 pl-2.5">
+                              <div className="text-[0.8125rem] leading-relaxed text-foreground/90 [&_p]:m-0">
+                                <Markdown key={qa.answer}>
+                                  {linkCitations(qa.answer, latestRun.sources)}
+                                </Markdown>
+                              </div>
+                              {qa.incorporated && (
+                                <p className="mt-0.5 text-[0.6875rem] text-muted/80">
+                                  <span className="font-semibold text-muted">{t("desk.qaRecorded")} </span>
+                                  <SigRefText
+                                    text={qa.incorporated}
+                                    active={desk.active}
+                                    onOpen={setDetailId}
+                                  />
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
-                <p className="mt-2 text-[0.6875rem] text-muted/70">{t("desk.questionsAnsweredNote")}</p>
+                {(latestRun.questionAnswers ?? []).length === 0 && (
+                  <p className="mt-2 text-[0.6875rem] text-muted/70">{t("desk.questionsAnsweredNote")}</p>
+                )}
               </div>
             )}
             {latestRun?.brief ? (

@@ -271,7 +271,14 @@ function localizeFocusArea(f: FocusArea, tr: Translated): FocusArea {
 }
 
 export function runTexts(run: Run): (string | null | undefined)[] {
-  return [run.brief, run.dossier, run.stageDetail, run.error, ...(run.questions ?? [])];
+  return [
+    run.brief,
+    run.dossier,
+    run.stageDetail,
+    run.error,
+    ...(run.questions ?? []),
+    ...(run.questionAnswers ?? []).flatMap((a) => [a.answer, a.incorporated]),
+  ];
 }
 
 function applyRun(run: Run, tr: Translated): Run {
@@ -281,6 +288,10 @@ function applyRun(run: Run, tr: Translated): Run {
     dossier: run.dossier != null ? tr(run.dossier) : run.dossier,
     stageDetail: tr(run.stageDetail),
     questions: (run.questions ?? []).map((q) => tr(q)),
+    questionAnswers: (run.questionAnswers ?? []).map((a) => ({
+      answer: tr(a.answer),
+      incorporated: tr(a.incorporated),
+    })),
     error: run.error != null ? tr(run.error) : run.error,
   };
 }

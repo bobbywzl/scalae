@@ -1133,11 +1133,33 @@ const DIGEST_ITEM_SCHEMA = {
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["brief", "dossier", "readings", "digestItems", "proposals"],
+  required: ["brief", "dossier", "readings", "digestItems", "proposals", "questionAnswers"],
   properties: {
     brief: {
       type: "string",
       description: "Morning note in markdown, 120-250 words, addressed to the investor.",
+    },
+    questionAnswers: {
+      type: "array",
+      description:
+        "Exactly one entry per focus question, in the SAME ORDER as the questions block; empty array when the run had no focus questions.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["answer", "incorporated"],
+        properties: {
+          answer: {
+            type: "string",
+            description:
+              "Dense 1-3 sentence answer to the question from TODAY'S research: verdict first, the load-bearing numbers inline, citing [n] source indexes exactly like the brief. When today's research surfaced nothing, one honest 'No evidence surfaced today' line with what was checked — never manufactured movement.",
+          },
+          incorporated: {
+            type: "string",
+            description:
+              "One compact line naming where this answer's material now lives on the desk: signals whose readings it fed as bare keys (S2, S4 — the app chips them), evidence-feed items by their exact headline in double quotes, and 'dossier' / 'context board' when those moved. 'Not incorporated — no desk surface moved.' when nowhere.",
+          },
+        },
+      },
     },
     dossier: {
       type: "string",

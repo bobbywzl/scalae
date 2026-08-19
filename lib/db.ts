@@ -8,6 +8,7 @@ import type {
   Attachment,
   ChatMessage,
   Citation,
+  QuestionAnswer,
   DeskContext,
   DigestItem,
   DiligenceEvidence,
@@ -247,6 +248,7 @@ export const SCHEMA_STATEMENTS: string[] = [
   `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceClass" TEXT`,
   `ALTER TABLE digest_items ADD COLUMN IF NOT EXISTS "sourceNote" TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS questions TEXT`,
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "questionAnswers" TEXT`,
   // ---- single-signal checks: a run scoped to one signal (null = board run) ----
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "signalId" TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -909,9 +911,10 @@ export async function recentDigest(userId: string, symbol: string, limit = 24): 
 
 // ---------- runs ----------
 
-interface RunRow extends Omit<Run, "sources" | "questions"> {
+interface RunRow extends Omit<Run, "sources" | "questions" | "questionAnswers"> {
   sources: string;
   questions: string | null;
+  questionAnswers: string | null;
 }
 
 function parseRun(r: RunRow | undefined): Run | undefined {
@@ -928,7 +931,13 @@ function parseRun(r: RunRow | undefined): Run | undefined {
   } catch {
     /* legacy row */
   }
-  return { ...r, sources, questions };
+  let questionAnswers: QuestionAnswer[] = [];
+  try {
+    questionAnswers = JSON.parse(r.questionAnswers || "[]") as QuestionAnswer[];
+  } catch {
+    /* legacy row */
+  }
+  return { ...r, sources, questions, questionAnswers };
 }
 
 export async function createRun(
@@ -948,6 +957,7 @@ export async function createRun(
     dossier: null,
     sources: [],
     questions: [],
+    questionAnswers: [],
     error: null,
     signalId,
   };
@@ -982,12 +992,14 @@ export async function finishRun(
   id: string,
   brief: string,
   sources: Citation[] = [],
-  dossier: string | null = null
+  dossier: string | null = null,
+  questionAnswers: QuestionAnswer[] = []
 ): Promise<void> {
   // Only a still-running run may complete — if it was stopped by the user
   // mid-flight, the zombie must not resurrect it as 'done'.
   await q`UPDATE runs SET status = 'done', stage = 'done', "stageDetail" = 'Desk updated',
           brief = ${brief}, dossier = ${dossier}, sources = ${JSON.stringify(sources)},
+          "questionAnswers" = ${JSON.stringify(questionAnswers)},
           "finishedAt" = ${now()} WHERE id = ${id} AND status = 'running'`;
 }
 

@@ -150,6 +150,14 @@ export interface DigestItem {
   sourceNote: string | null;
 }
 
+/** One focus question's synthesis: the dense answer and where it landed. */
+export interface QuestionAnswer {
+  /** 1-3 sentence dense answer with inline [n] citations; honest when empty-handed. */
+  answer: string;
+  /** One compact line: the signals (bare S-keys), evidence-feed headlines, and desk surfaces the answer fed. */
+  incorporated: string;
+}
+
 export interface Run {
   id: string;
   symbol: string;
@@ -169,6 +177,13 @@ export interface Run {
    * gracefully degraded.
    */
   questions: string[];
+  /**
+   * Per-question synthesis, index-matched to `questions`: the dense answer
+   * each question got from today's research and where that answer's material
+   * was incorporated on the desk (signal readings, evidence-feed items, the
+   * dossier/context board). Empty on legacy runs.
+   */
+  questionAnswers: QuestionAnswer[];
   error: string | null;
   /**
    * Set when this run is a single-signal check (the per-signal "Run signal
