@@ -163,6 +163,41 @@ function identityKey(a: {
   }
 }
 
+/**
+ * Family matching against DISMISSED items — the mechanical arm of "dismissed
+ * stays dismissed". Instructions alone proved insufficient: a re-proposal
+ * arrives retitled or re-amounted and slips past exact-identity checks, so
+ * the suggest pass blocks anything that rhymes with a dismissed item —
+ * same cell with a similar amount, or same line with a similar title.
+ */
+const TITLE_STOPWORDS = new Set([
+  "the", "a", "an", "of", "in", "on", "at", "and", "or", "to", "for", "from",
+  "net", "other", "total", "item", "one", "time", "year", "fiscal", "income",
+  "expense", "charge", "adjustment", "related", "company",
+]);
+
+function titleTokens(title: string): Set<string> {
+  return new Set(
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .map((w) => (w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.endsWith("s") ? w.slice(0, -1) : w))
+      .filter((w) => w.length > 2 && !TITLE_STOPWORDS.has(w))
+  );
+}
+
+/** Token-overlap (Jaccard) similarity — 0.3+ reads as the same item reworded. */
+function titlesRhyme(a: string, b: string): boolean {
+  const ta = titleTokens(a);
+  const tb = titleTokens(b);
+  if (ta.size === 0 || tb.size === 0) return false;
+  let inter = 0;
+  for (const w of ta) if (tb.has(w)) inter++;
+  const union = ta.size + tb.size - inter;
+  return union > 0 && inter / union >= 0.3;
+}
+
 /** addRow cells in either wire shape → [year, value] entries. */
 function cellEntries(cells: AgentProposal["cells"]): [string, number | null][] {
   if (!cells) return [];
@@ -191,6 +226,12 @@ function validProposals(
   const out: ValidProposal[] = [];
   const live = existing.filter((a) => a.status !== "reverted"); // a reverted item may honestly be re-proposed
   const seen = new Set(live.map((a) => identityKey(a)));
+  // Dismissed delta families, for the autonomous suggest pass's hard gate.
+  // The investor's escape hatch is the analyst chat (allowBoardEdits=true) —
+  // an explicit ask can re-open a dismissed item; this pass never can.
+  const dismissedDeltas = allowBoardEdits
+    ? []
+    : existing.filter((a) => a.status === "dismissed" && (a.op ?? "delta") === "delta");
 
   // Legal targets: the reported grid plus rows/years already added on the
   // bench (pending or applied — a set against a pending addRow simply stays
@@ -243,6 +284,23 @@ function validProposals(
               a.metricKey === p.metricKey &&
               a.fiscalYear === p.fiscalYear &&
               Math.abs(a.delta - p.delta) <= Math.abs(p.delta) * 1e-6
+          )
+        ) {
+          continue;
+        }
+        // Dismissed family gate (suggest pass only): once the investor
+        // dismisses an item, re-proposals of the same family are discarded
+        // mechanically — the same cell with a similar amount (retitled), or
+        // the same line with a rhyming title (re-amounted, or another year
+        // of the same recurring item). Instructions alone did not stop this.
+        if (
+          dismissedDeltas.some(
+            (d) =>
+              (d.metricKey === p.metricKey &&
+                d.fiscalYear === p.fiscalYear &&
+                Math.sign(d.delta) === Math.sign(p.delta) &&
+                Math.abs(Math.abs(d.delta) - Math.abs(p.delta)) <= Math.abs(d.delta) * 0.25) ||
+              (d.metricKey === p.metricKey && titlesRhyme(d.title, p.title))
           )
         ) {
           continue;
@@ -471,8 +529,11 @@ export async function executeCleansingSuggest(
 THE REPORTED FINANCIALS (${fin.source}; the table the investor's cleansed view overlays):
 ${reportedTableText(fin)}
 
-EXISTING ADJUSTMENTS ON THIS BENCH (never duplicate; dismissed items stay dismissed absent materially new evidence):
-${adjustmentLines(existing, fin.currency)}
+EXISTING ADJUSTMENTS ON THIS BENCH (never duplicate):
+${adjustmentLines(existing.filter((a) => a.status !== "dismissed"), fin.currency)}
+
+DISMISSED BY THE INVESTOR — SETTLED LAW FOR THIS BENCH (each was reviewed and rejected; do NOT re-propose in ANY form — the same item retitled, re-amounted, or on another fiscal year all count as re-proposals and are discarded mechanically before they reach the investor. Re-opening a dismissed item is the investor's move through the analyst chat, never this pass's):
+${adjustmentLines(existing.filter((a) => a.status === "dismissed"), fin.currency)}
 
 DELTA ANOMALIES (deterministic scan of the reported table — line-years whose period-over-period move is far outside that line's own typical variation; the dedicated sweep investigated each):
 ${deltaAnomalyLines(anomalies, fin.currency)}
@@ -486,6 +547,8 @@ ${sourceList || "(none)"}
 ${boardBlock}
 
 TASK: Propose the company-specific moderations this record supports, per the bench laws — genuine one-offs and windfalls only, both directions, every delta traced to a disclosed amount, placed on the exact reported line and fiscal year it sits in (one proposal per affected line-year). RECONCILE each delta against the reported table above: a removal must not exceed the reported cell, the fiscal year must exist in the table, and the cell must not be null. Skip anything the sweeps could not pin to a disclosed amount. Work the DELTA ANOMALIES explicitly: for each flagged line-year, either propose the disclosed one-time or abnormal item(s) behind the move, or account for it in the pass note as genuine business performance that must stand — no flagged anomaly goes unaddressed, and a real move is never cleansed away. Then write the pass note (what you examined, each anomaly's verdict, what you found in each direction, what you deliberately did not propose and why).
+
+BREAK NEW GROUND: this pass exists to surface what the bench has never seen. Every proposal must be genuinely new against BOTH lists above — nothing that overlaps a live adjustment or rhymes with a dismissed one. When the record offers nothing new, return an EMPTY proposals array and say so in the pass note ("the record is fully moderated as it stands") — an honest empty pass is a first-class result; repeating known items is the only failure mode.
 
 LANGUAGE: Write every output field in English — the bench's stored form is canonical English; the app translates for display.`;
 
