@@ -42,6 +42,8 @@ const en = {
   profile: "Profile",
   signOut: "Sign out",
   signIn: "Sign in",
+  showPassword: "Show password",
+  hidePassword: "Hide password",
   notAdvice: "Educational research tool — not investment advice.",
 
   // Reading levels (signal health vocabulary, shared everywhere)
@@ -116,6 +118,8 @@ const zh: Record<keyof typeof en, string> = {
   profile: "个人资料",
   signOut: "退出登录",
   signIn: "登录",
+  showPassword: "显示密码",
+  hidePassword: "隐藏密码",
   notAdvice: "教育性研究工具——不构成投资建议。",
 
   level_strong: "强劲",

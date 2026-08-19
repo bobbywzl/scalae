@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/components/PrefsProvider";
 import { api } from "@/components/util";
+import PasswordInput from "@/components/PasswordInput";
 
 interface ProfilePayload {
   authEnabled: boolean;
@@ -42,12 +43,15 @@ export default function ProfilePage() {
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle");
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
   const [pwState, setPwState] = useState<"idle" | "saved" | "failed">("idle");
   const [pwError, setPwError] = useState("");
+  const pwMismatch = pwConfirm.length > 0 && pwNew !== pwConfirm;
+  const pwReady = pwNew.length >= 8 && pwNew === pwConfirm;
 
   async function savePassword() {
-    if (pwSaving || pwNew.length < 8) return;
+    if (pwSaving || !pwReady) return;
     setPwSaving(true);
     setPwState("idle");
     setPwError("");
@@ -59,6 +63,7 @@ export default function ProfilePage() {
       setPwState("saved");
       setPwCurrent("");
       setPwNew("");
+      setPwConfirm("");
       setData((d) => (d ? { ...d, hasPassword: true } : d));
     } catch (e) {
       setPwError(e instanceof Error ? e.message : "");
@@ -248,27 +253,38 @@ export default function ProfilePage() {
                   </p>
                   <div className="mt-2 space-y-2 max-w-xs">
                     {data.hasPassword && (
-                      <input
-                        type="password"
+                      <PasswordInput
                         value={pwCurrent}
-                        onChange={(e) => setPwCurrent(e.target.value)}
+                        onChange={setPwCurrent}
                         autoComplete="current-password"
                         placeholder={t("settings.pwCurrent")}
-                        className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                        showLabel={t("common.showPassword")}
+                        hideLabel={t("common.hidePassword")}
                       />
                     )}
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={pwNew}
-                      onChange={(e) => setPwNew(e.target.value)}
+                      onChange={setPwNew}
                       autoComplete="new-password"
                       placeholder={t("settings.pwNew")}
-                      className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                      showLabel={t("common.showPassword")}
+                      hideLabel={t("common.hidePassword")}
                     />
+                    <PasswordInput
+                      value={pwConfirm}
+                      onChange={setPwConfirm}
+                      autoComplete="new-password"
+                      placeholder={t("settings.pwConfirm")}
+                      showLabel={t("common.showPassword")}
+                      hideLabel={t("common.hidePassword")}
+                    />
+                    {pwMismatch && (
+                      <p className="text-[0.6875rem] text-loss">{t("settings.pwMismatch")}</p>
+                    )}
                     <div className="flex items-center gap-2">
                       <button
                         onClick={savePassword}
-                        disabled={pwSaving || pwNew.length < 8}
+                        disabled={pwSaving || !pwReady}
                         className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
                       >
                         {pwSaving ? t("common.saving") : t("settings.pwSave")}

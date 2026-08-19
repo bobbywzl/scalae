@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PasswordInput from "@/components/PasswordInput";
 import { cookies, headers } from "next/headers";
 import { authEnabled, googleEnabled } from "@/lib/auth";
 import { isLang, LANG_COOKIE, langFromAcceptLanguage } from "@/lib/i18n/config";
@@ -58,13 +59,14 @@ export default async function SignInPage({
                 placeholder={t("onboarding.signinEmail")}
                 className="w-full rounded-xl border border-hairline bg-card px-4 py-2.5 text-sm focus:outline-none focus:border-accent/50"
               />
-              <input
-                type="password"
+              <PasswordInput
                 name="password"
                 required
                 autoComplete="current-password"
                 placeholder={t("onboarding.signinPassword")}
-                className="w-full rounded-xl border border-hairline bg-card px-4 py-2.5 text-sm focus:outline-none focus:border-accent/50"
+                inputClassName="w-full rounded-xl border border-hairline bg-card px-4 py-2.5 text-sm focus:outline-none focus:border-accent/50"
+                showLabel={t("common.showPassword")}
+                hideLabel={t("common.hidePassword")}
               />
               <button
                 type="submit"
