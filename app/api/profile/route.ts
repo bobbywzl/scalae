@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authEnabled, requireUser } from "@/lib/auth";
-import { getSetting, setSetting } from "@/lib/db";
+import { getSetting, setSetting, userHasPassword } from "@/lib/db";
 import type { InvestorProfile } from "@/app/api/onboarding/route";
 
 /**
@@ -22,8 +22,10 @@ export async function GET() {
   const user = await requireUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const profile = parseProfile(await getSetting(user.id, "profile"));
+  const hasPassword = await userHasPassword(user.id).catch(() => false);
   return NextResponse.json({
     authEnabled: authEnabled(),
+    hasPassword,
     user: {
       id: user.id,
       email: user.email,

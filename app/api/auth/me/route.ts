@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { authEnabled, currentUser } from "@/lib/auth";
-import { getSetting, listTickers } from "@/lib/db";
+import { authEnabled, currentUser, googleEnabled } from "@/lib/auth";
+import { getSetting, listTickers, userHasPassword } from "@/lib/db";
 
 /**
  * Who am I — drives the header icons (avatar, sign-out), the settings profile
@@ -14,13 +14,16 @@ export async function GET() {
   // adopted single-user data) are never nagged. Best-effort: any DB hiccup
   // resolves to false so the dashboard still loads.
   let needsOnboarding = false;
+  let hasPassword = false;
   if (user) {
     try {
-      const [profile, tickers] = await Promise.all([
+      const [profile, tickers, pw] = await Promise.all([
         getSetting(user.id, "profile"),
         listTickers(user.id),
+        userHasPassword(user.id).catch(() => false),
       ]);
       needsOnboarding = !profile && tickers.length === 0;
+      hasPassword = pw;
     } catch {
       needsOnboarding = false;
     }
@@ -28,6 +31,8 @@ export async function GET() {
 
   return NextResponse.json({
     authEnabled: authEnabled(),
+    googleEnabled: googleEnabled(),
+    hasPassword,
     needsOnboarding,
     user: user
       ? { id: user.id, email: user.email, name: user.name, picture: user.picture, role: user.role, createdAt: user.createdAt }

@@ -13,11 +13,7 @@ const PUBLIC_PAGES = new Set(["/signin"]);
 const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/", "/api/health"];
 
 export function proxy(request: NextRequest) {
-  const authOn = !!(
-    process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET &&
-    process.env.SESSION_SECRET
-  );
+  const authOn = !!process.env.SESSION_SECRET;
   if (!authOn) return NextResponse.next();
 
   const { pathname } = request.nextUrl;

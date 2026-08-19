@@ -30,6 +30,15 @@ const en = {
   singleUserTitle: "Running in single-user mode.",
   singleUserDesc:
     "Everything on this deployment belongs to one local account. To turn Scalae into a multi-user app with Google sign-in, set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and SESSION_SECRET — the README walks through it.",
+  pwSetTitle: "Set a password",
+  pwSetDesc: "Add an email + password sign-in for this account — your current session vouches for you. Works alongside Google.",
+  pwChangeTitle: "Change password",
+  pwChangeDesc: "Enter your current password and the new one.",
+  pwCurrent: "Current password",
+  pwNew: "New password (at least 8 characters)",
+  pwSave: "Save password",
+  pwSaved: "Password saved — you can now sign in with email + password.",
+  pwFailed: "Could not save the password.",
   signOutDesc:
     "Your desks, signals, chat history and paper trades stay in your account — signing back in with the same Google address picks up where you left off.",
   sectionInvestor: "Investor profile",
@@ -74,6 +83,15 @@ const zh: Record<keyof typeof en, string> = {
   singleUserTitle: "正在以单用户模式运行。",
   singleUserDesc:
     "此部署上的所有数据都属于一个本地账户。要将 Scalae 变成支持 Google 登录的多用户应用，请设置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET 和 SESSION_SECRET——README 有完整说明。",
+  pwSetTitle: "设置密码",
+  pwSetDesc: "为此账户添加邮箱+密码登录——当前会话即身份凭证。与 Google 登录并存。",
+  pwChangeTitle: "修改密码",
+  pwChangeDesc: "输入当前密码和新密码。",
+  pwCurrent: "当前密码",
+  pwNew: "新密码（至少 8 个字符）",
+  pwSave: "保存密码",
+  pwSaved: "密码已保存——现在可以使用邮箱+密码登录。",
+  pwFailed: "密码保存失败。",
   signOutDesc:
     "您的研究台、信号、对话记录和模拟交易都会保留在账户中——用同一 Google 邮箱重新登录即可继续。",
   sectionInvestor: "投资者资料",

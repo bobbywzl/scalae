@@ -1,23 +1,37 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { createSession, deleteSession, getSessionUser, touchLastSeen, upsertUser } from "./db";
+import {
+  createSession,
+  deleteSession,
+  getSessionUser,
+  getUserAuthByEmail,
+  touchLastSeen,
+  upsertUser,
+} from "./db";
 import type { User } from "./types";
 
 /**
- * Google sign-in (hand-rolled OIDC authorization-code flow — no dependencies)
- * with database-backed sessions in an httpOnly cookie.
+ * Sign-in with database-backed sessions in an httpOnly cookie, via two
+ * methods: Google (hand-rolled OIDC authorization-code flow — no
+ * dependencies) and email + password (scrypt-hashed, stored on the user row).
  *
- * DUAL MODE: when GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / SESSION_SECRET are
- * not all configured, auth is OFF and the app runs exactly as before — a
- * single-user instance whose data belongs to the implicit 'local' user (an
- * admin). Deploys therefore never brick on missing credentials; configuring
- * them flips the app to B2C multi-user.
+ * DUAL MODE: when SESSION_SECRET is not configured, auth is OFF and the app
+ * runs as a single-user instance whose data belongs to the implicit 'local'
+ * user (an admin). Deploys therefore never brick on missing credentials.
+ * Google specifically also needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET —
+ * without them the Google button disappears and password sign-in stands
+ * alone.
  */
 
 export const SESSION_COOKIE = "scalae_session";
 export const STATE_COOKIE = "scalae_oauth_state";
 
 export function authEnabled(): boolean {
+  return !!process.env.SESSION_SECRET;
+}
+
+/** Whether the Google OIDC flow is configured (the button and its routes). */
+export function googleEnabled(): boolean {
   return !!(
     process.env.GOOGLE_CLIENT_ID &&
     process.env.GOOGLE_CLIENT_SECRET &&
@@ -139,6 +153,51 @@ export async function signIn(profile: { email: string; name: string; picture: st
   const user = await upsertUser(profile);
   const session = await createSession(user.id);
   return { user, session };
+}
+
+// ---------------------------------------------------------------------------
+// Password auth (scrypt, node:crypto only — no dependencies)
+// ---------------------------------------------------------------------------
+
+const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 64 };
+
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16);
+  const hash = scryptSync(password.normalize("NFKC"), salt, SCRYPT.keylen, SCRYPT);
+  return `scrypt:${SCRYPT.N}:${SCRYPT.r}:${SCRYPT.p}:${salt.toString("hex")}:${hash.toString("hex")}`;
+}
+
+export function verifyPassword(password: string, stored: string | null | undefined): boolean {
+  if (!stored) return false;
+  const [algo, N, r, p, saltHex, hashHex] = stored.split(":");
+  if (algo !== "scrypt" || !saltHex || !hashHex) return false;
+  try {
+    const expected = Buffer.from(hashHex, "hex");
+    const actual = scryptSync(password.normalize("NFKC"), Buffer.from(saltHex, "hex"), expected.length, {
+      N: Number(N),
+      r: Number(r),
+      p: Number(p),
+    });
+    return timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Email + password sign-in: verify against the stored hash, mint a session.
+ * Null on ANY failure — unknown email, no password set, wrong password —
+ * so the route can answer with one generic message (no user enumeration).
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string
+): Promise<{ user: User; session: { token: string; expiresAt: string } } | null> {
+  const auth = await getUserAuthByEmail(email);
+  if (!auth || !verifyPassword(password, auth.passwordHash)) return null;
+  touchLastSeen(auth.user.id).catch(() => {});
+  const session = await createSession(auth.user.id);
+  return { user: auth.user, session };
 }
 
 export async function signOut(token: string | undefined): Promise<void> {

@@ -7,6 +7,7 @@ import { api } from "@/components/util";
 
 interface ProfilePayload {
   authEnabled: boolean;
+  hasPassword?: boolean;
   user: {
     id: string;
     email: string;
@@ -39,6 +40,33 @@ export default function ProfilePage() {
   const [industries, setIndustries] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "failed">("idle");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwState, setPwState] = useState<"idle" | "saved" | "failed">("idle");
+  const [pwError, setPwError] = useState("");
+
+  async function savePassword() {
+    if (pwSaving || pwNew.length < 8) return;
+    setPwSaving(true);
+    setPwState("idle");
+    setPwError("");
+    try {
+      await api("/api/auth/set-password", {
+        method: "POST",
+        body: JSON.stringify({ password: pwNew, currentPassword: pwCurrent || undefined }),
+      });
+      setPwState("saved");
+      setPwCurrent("");
+      setPwNew("");
+      setData((d) => (d ? { ...d, hasPassword: true } : d));
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : "");
+      setPwState("failed");
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   useEffect(() => {
     api<ProfilePayload>("/api/profile")
@@ -209,6 +237,47 @@ export default function ProfilePage() {
             </p>
             {user ? (
               <>
+                {/* Password: set once (the live session vouches for you), then
+                    change with the current one. Works alongside Google. */}
+                <div className="mb-4">
+                  <p className="text-xs font-semibold">
+                    {data.hasPassword ? t("settings.pwChangeTitle") : t("settings.pwSetTitle")}
+                  </p>
+                  <p className="text-[0.6875rem] text-muted mt-0.5 leading-snug">
+                    {data.hasPassword ? t("settings.pwChangeDesc") : t("settings.pwSetDesc")}
+                  </p>
+                  <div className="mt-2 space-y-2 max-w-xs">
+                    {data.hasPassword && (
+                      <input
+                        type="password"
+                        value={pwCurrent}
+                        onChange={(e) => setPwCurrent(e.target.value)}
+                        autoComplete="current-password"
+                        placeholder={t("settings.pwCurrent")}
+                        className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                      />
+                    )}
+                    <input
+                      type="password"
+                      value={pwNew}
+                      onChange={(e) => setPwNew(e.target.value)}
+                      autoComplete="new-password"
+                      placeholder={t("settings.pwNew")}
+                      className="w-full rounded-lg border border-hairline bg-ink/4 px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={savePassword}
+                        disabled={pwSaving || pwNew.length < 8}
+                        className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                      >
+                        {pwSaving ? t("common.saving") : t("settings.pwSave")}
+                      </button>
+                      {pwState === "saved" && <span className="text-gain text-xs">{t("settings.pwSaved")}</span>}
+                      {pwState === "failed" && <span className="text-loss text-xs">{pwError || t("settings.pwFailed")}</span>}
+                    </div>
+                  </div>
+                </div>
                 <a
                   href="/api/auth/logout"
                   className="inline-flex items-center gap-2 rounded-xl border border-loss/30 bg-loss/8 px-3.5 py-2 text-xs font-semibold text-loss hover:bg-loss/15 transition-colors"

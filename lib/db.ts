@@ -87,6 +87,7 @@ export const SCHEMA_STATEMENTS: string[] = [
     "expiresAt" TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions("userId")`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS "passwordHash" TEXT`,
   `CREATE TABLE IF NOT EXISTS tickers (
     symbol TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -2097,6 +2098,28 @@ const TENANT_TABLES = [
  * any email in ADMIN_EMAILS — becomes an admin; admins adopt the pre-auth
  * single-user ('local') data on first sign-in so the owner keeps their desks.
  */
+/** Auth lookup for password sign-in: the user row plus its stored hash. */
+export async function getUserAuthByEmail(
+  email: string
+): Promise<{ user: User; passwordHash: string | null } | null> {
+  const rows = await q<User & { passwordHash: string | null }>`
+    SELECT * FROM users WHERE email = ${email.toLowerCase()}`;
+  const row = rows[0];
+  if (!row) return null;
+  const { passwordHash, ...user } = row;
+  return { user, passwordHash: passwordHash ?? null };
+}
+
+export async function setUserPassword(userId: string, hash: string): Promise<void> {
+  await q`UPDATE users SET "passwordHash" = ${hash} WHERE id = ${userId}`;
+}
+
+export async function userHasPassword(userId: string): Promise<boolean> {
+  const rows = await q<{ passwordHash: string | null }>`
+    SELECT "passwordHash" FROM users WHERE id = ${userId}`;
+  return !!rows[0]?.passwordHash;
+}
+
 export async function upsertUser(profile: {
   email: string;
   name: string;

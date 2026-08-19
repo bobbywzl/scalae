@@ -102,6 +102,11 @@ const en = {
   signinTagline:
     "A daily AI intelligence desk for value investors — signal boards, deep research runs, and a paper brokerage, weighed against the business every day.",
   signinGoogle: "Continue with Google",
+  signinEmail: "Email",
+  signinPassword: "Password",
+  signinWithPassword: "Sign in",
+  signinOr: "or",
+  signinErrBadCreds: "Invalid email or password.",
   signinSingleUserTitle: "Running in single-user mode.",
   signinSingleUserDesc:
     "Google sign-in isn’t configured — set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and SESSION_SECRET to turn this into a multi-user app.",
@@ -202,6 +207,11 @@ const zh: Record<keyof typeof en, string> = {
   signinTagline:
     "为价值投资者打造的每日 AI 情报研究台——信号板、深度研究运行与模拟券商，每天对照企业本身进行称量。",
   signinGoogle: "使用 Google 继续",
+  signinEmail: "邮箱",
+  signinPassword: "密码",
+  signinWithPassword: "登录",
+  signinOr: "或",
+  signinErrBadCreds: "邮箱或密码不正确。",
   signinSingleUserTitle: "正在以单用户模式运行。",
   signinSingleUserDesc:
     "Google 登录尚未配置——设置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET 和 SESSION_SECRET 即可将其变成多用户应用。",
