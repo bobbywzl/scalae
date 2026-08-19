@@ -12,6 +12,7 @@ import type {
   DiligenceSynthesis,
   FocusArea,
   Reading,
+  ResearchAccumulation,
   Run,
   SectionSuggestion,
   Signal,
@@ -270,6 +271,17 @@ function localizeFocusArea(f: FocusArea, tr: Translated): FocusArea {
   return { ...f, title: tr(f.title), description: tr(f.description) };
 }
 
+function localizeAccumulation(a: ResearchAccumulation, tr: Translated): ResearchAccumulation {
+  return {
+    ...a,
+    topic: tr(a.topic),
+    insight: tr(a.insight),
+    // Same source strings as the signals' names → same cached translations,
+    // so name-keyed chips keep matching after localization (digest pattern).
+    signalNames: a.signalNames.map((n) => tr(n)),
+  };
+}
+
 export function runTexts(run: Run): (string | null | undefined)[] {
   return [
     run.brief,
@@ -318,6 +330,7 @@ export async function localizeDeskPayload(
   for (const s of [...p.suggested, ...p.dismissed]) candidates.push(...signalTexts(s));
   for (const f of p.focusAreas) candidates.push(f.title, f.description);
   for (const d of p.digest) candidates.push(d.headline, d.summary, d.sourceNote, ...d.signalNames);
+  for (const a of p.accumulations) candidates.push(a.topic, a.insight, ...a.signalNames);
   if (p.latestRun) candidates.push(...runTexts(p.latestRun));
 
   const tr = await makeTranslator(candidates, lang, meta);
@@ -329,6 +342,7 @@ export async function localizeDeskPayload(
     suggested: p.suggested.map((s) => localizeSignal(s, tr)),
     dismissed: p.dismissed.map((s) => localizeSignal(s, tr)),
     digest: p.digest.map((d) => localizeDigestItem(d, tr)),
+    accumulations: p.accumulations.map((a) => localizeAccumulation(a, tr)),
     latestRun: p.latestRun ? applyRun(p.latestRun, tr) : p.latestRun,
   };
 }

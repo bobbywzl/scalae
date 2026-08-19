@@ -7,6 +7,7 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { DeskTabs } from "@/components/DeskTabs";
 import { DigestFeed } from "@/components/DigestFeed";
 import { Markdown } from "@/components/Markdown";
+import { Accumulations } from "@/components/Accumulations";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { ClipDialog } from "@/components/ClipDialog";
@@ -30,6 +31,7 @@ import type {
   Attachment,
   DeskPayload,
   DigestItem,
+  ResearchAccumulation,
   Run,
   Signal,
   SignalWithReadings,
@@ -67,7 +69,9 @@ export default function DeskPage() {
   // a viewing preference, not per-ticker state).
   const [boardLayout, setBoardLayoutState] = useState<"cards" | "list">("cards");
   // Undo window: retire/dismiss/swap get one low-friction second chance.
-  const [toast, setToast] = useState<{ msg: string; undo: () => void } | null>(null);
+  // Notices without a second chance (board review delivered, note removed)
+  // ride the same toast with undo = null.
+  const [toast, setToast] = useState<{ msg: string; undo: (() => void) | null } | null>(null);
   const [clipItem, setClipItem] = useState<DigestItem | null>(null);
   // Orphaned focus-area removal: two-step confirm, then the guarded DELETE.
   const [confirmAreaId, setConfirmAreaId] = useState<string | null>(null);
@@ -93,11 +97,12 @@ export default function DeskPage() {
     }
   }, []);
 
-  const showUndo = useCallback((msg: string, undo: () => void) => {
+  const showToast = useCallback((msg: string, undo: (() => void) | null = null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ msg, undo });
     toastTimer.current = setTimeout(() => setToast(null), 8000);
   }, []);
+  const showUndo = showToast;
 
   // Full-screen analyst desk: Esc exits, page scroll locks underneath.
   useEffect(() => {
@@ -472,6 +477,41 @@ export default function DeskPage() {
       load(); // restore on failure
     }
   }
+
+  // Drop one accumulated research note — the desk's own notes, low-stakes:
+  // confirm-free, optimistic, a toast confirms it left the record.
+  async function deleteAccumulation(a: ResearchAccumulation) {
+    setDesk((prev) =>
+      prev ? { ...prev, accumulations: prev.accumulations.filter((x) => x.id !== a.id) } : prev
+    );
+    try {
+      await api(`/api/accumulations/${a.id}`, { method: "DELETE" });
+      showToast(t("desk.toastAccumulationRemoved"));
+    } catch {
+      /* the reload below restores it */
+    }
+    load();
+  }
+
+  // Board review: the analyst audits whether the board watches the right
+  // things on a 10-year horizon. Long call (~1-2 min) — the button stays
+  // busy while the rest of the page keeps working; the review memo lands in
+  // the desk chat and any proposals surface through the existing queue.
+  const [reviewing, setReviewing] = useState(false);
+  const reviewBoard = useCallback(async () => {
+    if (reviewing || anyRunning) return;
+    setReviewing(true);
+    setChatError(null);
+    try {
+      await api(`/api/tickers/${encodeURIComponent(symbol)}/board-review`, { method: "POST" });
+      await load();
+      showToast(t("desk.toastBoardReviewed"));
+    } catch (e) {
+      setChatError(e instanceof Error ? localizeError(e.message, t) : t("common.errRunFailed"));
+    } finally {
+      setReviewing(false);
+    }
+  }, [reviewing, anyRunning, symbol, load, showToast, t]);
 
   // Pause: stop waiting locally AND cancel server-side — the in-flight turn's
   // reply is discarded and no desk action is taken.
@@ -1264,11 +1304,32 @@ export default function DeskPage() {
             </section>
           )}
 
+          {/* What the analyst has learned about this business, run over run —
+              hides itself until the desk has accumulated notes. Sits between
+              the standing dossier above and the signal board below. */}
+          <Accumulations
+            items={desk.accumulations ?? []}
+            signals={[...desk.active, ...desk.retired]}
+            onOpenSignal={(id) => setDetailId(id)}
+            onDelete={deleteAccumulation}
+          />
+
           <section>
             <div className="flex items-center gap-2 flex-wrap">
               <SectionTitle>{t("desk.signalBoard")}</SectionTitle>
               {desk.active.length > 0 && (
                 <div className="ml-auto flex items-center gap-1 text-[0.625rem]">
+                  <button
+                    onClick={reviewBoard}
+                    disabled={reviewing || anyRunning}
+                    title={anyRunning ? t("desk.signalCheckBusy") : t("desk.reviewBoardTitle")}
+                    className={`rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-2 py-0.5 font-medium text-accent transition-colors ${
+                      reviewing ? "pulse-soft" : ""
+                    }`}
+                  >
+                    {reviewing ? t("desk.reviewingBoard") : t("desk.reviewBoard")}
+                  </button>
+                  <span className="mx-1 h-3 w-px bg-hairline" aria-hidden />
                   {desk.active.length >= 4 && (
                     <>
                       <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
@@ -1632,19 +1693,21 @@ export default function DeskPage() {
         <ClipDialog symbol={symbol} item={clipItem} onClose={() => setClipItem(null)} />
       )}
 
-      {/* Undo window for retire / dismiss / swap */}
+      {/* Undo window for retire / dismiss / swap — plus undo-less notices */}
       {toast && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-ink/15 shadow-2xl shadow-black/60 px-4 py-2.5">
           <span className="text-xs text-emph">{toast.msg}</span>
-          <button
-            onClick={() => {
-              setToast(null);
-              toast.undo();
-            }}
-            className="rounded-lg bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-3 py-1 transition-colors"
-          >
-            {t("common.undo")}
-          </button>
+          {toast.undo && (
+            <button
+              onClick={() => {
+                setToast(null);
+                toast.undo?.();
+              }}
+              className="rounded-lg bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-3 py-1 transition-colors"
+            >
+              {t("common.undo")}
+            </button>
+          )}
           <button
             onClick={() => setToast(null)}
             aria-label={t("common.dismiss")}

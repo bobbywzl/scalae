@@ -64,6 +64,14 @@ const en = {
   dossierRevisedHeld: "Last revised {when} · held for {n} runs.",
   retiredSuffix: "{name} (retired)",
 
+  // Analyst research accumulations (the desk's run-over-run learning record)
+  accumulationsTitle: "Analyst research accumulations",
+  accumulationsExplainer:
+    "What the analyst has learned about this business, run over run — the most important new information from each research pass.",
+  accumulationEntries: "{n} entries",
+  accumulationRemoveTitle: "Remove this note from the desk's record",
+  toastAccumulationRemoved: "Research note removed",
+
   // Brief & evidence feed
   todaysBrief: "Today’s brief",
   briefPreparing: "The desk is preparing its first brief…",
@@ -75,6 +83,11 @@ const en = {
 
   // Signal board
   signalBoard: "Signal board",
+  reviewBoard: "✦ Review board",
+  reviewingBoard: "Reviewing…",
+  reviewBoardTitle:
+    "The analyst audits whether the board watches the right things on a 10-year horizon and proposes changes (takes a minute or two)",
+  toastBoardReviewed: "Board review delivered to the desk chat",
   viewLabel: "view:",
   layoutCards: "Cards",
   layoutList: "List",
@@ -217,6 +230,13 @@ const zh: Record<keyof typeof en, string> = {
   dossierRevisedHeld: "最近修订于 {when} · 已连续 {n} 次运行保持不变。",
   retiredSuffix: "{name}（已停用）",
 
+  accumulationsTitle: "分析师研究积累",
+  accumulationsExplainer:
+    "分析师对这家企业的逐次研究所得——每轮研究中最重要的新信息，逐次沉淀于此。",
+  accumulationEntries: "{n} 条",
+  accumulationRemoveTitle: "从研究台记录中删除这条笔记",
+  toastAccumulationRemoved: "研究笔记已删除",
+
   todaysBrief: "今日晨报",
   briefPreparing: "研究台正在准备首份晨报…",
   briefNone: "还没有晨报——请运行今日研究。",
@@ -226,6 +246,10 @@ const zh: Record<keyof typeof en, string> = {
   trackStoryUrl: "（{url}）",
 
   signalBoard: "信号板",
+  reviewBoard: "✦ 审视信号板",
+  reviewingBoard: "审视中……",
+  reviewBoardTitle: "分析师以十年视角审视信号板是否在关注正确的事项，并提出调整建议（约需一两分钟）",
+  toastBoardReviewed: "信号板审视报告已送达研究台对话",
   viewLabel: "视图：",
   layoutCards: "卡片",
   layoutList: "列表",

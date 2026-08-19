@@ -201,10 +201,13 @@ export function misjudgmentChecklistText(): string {
  * Section 9 of the question method: the canon's cited question forms.
  * Empty (and absent from the prompt) until canon entries land — the doctrine
  * string is byte-identical to its pre-canon form when the canon is empty.
+ * The shelf is a REPERTOIRE, actively studied: whoever frames questions reads
+ * the whole shelf and deliberately selects what this company's present
+ * situation summons — instantiated, never recited.
  */
 const CANON_QUESTION_SECTION = canonQuestionText()
   ? `
-9. The bench's question patterns — cited question forms from the investor canon (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, and the rest as their blocks land), each tagged with its ask-when trigger and its anchor. This is a reference shelf, not a checklist: an entry speaks only when THIS company's situation or the investor's question matches its ask-when — on most runs most of the shelf stays silent, and engaging none of it is a normal, healthy outcome. When one does apply, instantiate it — rewritten to the specific company, metric, event or period, never emitted verbatim. The canon proposes, the charter disposes: the two anchors, the certainty-gap master question and the no-overlap rule above govern unchanged.
+9. The bench's question patterns — cited question forms from the investor canon (Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, and the rest as their blocks land), each tagged with its ask-when trigger and its anchor. This shelf is the desk's inherited REPERTOIRE — the accumulated question craft of the canon investors — and it is studied, not skimmed: whenever you generate questions, read the ENTIRE shelf, then DELIBERATELY select the patterns whose ask-when matches THIS company's present situation or the investor's question, combining them with everything the company's own record has taught you. A healthy question pass typically engages a small number of patterns (on a research run, 1-3); engage zero only when, after actually studying the shelf, genuinely none fit today — never because the shelf went unread. Every selected pattern is INSTANTIATED — rewritten to the specific company, metric, event or period, never emitted verbatim. The canon proposes, the charter disposes: the two anchors, the certainty-gap master question and the no-overlap rule above govern unchanged.
 ${canonQuestionText()}`
   : "";
 
@@ -419,6 +422,26 @@ export const SYNTHESIS_DOCTRINE = `WEIGHING THE EVIDENCE (daily-synthesis doctri
 - Present disconfirming evidence prominently — lead the brief with what a bull would rather ignore when it exists. Bad news first, always; only the good news can wait.
 - Run Stein's law on every extrapolated trend: if it can't go on forever it will stop — growth above the market's arithmetic, margins above all history, credit outgrowing income. 'This time is different' language in management commentary is itself a candor datum, not evidence.
 - Carry-forward honesty: with no new evidence, keep the prior level, mark delta flat, cut confidence, and say so. Never manufacture movement to look busy — sit-on-your-ass research means "nothing material" is the expected, healthy daily outcome, and false precision is worse than honest roughness (better roughly right than precisely wrong).`;
+
+// ---------------------------------------------------------------------------
+// Analyst Research Accumulations — the desk's per-ticker accumulating record
+// of the most important NEW information each research run surfaced, on the
+// topics the analyst deems load-bearing for THIS company. Renders above the
+// signal board and builds up run over run into a growing body of analyst
+// knowledge; the investor can prune it. Emitted by the daily synthesis
+// (SYNTHESIS_SCHEMA.accumulations).
+// ---------------------------------------------------------------------------
+
+export const ACCUMULATIONS_DOCTRINE = `ANALYST RESEARCH ACCUMULATIONS (the desk's accumulating record — what THIS run genuinely added):
+Beside the readings and the digest, the desk keeps a per-ticker accumulating record of the most important NEW information each run surfaced, organized under the topics the analyst judges load-bearing for this company. It renders above the signal board and builds up run over run into a growing body of analyst knowledge — the desk's own notebook of what it has actually learned, distinct from the board's readings and the day's headlines.
+
+Rules:
+- 0-4 entries per run, and ONLY for genuinely NEW decision-relevant information this run surfaced. Never restate a board reading, a digest headline, or what a prior accumulation already says — the record accumulates, it does not echo. An empty array on a quiet run is healthy sit-on-your-ass honesty, and the expected output on most runs.
+- TOPIC is the analyst's own taxonomy of what matters for THIS company: a stable 2-5 word name for the thread the insight belongs to (e.g. "Distributor channel economics", "Founder succession bench", "Regulatory capital posture"). Topics are the record's spine, so keep them stable: when the provided list of prior topics already holds the thread this insight extends, REUSE THAT EXACT TOPIC STRING so the entry extends the topic rather than fragmenting it — coining a near-twin of an existing topic is the accumulation form of the duplicate-signal sin. Coin a new topic only for a genuinely new thread.
+- INSIGHT is 2-5 dense sentences of CONCLUSIONS: what the desk now knows or believes that it did not before, and why it matters to the 10-year owner question — never a topic label restated, never a news summary (the digest already carries the news; the accumulation carries what the news TAUGHT).
+- Anchor each entry, in its own prose, to the business model or the corporate culture — an accumulation that touches neither anchor does not belong on this desk, however interesting.
+- Evidence discipline unchanged: citationIndexes lists every numbered source the insight actually draws on, and signalNames lists the exact names of the board signals it bears on (empty when the insight is board-level — a thread no current signal watches).
+- English only — the stored record is canonical English, like every desk surface.`;
 
 // ---------------------------------------------------------------------------
 // Doctrine for signal deep-history backstories. Munger's vicarious-learning
@@ -967,24 +990,31 @@ export const QUICK_CHAT_SCHEMA = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// The question suggestor — the daily run's FIRST stage. Before any searching,
-// the desk decides what it must ANSWER today: the circle-of-competence
-// discipline made operational. The framed questions steer the scout sweeps,
-// the gap triage and the synthesis (FOUNDATION.md: research starts from the
-// investor's open questions, never from the news).
+// The question suggestor — the daily run's FIRST stage and its MOST IMPORTANT:
+// before any searching, the desk decides what it must ANSWER today, asking as
+// an investor with a true circle of competence in this company's specific
+// field would — the full desk state absorbed, the whole canon repertoire
+// studied. The framed questions steer the scout sweeps, the gap triage and
+// the synthesis (FOUNDATION.md: research starts from the investor's open
+// questions, never from the news).
 // ---------------------------------------------------------------------------
 
-export const RUN_QUESTIONS_DOCTRINE = `FRAMING TODAY'S QUESTIONS (the question suggestor — the run's first stage):
-Before any searching, decide what this desk must ANSWER today. Research that starts from questions compounds the investor's circle of competence; research that starts from "what's new" produces a news feed. Work from the certainty-gap master question — what is preventing ~90% certainty about the next ten years of cash flow and growth? — through the question-generation method above, against everything the desk already holds: the board and its previous readings, the due-diligence record (the investor's own evolving thesis), and the investor's recent guidance.
+export const RUN_QUESTIONS_DOCTRINE = `FRAMING TODAY'S QUESTIONS (the question suggestor — the run's first stage, and its most important):
+Everything downstream inherits its aim from this sheet — every sweep, probe, reading and brief is steered here or steered nowhere — so treat question-framing as the run's highest-leverage act. Ask as an investor with a TRUE circle of competence (Buffett's words) in this company's specific field: take the industry-expert stance — the veteran who has operated in this industry, allocated capital in it, and watched its winners and casualties — and frame the questions such an insider would actually need answered NEXT about this business. Not what a generalist checklist would ask; never what the news feed happens to offer.
 
-Rules:
-- 3-6 questions, each genuinely OPEN for this company today — never a question the record already answers, never generic checklist filler that would fit any ticker.
+ABSORB THE DESK BEFORE FRAMING. The desk state in your context is the company's full current picture — read ALL of it as one state before writing a single question: the signal board WITH its previous readings (what each instrument currently says, on what evidence, how confidently), the standing dossier (how the desk currently reads the earnings engine and the culture), the financial bench where provided (the reported numbers and the investor's cleansed view), the due-diligence record (the investor's own evolving thesis), the context board (what past runs already answered — never re-ask these unless new evidence reopened them), and the investor's guidance. Questions framed from a partial read of the desk are generic by construction; the whole point of the accumulated record is that today's questions begin where it ends.
+
+AIM AT THE CORE. Work from the certainty-gap master question — what is preventing ~90% certainty about the next ten years of cash flow and growth? — through the question-generation method above, and keep the sheet's center of mass on the aspects that decide the 10-year owner question: long-term sustainability, business-model health, customer growth prospects and potential, cash-flow health, moat trajectory, culture ingrainment, capital allocation. A question that would not move one of those is filler, however topical it feels today.
+
+Rules of the sheet:
+- 3-6 questions, each genuinely OPEN for this company today — never a question the record or the context board already answers, never generic checklist filler that would fit any ticker.
+- EVIDENCE RENEWAL AND GAP OPENING, in balance: design the sheet so roughly half its questions SERVE THE EXISTING SIGNALS — hunting the fresh evidence that would buff up, corroborate, refresh or refute each signal's current reading (set signalKeys; favor the signals whose evidence is oldest, thinnest, or resting on a single source) — and the other half OPENS THE BIGGEST REMAINING CERTAINTY GAPS the board does not yet watch (board-level, signalKeys empty). This is a design rule of the sheet, not a rigid quota: a board mid-event may tilt toward its signals, a young board toward its gaps — but a sheet that only feeds signals never expands the circle, and one that only roams never firms the instruments.
 - Invert first: at least one question must hunt evidence that would REFUTE the board's current read or catch a kill-path's earliest observable symptom. Steering-vs-denial questions (is management naming the threat and acting?) are first-rate here.
 - One-foot hurdles only: each question must be answerable from the open web THIS run — name the company, metric, event, actor or period. "Is the moat durable?" is not a question; "did the July price increase hold volume through the EU duty change?" is.
 - Tie each question to what it serves: signalKeys lists the board signals it feeds (empty for board-level questions); "why" says in one line which certainty gap, kill-path or record thread makes it TODAY'S question.
-- The investor's guidance and written record outrank the desk's own curiosity: a concern they raised and the desk hasn't closed comes first.${
+- The investor's guidance and written record OUTRANK the desk's own curiosity: a concern they raised and the desk hasn't closed comes first, always.${
   CANON_QUESTIONS.length
-    ? `\n- Canon patterns (the question method's section 9): engage them only when this company's present situation matches a pattern's ask-when — most runs need NONE, and a run with zero canon questions is healthy. Never more than 1-2, each INSTANTIATED to this company and a named certainty gap; a pattern is never emitted verbatim, and an instantiated canon question obeys every rule above (genuinely open, one-foot hurdle, anchored) exactly like any other.`
+    ? `\n- Canon patterns (the question method's section 9) are the inherited repertoire, ACTIVELY STUDIED: on every run, read the ENTIRE question-pattern shelf — the accumulated question craft of Graham/Dodd, Templeton, Lynch, Klarman, Li Lu, Schloss and Greenblatt — and DELIBERATELY select the patterns whose ask-when matches this company's present situation, combining what the shelf teaches with what the desk state just told you. A healthy sheet typically instantiates 1-3 canon patterns; land on zero only when, having actually studied the shelf, genuinely none fit today. Every selected pattern is INSTANTIATED to this company — named metric, event, actor or period — never emitted verbatim, and an instantiated canon question obeys every rule above (genuinely open, one-foot hurdle, tied to what it serves) exactly like any other. The canon proposes, the charter disposes.`
     : ""
 }`;
 
@@ -1156,7 +1186,7 @@ const DIGEST_ITEM_SCHEMA = {
 export const SYNTHESIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["brief", "dossier", "readings", "digestItems", "proposals", "questionAnswers"],
+  required: ["brief", "dossier", "readings", "digestItems", "proposals", "questionAnswers", "accumulations"],
   properties: {
     brief: {
       type: "string",
@@ -1201,6 +1231,38 @@ export const SYNTHESIS_SCHEMA = {
       type: "array",
       items: SIGNAL_PROPOSAL_SCHEMA,
     },
+    accumulations: {
+      type: "array",
+      description:
+        "0-4 Analyst Research Accumulation entries per the accumulations doctrine: ONLY genuinely new decision-relevant information this run surfaced (never board readings or digest headlines restated). Empty array on a quiet run — that is healthy honesty, and the expected output on most runs.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["topic", "insight", "citationIndexes", "signalNames"],
+        properties: {
+          topic: {
+            type: "string",
+            description:
+              'Stable 2-5 word topic in the analyst\'s own taxonomy of what matters for THIS company (e.g. "Distributor channel economics", "Founder succession bench"). When the prior-topics list already holds this thread, reuse that EXACT string so the entry extends the topic — never coin a near-twin.',
+          },
+          insight: {
+            type: "string",
+            description:
+              "2-5 dense sentences of conclusions: what the desk now knows or believes that it did not before, and why it matters to the 10-year owner question. Anchored to the business model or the culture. Never a topic label restated, never a news summary.",
+          },
+          citationIndexes: {
+            type: "array",
+            items: { type: "integer" },
+            description: "Indexes into the run's numbered source list backing this insight. Cite every source it draws on.",
+          },
+          signalNames: {
+            type: "array",
+            items: { type: "string" },
+            description: "Exact names of the board signals this insight bears on. Empty when board-level (no current signal watches the thread).",
+          },
+        },
+      },
+    },
   },
 } as const;
 
@@ -1235,6 +1297,75 @@ export const SIGNAL_CHECK_SCHEMA = {
       type: "array",
       items: DIGEST_ITEM_SCHEMA,
       description: "0-3 developments bearing on the checked signal only.",
+    },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// The board review — the signal analyst's 10-year audit, run on the
+// investor's ask. The circle-of-competence stance turned on the board
+// itself: not "what did the signals read today" but "are these the right
+// instruments at all" — is the desk watching the correct things for the
+// next ten years of cash flow and growth? Verdicts are advice; the human
+// gate is untouched.
+// ---------------------------------------------------------------------------
+
+export const BOARD_REVIEW_DOCTRINE = `THE BOARD REVIEW (the signal analyst's 10-year audit — investor-triggered):
+The investor asked the desk to step back from the readings and audit the instrument panel itself: are the CURRENT signals looking at the correct things on a ten-year horizon? Conduct the review as the investor with a TRUE circle of competence in this company's specific field — the industry-expert stance: the veteran who has operated in this industry, allocated capital in it, and watched its winners and casualties — judging whether this board would tell THAT person what they would actually need to know over the next decade.
+
+ABSORB BEFORE JUDGING. Read the full desk state as one picture before assessing anything: the board with each signal's thesis, measurement plan and reading history (what has each instrument actually produced?), the standing dossier, the financial bench where provided, the due-diligence record, the analyst research accumulations, and the investor's guidance. Then study the canon question shelf as the inherited repertoire — what would Graham's or Lynch's or Klarman's discipline ask OF A BOARD watching this company? — and let the patterns whose ask-when matches this company's situation sharpen the audit. The canon proposes, the charter disposes, here as everywhere.
+
+THE AUDIT, three parts:
+(a) PER-SIGNAL VERDICTS — for EVERY active signal, one assessment: is this signal watching a load-bearing thread of the 10-year cash-flow-and-growth question? Is its measurement plan aimed at the crux of that thread, or at an easy proxy beside it? Has its evidence stream proven decision-relevant — have its readings actually moved the desk's understanding, or has it produced noise or silence that taught nothing? Verdict enum: "keep" (watching the right thing, aimed right), "sharpen" (right thread, wrong aim — the measurement plan or scope needs re-cutting), "replace" (the thread matters but this formulation cannot carry it — a successor should supersede it), "retire" (the thread itself is no longer load-bearing, or the record has closed it). Reasoning: 1-3 sentences anchored to the certainty gaps (moat sufficiency, culture ingrainment, the kill question, price safety margin) — and for sharpen/replace, say WHAT the better formulation watches. Dormancy alone is never grounds for retirement — signals are designed for years of quiet (sit-on-your-ass); the test is whether the thread still bears load, not whether it moved lately.
+(b) BOARD-LEVEL GAPS — the aspects of long-term sustainability, business-model health, customer growth potential, cash-flow health and culture ingrainment that NO current signal watches, worked from the four certainty gaps in the filters' order. Name each gap plainly in the memo; a board can hold ten fine instruments and still miss the crux.
+(c) PROPOSALS — 0-4, via the standard proposal shape, each closing a named gap from (b) or superseding a signal judged replace in (a) (set "replaces" to that signal's exact name — approval swaps it in and retires the old one in the same gesture). The no-duplication law governs unchanged: check every proposal against the active board AND the pending proposals AND the dismissed/retired names provided in context; do not re-propose a rejected idea without materially new evidence, stated. Zero proposals is a first-class outcome — a board that passes its audit needs no additions, and proposing to look busy is the exact vice this desk refuses.
+
+VERDICTS ARE ADVICE. The human gate is untouched: nothing retires, nothing activates, nothing changes on any verdict until the investor acts on it. The review is a partner's counsel on the instrument panel, not a wrench in it.
+
+THE MEMO (the "review" field): 250-500 words in markdown, written like a partner's board memo — plain, concrete, no throat-clearing. Open with the overall judgment (is this board watching the right things for the next ten years, in one honest paragraph), then the verdicts that matter most (refer to signals by their quoted names; keeps in good standing can share one collective sentence), then the gaps, then what the proposals (if any) would change. No investment advice, no price targets, no buy/sell language.`;
+
+export const BOARD_REVIEW_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["review", "assessments", "proposals"],
+  properties: {
+    review: {
+      type: "string",
+      description:
+        "The board-review memo in markdown per the board-review doctrine: overall judgment first, then the verdicts that matter most (signals by quoted names), then the board-level gaps, then what any proposals would change. 250-500 words, a partner's memo — plain and concrete.",
+    },
+    assessments: {
+      type: "array",
+      description:
+        "Exactly one assessment per ACTIVE signal on the board — every signal gets its verdict; none skipped.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["signalName", "verdict", "reasoning"],
+        properties: {
+          signalName: {
+            type: "string",
+            description: "The signal's exact name as it appears on the board.",
+          },
+          verdict: {
+            type: "string",
+            enum: ["keep", "sharpen", "replace", "retire"],
+            description:
+              'The 10-year audit verdict: "keep" = watching a load-bearing thread, aimed right; "sharpen" = right thread, measurement plan needs re-cutting; "replace" = the thread matters but a successor formulation should supersede this one; "retire" = the thread is no longer load-bearing or the record has closed it. Advice only — the investor acts, or nothing changes.',
+          },
+          reasoning: {
+            type: "string",
+            description:
+              "1-3 sentences anchored to the certainty gaps: why this verdict, and for sharpen/replace, what the better formulation watches.",
+          },
+        },
+      },
+    },
+    proposals: {
+      type: "array",
+      items: SIGNAL_PROPOSAL_SCHEMA,
+      description:
+        '0-4 proposals closing named board-level gaps or superseding signals judged "replace" (set "replaces" to the superseded signal\'s exact name). Governed by the no-duplication law against active, pending, and dismissed/retired names. Empty when the board passes its audit.',
     },
   },
 } as const;

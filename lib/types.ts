@@ -821,6 +821,27 @@ export interface Annotation {
   createdAt: string;
 }
 
+/**
+ * One entry in the analyst's research-accumulations record: a durable,
+ * topic-keyed insight a run surfaced that matters for the 10-year owner
+ * question. Topics recur across runs (the synthesis reuses an existing topic
+ * string exactly when extending it), so the record reads as a handful of
+ * growing threads rather than a news feed.
+ */
+export interface ResearchAccumulation {
+  id: string;
+  symbol: string;
+  /** The run that surfaced it (null on rows created outside a run). */
+  runId: string | null;
+  topic: string;
+  insight: string;
+  /** Sources backing the insight, resolved from the run's numbered list. */
+  citations: Citation[];
+  /** Board signals the insight bears on (names, possibly empty). */
+  signalNames: string[];
+  createdAt: string;
+}
+
 /** Full payload for the ticker detail page. */
 export interface DeskPayload {
   ticker: Ticker;
@@ -839,6 +860,8 @@ export interface DeskPayload {
   /** How many consecutive runs (incl. latest) have held the dossier unchanged. */
   dossierHeldRuns: number;
   digest: DigestItem[];
+  /** The analyst's research-accumulations record, newest first. */
+  accumulations: ResearchAccumulation[];
   /** Ticker-level desk chat only (signal-scoped chats load per signal). */
   messages: ChatMessage[];
   /** The investor's involvement in this name, if any trades exist. */

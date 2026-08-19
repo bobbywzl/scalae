@@ -285,16 +285,58 @@ through accept/dismiss review, and never edits what the investor wrote.
 ## Self-reinforcing discovery
 
 The desk is not a static dashboard. Each daily run **opens with a question-framing
-stage**: before any searching, the desk asks what it must answer today — worked from
-the certainty-gap master question and the question-generation method over the board,
-the due-diligence record and the investor's guidance — and those questions steer the
-day's sweeps, probes and synthesis. Research starts from the investor's open
-questions, never from the news; that is the circle of competence run as a loop.
+stage** — the most important stage of the run, treated fully in the next section:
+before any searching, the desk asks what it must answer today, as an investor with
+a true circle of competence in this company's field would — the whole desk state
+absorbed, the whole canon repertoire studied, the questions worked from the
+certainty-gap master question — and those questions steer the day's sweeps, probes
+and synthesis. Research starts from the investor's open questions, never from the
+news; that is the circle of competence run as a loop.
 
 Each daily run may also surface a small number of new candidate signals discovered
 in the evidence — threads the current board misses that better illuminate the
 business model or culture. This loop is what makes the desk smarter every day; the
 two anchors and the no-duplication rule are what keep it from sprawling.
+
+## The question suggestor and the analyst's accumulating record
+
+**The question suggestor is the most important stage of every research run.** It
+imitates an investor with a true circle of competence — Buffett's words — in this
+company's specific field: the veteran who has operated in this industry, allocated
+capital in it, and watched its winners and casualties. Before framing a single
+question it absorbs the company's full current state — the board and its readings,
+the standing dossier, the financial bench, the due-diligence record, the context
+board, the investor's guidance — and studies the **entire** question-pattern shelf
+of the investor canon as its inherited repertoire, deliberately selecting the
+patterns whose ask-when matches this company's present situation and instantiating
+them to the specific company, metric, event or period (the canon proposes, the
+charter disposes, never verbatim). The questions it frames hit at the core of the
+10-year owner question: long-term sustainability, business-model health, customer
+growth prospects and potential, cash-flow health, moat trajectory, culture
+ingrainment, capital allocation.
+
+- **Evidence renewal is half of every run.** By design, roughly half of each
+  sheet's questions serve the existing signals — hunting fresh evidence that would
+  buff up, corroborate, refresh or refute each signal's current reading, so the
+  board's evidence stays alive instead of aging in place — and the other half
+  opens the biggest remaining certainty gaps no signal yet watches. A design rule
+  of the sheet, not a rigid quota.
+- **Analyst Research Accumulations.** Above the signal board sits the analyst's
+  accumulating record: per run, the 0-4 most important genuinely *new* pieces of
+  decision-relevant information the research surfaced, each under a stable topic
+  of the analyst's own taxonomy for this company, with conclusions (not news
+  summaries), citations, and the signals it bears on. It builds up run over run
+  into a growing body of analyst knowledge — existing topics are extended, never
+  near-twinned — and the investor can prune it at any time. An empty run is
+  healthy sit-on-your-ass honesty.
+- **The board review.** On the investor's ask, the desk audits the instrument
+  panel itself on the 10-year horizon: the same circle-of-competence stance,
+  absorbing the full desk state and the canon, then judging per signal whether it
+  watches a load-bearing thread of the ten-year cash-flow-and-growth question
+  (keep / sharpen / replace / retire), naming the board-level gaps no signal
+  covers, and proposing at most a few replacements or additions under the
+  no-duplication law. Every verdict is advice: nothing retires or activates until
+  the investor acts — the human gate is untouched.
 
 ## Evidence discipline
 

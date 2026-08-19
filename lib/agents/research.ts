@@ -7,6 +7,7 @@ import { cleansingBenchContext } from "./context";
 import { withDomain } from "../citations";
 import { citationOverlap } from "../compare";
 import {
+  ACCUMULATIONS_DOCTRINE,
   CONTEXT_BOARD_DOCTRINE,
   CONTEXT_BOARD_SCHEMA,
   DESK_DOCTRINE,
@@ -31,10 +32,12 @@ import {
   getDiligenceSynthesis,
   getSignal,
   getTicker,
+  insertAccumulation,
   insertDigestItem,
   insertProposal,
   insertReading,
   latestDoneRun,
+  listAccumulationTopics,
   listDiligenceEvidence,
   listDiligenceResearch,
   listFocusAreas,
@@ -81,6 +84,17 @@ interface SynthesisOutput {
     sourceNote: string;
   }[];
   proposals: SignalProposal[];
+  /**
+   * 0-4 durable additions to the analyst's research-accumulations record —
+   * genuinely NEW information on topics that matter for the 10-year owner
+   * question (see ACCUMULATIONS_DOCTRINE). Empty on a quiet run.
+   */
+  accumulations?: {
+    topic: string;
+    insight: string;
+    citationIndexes: number[];
+    signalNames: string[];
+  }[];
 }
 
 interface GapOutput {
@@ -365,6 +379,37 @@ async function contextBoardBlock(userId: string, symbol: string): Promise<string
     : "";
 }
 
+/**
+ * The company's FULL current state for the question suggestor, as the framing
+ * doctrine now commands: the standing dossier from the latest COMPLETED run
+ * (the business as the desk currently reads it) and the financial bench block
+ * (the reported numbers + the investor's cleansed view). ONE helper feeds
+ * frameRunQuestions, reframeRunQuestions AND executeRun's inline stage-0
+ * framing, so the three call sites can never drift apart. Both blocks are
+ * best-effort and shaped like contextBoardBlock (label + content + trailing
+ * newline, "" when absent) so call sites splice them identically.
+ */
+async function standingStateBlocks(
+  userId: string,
+  symbol: string
+): Promise<{ dossierBlock: string; benchBlock: string }> {
+  const [lastDone, bench] = await Promise.all([
+    latestDoneRun(userId, symbol).catch(() => undefined),
+    cleansingBenchContext(userId, symbol).catch(() => ""),
+  ]);
+  const dossier = lastDone?.dossier?.trim() ?? "";
+  return {
+    dossierBlock: dossier
+      ? `THE DESK'S STANDING DOSSIER (the business as the desk currently reads it):\n${dossier}\n`
+      : "",
+    // Same label the run synthesis already uses for this block, so the
+    // suggestor and the synthesis speak about the bench in the same terms.
+    benchBlock: bench.trim()
+      ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (how the investor reads this record — readings that touch the financial record must speak to the same numbers):\n${bench.trim()}\n`
+      : "",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // The question suggestor, callable on its own — the steerable first stage.
 // ---------------------------------------------------------------------------
@@ -387,13 +432,15 @@ export async function frameRunQuestions(userId: string, symbol: string): Promise
   if (signals.length === 0) throw new Error("Approve at least one signal before running research.");
   const triageModel = await resolveModel("triage");
 
-  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock] = await Promise.all([
-    Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
-    listFocusAreas(userId, symbol),
-    investorGuidance(userId, symbol),
-    diligenceRecordBlock(userId, symbol),
-    contextBoardBlock(userId, symbol),
-  ]);
+  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock, { dossierBlock, benchBlock }] =
+    await Promise.all([
+      Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
+      listFocusAreas(userId, symbol),
+      investorGuidance(userId, symbol),
+      diligenceRecordBlock(userId, symbol),
+      contextBoardBlock(userId, symbol),
+      standingStateBlocks(userId, symbol),
+    ]);
 
   const framed = await withDeadline("questions", (signal) =>
     claudeJSON<QuestionsOutput>({
@@ -417,7 +464,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens. The investor will review and may edit them before the run starts.`,
+${dossierBlock ? `${dossierBlock}\n` : ""}${benchBlock ? `${benchBlock}\n` : ""}${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens. The investor will review and may edit them before the run starts.`,
         },
       ],
       schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
@@ -454,13 +501,15 @@ export async function reframeRunQuestions(
   const replacing = opts.replacing?.trim() ?? "";
   const count = Math.max(1, Math.min(3, Math.floor(opts.count ?? 1)));
 
-  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock] = await Promise.all([
-    Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
-    listFocusAreas(userId, symbol),
-    investorGuidance(userId, symbol),
-    diligenceRecordBlock(userId, symbol),
-    contextBoardBlock(userId, symbol),
-  ]);
+  const [boardLines, focusAreas, guidance, ddBlock, ctxBlock, { dossierBlock, benchBlock }] =
+    await Promise.all([
+      Promise.all(signals.map((s, i) => signalBoardLine(`S${i + 1}`, s))),
+      listFocusAreas(userId, symbol),
+      investorGuidance(userId, symbol),
+      diligenceRecordBlock(userId, symbol),
+      contextBoardBlock(userId, symbol),
+      standingStateBlocks(userId, symbol),
+    ]);
 
   const keptBlock = keep.length
     ? `QUESTIONS ALREADY ON TODAY'S SHEET (the investor is keeping these — do NOT duplicate, rephrase, or near-twin any of them; the no-overlap rule applies to the sheet):\n${keep.map((q, i) => `${i + 1}. ${q}`).join("\n")}`
@@ -492,7 +541,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${keptBlock}
+${dossierBlock ? `${dossierBlock}\n` : ""}${benchBlock ? `${benchBlock}\n` : ""}${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${keptBlock}
 
 ${task}`,
         },
@@ -677,11 +726,14 @@ export async function executeRun(
     const ddBlock = await diligenceRecordBlock(userId, symbol);
     // What past runs answered and established — read BEFORE this run works.
     const ctxBlock = await contextBoardBlock(userId, symbol);
-    // The reported numbers and the investor's cleansed view (FOUNDATION: "one
-    // desk, fully connected" — the chat, compare and diligence surfaces already
-    // carry this; the run that writes the readings must see the same numbers).
+    // The standing dossier and the financial bench (FOUNDATION: "one desk,
+    // fully connected" — the chat, compare and diligence surfaces already
+    // carry these; the suggestor framing today's questions and the run that
+    // writes the readings must see the same company state and numbers).
     // Cache-only and position-free: readings stay unbiased by the ledger.
-    const benchBlock = await cleansingBenchContext(userId, symbol).catch(() => "");
+    // Shared helper with frameRunQuestions/reframeRunQuestions so the three
+    // framing call sites stay in sync.
+    const { dossierBlock, benchBlock } = await standingStateBlocks(userId, symbol);
 
     // ---- Stage 0: today's focus questions ----
     // The circle-of-competence discipline made operational (FOUNDATION.md):
@@ -735,7 +787,7 @@ ${focusAreas.map((f) => `- ${f.title}: ${f.description}`).join("\n") || "(none r
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
+${dossierBlock ? `${dossierBlock}\n` : ""}${benchBlock ? `${benchBlock}\n` : ""}${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame today's focus questions per the question-framing doctrine — the 3-6 open questions this run must try to answer, decided BEFORE any searching happens.`,
               },
             ],
             schema: RUN_QUESTIONS_SCHEMA as unknown as Record<string, unknown>,
@@ -928,6 +980,20 @@ ${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Frame 
     const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
     const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
 
+    // The analyst's existing accumulation topics — synthesis context ONLY
+    // (scouts never see them; searching must stay steered by the questions,
+    // not by what the record already says). Lets the analyst extend a
+    // standing thread (reusing its topic string exactly) instead of minting
+    // a near-duplicate topic per run. Best-effort.
+    const accumTopics = await listAccumulationTopics(userId, symbol).catch(
+      () => [] as { topic: string; insight: string }[]
+    );
+    const accumTopicsBlock = accumTopics.length
+      ? accumTopics
+          .map((t) => `- "${t.topic}" — latest: ${t.insight.length > 220 ? `${t.insight.slice(0, 219)}…` : t.insight}`)
+          .join("\n")
+      : "(none yet)";
+
     // Coverage honesty (FOUNDATION: missing evidence is said plainly): the
     // sweep window is capped at 14 days, so a desk idle longer than that has
     // an unswept stretch the brief must own instead of papering over.
@@ -947,7 +1013,10 @@ ${questionsBlock}
 RECENT INVESTOR GUIDANCE (newest last):
 ${guidance || "(none)"}
 
-${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${benchBlock ? `THE REPORTED NUMBERS AND THE INVESTOR'S CLEANSED VIEW (how the investor reads this record — readings that touch the financial record must speak to the same numbers):\n${benchBlock}\n\n` : ""}FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
+${ctxBlock ? `${ctxBlock}\n` : ""}${ddBlock ? `${ddBlock}\n\n` : ""}${benchBlock ? `${benchBlock}\n` : ""}THE ANALYST'S EXISTING ACCUMULATION TOPICS (the standing research-accumulations record — one line per topic with its latest insight; extend these threads by reusing a topic string EXACTLY when today's run adds to it):
+${accumTopicsBlock}
+
+FIELD RESEARCH (grounded web sweeps from the scout desk — wave 1 is breadth, wave 2 is deep dives the desk commissioned after triage; numbered sources listed at the end):
 ${researchBlock}
 
 NUMBERED SOURCES:
@@ -957,12 +1026,14 @@ TASK — produce today's desk output:
 1. readings: exactly one per active signal above — ${keyed.length} readings total; "signalKey" must be the signal's bracketed key ("S1", "S2", …). Base readings only on the field research plus the previous-reading context. First decide "newEvidence": did today's research add ANYTHING for this signal that the previous reading didn't already say?
    - newEvidence=false (pure carry-forward): rationale must be ONE short sentence — "No new information this run." optionally plus a brief note of what was checked (max ~140 chars total). Do NOT re-narrate the prior story, figures, or history — the board already shows them. Keep the previous level and value, delta "flat", and confidence at or slightly below the previous reading's.
    - newEvidence=true: the rationale must LEAD with what is new versus the previous reading (the delta), then its implication — never restate the whole running story. Where the board shows a "History base rate" for the signal, judge today's evidence against it: is this move normal variation for this aspect, a rhyme with a named past episode, or a genuine break from decades of record? Say which when it changes the reading.
+   EVIDENCE RENEWAL: when a focus-question answer or a sweep finding bears on a signal, carry its substance INTO that signal's reading — corroborating or refreshing evidence for the existing level IS new evidence (newEvidence=true with the fresh facts and their citations in the rationale, even when the level does not move). The reading's rationale should absorb the relevant answer's numbers and facts nearly verbatim rather than paraphrasing them away — the reading is where that evidence lives on the board. Signals nothing touched keep the carry-forward discipline above unchanged.
    For quantitative signals set "value" only when a number is directly evidenced in the research; otherwise value=null and rely on level. confidence is 0..1. citationIndexes must list EVERY numbered source the reading actually draws on — this is the desk's evidence map from signal to sources, so cite precisely: no supporting source omitted, no decorative citations added. Never write bracketed [n] references inside rationale text — cite only via citationIndexes (the app renders them as linked chips).
 2. digestItems: the 4-8 most decision-relevant developments for this desk (deduplicate; skip stock-price noise). sourceIndex points into the numbered sources (or null). Weigh each item's source per the evidence doctrine: sourceClass classes the cited source (primary = the company's or a regulator's own document/statement; trade = specialist/industry press or data provider with original reporting; narrative = general-media or aggregator retelling), and sourceNote is the desk's one-line source recommendation — why this source is, or is not, the one worth opening for this item, naming the better primary source when the citation is only a retelling. When sourceIndex is null: sourceClass "narrative", sourceNote "".
 3. brief: a 120-250 word morning note in markdown addressed to the investor: what changed, what to watch next, and any disconfirming evidence a bull would rather ignore. Where today's evidence moved a focus question, say so; focus questions that found no evidence get one honest collective line, never manufactured movement. Cite evidence inline with bracketed source indexes like [12] or [3][17] pointing into the NUMBERED SOURCES — the app renders each as a clickable link, so only use indexes that exist. Refer to signals by their names in quotes, never by bracketed keys like [S3] (those keys are internal). Signals with no new evidence get at most one collective sentence ("No new information on X, Y, Z") — never per-signal re-narration.
 3b. questionAnswers: exactly one entry per TODAY'S FOCUS QUESTION, in the same order (empty array when the run has no focus questions). Each "answer" is the question's dense summary verdict from TODAY'S research — 1-3 sentences, key numbers inline, citing [n] source indexes exactly like the brief; when nothing surfaced, one honest "No evidence surfaced today" line naming what was checked, never manufactured movement. Each "incorporated" is one compact line naming where that answer's material now lives on the desk: the signals whose readings it fed as bare keys (e.g. "S2, S4" — the app renders them as chips), the evidence-feed items that carry it by their exact headline in double quotes, and "dossier" or "context board" when those surfaces moved; write "Not incorporated — no desk surface moved." when nowhere. The brief may then reference questions briefly rather than re-answering them.
 3c. dossier: the STANDING view of the business, 150-300 words in markdown — not today's news. Paragraph 1: how this company makes money right now (segments, the earnings engine, moat trajectory) as evidenced by the board's current readings. Paragraph 2: the culture/trust verdict. Update only what today's evidence moved; keep the rest stable so the investor sees a consistent thesis evolving, not a rewrite. Cite [n] source indexes on every load-bearing claim, and when a claim reads off a board signal, add that signal's key in double braces right after it — e.g. "the toll booth is repricing {{S1}} [4]" — so the investor can jump from claim to signal. Refer to signals by name in the prose (the {{Sk}} markers render as links, never as raw keys).
 4. proposals: 0-3 NEW signals only if the research surfaced a trackable thread the current board misses, OR an upgrade to an existing signal (this is the desk's self-reinforcing discovery loop — the goal is the best possible signal set). Propose as the industry expert of the circle-of-competence loop: where the investor's due-diligence record (above, when present) leaves a load-bearing business-model or culture thread unexamined and unwatched, or where a signal's long-run trend would strengthen or test a section's written analysis, prefer THAT proposal and name the gap or section in its thesis. Each proposal must anchor to the business model or corporate culture, and must NOT overlap significantly in what it measures with the active board above, the pending proposals (${pendingNames.join(", ") || "none"}), or previously rejected/retired signals (${rejectedNames.join(", ") || "none"} — do not re-propose these without materially new evidence, stated in the thesis). When today's evidence shows an active signal is aimed wrong, too narrow, or a more comprehensive formulation would sit closer to the crux of the business, propose the sharper signal with "replaces" set to that active signal's exact bracketed name — approval swaps it in and retires the old one. Purely additive proposals set replaces to "". Return an empty array when nothing genuinely new emerged.
+5. accumulations: 0-4 entries per the accumulations doctrine — the most important genuinely NEW information this run surfaced on topics that matter for the 10-year owner question. When today's insight extends one of THE ANALYST'S EXISTING ACCUMULATION TOPICS above, reuse that topic string EXACTLY (the record accretes threads, not near-duplicate headlines); open a new topic only for a genuinely new thread. citationIndexes point into the NUMBERED SOURCES; signalNames lists the board signals the insight bears on (exact names, possibly empty). A quiet run returns an empty array — never manufacture an accumulation.
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
@@ -981,7 +1052,7 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
       system: [
         { text: DESK_DOCTRINE, cache: true },
         {
-          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}`,
+          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${ACCUMULATIONS_DOCTRINE}`,
         },
       ],
       messages: [{ role: "user", content: task }],
@@ -1050,6 +1121,31 @@ LANGUAGE: Write EVERY output field in English, even if investor guidance or evid
 
     for (const p of (out.proposals ?? []).slice(0, 3)) {
       if (p.name?.trim()) await insertProposal(userId, symbol, p, "research");
+    }
+
+    // Record the run's accumulations — durable, topic-keyed insights for the
+    // 10-year owner question. Citations resolve exactly like readings do
+    // (indexes into the run's numbered source list; out-of-range dropped).
+    for (const a of (out.accumulations ?? []).slice(0, 4)) {
+      const topic = (a.topic ?? "").trim();
+      const insight = (a.insight ?? "").trim();
+      if (!topic || !insight) continue;
+      const citations = (a.citationIndexes ?? [])
+        .filter((i) => i >= 0 && i < allSources.length)
+        .map((i) => allSources[i]);
+      await insertAccumulation(userId, {
+        symbol,
+        runId,
+        topic,
+        insight,
+        citations,
+        signalNames: (a.signalNames ?? []).filter((n) => n?.trim()),
+      }).catch((e) =>
+        console.error(
+          `[scalae] accumulation insert (${symbol}) failed:`,
+          e instanceof Error ? e.message : e
+        )
+      );
     }
 
     // Resolve the dossier's {{Sk}} signal markers to durable signal ids

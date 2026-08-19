@@ -33,6 +33,7 @@ import type {
   Order,
   OrderStatus,
   Reading,
+  ResearchAccumulation,
   Run,
   Signal,
   SignalProposal,
@@ -487,6 +488,23 @@ export const SCHEMA_STATEMENTS: string[] = [
     seq BIGINT GENERATED ALWAYS AS IDENTITY
   )`,
   `CREATE INDEX IF NOT EXISTS idx_finmsg_user ON fin_messages("userId", symbol, seq)`,
+  // ---- research accumulations: the analyst's durable, topic-keyed record of
+  // what runs have surfaced that matters for the 10-year owner question.
+  // Topics recur across runs (the synthesis reuses an existing topic string
+  // when extending it), so the record accretes threads, not headlines. ----
+  `CREATE TABLE IF NOT EXISTS research_accumulations (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    "runId" TEXT,
+    topic TEXT NOT NULL,
+    insight TEXT NOT NULL,
+    citations TEXT NOT NULL DEFAULT '[]',
+    "signalNames" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" TEXT NOT NULL,
+    seq BIGINT GENERATED ALWAYS AS IDENTITY
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_accum_user ON research_accumulations("userId", symbol, seq)`,
 ];
 
 /** Idempotent, memoized per process — cheap on Fluid Compute's reused instances. */
@@ -907,6 +925,94 @@ export async function recentDigest(userId: string, symbol: string, limit = 24): 
     SELECT id, symbol, "runId", date, headline, summary, url, source, impact, "signalNames", "sourceClass", "sourceNote"
     FROM digest_items WHERE "userId" = ${userId} AND symbol = ${symbol} ORDER BY date DESC, seq DESC LIMIT ${limit}`;
   return rows.map((r) => ({ ...r, signalNames: JSON.parse(r.signalNames) as string[] }));
+}
+
+// ---------- research accumulations (the analyst's durable insight record) ----------
+
+interface AccumulationRow extends Omit<ResearchAccumulation, "citations" | "signalNames"> {
+  citations: string;
+  signalNames: string;
+}
+
+function parseAccumulation(r: AccumulationRow): ResearchAccumulation {
+  let citations: Citation[] = [];
+  try {
+    citations = JSON.parse(r.citations || "[]") as Citation[];
+  } catch {
+    /* malformed row — insight renders without linked citations */
+  }
+  let signalNames: string[] = [];
+  try {
+    signalNames = JSON.parse(r.signalNames || "[]") as string[];
+  } catch {
+    /* malformed row — insight renders without signal chips */
+  }
+  return { ...r, citations, signalNames };
+}
+
+/** Record one accumulation a run surfaced (citations/signalNames JSON-serialized). */
+export async function insertAccumulation(
+  userId: string,
+  a: {
+    symbol: string;
+    runId: string | null;
+    topic: string;
+    insight: string;
+    citations: Citation[];
+    signalNames: string[];
+  }
+): Promise<ResearchAccumulation> {
+  const row: ResearchAccumulation = {
+    id: uid(),
+    symbol: a.symbol,
+    runId: a.runId,
+    topic: a.topic,
+    insight: a.insight,
+    citations: a.citations,
+    signalNames: a.signalNames,
+    createdAt: now(),
+  };
+  await q`INSERT INTO research_accumulations (id, "userId", symbol, "runId", topic, insight, citations, "signalNames", "createdAt")
+          VALUES (${row.id}, ${userId}, ${row.symbol}, ${row.runId}, ${row.topic}, ${row.insight},
+                  ${JSON.stringify(row.citations)}, ${JSON.stringify(row.signalNames)}, ${row.createdAt})`;
+  return row;
+}
+
+/** The accumulations record, newest first (seq orders same-timestamp rows). */
+export async function listAccumulations(
+  userId: string,
+  symbol: string,
+  limit = 200
+): Promise<ResearchAccumulation[]> {
+  const rows = await q<AccumulationRow>`
+    SELECT id, symbol, "runId", topic, insight, citations, "signalNames", "createdAt"
+    FROM research_accumulations WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY seq DESC LIMIT ${limit}`;
+  return rows.map(parseAccumulation);
+}
+
+/**
+ * The distinct accumulation topics with each topic's LATEST insight — the
+ * compact prompt block the synthesis reads so it extends existing threads
+ * (reusing the topic string exactly) instead of minting near-duplicates.
+ * Capped: a desk with years of record must not flood the prompt.
+ */
+export async function listAccumulationTopics(
+  userId: string,
+  symbol: string
+): Promise<{ topic: string; insight: string }[]> {
+  return q<{ topic: string; insight: string }>`
+    SELECT DISTINCT ON (topic) topic, insight
+    FROM research_accumulations WHERE "userId" = ${userId} AND symbol = ${symbol}
+    ORDER BY topic, seq DESC
+    LIMIT 30`;
+}
+
+/** Remove one accumulation (userId-scoped). Returns whether a row was deleted. */
+export async function deleteAccumulation(userId: string, id: string): Promise<boolean> {
+  const rows = await q<{ id: string }>`
+    DELETE FROM research_accumulations WHERE id = ${id} AND "userId" = ${userId} RETURNING id`;
+  return rows.length > 0;
 }
 
 // ---------- runs ----------
