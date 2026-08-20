@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckIcon, PlusIcon, ScaleIcon, XIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { api, localizeError } from "@/components/util";
 import type { TKey } from "@/lib/i18n/dictionaries";
@@ -314,7 +315,7 @@ export default function WelcomePage() {
   if (!guardChecked) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
-        <span className="pulse-soft">⚖️</span>
+        <ScaleIcon className="h-6 w-6 pulse-soft" />
       </main>
     );
   }
@@ -324,7 +325,7 @@ export default function WelcomePage() {
       {/* Header: brand + phase dots + skip */}
       <header className="border-b border-hairline bg-card px-5 py-3 flex items-center justify-between gap-4">
         <span className="flex items-center gap-2 text-sm font-semibold">
-          <span aria-hidden>⚖️</span> Scalae
+          <ScaleIcon className="h-4 w-4" /> Scalae
         </span>
         <nav className="flex items-center gap-3" aria-label={t("onboarding.setupProgress")}>
           {PHASES.map((p, i) => (
@@ -391,8 +392,10 @@ export default function WelcomePage() {
                     }`}
                     title={d.name}
                   >
-                    {d.on ? "✓ " : "+ "}
-                    {d.symbol}
+                    <span className="inline-flex items-center gap-1">
+                      {d.on ? <CheckIcon className="h-3 w-3" /> : <PlusIcon className="h-3 w-3" />}
+                      {d.symbol}
+                    </span>
                     <span className="ml-1 opacity-70">{d.name}</span>
                   </button>
                 ))}
@@ -512,8 +515,10 @@ export default function WelcomePage() {
                         : "border-hairline bg-ink/4 text-muted hover:text-foreground"
                     }`}
                   >
-                    {industries.includes(i.label) ? "✓ " : ""}
-                    {t(i.labelKey)}
+                    <span className="inline-flex items-center gap-1">
+                      {industries.includes(i.label) && <CheckIcon className="h-3 w-3" />}
+                      {t(i.labelKey)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -536,7 +541,7 @@ export default function WelcomePage() {
                     <span key={p.symbol} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/12 border border-accent/40 px-2 py-1 text-[0.6875rem] font-medium">
                       {p.symbol} <span className="text-muted">{p.name}</span>
                       <button onClick={() => setPicked((xs) => xs.filter((x) => x.symbol !== p.symbol))} className="text-muted hover:text-loss">
-                        ✕
+                        <XIcon className="h-3 w-3" />
                       </button>
                     </span>
                   ))}

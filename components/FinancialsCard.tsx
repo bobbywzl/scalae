@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckIcon } from "@/components/icons";
 import { useT } from "./PrefsProvider";
 import { api, timeAgo } from "./util";
 import type { TKey } from "@/lib/i18n/dictionaries";
@@ -266,8 +267,9 @@ export function FinancialsSection({
                     () => {}
                   );
               }}
-              className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
+              className="inline-flex items-center gap-1 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
             >
+              {copied && <CheckIcon className="h-2.5 w-2.5" />}
               {copied ? t("financials.copied") : t("financials.copyTable")}
             </button>
             <span className="text-[0.625rem] text-muted/60">{t("financials.accuracyNote")}</span>

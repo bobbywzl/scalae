@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { api, timeAgo } from "@/components/util";
 import { fmtBytes } from "@/components/attach";
+import {
+  AttachmentKindIcon,
+  BugIcon,
+  HelpCircleIcon,
+  LightbulbIcon,
+  MessageIcon,
+  UserIcon,
+  type IconProps,
+} from "@/components/icons";
 import type { AdminFeedbackRow, Attachment, FeedbackStatus, FeedbackTicket } from "@/lib/types";
 
 /**
@@ -16,13 +25,24 @@ const STATUS_BADGE: Record<FeedbackStatus, { label: string; cls: string }> = {
   closed: { label: "Closed", cls: "bg-white/8 text-muted" },
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  bug: "🐛 Bug",
-  idea: "💡 Idea",
-  question: "❓ Question",
-  account: "👤 Account",
-  other: "💬 Other",
+const CATEGORY_LABEL: Record<string, { label: string; Icon: ComponentType<IconProps> }> = {
+  bug: { label: "Bug", Icon: BugIcon },
+  idea: { label: "Idea", Icon: LightbulbIcon },
+  question: { label: "Question", Icon: HelpCircleIcon },
+  account: { label: "Account", Icon: UserIcon },
+  other: { label: "Other", Icon: MessageIcon },
 };
+
+function CategoryBadge({ category }: { category: string }) {
+  const cat = CATEGORY_LABEL[category];
+  if (!cat) return <span className="text-[0.625rem] text-muted">{category}</span>;
+  return (
+    <span className="inline-flex items-center gap-1 text-[0.625rem] text-muted">
+      <cat.Icon className="h-3 w-3" />
+      {cat.label}
+    </span>
+  );
+}
 
 type Filter = "all" | FeedbackStatus;
 
@@ -51,11 +71,13 @@ function Evidence({ files }: { files: Attachment[] }) {
             download={f.name}
             className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-white/25"
           >
-            {f.kind === "pdf" ? "📄" : "📝"} {f.name} <span className="text-muted">{fmtBytes(f.size)}</span>
+            <AttachmentKindIcon kind={f.kind} className="h-3.5 w-3.5 shrink-0" />
+            {f.name} <span className="text-muted">{fmtBytes(f.size)}</span>
           </a>
         ) : (
           <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted">
-            {f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"} {f.name} · {fmtBytes(f.size)}
+            <AttachmentKindIcon kind={f.kind} className="h-3.5 w-3.5 shrink-0" />
+            {f.name} · {fmtBytes(f.size)}
           </span>
         )
       )}
@@ -182,7 +204,7 @@ export default function AdminFeedbackPage() {
                     {STATUS_BADGE[t.status].label}
                   </span>
                   <span className="font-mono text-[0.625rem] text-muted">{t.id}</span>
-                  <span className="text-[0.625rem] text-muted">{CATEGORY_LABEL[t.category] ?? t.category}</span>
+                  <CategoryBadge category={t.category} />
                   <span className="text-xs font-semibold flex-1 min-w-0 truncate">{t.subject}</span>
                   <span className="text-[0.625rem] text-muted truncate max-w-[180px]">{user.email}</span>
                   <span className="text-[0.625rem] text-muted shrink-0">{timeAgo(t.updatedAt)}</span>

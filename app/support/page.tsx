@@ -2,11 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  AttachmentKindIcon,
+  BugIcon,
+  CheckIcon,
+  HelpCircleIcon,
+  LightbulbIcon,
+  MessageIcon,
+  UserIcon,
+  XIcon,
+  type IconProps,
+} from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { api, localizeError, timeAgo } from "@/components/util";
 import { MAX_FILES, fmtBytes, processFile } from "@/components/attach";
 import type { TFunc, TKey } from "@/lib/i18n/dictionaries";
 import type { Attachment, FeedbackCategory, FeedbackStatus, FeedbackTicket } from "@/lib/types";
+import type { ComponentType } from "react";
 
 /**
  * Help & feedback — the app's customer-service desk. File a request (bug /
@@ -14,12 +26,12 @@ import type { Attachment, FeedbackCategory, FeedbackStatus, FeedbackTicket } fro
  * thread; responses also go out by email when the deployment has it set up.
  */
 
-const CATEGORIES: { key: FeedbackCategory; labelKey: TKey; hintKey: TKey }[] = [
-  { key: "bug", labelKey: "support.catBug", hintKey: "support.catBugHint" },
-  { key: "idea", labelKey: "support.catIdea", hintKey: "support.catIdeaHint" },
-  { key: "question", labelKey: "support.catQuestion", hintKey: "support.catQuestionHint" },
-  { key: "account", labelKey: "support.catAccount", hintKey: "support.catAccountHint" },
-  { key: "other", labelKey: "support.catOther", hintKey: "support.catOtherHint" },
+const CATEGORIES: { key: FeedbackCategory; labelKey: TKey; hintKey: TKey; Icon: ComponentType<IconProps> }[] = [
+  { key: "bug", labelKey: "support.catBug", hintKey: "support.catBugHint", Icon: BugIcon },
+  { key: "idea", labelKey: "support.catIdea", hintKey: "support.catIdeaHint", Icon: LightbulbIcon },
+  { key: "question", labelKey: "support.catQuestion", hintKey: "support.catQuestionHint", Icon: HelpCircleIcon },
+  { key: "account", labelKey: "support.catAccount", hintKey: "support.catAccountHint", Icon: UserIcon },
+  { key: "other", labelKey: "support.catOther", hintKey: "support.catOtherHint", Icon: MessageIcon },
 ];
 
 const STATUS_BADGE: Record<FeedbackStatus, { labelKey: TKey; cls: string }> = {
@@ -56,7 +68,7 @@ function AttachmentChips({
           key={`${f.name}-${i}`}
           className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem]"
         >
-          <span aria-hidden>{f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"}</span>
+          <AttachmentKindIcon kind={f.kind} className="h-3.5 w-3.5 shrink-0" />
           <span className="max-w-[160px] truncate">{f.name}</span>
           <span className="text-muted">{fmtBytes(f.size)}</span>
           {onRemove && (
@@ -65,7 +77,7 @@ function AttachmentChips({
               className="text-muted hover:text-loss ml-0.5"
               title={t("support.removeFile", { name: f.name })}
             >
-              ✕
+              <XIcon className="h-3 w-3" />
             </button>
           )}
         </span>
@@ -100,7 +112,8 @@ function EvidenceGallery({ files }: { files: Attachment[] }) {
             download={f.name}
             className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-ink/25"
           >
-            {f.kind === "pdf" ? "📄" : "📝"} {f.name}
+            <AttachmentKindIcon kind={f.kind} className="h-3.5 w-3.5 shrink-0" />
+            {f.name}
             <span className="text-muted">{fmtBytes(f.size)}</span>
           </a>
         ) : (
@@ -108,7 +121,8 @@ function EvidenceGallery({ files }: { files: Attachment[] }) {
             key={i}
             className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted"
           >
-            {f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"} {f.name} · {fmtBytes(f.size)}
+            <AttachmentKindIcon kind={f.kind} className="h-3.5 w-3.5 shrink-0" />
+            {f.name} · {fmtBytes(f.size)}
           </span>
         )
       )}
@@ -310,7 +324,10 @@ export default function SupportPage() {
 
           {filedId ? (
             <div className="rounded-xl border border-gain/25 bg-gain/8 px-4 py-3.5">
-              <p className="text-sm font-semibold text-gain">{t("support.filedOk")}</p>
+              <p className="text-sm font-semibold text-gain inline-flex items-center gap-1.5">
+                <CheckIcon className="h-3.5 w-3.5" />
+                {t("support.filedOk")}
+              </p>
               <p className="mt-1.5 text-xs text-emph">
                 {t("support.reqIdIs")}{" "}
                 <span className="font-mono font-bold text-foreground bg-ink/8 rounded px-1.5 py-0.5">
@@ -339,12 +356,13 @@ export default function SupportPage() {
                     type="button"
                     onClick={() => setCategory(c.key)}
                     title={t(c.hintKey)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors ${
+                    className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-medium transition-colors ${
                       category === c.key
                         ? "border-accent/60 bg-accent/12 text-foreground"
                         : "border-hairline bg-ink/4 text-muted hover:text-foreground hover:bg-ink/8"
                     }`}
                   >
+                    <c.Icon className="h-3 w-3" />
                     {t(c.labelKey)}
                   </button>
                 ))}

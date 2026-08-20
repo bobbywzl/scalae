@@ -81,16 +81,16 @@ const en = {
   reviewEstCost: "Estimated cost: {amount}",
   reviewEstProceeds: "Estimated proceeds: {amount}",
   liveMarketMayDiffer: "(at live market — final price may differ)",
-  marketableReview: "⚡ Marketable — the live price already satisfies this order, so it will fill immediately.",
+  marketableReview: "Marketable — the live price already satisfies this order, so it will fill immediately.",
   marketableEntry:
-    "⚡ The live price already satisfies this {type} — it will fill immediately at market, like a marketable order at any broker.",
+    "The live price already satisfies this {type} — it will fill immediately at market, like a marketable order at any broker.",
   cashAvailable: "Cash available: {amount}",
   cashExceeds: "— this order exceeds it (the book records it anyway; no margin is modeled).",
   weightPreview: "Position weight ≈ {now}% → {after}% of the book",
-  oversellReviewOpen: "⚠ Sells more than you hold — fills open a short.",
-  oversellReviewExtend: "⚠ Sells more than you hold — fills open/extend a short.",
-  oversellHeld: "⚠ You hold {held} shares — selling {n} opens a {diff}-share short.",
-  oversellNone: "⚠ You have no long position in this name — this sell opens or extends a short.",
+  oversellReviewOpen: "Sells more than you hold — fills open a short.",
+  oversellReviewExtend: "Sells more than you hold — fills open/extend a short.",
+  oversellHeld: "You hold {held} shares — selling {n} opens a {diff}-share short.",
+  oversellNone: "You have no long position in this name — this sell opens or extends a short.",
   needLiveQuote:
     "Orders need a live quote — no market data for this symbol. Use “Record past trade” instead.",
 
@@ -107,8 +107,8 @@ const en = {
     "Paper execution: fills are simulated against live quotes when your portfolio refreshes — options and off-market fills go in via “Record past trade”.",
 
   // Post-placement confirmation
-  orderFilled: "✓ Order filled",
-  orderWorking: "◷ Order working",
+  orderFilled: "Order filled",
+  orderWorking: "Order working",
   simFilledAt: "Simulated fill at {price} — recorded in your ledger.",
   workingDesc:
     "Fills automatically when the live price crosses your trigger — checked whenever the portfolio refreshes. Cancel any time from Open orders.",
@@ -132,7 +132,7 @@ const en = {
   feesOptional: "Fees (optional)",
   recordNotePlaceholder: "thesis, broker, lot…",
   priceDeviates:
-    "⚠ Entered price is far from the live market ({price}) — check units and currency before recording.",
+    "Entered price is far from the live market ({price}) — check units and currency before recording.",
   recordBuy: "Record buy — {inst}",
   recordSell: "Record sell — {inst}",
   callOn: "call on {sym}",
@@ -246,15 +246,15 @@ const zh: Record<keyof typeof en, string> = {
   reviewEstCost: "预估成本：{amount}",
   reviewEstProceeds: "预估所得：{amount}",
   liveMarketMayDiffer: "（按实时市价——最终成交价可能不同）",
-  marketableReview: "⚡ 可立即成交——实时价格已满足此订单，将立即成交。",
-  marketableEntry: "⚡ 实时价格已满足此{type}——将立即按市价成交，如同真实券商的可成交订单。",
+  marketableReview: "可立即成交——实时价格已满足此订单，将立即成交。",
+  marketableEntry: "实时价格已满足此{type}——将立即按市价成交，如同真实券商的可成交订单。",
   cashAvailable: "可用现金：{amount}",
   cashExceeds: "——此订单超出可用现金（账本仍会记录；不模拟保证金）。",
   weightPreview: "持仓占组合权重 ≈ {now}% → {after}%",
-  oversellReviewOpen: "⚠ 卖出数量超过您的持仓——成交后将开立空头。",
-  oversellReviewExtend: "⚠ 卖出数量超过您的持仓——成交后将开立或扩大空头。",
-  oversellHeld: "⚠ 您持有 {held} 股——卖出 {n} 股将开立 {diff} 股空头。",
-  oversellNone: "⚠ 您在该标的没有多头持仓——此次卖出将开立或扩大空头。",
+  oversellReviewOpen: "卖出数量超过您的持仓——成交后将开立空头。",
+  oversellReviewExtend: "卖出数量超过您的持仓——成交后将开立或扩大空头。",
+  oversellHeld: "您持有 {held} 股——卖出 {n} 股将开立 {diff} 股空头。",
+  oversellNone: "您在该标的没有多头持仓——此次卖出将开立或扩大空头。",
   needLiveQuote: "下单需要实时行情——该代码暂无市场数据。请改用“补录历史交易”。",
 
   reviewOrder: "核对订单",
@@ -268,8 +268,8 @@ const zh: Record<keyof typeof en, string> = {
   paperNote:
     "模拟撮合：投资组合刷新时按实时行情模拟成交——期权及场外成交请通过“补录历史交易”录入。",
 
-  orderFilled: "✓ 订单已成交",
-  orderWorking: "◷ 订单等待成交",
+  orderFilled: "订单已成交",
+  orderWorking: "订单等待成交",
   simFilledAt: "已按 {price} 模拟成交——已记入您的交易账本。",
   workingDesc:
     "实时价格触及您的触发价时将自动成交——每次投资组合刷新时检查。您可随时在未成交订单中撤单。",
@@ -291,7 +291,7 @@ const zh: Record<keyof typeof en, string> = {
   perContractNote: "每张合约 ×100（合约乘数），以该代码的货币计价",
   feesOptional: "手续费（选填）",
   recordNotePlaceholder: "投资逻辑、券商、批次…",
-  priceDeviates: "⚠ 输入的价格与实时市价（{price}）相差较大——录入前请检查单位和货币。",
+  priceDeviates: "输入的价格与实时市价（{price}）相差较大——录入前请检查单位和货币。",
   recordBuy: "补录买入——{inst}",
   recordSell: "补录卖出——{inst}",
   callOn: "{sym} 看涨期权",

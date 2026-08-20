@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AddTicker } from "@/components/AddTicker";
+import { BriefcaseIcon, SwapIcon, XIcon } from "@/components/icons";
 import { Sparkline } from "@/components/Sparkline";
 import { WelcomeSplash } from "@/components/WelcomeSplash";
 import { useT } from "@/components/PrefsProvider";
@@ -247,9 +248,9 @@ export default function WatchlistPage() {
                       remove(ticker.symbol);
                     }}
                     title={t("watchlist.removeTitle", { sym: ticker.symbol })}
-                    className="absolute -left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-muted hover:text-loss px-1 text-xs transition-opacity"
+                    className="absolute -left-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-muted hover:text-loss px-1 transition-opacity"
                   >
-                    ✕
+                    <XIcon className="h-3 w-3" />
                   </button>
                 </li>
               );
@@ -400,7 +401,7 @@ export default function WatchlistPage() {
                 title={t("watchlist.portfolioTitle")}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-ink/6 hover:bg-ink/10 px-3 py-2 text-xs font-medium transition-colors"
               >
-                <span className="text-accent">💼</span> {t("watchlist.portfolio")}
+                <BriefcaseIcon className="h-3.5 w-3.5 text-accent" /> {t("watchlist.portfolio")}
               </Link>
               {(rows?.length ?? 0) >= 2 ? (
                 <Link
@@ -408,7 +409,7 @@ export default function WatchlistPage() {
                   title={t("watchlist.compareTitle")}
                   className="flex items-center justify-center gap-1.5 rounded-lg bg-ink/6 hover:bg-ink/10 px-3 py-2 text-xs font-medium transition-colors"
                 >
-                  <span className="text-accent">⇄</span> {t("watchlist.compare")}
+                  <SwapIcon className="h-3.5 w-3.5 text-accent" /> {t("watchlist.compare")}
                 </Link>
               ) : (
                 <Link

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PnlChart, fmtUsd } from "@/components/PnlChart";
+import { AlertTriangleIcon, PencilIcon, XIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { TradeForm } from "@/components/TradeForm";
 import { api, localizeError } from "@/components/util";
@@ -444,8 +445,9 @@ export default function PortfolioPage() {
                         setCapEditing(true);
                       }}
                       title={t("portfolio.editCapitalTitle")}
-                      className="ml-auto normal-case tracking-normal text-muted hover:text-emph transition-colors"
+                      className="ml-auto inline-flex items-center gap-0.5 normal-case tracking-normal text-muted hover:text-emph transition-colors"
                     >
+                      <PencilIcon className="h-2.5 w-2.5" />
                       {t("portfolio.editCapital")}
                     </button>
                   </p>
@@ -715,7 +717,11 @@ export default function PortfolioPage() {
                               </span>
                             )}
                             {p.avgCost === 0 && (
-                              <span className="ml-1.5 text-warn" title={t("portfolio.noCostTitle")}>
+                              <span
+                                className="ml-1.5 inline-flex items-center gap-0.5 text-warn"
+                                title={t("portfolio.noCostTitle")}
+                              >
+                                <AlertTriangleIcon className="h-2.5 w-2.5" />
                                 {t("portfolio.noCost")}
                               </span>
                             )}
@@ -1026,7 +1032,7 @@ export default function PortfolioPage() {
                       className="ml-auto opacity-0 group-hover:opacity-100 text-muted hover:text-loss transition-opacity shrink-0"
                       title={t("portfolio.deleteTradeTitle")}
                     >
-                      ✕
+                      <XIcon className="h-3 w-3" />
                     </button>
                   </li>
                 ))}

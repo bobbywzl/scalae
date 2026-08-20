@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { XIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { api } from "@/components/util";
 import type { TKey } from "@/lib/i18n/dictionaries";
@@ -242,9 +243,9 @@ export function TickerSearch({ symbol }: { symbol: string }) {
             <button
               onClick={() => setOpen(false)}
               aria-label="esc"
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted/70 hover:text-emph transition-colors"
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-muted/70 hover:text-emph transition-colors"
             >
-              ✕
+              <XIcon className="h-3 w-3" />
             </button>
           </div>
 

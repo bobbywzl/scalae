@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Run } from "@/lib/types";
@@ -51,15 +52,15 @@ export function RunBanner({ run, onRetry }: { run: Run; onRetry: () => void }) {
           <span key={s.key} className="flex items-center gap-2">
             {i > 0 && <span className="text-muted/50">→</span>}
             <span
-              className={
+              className={`inline-flex items-center gap-1 ${
                 i < activeIdx
                   ? "text-gain"
                   : i === activeIdx
                     ? "text-accent pulse-soft"
                     : "text-muted/60"
-              }
+              }`}
             >
-              {i < activeIdx ? "✓ " : ""}
+              {i < activeIdx && <CheckIcon className="h-2.5 w-2.5" />}
               {t(s.labelKey)}
             </span>
           </span>

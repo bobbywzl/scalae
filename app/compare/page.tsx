@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Markdown } from "@/components/Markdown";
+import { FlagIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { api, DELTA_ARROW, fmtPct, fmtPrice, LEVEL_STYLE, levelLabel, localizeError } from "@/components/util";
 import { dossierToMarkdown, linkCitations } from "@/lib/citations";
@@ -259,8 +260,9 @@ export default function ComparePage() {
                     )}
                   </p>
                   {p.redFlags.length > 0 && (
-                    <p className="mt-1.5 text-[0.6875rem] text-loss/90">
-                      ⚑ {p.redFlags.map((s) => s.name).join(" · ")}
+                    <p className="mt-1.5 inline-flex items-center gap-1 text-[0.6875rem] text-loss/90">
+                      <FlagIcon className="h-2.5 w-2.5 shrink-0" />
+                      {p.redFlags.map((s) => s.name).join(" · ")}
                     </p>
                   )}
                 </div>

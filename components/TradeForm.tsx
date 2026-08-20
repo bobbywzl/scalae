@@ -5,6 +5,7 @@ import { fillDecision, validateOrder } from "@/lib/order-math";
 import type { SearchHit } from "@/lib/market";
 import type { Order, OptionType, OrderTif, OrderType, RichQuote, TradeKind, TradeSide } from "@/lib/types";
 import type { TFunc, TKey } from "@/lib/i18n/dictionaries";
+import { AlertTriangleIcon, CheckIcon, ClockIcon, ZapIcon } from "@/components/icons";
 import { QuoteCard } from "./QuoteCard";
 import { useT } from "./PrefsProvider";
 import { api, localizeError } from "./util";
@@ -364,7 +365,8 @@ export function TradeForm({
     return (
       <div className="rounded-2xl bg-card border border-hairline p-4 space-y-3">
         <div className={`rounded-xl px-4 py-3 border ${filled ? "border-gain/30 bg-gain/8" : "border-accent/30 bg-accent/8"}`}>
-          <p className="text-sm font-semibold">
+          <p className="flex items-center gap-1.5 text-sm font-semibold">
+            {filled ? <CheckIcon className="h-4 w-4" /> : <ClockIcon className="h-4 w-4" />}
             {filled ? t("trade.orderFilled") : t("trade.orderWorking")}
           </p>
           <p className="text-xs text-emph mt-1">
@@ -528,7 +530,10 @@ export function TradeForm({
                 </p>
               )}
               {marketable && (
-                <p className="text-[0.6875rem] text-warn">{t("trade.marketableReview")}</p>
+                <p className="flex items-center gap-1 text-[0.6875rem] text-warn">
+                  <ZapIcon className="h-3 w-3 shrink-0" />
+                  {t("trade.marketableReview")}
+                </p>
               )}
               {side === "buy" && cashUsd != null && currency === "USD" && estTotal != null && (
                 <p className={`text-[0.6875rem] tabular-nums ${estTotal > cashUsd ? "text-warn" : "text-muted"}`}>
@@ -545,7 +550,8 @@ export function TradeForm({
                 </p>
               )}
               {oversell && (
-                <p className="text-[0.6875rem] text-warn">
+                <p className="flex items-center gap-1 text-[0.6875rem] text-warn">
+                  <AlertTriangleIcon className="h-3 w-3 shrink-0" />
                   {t(heldPos && heldPos.qty > 0 ? "trade.oversellReviewOpen" : "trade.oversellReviewExtend")}
                 </p>
               )}
@@ -772,12 +778,14 @@ export function TradeForm({
               </p>
             )}
             {marketable && (
-              <p className="text-[0.6875rem] text-warn">
+              <p className="flex items-center gap-1 text-[0.6875rem] text-warn">
+                <ZapIcon className="h-3 w-3 shrink-0" />
                 {t("trade.marketableEntry", { type: t(ORDER_TYPE_KEY[orderType]).toLowerCase() })}
               </p>
             )}
             {oversell && (
-              <p className="text-[0.6875rem] text-warn">
+              <p className="flex items-center gap-1 text-[0.6875rem] text-warn">
+                <AlertTriangleIcon className="h-3 w-3 shrink-0" />
                 {heldPos && heldPos.qty > 0
                   ? t("trade.oversellHeld", {
                       held: heldPos.qty.toLocaleString(),
@@ -931,7 +939,8 @@ export function TradeForm({
           </div>
 
           {deviates && quote?.price != null && (
-            <p className="text-warn text-[0.6875rem]">
+            <p className="flex items-center gap-1 text-warn text-[0.6875rem]">
+              <AlertTriangleIcon className="h-3 w-3 shrink-0" />
               {t("trade.priceDeviates", { price: fmtMoney(quote.price, quote.currency) })}
             </p>
           )}

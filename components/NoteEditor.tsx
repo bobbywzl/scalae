@@ -3,6 +3,7 @@
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TextStyleKit } from "@tiptap/extension-text-style";
+import { EraserIcon, QuoteIcon, RedoIcon, UndoIcon } from "@/components/icons";
 import { useT } from "./PrefsProvider";
 
 /**
@@ -195,21 +196,21 @@ export function NoteEditor({
           1.
         </Btn>
         <Btn active={s?.quote} title={t("notes.tbQuote")} onClick={() => chain().toggleBlockquote().run()}>
-          ❝
+          <QuoteIcon className="h-3.5 w-3.5" />
         </Btn>
         <span className="w-px h-4 bg-hairline mx-1" />
         <Btn
           title={t("notes.tbClear")}
           onClick={() => chain().unsetAllMarks().clearNodes().run()}
         >
-          ⌫
+          <EraserIcon className="h-3.5 w-3.5" />
         </Btn>
         <span className="ml-auto" />
         <Btn title={t("notes.tbUndo")} disabled={!s?.canUndo} onClick={() => chain().undo().run()}>
-          ↺
+          <UndoIcon className="h-3.5 w-3.5" />
         </Btn>
         <Btn title={t("notes.tbRedo")} disabled={!s?.canRedo} onClick={() => chain().redo().run()}>
-          ↻
+          <RedoIcon className="h-3.5 w-3.5" />
         </Btn>
       </div>
       <EditorContent editor={editor} />

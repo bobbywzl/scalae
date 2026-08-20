@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { chipLabel } from "@/lib/citations";
 import type { Citation, SignalSource, SignalWithReadings } from "@/lib/types";
+import { DiamondIcon, ExpandIcon, LinkIcon, SparkleIcon, SwapIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import { ReadingSparkline, sparkValues } from "./Sparkline";
 import { DELTA_ARROW, LEVEL_STYLE, levelLabel, timeAgo } from "./util";
@@ -175,7 +176,8 @@ export function SignalCard({
               {sKey && <SigKeyBadge sKey={sKey} />}
               <span className="text-sm font-semibold leading-tight">{signal.name}</span>
             </div>
-            <div className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
+            <div className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5 inline-flex items-center gap-1">
+              {signal.type === "qualitative" && <DiamondIcon className="h-2.5 w-2.5 shrink-0" />}
               {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
             </div>
           </div>
@@ -231,13 +233,17 @@ export function SignalCard({
                       setSourcesOpen(true);
                     }
                   }}
-                  className="text-accent/90 hover:text-accent hover:underline transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 text-accent/90 hover:text-accent hover:underline transition-colors cursor-pointer"
                   title={t("signals.viewAllSources")}
                 >
-                  🔗 {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })}
+                  <LinkIcon className="h-3 w-3 shrink-0" />
+                  {t(sources.length === 1 ? "signals.sourcesOne" : "signals.sourcesMany", { n: sources.length })}
                 </span>
               )}
-              <span className="ml-auto text-muted/60">{t("signals.openHint")}</span>
+              <span className="ml-auto inline-flex items-center gap-0.5 text-muted/60">
+                {t("signals.openHint")}
+                <ExpandIcon className="h-2.5 w-2.5" />
+              </span>
             </div>
           </>
         ) : (
@@ -275,8 +281,9 @@ export function SignalCard({
               overlapsWith.onOpen();
             }}
             title={t("signals.overlapKeptTitle")}
-            className="rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[0.625rem] text-warn transition-colors max-w-full truncate"
+            className="inline-flex items-center gap-1 rounded-md bg-warn/10 hover:bg-warn/18 border border-warn/25 px-2 py-0.5 text-[0.625rem] text-warn transition-colors max-w-full truncate"
           >
+            <SwapIcon className="h-2.5 w-2.5 shrink-0" />
             {t("signals.overlapsChip", { name: overlapsWith.name })}
           </button>
         </div>
@@ -348,9 +355,9 @@ export function SignalListRow({
         <button
           onClick={overlapsWith.onOpen}
           title={t("signals.overlapsChip", { name: overlapsWith.name })}
-          className="shrink-0 rounded bg-warn/10 hover:bg-warn/18 border border-warn/25 px-1 text-[0.625rem] text-warn transition-colors"
+          className="shrink-0 rounded bg-warn/10 hover:bg-warn/18 border border-warn/25 px-1 py-px text-warn transition-colors"
         >
-          ⇄
+          <SwapIcon className="h-2.5 w-2.5" />
         </button>
       )}
       {r && level && delta ? (
@@ -385,7 +392,10 @@ export function SignalListRow({
                 n: sources.length,
               })}
             >
-              🔗 {sources.length}
+              <span className="inline-flex items-center gap-0.5">
+                <LinkIcon className="h-2.5 w-2.5" />
+                {sources.length}
+              </span>
             </span>
           )}
         </>
@@ -404,9 +414,9 @@ export function SignalListRow({
             onClick={check.run}
             disabled={check.disabled}
             title={check.disabled ? t("desk.signalCheckBusy") : t("desk.runSignal")}
-            className="shrink-0 rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-1.5 py-px text-[0.6875rem] font-medium text-accent transition-colors"
+            className="shrink-0 rounded-md border border-accent/25 bg-accent/8 hover:bg-accent/15 disabled:opacity-40 px-1.5 py-1 text-accent transition-colors"
           >
-            ✦
+            <SparkleIcon className="h-3 w-3" />
           </button>
         ))}
     </div>

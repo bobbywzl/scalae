@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon, DiamondIcon, RestoreIcon, SwapIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { Signal } from "@/lib/types";
@@ -50,8 +51,11 @@ export function SuggestionCard({
         <div className="min-w-0">
           <div className="text-sm font-semibold leading-tight">{signal.name}</div>
           <div className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
-            {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
-            {signal.focusArea} · <span className="text-warn/90">{t(ORIGIN_KEY[signal.origin])}</span>
+            <span className="inline-flex items-center gap-1 align-middle">
+              {signal.type === "qualitative" && <DiamondIcon className="h-2.5 w-2.5" />}
+              {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
+            </span>{" "}
+            · {signal.focusArea} · <span className="text-warn/90">{t(ORIGIN_KEY[signal.origin])}</span>
           </div>
         </div>
         {onToggleSelect && (
@@ -64,12 +68,13 @@ export function SuggestionCard({
                 : "border-ink/25 text-transparent hover:border-ink/50"
             }`}
           >
-            ✓
+            <CheckIcon className="h-3 w-3" />
           </button>
         )}
       </div>
       {replacesName && (
         <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warn/12 border border-warn/25 px-2 py-1 text-[0.6875rem] text-warn">
+          <SwapIcon className="h-3 w-3 shrink-0" />
           {t("signals.replacesBanner", { name: replacesName })}
         </p>
       )}
@@ -78,6 +83,7 @@ export function SuggestionCard({
           className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted"
           title={t("signals.dismissedMemoryTitle")}
         >
+          <RestoreIcon className="h-3 w-3 shrink-0" />
           {t("signals.dismissedBack", { date: fmtDay(previouslyDismissedAt, locale) })}
         </p>
       )}

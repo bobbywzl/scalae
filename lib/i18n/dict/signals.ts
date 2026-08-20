@@ -8,7 +8,7 @@
 const en = {
   // Shared signal chrome
   typeQuantitative: "# quantitative",
-  typeQualitative: "◆ qualitative",
+  typeQualitative: "qualitative",
   sKeyTitle: "{key} — research runs and focus questions cite this signal by this key",
   awaitingFirstRun: "Awaiting first research run.",
   sourcesOne: "{n} source",
@@ -21,8 +21,8 @@ const en = {
   sparkTitle: "{n} readings · {min} → {max} range",
   noChangeThisRun: "No change — no new information this run.",
   viewAllSources: "View all sources this signal has accumulated",
-  openHint: "open ⤢",
-  overlapsChip: "⇄ overlaps: {name}",
+  openHint: "open",
+  overlapsChip: "overlaps: {name}",
   overlapKeptTitle: "You chose to keep both — open the overlapping signal",
   moreSources: "+{n} more",
 
@@ -40,10 +40,10 @@ const en = {
   originResearch: "discovered in today's research",
   selectProposal: "Select proposal",
   deselectProposal: "Deselect proposal",
-  replacesBanner: "⇄ Replaces “{name}” — approving swaps it in and retires the old signal",
+  replacesBanner: "Replaces “{name}” — approving swaps it in and retires the old signal",
   dismissedMemoryTitle:
     "Institutional memory: the approval gate remembers what you turned down — expect materially new evidence in the thesis",
-  dismissedBack: "↩ You dismissed this on {date} — it’s back",
+  dismissedBack: "You dismissed this on {date} — it’s back",
   planLabel: "Plan:",
   approve: "Approve",
   approveSwap: "Approve & swap",
@@ -68,9 +68,9 @@ const en = {
   carriedSincePost: ".",
 
   // SignalDetail — lineage & overlap banners
-  replacedPrefix: "⇄ Replaced ",
+  replacedPrefix: "Replaced ",
   viewItsHistory: " — view its history",
-  keptAlongsidePre: "⇄ Knowingly kept alongside ",
+  keptAlongsidePre: "Knowingly kept alongside ",
   keptAlongsidePost: " — watch for overlap · open it",
   overlapKeptDetailTitle:
     "You chose to keep both — the desk will propose one merged signal if they keep reading the same evidence",
@@ -95,7 +95,7 @@ const en = {
   notResearchedRO: "Not researched yet — the daily run fills this in over time.",
 
   // SignalDetail — evidence rows & source tracing
-  traceHint: " — click ⧉ to trace a source through the readings",
+  traceHint: " — click a source below to trace it through the readings",
   srcCompany: "company IR",
   srcRegulator: "regulator",
   srcIndependent: "independent",
@@ -134,7 +134,7 @@ const en = {
   feedRemoveTitle: "Remove this item from the evidence feed (readings keep their citations)",
   feedRemoveConfirm: "Remove “{headline}” from the evidence feed? Readings keep their citations.",
   srcImplication: "Implication — {level} reading, {date}",
-  trackThis: "✚ track this",
+  trackThis: "track this",
   trackThisTitle: "No signal watches this thread — ask the analyst to draft one (you approve it)",
   openSignalTitle: "Open this signal",
   statusSignal: "{status} signal",
@@ -142,7 +142,7 @@ const en = {
 
 const zh: Record<keyof typeof en, string> = {
   typeQuantitative: "# 定量",
-  typeQualitative: "◆ 定性",
+  typeQualitative: "定性",
   sKeyTitle: "{key}——研究运行与焦点问题以此编号引用该信号",
   awaitingFirstRun: "等待首次研究运行。",
   sourcesOne: "{n} 个来源",
@@ -154,8 +154,8 @@ const zh: Record<keyof typeof en, string> = {
   sparkTitle: "{n} 个读数 · 区间 {min} → {max}",
   noChangeThisRun: "无变化——本次运行无新信息。",
   viewAllSources: "查看此信号累积的全部来源",
-  openHint: "打开 ⤢",
-  overlapsChip: "⇄ 重叠：{name}",
+  openHint: "打开",
+  overlapsChip: "重叠：{name}",
   overlapKeptTitle: "您选择两者都保留——点击打开与之重叠的信号",
   moreSources: "还有 {n} 个",
 
@@ -171,9 +171,9 @@ const zh: Record<keyof typeof en, string> = {
   originResearch: "在今日研究中发现",
   selectProposal: "选择提案",
   deselectProposal: "取消选择提案",
-  replacesBanner: "⇄ 替代“{name}”——批准后将换入此信号并停用旧信号",
+  replacesBanner: "替代“{name}”——批准后将换入此信号并停用旧信号",
   dismissedMemoryTitle: "机构记忆：批准关卡会记住您忽略过的提案——论点中应包含实质性新证据",
-  dismissedBack: "↩ 您曾于 {date} 忽略此提案——现已再次出现",
+  dismissedBack: "您曾于 {date} 忽略此提案——现已再次出现",
   planLabel: "测量计划：",
   approve: "批准",
   approveSwap: "批准并替换",
@@ -195,9 +195,9 @@ const zh: Record<keyof typeof en, string> = {
   carriedSincePre: "延续——自 ",
   carriedSincePost: " 起无新证据。",
 
-  replacedPrefix: "⇄ 已替代",
+  replacedPrefix: "已替代",
   viewItsHistory: "——查看其历史",
-  keptAlongsidePre: "⇄ 您选择与其并存：",
+  keptAlongsidePre: "您选择与其并存：",
   keptAlongsidePost: "——请留意重叠 · 点击打开",
   overlapKeptDetailTitle: "您选择两者都保留——若二者持续读取相同证据，研究台将提议合并为一个信号",
 
@@ -217,7 +217,7 @@ const zh: Record<keyof typeof en, string> = {
   notResearched: "尚未研究——每日运行会逐步补全，您也可以立即研究。",
   notResearchedRO: "尚未研究——每日运行会逐步补全。",
 
-  traceHint: "——点击 ⧉ 可在读数历史中追溯某个来源",
+  traceHint: "——点击下方来源即可在读数历史中追溯",
   srcCompany: "公司IR",
   srcRegulator: "监管机构",
   srcIndependent: "独立来源",
@@ -251,7 +251,7 @@ const zh: Record<keyof typeof en, string> = {
   feedRemoveTitle: "从证据流中移除该条目（各读数仍保留其引用）",
   feedRemoveConfirm: "从证据流中移除“{headline}”？各读数仍保留其引用。",
   srcImplication: "对信号的含义——{level}读数（{date}）",
-  trackThis: "✚ 跟踪此线索",
+  trackThis: "跟踪此线索",
   trackThisTitle: "尚无信号跟踪此线索——可请分析师起草一个（需您批准）",
   openSignalTitle: "打开此信号",
   statusSignal: "{status}信号",

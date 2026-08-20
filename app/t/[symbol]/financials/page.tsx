@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { DeskTabs } from "@/components/DeskTabs";
 import { FinancialsSection, fmtMetric } from "@/components/FinancialsCard";
+import { AlertTriangleIcon, SparkleIcon } from "@/components/icons";
 import { Markdown } from "@/components/Markdown";
 import { useT } from "@/components/PrefsProvider";
 import { api, localizeError, timeAgo } from "@/components/util";
@@ -343,8 +344,9 @@ export default function FinanceCleansingPage() {
           <button
             onClick={startSuggest}
             disabled={suggestBusy || suggesting || !financials}
-            className="rounded-lg bg-accent/12 hover:bg-accent/20 disabled:opacity-50 text-accent text-xs font-semibold px-3 py-1.5 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent/12 hover:bg-accent/20 disabled:opacity-50 text-accent text-xs font-semibold px-3 py-1.5 transition-colors"
           >
+            {!suggesting && <SparkleIcon className="h-3 w-3 shrink-0" />}
             {suggesting ? t("financials.suggestRunning") : t("financials.suggestBtn")}
           </button>
         </div>
@@ -355,8 +357,8 @@ export default function FinanceCleansingPage() {
           figure and every adjustment delta is the STATEMENT currency. */}
       {financials?.currencyMismatch && financials.tradingCurrency && (
         <div className="mt-4 rounded-xl border border-warn/35 bg-warn/10 px-4 py-3">
-          <p className="text-xs text-warn">
-            ⚠{" "}
+          <p className="flex items-start gap-1.5 text-xs text-warn">
+            <AlertTriangleIcon className="h-3.5 w-3.5 mt-px shrink-0" />
             {t("financials.currencyMismatchWarn", {
               name: ticker.name,
               fin: financials.currency ?? "?",

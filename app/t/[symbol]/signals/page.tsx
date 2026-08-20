@@ -6,6 +6,16 @@ import { useParams } from "next/navigation";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DeskTabs } from "@/components/DeskTabs";
 import { DigestFeed } from "@/components/DigestFeed";
+import {
+  ExpandIcon,
+  GridIcon,
+  MenuIcon,
+  PlayIcon,
+  RedoIcon,
+  SparkleIcon,
+  SwapIcon,
+  XIcon,
+} from "@/components/icons";
 import { Markdown } from "@/components/Markdown";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
@@ -1004,14 +1014,14 @@ export default function DeskPage() {
                         steerRowBusy === i ? "animate-pulse text-accent" : ""
                       }`}
                     >
-                      ↻
+                      <RedoIcon className="h-3 w-3" />
                     </button>
                     <button
                       onClick={() => setSteer((s) => s?.filter((_, j) => j !== i) ?? s)}
                       title={t("common.dismiss")}
                       className="mt-2 shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors"
                     >
-                      ✕
+                      <XIcon className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
@@ -1030,8 +1040,9 @@ export default function DeskPage() {
                   onClick={suggestSteerQuestion}
                   disabled={steerFrameBusy || steer.length >= 6}
                   title={steer.length >= 6 ? t("desk.steerSuggestCap") : undefined}
-                  className="rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 disabled:opacity-40 text-xs font-medium px-3 py-1.5 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 disabled:opacity-40 text-xs font-medium px-3 py-1.5 transition-colors"
                 >
+                  <SparkleIcon className="h-3.5 w-3.5 shrink-0" />
                   {steerSuggesting ? t("desk.steerSuggesting") : t("desk.steerSuggest")}
                 </button>
                 <span className="flex-1" />
@@ -1045,8 +1056,9 @@ export default function DeskPage() {
                 <button
                   onClick={startSteered}
                   disabled={steerFrameBusy}
-                  className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
                 >
+                  {!steerBusy && <PlayIcon className="h-3 w-3 shrink-0" />}
                   {steerBusy ? t("desk.steerStarting") : t("desk.steerStart")}
                 </button>
               </div>
@@ -1297,19 +1309,20 @@ export default function DeskPage() {
                   )}
                   {(
                     [
-                      { v: "cards", label: `▦ ${t("desk.layoutCards")}` },
-                      { v: "list", label: `☰ ${t("desk.layoutList")}` },
+                      { v: "cards", label: t("desk.layoutCards"), Icon: GridIcon },
+                      { v: "list", label: t("desk.layoutList"), Icon: MenuIcon },
                     ] as const
                   ).map((o) => (
                     <button
                       key={o.v}
                       onClick={() => setBoardLayout(o.v)}
-                      className={`rounded-md px-2 py-0.5 transition-colors ${
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors ${
                         boardLayout === o.v
                           ? "bg-ink/12 text-foreground font-semibold"
                           : "text-muted hover:text-emph bg-ink/4"
                       }`}
                     >
+                      <o.Icon className="h-3 w-3 shrink-0" />
                       {o.label}
                     </button>
                   ))}
@@ -1650,7 +1663,7 @@ export default function DeskPage() {
             aria-label={t("common.dismiss")}
             className="text-muted hover:text-emph text-xs transition-colors"
           >
-            ✕
+            <XIcon className="h-3 w-3" />
           </button>
         </div>
       )}
@@ -1769,7 +1782,8 @@ function BulkBar({
                 : t("desk.approveN", { n: ids.length })}
           </button>
           {casualties.length > 0 && (
-            <span className="text-warn">
+            <span className="inline-flex items-center gap-1 text-warn">
+              <SwapIcon className="h-3 w-3 shrink-0" />
               {t("desk.bulkRetires", {
                 names: casualties
                   .slice(0, 2)
@@ -1844,7 +1858,10 @@ function ArchiveRow({
             {t(`common.status_${kind}`)}
           </span>
           {onOpen && (
-            <span className="text-[0.625rem] text-muted/60 shrink-0">{t("desk.historyLink")}</span>
+            <span className="inline-flex items-center gap-0.5 text-[0.625rem] text-muted/60 shrink-0">
+              {t("desk.historyLink")}
+              <ExpandIcon className="h-2.5 w-2.5" />
+            </span>
           )}
         </div>
         <p className="text-[0.6875rem] text-muted truncate mt-0.5">

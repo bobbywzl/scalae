@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TraceIcon } from "@/components/icons";
 import { useT } from "./PrefsProvider";
 
 const CITE_RX = /^\[\d{1,3}\]$/;
@@ -38,9 +39,10 @@ export function Markdown({
                     onOpenSignal?.(id);
                   }}
                   title={t("chat.openSignal")}
-                  className="align-baseline text-[0.82em] font-medium text-emph hover:text-accent rounded-md border border-hairline bg-ink/5 hover:bg-ink/10 px-1.5 py-px mx-px transition-colors"
+                  className="inline-flex items-center gap-0.5 align-baseline text-[0.82em] font-medium text-emph hover:text-accent rounded-md border border-hairline bg-ink/5 hover:bg-ink/10 px-1.5 py-px mx-px transition-colors"
                 >
-                  ⧉ {kids}
+                  <TraceIcon className="h-2.5 w-2.5 shrink-0" />
+                  {kids}
                 </button>
               );
             }

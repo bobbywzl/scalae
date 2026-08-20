@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ScaleIcon } from "@/components/icons";
 import { useT } from "./PrefsProvider";
 import type { TFunc } from "@/lib/i18n/dictionaries";
 
@@ -58,9 +59,7 @@ export function WelcomeSplash({ name, onDone }: { name?: string | null; onDone: 
       style={{ transitionDuration: `${FADE_MS}ms` }}
     >
       <div className="text-center px-6 splash-rise motion-reduce:animate-none">
-        <p className="text-5xl mb-4" aria-hidden>
-          ⚖️
-        </p>
+        <ScaleIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
         <p className="text-muted text-sm mt-2">{sub}</p>
       </div>

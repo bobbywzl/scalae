@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PasswordInput from "@/components/PasswordInput";
+import { ScaleIcon } from "@/components/icons";
 import { cookies, headers } from "next/headers";
 import { authEnabled, googleEnabled } from "@/lib/auth";
 import { isLang, LANG_COOKIE, langFromAcceptLanguage } from "@/lib/i18n/config";
@@ -38,7 +39,7 @@ export default async function SignInPage({
   return (
     <main className="min-h-screen flex items-center justify-center px-5">
       <div className="w-full max-w-sm text-center">
-        <p className="text-4xl mb-3">⚖️</p>
+        <ScaleIcon className="h-9 w-9 mx-auto mb-3 text-accent" />
         <h1 className="text-3xl font-bold tracking-tight">Scalae</h1>
         <p className="text-muted text-sm mt-2 leading-relaxed">{t("onboarding.signinTagline")}</p>
 

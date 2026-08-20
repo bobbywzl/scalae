@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePrefs } from "@/components/PrefsProvider";
+import { MoonIcon, MonitorIcon, SunIcon } from "@/components/icons";
 import { api } from "@/components/util";
 import { langLabel, type Lang, type Theme } from "@/lib/i18n/config";
 
@@ -95,12 +96,12 @@ export default function SettingsPage() {
               <button
                 key={o.value}
                 onClick={() => setTheme(o.value)}
-                className={segBtn(theme === o.value)}
+                className={`inline-flex items-center gap-1.5 ${segBtn(theme === o.value)}`}
                 aria-pressed={theme === o.value}
               >
-                {o.value === "dark" && "🌙 "}
-                {o.value === "light" && "☀️ "}
-                {o.value === "system" && "🖥 "}
+                {o.value === "dark" && <MoonIcon className="h-3.5 w-3.5" />}
+                {o.value === "light" && <SunIcon className="h-3.5 w-3.5" />}
+                {o.value === "system" && <MonitorIcon className="h-3.5 w-3.5" />}
                 {o.label}
               </button>
             ))}

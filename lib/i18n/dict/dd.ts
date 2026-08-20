@@ -26,7 +26,7 @@ const en = {
     "No synthesis yet. Once sections hold notes or accepted research, refresh to distill the record's core insights.",
   synthesisRefreshedAgo: "refreshed {when}",
   synthesisEditedAgo: "edited by you {when}",
-  synthesisEdit: "✎ Edit",
+  synthesisEdit: "Edit",
   synthesisSave: "Save",
   synthesisCancel: "Cancel",
 
@@ -46,7 +46,7 @@ const en = {
   deciding: "Working…",
 
   // Topic suggestions (the signals → due-diligence half of the loop)
-  suggestTopics: "✦ Suggest topics",
+  suggestTopics: "Suggest topics",
   suggesting: "Asking the desk…",
   suggestExplainer: "From your signal board — the right things to look at next:",
   suggestDeepens: "Deepens: {names}",
@@ -90,7 +90,7 @@ const zh: Record<keyof typeof en, string> = {
   synthesisNone: "还没有综合。板块中有了笔记或已接受的研究后，点击刷新即可提炼记录的核心洞见。",
   synthesisRefreshedAgo: "刷新于 {when}",
   synthesisEditedAgo: "由你编辑于 {when}",
-  synthesisEdit: "✎ 编辑",
+  synthesisEdit: "编辑",
   synthesisSave: "保存",
   synthesisCancel: "取消",
 
@@ -107,7 +107,7 @@ const zh: Record<keyof typeof en, string> = {
   dismiss: "不采纳",
   deciding: "处理中……",
 
-  suggestTopics: "✦ 推荐主题",
+  suggestTopics: "推荐主题",
   suggesting: "正在询问分析台……",
   suggestExplainer: "来自你的信号板——接下来值得深入的方向：",
   suggestDeepens: "可深化：{names}",

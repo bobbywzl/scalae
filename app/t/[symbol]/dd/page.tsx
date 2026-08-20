@@ -7,6 +7,7 @@ import { generateHTML } from "@tiptap/core";
 import { AnnotationRecords } from "@/components/AnnotationRecords";
 import { Annotatable, AnnotationsProvider } from "@/components/Annotations";
 import { DeskTabs } from "@/components/DeskTabs";
+import { AttachmentKindIcon, PaperclipIcon, PencilIcon, SparkleIcon, TrashIcon, XIcon } from "@/components/icons";
 import { NOTE_EXTENSIONS, NoteEditor, parseNoteDoc } from "@/components/NoteEditor";
 import { useT } from "@/components/PrefsProvider";
 import { fmtBytes, processEvidenceFile } from "@/components/attach";
@@ -162,8 +163,9 @@ export default function DiligencePage() {
             type="button"
             onClick={suggestTopics}
             disabled={suggestState === "busy"}
-            className="rounded-lg border border-accent/30 bg-accent/8 hover:bg-accent/15 disabled:opacity-50 text-accent text-xs font-medium px-3 py-1.5 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/8 hover:bg-accent/15 disabled:opacity-50 text-accent text-xs font-medium px-3 py-1.5 transition-colors"
           >
+            {suggestState !== "busy" && <SparkleIcon className="h-3 w-3 shrink-0" />}
             {suggestState === "busy" ? t("dd.suggesting") : t("dd.suggestTopics")}
           </button>
         </form>
@@ -324,7 +326,8 @@ function SectionBlock({
           title={t("notes.deleteSection")}
           className="ml-auto flex items-center gap-1 rounded-md border border-loss/25 bg-loss/8 hover:bg-loss/18 px-2 py-0.5 text-[0.625rem] font-medium text-loss transition-colors disabled:opacity-40"
         >
-          🗑 {t("notes.deleteSection")}
+          <TrashIcon className="h-3 w-3" />
+          {t("notes.deleteSection")}
         </button>
       </div>
 
@@ -449,9 +452,14 @@ function EvidenceStrip({
             : "border-hairline bg-ink/3 text-muted hover:bg-ink/6 hover:text-emph"
         }`}
       >
-        {uploadingName
-          ? `${t("dd.evidenceUploading", { name: uploadingName })}${uploadPct != null ? ` · ${uploadPct}%` : ""}`
-          : `📎 ${t("dd.evidenceDrop")}`}
+        {uploadingName ? (
+          `${t("dd.evidenceUploading", { name: uploadingName })}${uploadPct != null ? ` · ${uploadPct}%` : ""}`
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <PaperclipIcon className="h-3.5 w-3.5 shrink-0" />
+            {t("dd.evidenceDrop")}
+          </span>
+        )}
         <input
           ref={inputRef}
           type="file"
@@ -481,13 +489,6 @@ function EvidenceStrip({
     </div>
   );
 }
-
-const KIND_ICON: Record<DiligenceEvidence["kind"], string> = {
-  image: "🖼",
-  pdf: "📄",
-  text: "📃",
-  file: "📎",
-};
 
 function EvidenceCard({
   evidence,
@@ -552,8 +553,8 @@ function EvidenceCard({
           />
         </a>
       ) : (
-        <span className="shrink-0 w-16 h-16 rounded-lg bg-ink/5 border border-hairline flex items-center justify-center text-2xl">
-          {KIND_ICON[evidence.kind]}
+        <span className="shrink-0 w-16 h-16 rounded-lg bg-ink/5 border border-hairline flex items-center justify-center">
+          <AttachmentKindIcon kind={evidence.kind} className="h-6 w-6 text-muted" />
         </span>
       )}
       <div className="min-w-0 flex-1">
@@ -574,9 +575,9 @@ function EvidenceCard({
             onClick={remove}
             disabled={busy}
             title={t("dd.evidenceDelete")}
-            className="ml-auto shrink-0 rounded-md px-1 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
+            className="ml-auto shrink-0 rounded-md px-1 py-0.5 text-muted/60 hover:text-loss transition-colors disabled:opacity-40"
           >
-            ✕
+            <XIcon className="h-3 w-3" />
           </button>
         </div>
         <input
@@ -723,20 +724,21 @@ function NotepadCard({ note, onDeleted }: { note: Note; onDeleted: () => Promise
         </span>
         <button
           onClick={editing ? finishEditing : () => setEditing(true)}
-          className={`shrink-0 rounded-md px-2 py-0.5 text-[0.6875rem] font-medium transition-colors ${
+          className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.6875rem] font-medium transition-colors ${
             editing
               ? "bg-accent/12 text-accent hover:bg-accent/20"
               : "bg-ink/6 text-muted hover:bg-ink/10 hover:text-emph"
           }`}
         >
+          {!editing && <PencilIcon className="h-2.5 w-2.5" />}
           {editing ? t("notes.doneEditing") : t("notes.editNote")}
         </button>
         <button
           onClick={remove}
           title={t("notes.deleteNotepad")}
-          className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-muted/60 hover:text-loss transition-colors"
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-muted/60 hover:text-loss transition-colors"
         >
-          ✕
+          <XIcon className="h-3 w-3" />
         </button>
       </div>
       <div className="mt-2.5">

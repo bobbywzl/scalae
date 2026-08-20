@@ -42,7 +42,7 @@ const en = {
   dcfTitle: "DCF inputs — build your own",
   dcfNote: "Normalized over {n} FY. Copy the table and drop it into your model.",
   copyTable: "Copy for spreadsheet",
-  copied: "Copied ✓",
+  copied: "Copied",
   accuracyNote: "Verify against your own data before relying on it for a DCF.",
   beta: "Beta",
   effectiveTaxRate: "Effective tax rate",
@@ -140,7 +140,7 @@ const en = {
   boardEditsLabel: "Board edits in effect:",
 
   // The "suggest moderations" pass
-  suggestBtn: "✦ Suggest moderations",
+  suggestBtn: "Suggest moderations",
   suggestRunning: "Scanning the record…",
   suggestStop: "Stop pass",
   suggestRunningNote:
@@ -251,7 +251,7 @@ const zh: Record<keyof typeof en, string> = {
   dcfTitle: "DCF 输入项——自行建模",
   dcfNote: "基于 {n} 个财年归一化。复制表格并粘贴到你的模型中。",
   copyTable: "复制到表格",
-  copied: "已复制 ✓",
+  copied: "已复制",
   accuracyNote: "用于 DCF 前请与你自己的数据核对。",
   beta: "贝塔",
   effectiveTaxRate: "有效税率",
@@ -338,7 +338,7 @@ const zh: Record<keyof typeof en, string> = {
   cellReportedTip: "披露原值：{raw} · 来自 {titles}",
   boardEditsLabel: "生效中的表格编辑：",
 
-  suggestBtn: "✦ 建议调整项",
+  suggestBtn: "建议调整项",
   suggestRunning: "正在扫描记录……",
   suggestStop: "停止扫描",
   suggestRunningNote:

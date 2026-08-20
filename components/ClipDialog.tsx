@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CheckIcon } from "@/components/icons";
 import { useT } from "./PrefsProvider";
 import { api } from "./util";
 import type { NotesPayload } from "@/lib/types";
@@ -93,7 +94,10 @@ export function ClipDialog({
         <p className="text-[0.6875rem] text-muted mt-1 line-clamp-2">{item.headline}</p>
 
         {state === "done" ? (
-          <p className="text-gain text-sm font-medium mt-4">{t("notes.clipped")}</p>
+          <p className="text-gain text-sm font-medium mt-4 inline-flex items-center gap-1.5">
+            <CheckIcon className="h-3.5 w-3.5" />
+            {t("notes.clipped")}
+          </p>
         ) : state === "error" ? (
           <p className="text-loss text-xs mt-4">{t("notes.clipFailed")}</p>
         ) : !payload ? (

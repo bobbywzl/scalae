@@ -5,15 +5,15 @@ const en = {
   subtitle: "Report a bug, request a feature, or ask a question — attach screenshots as evidence.",
 
   // Categories
-  catBug: "🐛 Bug report",
+  catBug: "Bug report",
   catBugHint: "Something is broken or wrong",
-  catIdea: "💡 Feature idea",
+  catIdea: "Feature idea",
   catIdeaHint: "Something Scalae should do",
-  catQuestion: "❓ Question",
+  catQuestion: "Question",
   catQuestionHint: "How does something work?",
-  catAccount: "👤 Account",
+  catAccount: "Account",
   catAccountHint: "Sign-in, data or billing",
-  catOther: "💬 Other",
+  catOther: "Other",
   catOtherHint: "Anything else",
 
   // Status chips
@@ -23,7 +23,7 @@ const en = {
 
   // New request form
   newRequest: "New request",
-  filedOk: "Request filed ✓",
+  filedOk: "Request filed",
   reqIdIs: "Your request ID is",
   reqIdKeep: "— keep it for reference.",
   emailNotice: "We'll email {email} when there's a response; the full thread lives on this page.",
@@ -70,15 +70,15 @@ const zh: Record<keyof typeof en, string> = {
   title: "帮助与反馈",
   subtitle: "报告故障、提出功能建议或咨询问题——可附截图作为证据。",
 
-  catBug: "🐛 故障报告",
+  catBug: "故障报告",
   catBugHint: "有功能损坏或表现异常",
-  catIdea: "💡 功能建议",
+  catIdea: "功能建议",
   catIdeaHint: "希望 Scalae 增加的能力",
-  catQuestion: "❓ 咨询",
+  catQuestion: "咨询",
   catQuestionHint: "想了解某项功能如何使用？",
-  catAccount: "👤 账户",
+  catAccount: "账户",
   catAccountHint: "登录、数据或账单问题",
-  catOther: "💬 其他",
+  catOther: "其他",
   catOtherHint: "其他任何事项",
 
   statusOpen: "处理中",
@@ -86,7 +86,7 @@ const zh: Record<keyof typeof en, string> = {
   statusClosed: "已关闭",
 
   newRequest: "新请求",
-  filedOk: "请求已提交 ✓",
+  filedOk: "请求已提交",
   reqIdIs: "您的请求编号是",
   reqIdKeep: "——请妥善保存以便日后查询。",
   emailNotice: "有回复时我们会发送邮件至 {email}；完整对话记录保留在本页面。",

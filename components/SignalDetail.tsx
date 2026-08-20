@@ -15,6 +15,7 @@ import type {
 import { Annotatable } from "./Annotations";
 import { ChatPanel } from "./ChatPanel";
 import { ClipDialog, type ClipPayload } from "./ClipDialog";
+import { DiamondIcon, NoteArrowIcon, SwapIcon, TraceIcon } from "@/components/icons";
 import { Markdown } from "./Markdown";
 import { useT } from "@/components/PrefsProvider";
 import { SigKeyBadge } from "./SignalCard";
@@ -300,8 +301,11 @@ export function SignalDetail({
             <p className="text-base font-bold leading-tight truncate">{signal.name}</p>
           </div>
           <p className="text-[0.625rem] uppercase tracking-wider text-muted mt-0.5">
-            {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")} ·{" "}
-            {signal.focusArea} · {signal.symbol}
+            <span className="inline-flex items-center gap-1 align-middle">
+              {signal.type === "qualitative" && <DiamondIcon className="h-2.5 w-2.5" />}
+              {signal.type === "quantitative" ? t("signals.typeQuantitative") : t("signals.typeQualitative")}
+            </span>{" "}
+            · {signal.focusArea} · {signal.symbol}
           </p>
         </div>
         {r && level && delta && (
@@ -492,8 +496,9 @@ export function SignalDetail({
           {lineage && (
             <button
               onClick={lineage.onOpen}
-              className="w-full text-left rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-3 py-2 text-[0.6875rem] text-emph transition-colors"
+              className="w-full flex items-center gap-1 text-left rounded-lg border border-hairline bg-ink/4 hover:bg-ink/8 px-3 py-2 text-[0.6875rem] text-emph transition-colors"
             >
+              <SwapIcon className="h-3 w-3 shrink-0" />
               {t("signals.replacedPrefix")}
               <span className="font-semibold">“{lineage.name}”</span>
               <span className="text-accent">{t("signals.viewItsHistory")}</span>
@@ -504,8 +509,9 @@ export function SignalDetail({
             <button
               onClick={overlapsWith.onOpen}
               title={t("signals.overlapKeptDetailTitle")}
-              className="w-full text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[0.6875rem] text-warn transition-colors"
+              className="w-full flex items-center gap-1 text-left rounded-lg border border-warn/25 bg-warn/8 hover:bg-warn/12 px-3 py-2 text-[0.6875rem] text-warn transition-colors"
             >
+              <SwapIcon className="h-3 w-3 shrink-0" />
               {t("signals.keptAlongsidePre")}
               <span className="font-semibold">“{overlapsWith.name}”</span>
               <span className="opacity-80">{t("signals.keptAlongsidePost")}</span>
@@ -628,13 +634,14 @@ export function SignalDetail({
                                 n: src.count,
                               })
                         }
-                        className={`rounded-full px-1.5 py-px text-[0.5625rem] transition-colors ${
+                        className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[0.5625rem] transition-colors ${
                           filterUrl === src.url
                             ? "bg-accent/25 text-accent"
                             : "bg-ink/8 text-muted hover:bg-ink/15 hover:text-emph"
                         }`}
                       >
-                        ⧉ {t(src.count === 1 ? "signals.readingsOne" : "signals.readingsMany", { n: src.count })}
+                        <TraceIcon className="h-2.5 w-2.5 shrink-0" />
+                        {t(src.count === 1 ? "signals.readingsOne" : "signals.readingsMany", { n: src.count })}
                       </button>
                       <span className="text-[0.625rem] text-muted/70 ml-auto shrink-0">
                         {fmtDay(src.firstSeen, locale)}
@@ -664,7 +671,10 @@ export function SignalDetail({
                             </p>
                           )}
                           {d?.sourceNote && (
-                            <p className="text-[0.625rem] text-muted/90 leading-snug">☞ {d.sourceNote}</p>
+                            <p className="flex items-start gap-1 text-[0.625rem] text-muted/90 leading-snug">
+                              <NoteArrowIcon className="h-3 w-3 mt-px shrink-0" />
+                              {d.sourceNote}
+                            </p>
                           )}
                           {imp && (
                             <p className="text-[0.6875rem] text-[#b5b5ba] leading-snug">

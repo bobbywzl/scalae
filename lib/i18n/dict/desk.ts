@@ -20,11 +20,11 @@ const en = {
   steerExplainer:
     "The question suggestor framed what this run should answer — from the board, your record and what past runs already answered. Edit, remove or add questions; the sweeps steer by exactly what you submit.",
   steerFraming: "Framing questions…",
-  steerStart: "▶ Start research",
+  steerStart: "Start research",
   steerStarting: "Starting…",
   steerCancel: "Cancel",
   steerAdd: "+ Add question",
-  steerSuggest: "✦ Suggest another",
+  steerSuggest: "Suggest another",
   steerSuggesting: "Suggesting…",
   steerRegen: "Swap in a fresh question on a different angle",
   steerSuggestCap: "Six questions is the sheet's cap — remove one first.",
@@ -37,7 +37,7 @@ const en = {
   errRunning: "Research is already running on this ticker.",
 
   // Single-signal checks (the per-signal "Run signal research" pipeline)
-  runSignal: "✦ Run signal research",
+  runSignal: "Run signal research",
   signalCheckingShort: "Checking…",
   signalCheckBusy: "Another research run is in flight on this desk — one at a time.",
   signalCheckFailed: "Signal research failed: {error}",
@@ -54,7 +54,7 @@ const en = {
   analystProposals: "Analyst proposals",
   awaitingYourApproval: "{n} awaiting your approval",
   proposalsExplainer:
-    "The desk rediscovers candidate signals as the story evolves — nothing is tracked without your sign-off. Proposals marked ⇄ replace an active signal on approval. Approving a selection ignores the rest — one decision resolves the whole queue.",
+    "The desk rediscovers candidate signals as the story evolves — nothing is tracked without your sign-off. Proposals marked with the swap icon replace an active signal on approval. Approving a selection ignores the rest — one decision resolves the whole queue.",
 
   // Dossier (standing view)
   dossierTitle: "The business, as the desk reads it",
@@ -112,7 +112,7 @@ const en = {
   // Archive
   archive: "Archive",
   archiveCounts: "{r} retired · {d} dismissed",
-  historyLink: "history ⤢",
+  historyLink: "history",
   archiveOpenTitle: "View this signal's full evidence trail (read-only)",
   supersededBy: "superseded by “{name}”",
   guardReplacedActive: "“{name}” replaced this signal and is still active:",
@@ -136,7 +136,7 @@ const en = {
     "Activates your {n} selected signal and ignores the other {rest} — one decision resolves the queue (ignored proposals stay recoverable in the archive)",
   bulkApproveTitleMany:
     "Activates your {n} selected signals and ignores the other {rest} — one decision resolves the queue (ignored proposals stay recoverable in the archive)",
-  bulkRetires: "⇄ approving retires {names}",
+  bulkRetires: "approving retires {names}",
   bulkRetiresMore: " +{n} more",
   listJoiner: ", ",
   anActiveSignal: "an active signal",
@@ -178,11 +178,11 @@ const zh: Record<keyof typeof en, string> = {
   steerExplainer:
     "提问器已根据信号板、你的记录以及过往运行已回答的问题，拟定本次研究要回答的问题。可编辑、删除或添加——检索将严格按你提交的问题展开。",
   steerFraming: "正在拟定问题……",
-  steerStart: "▶ 开始研究",
+  steerStart: "开始研究",
   steerStarting: "启动中……",
   steerCancel: "取消",
   steerAdd: "+ 添加问题",
-  steerSuggest: "✦ 再拟一问",
+  steerSuggest: "再拟一问",
   steerSuggesting: "拟定中……",
   steerRegen: "换一个不同角度的新问题",
   steerSuggestCap: "问题上限为六个——请先删除一个。",
@@ -193,7 +193,7 @@ const zh: Record<keyof typeof en, string> = {
   questionsAnsweredNote: "下方晨报逐一汇报每个问题的发现——包括诚实的“未找到证据”。",
   errRunning: "该股票的研究正在进行中。",
 
-  runSignal: "✦ 运行信号研究",
+  runSignal: "运行信号研究",
   signalCheckingShort: "核查中……",
   signalCheckBusy: "该工作台已有一项研究正在进行——一次只能运行一项。",
   signalCheckFailed: "信号研究失败：{error}",
@@ -208,7 +208,7 @@ const zh: Record<keyof typeof en, string> = {
   analystProposals: "分析师提案",
   awaitingYourApproval: "{n} 个待您批准",
   proposalsExplainer:
-    "随着企业故事的演进，研究台会不断发掘候选信号——未经您批准，任何信号都不会被跟踪。标有 ⇄ 的提案在批准后将替代一个现有信号。批准所选提案即忽略其余提案——一次决定即可清空整个队列。",
+    "随着企业故事的演进，研究台会不断发掘候选信号——未经您批准，任何信号都不会被跟踪。标有替换图标的提案在批准后将替代一个现有信号。批准所选提案即忽略其余提案——一次决定即可清空整个队列。",
 
   dossierTitle: "研究台眼中的这家企业",
   dossierProvenance:
@@ -261,7 +261,7 @@ const zh: Record<keyof typeof en, string> = {
 
   archive: "归档",
   archiveCounts: "{r} 个已停用 · {d} 个已忽略",
-  historyLink: "历史 ⤢",
+  historyLink: "历史",
   archiveOpenTitle: "查看该信号的完整证据记录（只读）",
   supersededBy: "已被“{name}”替代",
   guardReplacedActive: "“{name}”已替代该信号，且仍在启用中：",
@@ -284,7 +284,7 @@ const zh: Record<keyof typeof en, string> = {
     "启用您选中的 {n} 个信号并忽略其余 {rest} 个——一次决定即可清空队列（被忽略的提案仍可从归档中恢复）",
   bulkApproveTitleMany:
     "启用您选中的 {n} 个信号并忽略其余 {rest} 个——一次决定即可清空队列（被忽略的提案仍可从归档中恢复）",
-  bulkRetires: "⇄ 批准将停用 {names}",
+  bulkRetires: "批准将停用 {names}",
   bulkRetiresMore: " 及另外 {n} 个",
   listJoiner: "、",
   anActiveSignal: "一个已启用信号",

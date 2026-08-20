@@ -61,7 +61,7 @@ const en = {
   tbRedo: "Redo",
 
   // Notepad read/edit modes (read mode is the annotatable surface)
-  editNote: "✎ Edit",
+  editNote: "Edit",
   doneEditing: "Done",
   emptyNotepad: "Empty notepad — start writing.",
 
@@ -72,7 +72,7 @@ const en = {
   clipNewNotepad: "+ New notepad in “{section}”",
   clipNoSections: "No sections yet — create one on the Due diligence page first.",
   clipGoToNotes: "Open Due diligence →",
-  clipped: "Clipped ✓",
+  clipped: "Clipped",
   clipFailed: "Clip failed — try again.",
 
   loading: "Loading notes…",
@@ -154,7 +154,7 @@ const zh: Record<keyof typeof en, string> = {
   tbUndo: "撤销",
   tbRedo: "重做",
 
-  editNote: "✎ 编辑",
+  editNote: "编辑",
   doneEditing: "完成",
   emptyNotepad: "空记事本——开始书写。",
 
@@ -164,7 +164,7 @@ const zh: Record<keyof typeof en, string> = {
   clipNewNotepad: "+ 在“{section}”中新建记事本",
   clipNoSections: "还没有板块——请先在尽职调查页创建一个。",
   clipGoToNotes: "打开尽职调查 →",
-  clipped: "已收藏 ✓",
+  clipped: "已收藏",
   clipFailed: "收藏失败——请重试。",
 
   loading: "正在加载笔记……",

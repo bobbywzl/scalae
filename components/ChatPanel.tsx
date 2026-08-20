@@ -3,6 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import type { Attachment, ChatMessage, Signal } from "@/lib/types";
 import type { TFunc } from "@/lib/i18n/dictionaries";
+import {
+  AttachmentKindIcon,
+  CheckIcon,
+  CollapseIcon,
+  ExpandIcon,
+  MicIcon,
+  PaperclipIcon,
+  StopIcon,
+  VolumeIcon,
+  XIcon,
+} from "@/components/icons";
 import { Annotatable } from "./Annotations";
 import { useT } from "./PrefsProvider";
 import { localizeError } from "./util";
@@ -81,7 +92,6 @@ function AttachmentChip({
   onRemove?: () => void;
 }) {
   const { t } = useT();
-  const icon = a.kind === "image" ? "🖼" : a.kind === "pdf" ? "📄" : "📝";
   return (
     <span className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-ink/5 px-2 py-1 text-[0.6875rem] text-emph max-w-[220px]">
       {a.kind === "image" && a.data ? (
@@ -92,7 +102,7 @@ function AttachmentChip({
           className="h-5 w-5 rounded object-cover shrink-0"
         />
       ) : (
-        <span aria-hidden>{icon}</span>
+        <AttachmentKindIcon kind={a.kind} className="h-3.5 w-3.5 shrink-0" />
       )}
       <span className="truncate">{a.name}</span>
       {a.size > 0 && <span className="text-muted shrink-0">{fmtBytes(a.size)}</span>}
@@ -102,7 +112,7 @@ function AttachmentChip({
           className="text-muted hover:text-loss transition-colors shrink-0"
           aria-label={t("chat.removeAttachment", { name: a.name })}
         >
-          ✕
+          <XIcon className="h-3 w-3" />
         </button>
       )}
     </span>
@@ -284,9 +294,16 @@ export function ChatPanel({
             onClick={onToggleExpand}
             title={expanded ? t("chat.exitFullTitle") : t("chat.enterFull")}
             aria-label={expanded ? t("chat.exitFull") : t("chat.enterFull")}
-            className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[0.6875rem] text-emph transition-colors"
+            className="inline-flex items-center gap-1 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2 py-1 text-[0.6875rem] text-emph transition-colors"
           >
-            {expanded ? `⤡ ${t("chat.exit")}` : "⤢"}
+            {expanded ? (
+              <>
+                <CollapseIcon className="h-3 w-3" />
+                {t("chat.exit")}
+              </>
+            ) : (
+              <ExpandIcon className="h-3 w-3" />
+            )}
           </button>
         )}
       </div>
@@ -333,9 +350,17 @@ export function ChatPanel({
                   <button
                     onClick={() => toggleSpeak(m)}
                     title={speakingId === m.id ? t("chat.stopReading") : t("chat.readAloud")}
-                    className="text-[0.6875rem] text-muted hover:text-emph transition-colors"
+                    className="inline-flex items-center gap-1 text-[0.6875rem] text-muted hover:text-emph transition-colors"
                   >
-                    {speakingId === m.id ? `◼ ${t("chat.stop")}` : `🔊 ${t("chat.read")}`}
+                    {speakingId === m.id ? (
+                      <>
+                        <StopIcon className="h-3 w-3" /> {t("chat.stop")}
+                      </>
+                    ) : (
+                      <>
+                        <VolumeIcon className="h-3 w-3" /> {t("chat.read")}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -373,13 +398,19 @@ export function ChatPanel({
                         <span
                           className={
                             s.status === "active"
-                              ? "text-gain text-[0.6875rem]"
+                              ? "inline-flex items-center gap-1 text-gain text-[0.6875rem]"
                               : "text-muted text-[0.6875rem]"
                           }
                         >
-                          {s.status === "active"
-                            ? t("chat.activeOpen")
-                            : t(`common.status_${s.status}`)}
+                          {s.status === "active" ? (
+                            <>
+                              <CheckIcon className="h-2.5 w-2.5" />
+                              {t("chat.activeOpen")}
+                              <ExpandIcon className="h-2.5 w-2.5" />
+                            </>
+                          ) : (
+                            t(`common.status_${s.status}`)
+                          )}
                         </span>
                       </div>
                     );
@@ -479,20 +510,20 @@ export function ChatPanel({
             disabled={attachBusy}
             title={t("chat.attachTitle")}
             aria-label={t("chat.attachTitle")}
-            className="shrink-0 rounded-lg hover:bg-ink/8 disabled:opacity-40 px-1.5 py-1.5 text-base leading-none transition-colors"
+            className="shrink-0 rounded-lg hover:bg-ink/8 disabled:opacity-40 px-1.5 py-1.5 transition-colors"
           >
-            📎
+            <PaperclipIcon className="h-4 w-4" />
           </button>
           {speechOK && (
             <button
               onClick={() => (listening ? stopListening() : startListening())}
               title={listening ? t("chat.dictateStop") : t("chat.dictate")}
               aria-label={listening ? t("chat.dictateStop") : t("chat.dictate")}
-              className={`shrink-0 rounded-lg px-1.5 py-1.5 text-base leading-none transition-colors ${
+              className={`shrink-0 rounded-lg px-1.5 py-1.5 transition-colors ${
                 listening ? "bg-loss/20 text-loss pulse-soft" : "hover:bg-ink/8"
               }`}
             >
-              🎤
+              <MicIcon className="h-4 w-4" />
             </button>
           )}
           <textarea

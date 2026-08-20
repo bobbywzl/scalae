@@ -1,6 +1,7 @@
 "use client";
 
 import { Annotatable } from "@/components/Annotations";
+import { PlusIcon, XIcon } from "@/components/icons";
 import { useT } from "@/components/PrefsProvider";
 import type { TKey } from "@/lib/i18n/dictionaries";
 import type { DigestItem, Signal, SourceClass } from "@/lib/types";
@@ -115,8 +116,9 @@ export function DigestFeed({
                 <button
                   onClick={() => onTrackStory(d)}
                   title={t("signals.trackThisTitle")}
-                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[0.625rem] text-emph hover:text-accent transition-colors"
+                  className="ml-2 inline-flex items-center gap-0.5 rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-1.5 py-px text-[0.625rem] text-emph hover:text-accent transition-colors"
                 >
+                  <PlusIcon className="h-2.5 w-2.5" />
                   {t("signals.trackThis")}
                 </button>
               )}
@@ -124,9 +126,10 @@ export function DigestFeed({
                 <button
                   onClick={() => onDelete(d)}
                   title={t("signals.feedRemoveTitle")}
-                  className="ml-2 rounded-md border border-hairline bg-ink/4 hover:bg-loss/10 hover:border-loss/30 px-1.5 py-px text-[0.625rem] text-muted hover:text-loss transition-colors"
+                  className="ml-2 inline-flex items-center gap-0.5 rounded-md border border-hairline bg-ink/4 hover:bg-loss/10 hover:border-loss/30 px-1.5 py-px text-[0.625rem] text-muted hover:text-loss transition-colors"
                 >
-                  ✕ {t("signals.feedRemove")}
+                  <XIcon className="h-2.5 w-2.5" />
+                  {t("signals.feedRemove")}
                 </button>
               )}
               {d.signalNames.length > 0 && (

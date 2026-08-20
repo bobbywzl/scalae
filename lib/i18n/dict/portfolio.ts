@@ -46,7 +46,7 @@ const en = {
 
   // Summary tiles
   cash: "Cash",
-  editCapital: "✎ edit",
+  editCapital: "edit",
   editCapitalTitle: "Edit initial capital",
   ofInitial: "of {amt} initial",
   setInitialCapital: "+ Set initial capital",
@@ -119,7 +119,7 @@ const en = {
   qtyAvg: "{qty} sh @ {price} avg",
   pctOfBook: "{pct}% of book",
   pctOfBookTitle: "Share of the book's total market value",
-  noCost: "⚠ no cost recorded",
+  noCost: "no cost recorded",
   noCostTitle:
     "This position was recorded at price 0, so its P&L is overstated — delete the trade in Trade history and re-record it with the real fill price.",
   realizedAmt: "realized {amt}",
@@ -205,7 +205,7 @@ const zh: Record<keyof typeof en, string> = {
   setStartingCapital: "设置初始资金",
 
   cash: "现金",
-  editCapital: "✎ 编辑",
+  editCapital: "编辑",
   editCapitalTitle: "编辑初始资金",
   ofInitial: "初始资金 {amt}",
   setInitialCapital: "+ 设置初始资金",
@@ -272,7 +272,7 @@ const zh: Record<keyof typeof en, string> = {
   qtyAvg: "{qty} 股 @ 平均成本 {price}",
   pctOfBook: "权重 {pct}%",
   pctOfBookTitle: "占投资组合总市值的比例",
-  noCost: "⚠ 未记录成本",
+  noCost: "未记录成本",
   noCostTitle:
     "该持仓以 0 价格录入，盈亏因此被高估——请在交易历史中删除该笔交易，并按真实成交价重新录入。",
   realizedAmt: "已实现 {amt}",
