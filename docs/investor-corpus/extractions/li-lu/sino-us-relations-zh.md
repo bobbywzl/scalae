@@ -19,6 +19,40 @@ coverage: 100%
 - > "名者多多少少都是出于保家卫国、扩展疆域、为后代造福的功绩。但是，过去五百年的争战已经很清楚地告诉我们，3.0 文明"青史"和 2.0 文明"青史"的评判标准是不一样的。过去很多理所当然会让人名垂青史的事情，可能今天我们得到的结论正好相反。这就是为什么我要特意把两种文明以 2.0 、3.0 加以区别， 提醒大家看到常规思考这些问题上的盲点。今天中国有一种观点认为，中国经济体量已经太大，藏也藏不住，再韬光养晦已经不可能了。美国已经不能容忍中国经济继续增长。而中国的政治制度不可能改变，与美国的矛盾不可避免，可能将来必有一战，所以应该利用目前的国际形势努力建立以中国为中心的国际经贸体系，以便将来和美国秩序下的国际市场抗衡，甚至取而代之。这种观点既错读了美国秩序，也错估了" @line 332
 - > "美国秩序下的国际市场仍是自由竞争的市场，为 WTO 的每一个成员国都提供了平等竞争和发展的机会。德国、日本二战后从美国的敌人发展到今天分别占有世界 GDP 的 5%和 6%左右，而中国自改革开放以来，在全球 GDP 中的占比从 1.75%上升到今天的 15%，都是在美国秩序下才完成的。相反，美国在全球 GDP 中的占比从二战后的 50%左右下降到了目前的 25%，却仍在负担国际市场安全运行的主要成本，应该说美国秩序总体上是比较厚道、公平、合理的。在 WTO 内部还没有哪个主要经济体真正愿意离开。只要遵守规则，中国上升的空间仍然很大，美国的经济也仍然是世界上最有活力的经济，美国还没有对自身竞争力失去信心。要想成为世界秩序的竞争者，不但内部要强大，还要有一套让国际社会大部分人接受的意" @line 341
 
+- > "二战胜利后不久，美国就从欧洲、日本等占领地撤军，美国是人类历史上第一个在以土地 争夺为目的的战争中胜利后却主动放弃占领土地的国家。这和之前的罗马帝国、中华帝国及大英 帝国都截然不同。由此开启的美国秩序具有非常鲜明的 3.0 文明特点。如果说 2.0 农业文明时代 的核心诉求是土地，在我看来，3.0 科技文明的核心诉求就是市场的大小。决定一个经济体能否" @line 167-170
+
+- > "除此之外，美国还建立并推广了一系列的意识形态，也就是它的软实力。正如 2.0 文明时 代的中华帝国，在建立以法家为主体的帝国体制之外，又奉孔孟之道、儒家学说为正统，在精神 上、文化上让帝国的民众心悦诚服，美国的意识形态包括提倡自由、民主、人权、宪政、法治， 自由市场、自由竞争、自由贸易，私人财产神圣不可侵犯等理念。这套普世价值观有足够的力 量，能被今天世界上绝大多数人接受。正是在这些软硬实力交互作用下，美国制度取得了巨大的 成功，从二战胜利开始，避免了世界规模的热战，维护了世界大体上的和平。在此基础上，美国" @line 184-189
+
+- > "但是，意识形态和权力实质是不同的。比如在中国，素来有"道统"和"政统"之争，道统就 是儒家学说，政统就是帝王权术，区别是一直存在的。美国也一样，存在着意识形态和权力实质 的差距。在意识形态上，美国强调世界上人人平等，都享有普世人权。但是美国对内对外的政策 区别很大，对不同的国家及其公民也区别对待，其国际关系政策与国内政策有时可以大相径庭， 对于那些因为各种原因而站到美国对立面的国家尤其如此。例如，美国可以把古巴、北韩完全排 斥在国际市场之外。古巴的例子尤为突出，它和除美国之外的很多大国都有外交关系，但因为受 7  到美国制裁，未能进入到国际市场，基本上还是一个贫穷国家。美国也可以把原来的盟友、现在 的敌人，例如伊朗，从国际市场的核心开除出去。苏联解体后，东欧因为在政治上进行民主化， 被拉入到国际市场的核心，而俄罗斯在普京上台后则一直被排斥在边缘地带。中国实际上是一个 特例，它没有在政治上作出任何体制上的改变，和美国实行完全不同的政治制度，但又几乎完全 融入了美国秩序下的全球市场。但是现在，美国几乎所有派别在对华政策上都认为现有的世贸组 织（WTO）已经完全和中国现实不相容了。" @line 198-211
+
+- > "美国在经济上的硬实力之一就是建立了以美元为中心的国际贸易、金融、投资结算体系， 因此美国在理论上可以监控全球的每一笔跨境交易，无论是贸易、服务还是投资。全球所有银行 的国际业务在某种意义上都在美国的控制之下，所以美国的制裁确实是很有效的。川普今年单方 面宣布退出伊朗核协议之后的情况就是一个证明。中兴、华为正在成为制裁政策的牺牲品。美国 的硬实力还包括分布在全球的军事基地和美国经济本身的体量、内部广大的市场、开放的投资环 境、充满竞争力的科学技术、世界一流的大学等等。所以每当全球金融危机来临时，美元及美元 资产仍是全球投资人的避风港。这种情况甚至在 2008 年之后也并未改变。" @line 212-218
+
+- > "在使用硬实力方面，美国在必要时，无论在军事上还是经济上都没有犹豫过。两次伊拉克 战争，还有零八年危机后大规模地增发美元，用国际资本解救国内危机都是典型的例子。今天的 全球市场实际上也被美国以亲疏关系分成三个层次：核心市场成员（大体以 WTO 成员国为划 分）、外围市场参加国及完全的受制裁国，所以今天的全球市场仍然是美国秩序下的全球市场。 正如我在《李录谈现代化》中所说，3.0 科技文明的铁律是最大的市场最终会成为唯一市场。美 国给予的市场准入权其实决定了世界上任何其他国家繁荣或贫穷的程度。因为除了美国主导的这 个唯一的高效率市场，其它独立运行的市场相较之下都效率低下，竞争力不足。 据李慎之回忆，在邓小平复出后访美的途中，他曾对李慎之讲过为什么他最重视中美关 系。邓说，据他的观察，二战后凡是和美国好的国家都富了，凡是与苏联好的国家都贫穷。这个 观察对今天国际秩序依然适用，是一个准确的描述。" @line 219-228
+
+- > "力的一部分。 川普上台以后的很多行为实际上是抛开了传统的美国意识形态，回归到权力实质。但他所 行使的权力是美国一直都有的权力。就好比中国某个朝代的皇帝，不再讲儒家之道、仁义道德， 在历史上可能遭人唾弃，被称为"暴君"，但在当时却没有人可以阻挡。同样，尽管美国所有的贸 易伙伴都大声抗议川普的不合理贸易要求，但是很快，除中国之外，几乎所有国家都签署了对美 国更有利的新贸易协议。所以川普上台倒是让大家更清楚地看到了美国秩序下的很多权力本质。  6. 美国秩序下的中美关系" @line 236-243
+
+- > "的国际经济组织，推行南海军事化等。美国以全球 25% 的 GDP 份额承担了维护国际市场的主要军 事成本。而中国 GDP 占到全球 15% ，在美国看来，却几乎不承担维护国际市场的成本，甚至因为 中国在国际事务中和美国的一些摩擦，还增加了维持美国秩序的成本，越来越像俄国。 美国在对华关系的态度方面，大概分成以下四个派别。一直到前几年，比较主流的派别是 接触派（Engagement），他们认为中国进行市场经济改革对美国和整个国际社会都是好事，且经 济的自由化必然会被逐渐引入政治的自由化，中国会慢慢地变得更像美国，也即美国的"软实力"" @line 255-260
+
+- > "所有领域发展都相对落后，人口也一直在减少。可以想象二十年之后，俄罗斯很可能将不再是一 个大国。但是中国的情况不一样，在美国看来，中国颇有能取代过去苏联位置的潜力。川普的贸 易战获得了美国社会各界的广泛支持，两党、政治精英、商业精英、平民、商人、政客等在这点 上的看法基本高度一致。鹰派甚至主张把中国从 WTO 排除出去，或者建立一个新的没有中国的 WTO，再和中国单独建立不同的贸易条件。如果中国没有大的变化，这些观点会一直持续下去。 这就是今天美国秩序下的中美关系的大背景。" @line 285-290
+
+- > "目前中国已经进入到世界经济贸易体系的核心，这个过程已经持续了二、三十年，且中国 的经济体量已经达到全球 GDP 的 15%。如果美国真的实行鹰派所主导的脱钩政策 （decoupling），也将面临很大阻力，而且在这个过程中将造成巨大的商业损失，甚至会把美国和 全球都拉入到经济衰退的境地中。鹰派需要中国的"配合"，进一步激化中美矛盾才有可能长期推 行脱钩政策。这在很大程度上解释了最近美国对华为的围猎，这是深思熟虑以后选择的精准目 标。华为是中国高科技发展的顶峰，几乎是中国最受人尊重的企业。但华为提供的产品和技术又 处于安全性最为敏感的一个行业。这可以说是中国目前在高科技方面唯一超越了美国和全球的一 个领域，而这种领先容易激起各国的安全焦虑，美国很容易强化这种焦虑，挑起矛盾，逼迫中国 采取激烈反应，使矛盾迅速走向极端。因为只有把中美关系推向敌对或准战争状态，中国退出国 际市场造成的巨大损失和经济裂痕才会被民众所忽略。其它如台湾、香港、西藏、南海等问题都 可以成为中美对抗的导火索。" @line 294-304
+
+- > "发展的方向在哪里？在我看来，如果实现现代化、进入 3.0 科技文明仍然是中国的主要目标，那 么实际上选择的空间并不大。 首先中国要避免犯一些颠覆性的错误。第一个可能的错误是和美国鹰派无意间的合作，针 锋相对地斗争，像俄罗斯一样成为现有美国秩序下的搅局者。这样做的结果基本可以预见，会让 鹰派迅速把美国主流社会团结起来，美国将从与中国经济脱钩开始，推及英国、澳大利亚等说英 语的五眼国家（Five Eyes），再加上欧洲、日本等，慢慢扩展到全球，把中国经济从世界贸易的" @line 306-311
+
+- > "语的五眼国家（Five Eyes），再加上欧洲、日本等，慢慢扩展到全球，把中国经济从世界贸易的 核心推到外围，基本上就和俄罗斯今天的处境一样。这个过程虽然对于世界经济会造成巨大的短 期损失，但并非不可能完成，而且长久来看，可能对美国长期利益还有好处。以华为为例，如果 华为真的被彻底排除在世界主要市场之外，那么世界主要市场可能在 5G 方面的技术会短暂落后 于中国和那些与中国合作的小国，但是被排除在世界主流市场之外的华为也只能在一个相对较小 的市场中继续创新、流动。相反，那些暂时落后的西方通讯公司会在一个更大的市场中通过自由" @line 311-316
+
+- > "11  第二个可能的错误是在现有的政策基础之上走向更极端，让民粹主义主导经济政策，政府 对外资实施更多干预和排斥，国企对经济的管控更强，技术上不论好坏都以民族企业为首选，进 行封闭式的自力更生运动。虽然没有离开国际市场，但在原来的政策基础上进一步向民族主义倾 斜。可以预见，这种选择尽管拖延了时间，但最终还是会让中国式的国家资本主义模式走上和西 方自由资本主义模式对决的道路上，或两败俱伤，或同归于尽。 人类在 2.0 农业文明时代生活了几千年，却只经历了两百多年的 3.0 科技文明，在美国秩 序下的 3.0 文明更只有短短几十年，因此我们下意识都还在用 2.0 文明的方式思考，仍然把 2.0 文 明时代的政治目标当成今天的政治目标。在 2.0 文明时代，国土是十分重要的。中华历代青史留" @line 322-331
+
+- > "人类在 2.0 农业文明时代生活了几千年，却只经历了两百多年的 3.0 科技文明，在美国秩 序下的 3.0 文明更只有短短几十年，因此我们下意识都还在用 2.0 文明的方式思考，仍然把 2.0 文 明时代的政治目标当成今天的政治目标。在 2.0 文明时代，国土是十分重要的。中华历代青史留 名者多多少少都是出于保家卫国、扩展疆域、为后代造福的功绩。但是，过去五百年的争战已经 很清楚地告诉我们，3.0 文明"青史"和 2.0 文明"青史"的评判标准是不一样的。过去很多理所当然 会让人名垂青史的事情，可能今天我们得到的结论正好相反。这就是为什么我要特意把两种文明 以 2.0 、3.0 加以区别， 提醒大家看到常规思考这些问题上的盲点。" @line 329-335
+
+- > "前提下，经济上进一步起飞的空间仍然非常大，并不一定要走向"修昔底德陷阱"。 所以当前比较正确的选择是继续邓小平的路线。在新型的大国关系建立中，极力避免"修 昔底德陷阱"，避免正面挑战美国，尊重美国作为 3.0 文明时代美国秩序霸主的地位，遵守规矩。 另外在国内经济方面，要更加开放，让经济更加市场化、国际化，逐渐改革国企，从"管资产"到 "管资本"，让国企真正市场化，迅速扩大内需，让中国市场为全球经济带来利益。同时在国际关 系上，中国应该承担更多维护国际市场成本，与其在占全球 GDP 15% 的地位相称，并尽量通过支 持美国主导的国际组织，分担应承受的成本。中国在 2008-09 金融危机时期的表现堪称这方面的 典范。面对危机，中国在国内通过"四万亿"及一系列相关刺激政策，在当时贡献了全球一半以上 的经济增长。同时在国际上，配合美联储货币政策，购买了数千亿美元的美国国债，并和美国共 同组建了 G20，通过全球主要国家间相互协调的货币财政政策，有效地抑制了金融危机的蔓延， 避免了三十年代大危机的再现。中国在这一过程中，表现出了经济大国应有的国际担当，广受赞 誉。" @line 368-379
+
+- > "基地等。但在政治上主要依靠软实力，联合国尊重主权民族国家的平等关系，每一个国家都有自 己的主权、自由、平等，即使在经济上受制裁，但在政治上是独立的、平等的。美国和它的盟国 之间有点类似早期的松散邦联体制，这些盟国包括欧洲、五眼国家、日本、南韩等。而欧洲内部 的欧盟逐渐形成了一个比较成熟的邦联体制。长远来看，3.0 文明的铁律是最大的市场最终会成为 唯一的市场。即使是那些被排除在全球化的市场核心之外的国家，例如伊朗、北韩、ISIS 等，虽 然它们可以反对美国的价值观，但还是不得不承认和接受美元的价值。在全球市场绝对统一的趋" @line 385-390
+
+- > "没有人能承担得起的风险。这几个方面都给中国提供了在现有体系下可以发展的很多空间。相反 地，如果中国要强行改变现有的体系，取代美国的霸主地位，几乎可以肯定会引起灾难性的后 果。 中国目前本身也有很多问题，除了国际上的修昔底德陷阱，还有国内经济的中产阶级陷 阱。解决国内的问题必须要靠经济的持续发展。这些问题解决好了，就都是发展中的问题。如果 解决得不好，问题的性质就会发生变化，让中国在发展的陷阱里打转。中国要想发展，绝对离不 开美国秩序下的全球国际市场。 今天我们生活在一个广义上的美国秩序时代。这个时代目前还处在演进的过程中，尚未达 到最终的形态。就中国和全球其他国家的现状来说，社会政治组织的安排大多还处于 2.5 的阶段" @line 398-406
+
+- > "中国创造了农业文明时代政治权力安排最好的制度，在政治权力的分配上实现了最早的公 平。所以在进入 3.0 文明时代的过程中，中国不应该丢掉这个政治传统。而美国创造了 3.0 文明 时代国际秩序上的高峰。 中国应该能够在自身经验基础之上，汲取美国的有益经验，同时在此基 础上，还要完成上文提到的三个主要目标：避免修昔底德陷阱，解决国内经济中产阶级陷阱和分 担更多维护国际市场成本，最终实现全面的现代化。" @line 415-419
+
 ## Question patterns
 - **pattern**: What historical lens is necessary to understand Sino-US conflict? — askWhen: strategic framing, anchor: civilizational-history
   > "舞台上最活跃的中心，并率先进入到人类文明的一个新阶段，我将其定义为 3.0 科技文明。这是东西方文明发展的第二次大分流。科技文明的出现，也将东西方人口中心第一次拉在了一起，此时东西方不再独立发展，而是被强力结合在一起，共同推进，形成新的世界秩序，在今天深刻地影响着全人类。3. 中国在农业文明时代的制度创新东西方文明发展轨迹的两次大分流，背后都有着经济现实与社会政治组织方式交互作用的深刻背景。2.0 农业文明时代的基本特点是，人们摄取能量的主要方式是通过光合作用机制，所以非常需要土地。土地的争夺是 2.0 农业文明时代的核心问题。因此，2.0 文明本身也一直存在不" @line 45
@@ -27,11 +61,23 @@ coverage: 100%
   > "的各国竞争，这一系列因素共同促成了一次人类文明的跃升。科学技术革命和自由市场经济同时出现，互相作用，使经济出现了几百年的持续的、累进式的增长。增长的结果是经济突破了农业文明的瓶颈，土地也不再是经济本身的限制因素。这一时期百倍以上的经济规模增长可以支撑任何程度的人口增长，而且目前为止我们还看不到这种增长的上限。人类从此进入了 3.0 科技文明时代，也就是在现代科技和市场经济的双重作用下，经济开始持续、复合、无限地增长。人们在自由市场里自愿交换产品和服务，必定会给双方都带来更多的好处，即 1+1 大于2。而当知识被交换的时候，交换的双方既没有丢失自己的知识，也得到了对方的知识，还额外获得了因交流而产生的火花，出现了一个加速，即 1+1 大于 4。这样科技知识融入到产品与服务" @line 129
 
 - **pattern**: What strategic choices exist for late-developer nations in established orders? — askWhen: geopolitical positioning, anchor: policy-options
-  > "美国秩序下的国际市场仍是自由竞争的市场，为 WTO 的每一个成员国都提供了平等竞争和发展的机会。德国、日本二战后从美国的敌人发展到今天分别占有世界 GDP 的 5%和 6%左右，而中国自改革开放以来，在全球 GDP 中的占比从 1.75%上升到今天的 15%，都是在美国秩序下才完成的。相反，美国在全球 GDP 中的占比从二战后的 50%左右下降到了目前的 25%，却仍在负担国际市场安全运行的主要成本，应该说美国秩序总体上是比较厚道、公平、合理的。在 WTO 内部还没有哪个主要经济体真正愿意离开。只要遵守规则，中国上升的空间仍然很大，美国的经济也仍然是世界上最有活力的经济，美国还没有对自身竞争力失去信心。要想成为世界秩序的竞争者，不但内部要强大，还要有一套让国际社会大部分人接受的意" @line 341
+  > "美国秩序下的国际市场仍是自由竞争的市场，为 WTO 的每一个成员国都提供了平等竞争和发展的机会。德国、日本二战后从美国的敌人发展到今天分别占有世界 GDP 的 5%和 6%左右，而中国自改革开放以来，在全球 GDP 中的占比从 1.75%上升到今天的 15%，都是在美国秩序下才完成的。相反，美国在全球 GDP 中的占比从二战后的 50%左右下降到了目前的 25%，却仍在负担国际市场安全运行的主要成本，应该说美国秩序总体上是比较厚道、公平、合理的。在 WTO 内部还没有哪个主要经济体真正愿意离开。只要遵守规则，中国上升的空间仍然很大，美国的经济也仍然是世界上最有活力的经济，美国还没有对自身竞争力失去信心。" @line 341
+
+- **pattern**: What historical error should a rising power studiously avoid when relations with the dominant power sour? — askWhen: assessing whether a rising nation is repeating Russia's/a prior challenger's path of confrontation, anchor: geopolitical-strategy
+  > "发展的方向在哪里？在我看来，如果实现现代化、进入 3.0 科技文明仍然是中国的主要目标，那 么实际上选择的空间并不大。 首先中国要避免犯一些颠覆性的错误。第一个可能的错误是和美国鹰派无意间的合作，针 锋相对地斗争，像俄罗斯一样成为现有美国秩序下的搅局者。这样做的结果基本可以预见，会让 鹰派迅速把美国主流社会团结起来，美国将从与中国经济脱钩开始，推及英国、澳大利亚等说英 语的五眼国家（Five Eyes），再加上欧洲、日本等，慢慢扩展到全球，把中国经济从世界贸易的" @line 306-311
+
+- **pattern**: Is a nation applying an obsolete (2.0 civilization) framework of territorial glory to a 3.0 civilization problem where market access, not land, is the scarce resource? — askWhen: evaluating whether a country's strategic posture is anachronistic, anchor: civilizational-history
+  > "人类在 2.0 农业文明时代生活了几千年，却只经历了两百多年的 3.0 科技文明，在美国秩 序下的 3.0 文明更只有短短几十年，因此我们下意识都还在用 2.0 文明的方式思考，仍然把 2.0 文 明时代的政治目标当成今天的政治目标。在 2.0 文明时代，国土是十分重要的。中华历代青史留 名者多多少少都是出于保家卫国、扩展疆域、为后代造福的功绩。但是，过去五百年的争战已经 很清楚地告诉我们，3.0 文明"青史"和 2.0 文明"青史"的评判标准是不一样的。过去很多理所当然 会让人名垂青史的事情，可能今天我们得到的结论正好相反。这就是为什么我要特意把两种文明 以 2.0 、3.0 加以区别， 提醒大家看到常规思考这些问题上的盲点。" @line 329-335
 
 ## Search directives
 - **directive**: Market size replaces land as primary competitive asset in technological civilizations — queryShapes: mechanism-analysis, economic-base-shift, sourcePriority: historical-interpretation
   > "欧洲国家之间最早的互相竞争，很快变成了对殖民地的争夺。殖民地给宗主国带来最重要的利益就是市场的规模，包括原材料的供给、产品的销售和劳动力的供给。作为第一个真正的全球帝国，大英帝国建立的最重要的秩序是一个以英殖民帝国和英镑为基础的全球自由市场体系，这个市场体系让它在大国竞争中最早取得了决定性的优势。所以从 2.0 农业文明向 3.0 科技文明演进初期，殖民侵略战争、欧洲强国之间的战争交错进行，土地和市场同时成为争夺的核心。随着经济从 2.0 农业文明向 3.0 科技文明的加速演进，争战中的欧洲诸强国开始探索最适合 3.0 文明的政治组织方式，出现了一系列的制度创新，到二十世纪已经形成三大阵营：以德、日、意为首的法西斯主义，以苏联为首的共产主义和以美、英为首的自由主义。经过近百年的竞" @line 154
+
+- **directive**: When reading US sanctions/decoupling risk on a China-exposed company, identify whether that company's technology is a rare domain of Chinese leadership (which raises its odds of being singled out) rather than assuming sanctions risk is spread evenly across sectors — queryShapes: "<COMPANY> US export control OR entity list history", "<INDUSTRY> China global technology leadership ranking", "<COMPANY> dependence on US-origin components or IP"; sourcePriority: export-control filings and entity-list records over general trade-war commentary
+  > "目前中国已经进入到世界经济贸易体系的核心，这个过程已经持续了二、三十年，且中国 的经济体量已经达到全球 GDP 的 15%。如果美国真的实行鹰派所主导的脱钩政策 （decoupling），也将面临很大阻力，而且在这个过程中将造成巨大的商业损失，甚至会把美国和 全球都拉入到经济衰退的境地中。鹰派需要中国的"配合"，进一步激化中美矛盾才有可能长期推 行脱钩政策。这在很大程度上解释了最近美国对华为的围猎，这是深思熟虑以后选择的精准目 标。华为是中国高科技发展的顶峰，几乎是中国最受人尊重的企业。但华为提供的产品和技术又 处于安全性最为敏感的一个行业。这可以说是中国目前在高科技方面唯一超越了美国和全球的一 个领域，而这种领先容易激起各国的安全焦虑，美国很容易强化这种焦虑，挑起矛盾，逼迫中国 采取激烈反应，使矛盾迅速走向极端。因为只有把中美关系推向敌对或准战争状态，中国退出国 际市场造成的巨大损失和经济裂痕才会被民众所忽略。其它如台湾、香港、西藏、南海等问题都 可以成为中美对抗的导火索。" @line 294-304
+
+- **directive**: When assessing a state-linked company's growth durability, separate the portion of its expansion tied to the largest open international market (durable) from the portion tied to a closed or self-reliant domestic push (fragile) — queryShapes: "<COMPANY> export revenue vs domestic-only revenue", "<COUNTRY> self-sufficiency OR import-substitution policy trend", "<COMPANY> exposure to decoupling scenario"; sourcePriority: segment revenue disclosure over policy rhetoric
+  > "语的五眼国家（Five Eyes），再加上欧洲、日本等，慢慢扩展到全球，把中国经济从世界贸易的 核心推到外围，基本上就和俄罗斯今天的处境一样。这个过程虽然对于世界经济会造成巨大的短 期损失，但并非不可能完成，而且长久来看，可能对美国长期利益还有好处。以华为为例，如果 华为真的被彻底排除在世界主要市场之外，那么世界主要市场可能在 5G 方面的技术会短暂落后 于中国和那些与中国合作的小国，但是被排除在世界主流市场之外的华为也只能在一个相对较小 的市场中继续创新、流动。相反，那些暂时落后的西方通讯公司会在一个更大的市场中通过自由" @line 311-316
 
 ## Concepts
 - **title**: Three-stage civilizational evolution (1.0 hunter-gatherer, 2.0 agricultural, 3.0 technological) — framework for understanding economic bases, political structures, and sources of competitive advantage through history
@@ -40,9 +86,37 @@ coverage: 100%
 - **title**: American order as market-access regime — power expressed through market admission/expulsion rather than territorial control; institutional novelty of 3.0 civilization
   > "5. 美国秩序下的全球市场体系二战胜利后不久，美国就从欧洲、日本等占领地撤军，美国是人类历史上第一个在以土地争夺为目的的战争中胜利后却主动放弃占领土地的国家。这和之前的罗马帝国、中华帝国及大英帝国都截然不同。由此开启的美国秩序具有非常鲜明的 3.0 文明特点。如果说 2.0 农业文明时代的核心诉求是土地，在我看来，3.0 科技文明的核心诉求就是市场的大小。决定一个经济体能否真正长期成功就看该经济体市场的大小。市场经济是以个人和小组织（公司）为单位的分散组织方式，其能量的释放依赖于市场的大小，不受国家土地疆界的制约。这与以土地、国界为核心的2.0 农业文明截然不同。作为战胜国和世界霸主，放弃占领土地并不等于美国放弃胜利果实。二战" @line 166
 
+- **title**: Ideology vs. power reality (道统与政统之争) — the gap between a hegemon's stated universal values and its actually differentiated treatment of allies vs. adversaries; test: compare stated principle to observed practice toward a state that has crossed the hegemon — question: is a nation's professed ideology a reliable predictor of its treatment of THIS company/counterparty, or does actual practice diverge sharply once the counterparty is deemed adversarial?
+  > "但是，意识形态和权力实质是不同的。比如在中国，素来有"道统"和"政统"之争，道统就 是儒家学说，政统就是帝王权术，区别是一直存在的。美国也一样，存在着意识形态和权力实质 的差距。在意识形态上，美国强调世界上人人平等，都享有普世人权。但是美国对内对外的政策 区别很大，对不同的国家及其公民也区别对待，其国际关系政策与国内政策有时可以大相径庭， 对于那些因为各种原因而站到美国对立面的国家尤其如此。例如，美国可以把古巴、北韩完全排 斥在国际市场之外。古巴的例子尤为突出，它和除美国之外的很多大国都有外交关系，但因为受 7  到美国制裁，未能进入到国际市场，基本上还是一个贫穷国家。美国也可以把原来的盟友、现在 的敌人，例如伊朗，从国际市场的核心开除出去。苏联解体后，东欧因为在政治上进行民主化， 被拉入到国际市场的核心，而俄罗斯在普京上台后则一直被排斥在边缘地带。中国实际上是一个 特例，它没有在政治上作出任何体制上的改变，和美国实行完全不同的政治制度，但又几乎完全 融入了美国秩序下的全球市场。但是现在，美国几乎所有派别在对华政策上都认为现有的世贸组 织（WTO）已经完全和中国现实不相容了。" @line 198-211
+
+- **title**: The four US China-policy factions (Engagement, Hawks, Pragmatists, Populists) converging — question: has a durable domestic political constituency for engagement with a country/company disappeared, leaving no lobby to buffer policy escalation?, test: track whether previously pro-engagement factions (business pragmatists, Wall Street) have flipped hostile, which historically precedes policy hardening.
+  > "的国际经济组织，推行南海军事化等。美国以全球 25% 的 GDP 份额承担了维护国际市场的主要军 事成本。而中国 GDP 占到全球 15% ，在美国看来，却几乎不承担维护国际市场的成本，甚至因为 中国在国际事务中和美国的一些摩擦，还增加了维持美国秩序的成本，越来越像俄国。 美国在对华关系的态度方面，大概分成以下四个派别。一直到前几年，比较主流的派别是 接触派（Engagement），他们认为中国进行市场经济改革对美国和整个国际社会都是好事，且经 济的自由化必然会被逐渐引入政治的自由化，中国会慢慢地变得更像美国，也即美国的"软实力"" @line 255-260
+
+- **title**: Named flashpoints as pretexts, not root causes (Taiwan/Hong Kong/Tibet/South China Sea) — question: is a specific bilateral flashpoint the actual driver of conflict risk, or a proximate fuse for a deeper structural (market-share/technology-leadership) contest?, test: ask whether the conflict would still exist absent that specific named issue.
+  > "目前中国已经进入到世界经济贸易体系的核心，这个过程已经持续了二、三十年，且中国 的经济体量已经达到全球 GDP 的 15%。如果美国真的实行鹰派所主导的脱钩政策 （decoupling），也将面临很大阻力，而且在这个过程中将造成巨大的商业损失，甚至会把美国和 全球都拉入到经济衰退的境地中。鹰派需要中国的"配合"，进一步激化中美矛盾才有可能长期推 行脱钩政策。这在很大程度上解释了最近美国对华为的围猎，这是深思熟虑以后选择的精准目 标。华为是中国高科技发展的顶峰，几乎是中国最受人尊重的企业。但华为提供的产品和技术又 处于安全性最为敏感的一个行业。这可以说是中国目前在高科技方面唯一超越了美国和全球的一 个领域，而这种领先容易激起各国的安全焦虑，美国很容易强化这种焦虑，挑起矛盾，逼迫中国 采取激烈反应，使矛盾迅速走向极端。因为只有把中美关系推向敌对或准战争状态，中国退出国 际市场造成的巨大损失和经济裂痕才会被民众所忽略。其它如台湾、香港、西藏、南海等问题都 可以成为中美对抗的导火索。" @line 294-304
+
 ## Metrics
 - **name**: US-China GDP burden share asymmetry in international order maintenance — units: percentage of world GDP; US 25%, China 15% (2018); benchmark: power asymmetry despite economic parity
   > "党政权稳定的前提下，大大放松了对个人和社会的管制，给了个人、社会、私营企业越来越大的空间，在对外关系上，与美国交好，并通过与美国的谈判加入 WTO，最终全面融入了由美国主导的世界市场中，正式成为美国秩序下的国际市场的成员国，同时也自觉遵守美国秩序，韬光养晦、闷声发财，实现了经济起飞。但这种情况在近些年发生了变化。随着国力的日益增强，中国与美国不兼容的方面越来越突出，在国际关系上开始对美国的竞争主导地位产生一定冲击，在美国之外建立了以自己为中心的国际经济组织，推行南海军事化等。美国以全球 25% 的 GDP 份额承担了维护国际市场的主要军事成本。而中国 GDP 占到全球 15% ，在美国看来，却几乎不承担维护国际市场的成本，甚至因为" @line 249
 
+- **name**: China's global GDP share trajectory since reform — formula as stated: percentage of world GDP, from 1.75% (pre-reform baseline) to 15% (2018); reading: an ~8.5x rise achieved entirely inside the US-led market order, cited as proof the order rewards participants who follow its rules; benchNotes: paired against Germany's ~5% and Japan's ~6% postwar shares and the US's own decline from ~50% to ~25%, anchor: business-model
+  > "美国秩序下的国际市场仍是自由竞争的市场，为 WTO 的每一个成员国都提供了平等竞争和发展的机会。德国、日本二战后从美国的敌人发展到今天分别占有世界 GDP 的 5%和 6%左右，而中国自改革开放以来，在全球 GDP 中的占比从 1.75%上升到今天的 15%，都是在美国秩序下才完成的。相反，美国在全球 GDP 中的占比从二战后的 50%左右下降到了目前的 25%，却仍在负担国际市场安全运行的主要成本，应该说美国秩序总体上是比较厚道、公平、合理的。在 WTO 内部还没有哪个主要经济体真正愿意离开。只要遵守规则，中国上升的空间仍然很大，美国的经济也仍然是世界上最有活力的经济，美国还没有对自身竞争力失去信心。要想成为世界秩序的竞争者，不但内部要强大，还要有一套让国际社会大部分人接受的意" @line 341
+
+- **name**: 2008-09 crisis fiscal-stimulus contribution share — formula as stated: China's domestic stimulus ("四万亿"/RMB 4 trillion) contributed more than half of global growth during the crisis window, plus purchases of "数千亿美元" of US Treasuries in coordination with the Fed; reading: cited as the model instance of a rising power bearing order-maintenance cost proportionate to its GDP share rather than free-riding; benchNotes: a historical policy-response case study, not a repeatable formula, anchor: culture
+  > "前提下，经济上进一步起飞的空间仍然非常大，并不一定要走向"修昔底德陷阱"。 所以当前比较正确的选择是继续邓小平的路线。在新型的大国关系建立中，极力避免"修 昔底德陷阱"，避免正面挑战美国，尊重美国作为 3.0 文明时代美国秩序霸主的地位，遵守规矩。 另外在国内经济方面，要更加开放，让经济更加市场化、国际化，逐渐改革国企，从"管资产"到 "管资本"，让国企真正市场化，迅速扩大内需，让中国市场为全球经济带来利益。同时在国际关 系上，中国应该承担更多维护国际市场成本，与其在占全球 GDP 15% 的地位相称，并尽量通过支 持美国主导的国际组织，分担应承受的成本。中国在 2008-09 金融危机时期的表现堪称这方面的 典范。面对危机，中国在国内通过"四万亿"及一系列相关刺激政策，在当时贡献了全球一半以上 的经济增长。同时在国际上，配合美联储货币政策，购买了数千亿美元的美国国债，并和美国共 同组建了 G20，通过全球主要国家间相互协调的货币财政政策，有效地抑制了金融危机的蔓延， 避免了三十年代大危机的再现。中国在这一过程中，表现出了经济大国应有的国际担当，广受赞 誉。" @line 368-379
+
+## Other
+- **China's stakes framed as existential-civilizational, not merely economic**: Li Lu frames the whole Sino-US relationship as the hinge on which China's millennia-long attempt to complete modernization finally succeeds or fails.
+  > "川普上台后，中美日益扩大的冲突终于以贸易战的形式曝露于世人面前。这场冲突战争会 以何种方式结束，会把中国带向何方？ 迷失在每日纷繁多变的新闻中，我们对此常常如同雾里看花，既看不懂现实，也看不清未 来。本文认为，要厘清今天中美关系的本质，我们需要把视角放得更久远一些，将今天的国际现 实放在人类文明演进历史的坐标上。中国今天独特的政治文化在历史长河中是如何产生的，与西 方有何不同？现代化如何在西方出现并席卷全球？今天的国际环境是如何形成的，美国在中间扮 演何种角色，对其他国家拥有怎样的影响力、支配权？美国的硬实力有哪些，对今天国际秩序， 尤其是经济体系有哪些决定权？中国是如何利用现有的国际秩序在过去四十年实现了历史性的起" @line 5-12
+
+- **Deng Xiaoping's personal rationale for prioritizing the US relationship, relayed via Li Shenzhi**: a rare first-person historical anecdote — Deng's blunt empirical observation (allies of the US got rich, allies of the USSR stayed poor) is presented as the founding insight behind China's reform-era foreign policy, not abstract theory.
+  > "在使用硬实力方面，美国在必要时，无论在军事上还是经济上都没有犹豫过。两次伊拉克 战争，还有零八年危机后大规模地增发美元，用国际资本解救国内危机都是典型的例子。今天的 全球市场实际上也被美国以亲疏关系分成三个层次：核心市场成员（大体以 WTO 成员国为划 分）、外围市场参加国及完全的受制裁国，所以今天的全球市场仍然是美国秩序下的全球市场。 正如我在《李录谈现代化》中所说，3.0 科技文明的铁律是最大的市场最终会成为唯一市场。美 国给予的市场准入权其实决定了世界上任何其他国家繁荣或贫穷的程度。因为除了美国主导的这 个唯一的高效率市场，其它独立运行的市场相较之下都效率低下，竞争力不足。 据李慎之回忆，在邓小平复出后访美的途中，他曾对李慎之讲过为什么他最重视中美关 系。邓说，据他的观察，二战后凡是和美国好的国家都富了，凡是与苏联好的国家都贫穷。这个 观察对今天国际秩序依然适用，是一个准确的描述。" @line 219-228
+
+- **Explicit policy prescription: stay the course Deng charted, avoid the Thucydides Trap**: Li Lu ends the essay with a direct political recommendation rather than pure analysis — continue Deng's line, avoid provoking the US, and have China bear costs proportionate to its GDP share.
+  > "前提下，经济上进一步起飞的空间仍然非常大，并不一定要走向"修昔底德陷阱"。 所以当前比较正确的选择是继续邓小平的路线。在新型的大国关系建立中，极力避免"修 昔底德陷阱"，避免正面挑战美国，尊重美国作为 3.0 文明时代美国秩序霸主的地位，遵守规矩。 另外在国内经济方面，要更加开放，让经济更加市场化、国际化，逐渐改革国企，从"管资产"到 "管资本"，让国企真正市场化，迅速扩大内需，让中国市场为全球经济带来利益。同时在国际关 系上，中国应该承担更多维护国际市场成本，与其在占全球 GDP 15% 的地位相称，并尽量通过支 持美国主导的国际组织，分担应承受的成本。中国在 2008-09 金融危机时期的表现堪称这方面的" @line 368-374
+
+- **Warning against national mythmaking anachronism**: Li Lu explicitly separates what counted as glorious ("青史留名") under 2.0 civilization (territorial conquest) from what counts under 3.0 civilization, warning readers that instinctive nationalist framings are a cognitive trap ("盲点") carried over from an obsolete era.
+  > "人类在 2.0 农业文明时代生活了几千年，却只经历了两百多年的 3.0 科技文明，在美国秩 序下的 3.0 文明更只有短短几十年，因此我们下意识都还在用 2.0 文明的方式思考，仍然把 2.0 文 明时代的政治目标当成今天的政治目标。" @line 329-331
+
 ## Nothing-found notes
-Document is a comprehensive historical-civilizational essay prioritizing mechanisms over discrete metrics. Only one search directive identified as core algorithmic operation. Three question patterns form thematic anchors embedded in introduction. No additional quantitative formulas beyond GDP comparisons. Concepts unified by three-stage civilizational framework rather than domain-specific extraction nodes.
+Document is a comprehensive historical-civilizational essay prioritizing mechanisms over discrete metrics. Concepts unified by three-stage civilizational framework rather than domain-specific extraction nodes. No category is empty.

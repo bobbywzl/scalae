@@ -23,6 +23,36 @@ coverage: 100%
 - > "另外一个长期性的挑战是资源上的，工业革命从煤炭和蒸汽机的结合开始， 后又出现了内燃机和石油的结合，接着又产生了石化燃料和电力的结合，在电力的基础上发展出了今天整个 文明的基础 。可以说我们整个的 3.0 文明 是建立在石化燃料的利用上， 3.0科技之所以强大，也是 因为石化资源比光合作用 转化的能源要高得多 。 石化资源最早也是通过光合作用，但是它是作为有机物残骸储藏在地下，通过化学反应，经过几百万、甚至上亿年的积累浓缩而成，所以石化燃料才有如此强大的单位能量密度。它是地球积攒了几亿年后留给人类的宝贵遗产。但是，这份遗产尽管巨大，仍是有限的。以我们现在如此浪费的使用 方式一定有一天会用完 。" @lines 2119-2128
 - > "多种文化的大熔炉，在过去 两百年里成功的实践 。又比如说欧盟，在经过几百年 的相互战争之后 最终从共同市场向共同政府过渡 。这些都是很成功地 实践 。人类在二战之后过去几发展出来的国际组织 ，无论是联合国 、世界银行、 国际货币基金组织、WTO、还是 G20，都是国家之间成功合作的典范。 所以在未来几十年、上百年里，全球政府也是一个完全可以预期的趋向。" @lines 2141-2146
 
+- > "第一章.老问题与新史学 提要：为什么中国与西方差距如此悬殊？中国如何能够赶上西 方？赶上以后的中国会是什么样的，是否还能重现往日的辉煌？使 用新史学， 再加入更多经济学、生物学等自然科学及对中国历史 传统的研究，我们今天就可能将中国的现代化问题置放于整个人类 文明几万年进化历史之中，由此对中国人近代关心的这三大问题， 做出比以前任何时候都更深刻地理解和回答，并在此基础上对中国 未来提出比较可靠的预测。" @lines 42-49
+
+- > "笔者出生在六十年代的中国，在中美两国都有 20 余年的生活经 历，对于中国现代化的问题兴趣自年少起持续了三十多年。过去二 十多年的投资工作又对预测中国未来多了一份职业上的需求，并在 这些年间积累起一些思考心得。这个"谈现代化系列"，正是我过 去三十几年的思考笔记，希望能够起到抛砖引玉的作用。这一系列 首先将主要应用 Jared Diamond 和 Ian Morris 的研究成果，结合部分" @lines 136-141
+
+- > "Morris 把一个社会能够摄取能量和使用能量的能力分成四个方 面： 摄取能量的能力、社会组织的能力、信息技术的能力、以及战 争动员的能力。摄取能量的能力主要指社会中的每一员每一天能够 摄取的食物、燃料和原材料的能力。社会组织能力定义为在一个社 会里最大的永久性居住单位的人数， 在相当长一段时间里也就是最 大城市的人口数。 人口越多，对社会组织的能力需求就越高。社会" @lines 173-178
+
+- > "在 1.0 文明时代，人类采集、使用能量的方式似乎一直没有什 么变化。但这是一个误解。人类的 1.0 文明，其实在七万年前发生 了一次巨大的飞跃。 要理解人类的特性，必须要理解他们生活的环境。地球有四十" @lines 315-318
+
+- > "Morris 把它叫做 Morris 定律（Morris Theorem） "Change is caused by lazy, greedy, frightened people looking for easier, more profitable, and safer ways to do things. And they rarely know what they are doing." "历史，就是懒惰、贪婪、又充满恐惧的人类，在寻求让生活更容 易、安全、有效的方式时创造的，而人类对此毫无意识。" 但同时" @lines 584-588
+
+- > "第二波轴心时代重点是对灵魂的安慰，呈现方式几乎都是宗教。 无论是佛教、基督教还是伊斯兰教，强调的都是来世的解脱，对于 现世痛苦的安慰，对灵魂的慰藉。两波轴心时代出现在人类从低端 政权进入高端政权的过程中，为后来建立高端政权奠定了思想基础。 高端政权在西方以罗马帝国为最初的代表，在中国以汉朝为开启。 轴心时代思想最重要的遗产是高端政府政治制度的建设。中国 的轴心时代思想直接导致了中国历史上最伟大的政治制度创新、科 举制的诞生。科举制是整个 2.0 农业文明时代最伟大的制度创新，" @lines 877-884
+
+- > "复兴人 renaissance man，中国历史上也有这么一个文艺复兴人。他 52  在物理学、数学、地理、地质、天文、医学、化学、农学、气象学 等诸多领域都有在当时领先世界的成就。他最重要的科学成就是发 现地球偏磁角，发明了历史上最先进的指南针，为后来的大航海时 代提供了最精确的指南。他不仅是那个时代最伟大的科学家之一， 同时也是一位工程师、发明家、实践家。他的发明如水渠的枢纽， 现在还在使用。他把一百多平方公里的沼泽地变成肥沃的粮田。 他 绘制了全国的地图，最早使用"流水侵蚀"的概念，正确解释了雁荡" @lines 1200-1209
+
+- > "不同的方式对待新的大西洋经济，其中最典型的就是荷兰和英国。 英国从 1215 年"大宪章"开始一直是弱君权，此后的议会不断从 皇权中分权，15 世纪以后任何有一定财产的公民都可以选举国会 的下议院成员，所以下议院逐渐成为成功商人的代言人。到了 17 世纪，经过一系列下议院和国王的内战，今天的议会制得以初步建 立；在 1688 年以一场不流血的政变，一位荷兰的王子坐上了名义 上的皇位，并签署了权利法案，标志着人类历史上第一个君主立宪 有限政府的成立，第一个重商的宪政国家出现。这个政府的权利主" @lines 1023-1030
+
+- > "1776 年美国的独立让人类有一次机会，可以在启蒙时代对于社 会、自然、人、经济本源的科学理解基础之上，建立一个全新的政 权。 美国国父都深受启蒙运动影响，所以这个新政权的经济准则深 受亚当斯密的影响，政治上的准则受洛克的影响。 1776 年美国建 起的是一个实行宪政的有限政府，政府的根本目的在保护财产，政 府的合法性来源于民众的授权，主权在民，而政府非常小，目标、" @lines 1130-1135
+
+- > "隆却用自己的回信再次对这次机会关上大门："天朝扶有四方，惟 励精图治，办理政务，珍奇异宝，并不贵重。尔国王此次赉进各物， 念其诚心远献，特谕该管衙门收纳。其实天朝德威远被，万国来王， 种种贵重之物，梯航必集，无所不有。尔之正使等所亲见。然从不 贵奇巧，并更无需尔国置办物件。是尔国王所请派人留京一事，与 天朝体制既属不合，而于尔国亦殊觉无益。特此详晰开示，遣令该 使等安程回国。尔国王惟当善体朕意，亦励款诚，永矢恭顺，以保 乂尔友邦，共享太平之福。除正副使臣以下各官及通事兵役人等正 赏加赏各物件另单赏给外，兹因而国使臣归国，特颁敕谕，并赐赉 尔国王文琦珍物，俱如常仪。加赐彩缎罗绮，文玩器具诸珍，另有 清单，王其祗受，悉朕眷怀。特此敕谕。"至于同上的机会，"这" @lines 1263-1273
+
+- > "与天朝制度不合，断不可行。" 马格尔尼在此行之后也得出了自己 对清朝的结论："这个政府正如目前的存在一样，严格来说是一小 撮鞑靼人 对亿万汉人的统治，自从北方或者满征服以来至少一百年 没有改善、前进，或者更准确地说反而倒退了，当全世界科学领域 正在前进时，他们实际上正在成为半野蛮人。" 读中国近现代史，中国人常常不由自主地思考为什么现代化没" @lines 1274-1279
+
+- > "式 1+1〉2 来表达这个意思，即增加的、交换的人数越多，市场越 大，创造出来的增量就越多。所以自由市场本身就是个规模经济。 在现代 3.0 文明时代，由分工交换产生的增量又进一步被放大， 这是因为人的知识是可以积累的。单纯的商品、服务的积累不太容 易，但人的知识积累比较容易。知识思想交换时出现的情况是 1+1〉" @lines 1461-1465
+
+- > "是相悖的。比如说柯达公司（Eastman Kodak）曾经是历史上最伟大 的公司之一，发明了摄影和摄像的技术，一度是美国价值最高的公 司之一，如今却不复存在了。再比如说 Xerox（施乐公司）发明的 复印技术，它在很多方面都有很多专利（其中一些是让苹果电脑取 得成功的关键），然而今天风光不再，反而作为一间小公司勉强维 持。又比如 AT&T 是人类历史上最重要的发明之一——电话的发明 者，其下属贝尔实验室可以说曾经是是全世界通讯科技的摇篮，也 是诺贝尔奖获得者们最集中的地方。然而贝尔实验室却最终消失， 其仪器部分的业务也不复存在。AT&T 也被其它公司收购，仅仅是 保留了一个名字而已。像这样一种创造性的摧毁，跟政府的根本职 能是根深蒂固地相矛盾的。很难想象，如果由政府来做抉择，它会 把 AT&T 彻底毁掉，而选择一家几乎破产的电脑公司（苹果）成为 全世界市值最大的赢家。在中国，这就好比政府让中移动、中国电" @lines 1625-1637
+
+- > "国会）。邱吉尔的名言"除了我们已经尝试了的其他政治体制外， 民主是最坏的了"并非仅仅是幽默。 再看中国的科举制，科举制的特点之一就是政治权力的资格制， 人人都可以通过公开、透明、公平的考试、考核竞争机制获取分配 政治权利的资格。通过对学习能力和治理能力的考核来选拔最优秀 的人，政府选贤任能， 把最有能力的优秀人才放在最重要的位置 上。社会上人人都有平等机会进入政府，从平民中选拔出的大量政" @lines 1885-1891
+
+- > "从更长远看，人类将面对的另外一个大挑战 是地球对人的承 受极限 。自从五十年前发现了以硅材料为基础的机器计算能力之后， 我们在硅上的计算速度，每过十八个月以双倍的速度在增长。按照 这个速度再过几十年，硅材料的智能计算能力，就可以和人的大脑 的计算能力相当，甚至赶超。这样人的大脑就可以和机械的大脑第 一次兼容，或者人们可以把大脑里面所有的存量、记忆、DNA 输入 到机器上，以此延长大脑的寿命。当然，大脑不仅是一个以碳材料 为基础的有机超级计算机器，还是一个有机信号传输中心，对此我 们今天所知甚少。但是我们今天在人的其他器官上 已经做到了这点，" @lines 2147-2155
+
 ## Question patterns
 - **pattern**: What structural ceiling caps growth before a system finds a new energy/resource base, and how is that ceiling quantified? — askWhen: assessing whether a business's growth model has a physical or structural cap on its current resource base, anchor: business-model
   > "究其根本，农业文明的社会发展存在天花板，是因为农业文明有一个天生不足的瓶颈。农作物产生于光合作用，牲畜也要消耗植物，动物产出的热量和消耗的植物比例是 10：1, 所以最终光合作用能够产生的能量上限受制于土地面积和土地的单位产出，在这两者都有上限的情况下，自然资源也就有了上限。而人类在这个时期还不能够控制人口，人使用新能量一个重要的方式就是生育更多的孩子，所以有限的资源和近乎无限的人口增长决定了人口增长最终通过灾难来消化和制约。自公元前大约 10，000 年起，这个基本的瓶颈是整个农业社会一直没有解决的问题。纵观整个 2.0 文明的历史，尤其在近代几千年里，做饼与分饼的矛盾 不仅一直存在，而且有愈演愈烈之势。" @lines 684-694
@@ -36,12 +66,21 @@ coverage: 100%
 - **pattern**: Does the system's own leadership treat broad-based opportunity as the deliberate, stated goal, or is that framing absent? — askWhen: assessing incentive alignment and culture from a leader's or founder's own stated priorities, anchor: corporate-culture
   > "中国自 1840 鸦片战争之后，绝大部分时间处于战争与昏政之中。自二十世纪七十年代末，由于国际、国内条件的变化，中国第一次有了专注于现代化建设的国内外环境，在随后的三十几年里取得了史无前例的卓著成就。在中国从 2.5 文明向 3.0 文明的迈进中，自然会遇到上述讨论的各项挑战。但是，自 1840 至今一百七十年的历史中，中国从来没有像今天这样好的环境和条件，在今后的几十年中，面对挑战，解决问题，并最终向 3.0 文明演进，在全世界人口最多的国家彻底实现全面的现代化。" @lines 1950-1957
 
+- **pattern**: Is a leader/founder's rejection of an outside opportunity (trade, investment, partnership) rooted in genuine self-sufficiency, or in an untested assumption of superiority that a rival will later exploit? — askWhen: evaluating a management team or state actor's refusal to engage with an obviously larger external market or partner, anchor: business-model
+  > "隆却用自己的回信再次对这次机会关上大门："天朝扶有四方，惟 励精图治，办理政务，珍奇异宝，并不贵重。尔国王此次赉进各物， 念其诚心远献，特谕该管衙门收纳。其实天朝德威远被，万国来王， 种种贵重之物，梯航必集，无所不有。尔之正使等所亲见。然从不 贵奇巧，并更无需尔国置办物件。是尔国王所请派人留京一事，与 天朝体制既属不合，而于尔国亦殊觉无益。特此详晰开示，遣令该 使等安程回国。尔国王惟当善体朕意，亦励款诚，永矢恭顺，以保 乂尔友邦，共享太平之福。除正副使臣以下各官及通事兵役人等正 赏加赏各物件另单赏给外，兹因而国使臣归国，特颁敕谕，并赐赉 尔国王文琦珍物，俱如常仪。加赐彩缎罗绮，文玩器具诸珍，另有 清单，王其祗受，悉朕眷怀。特此敕谕。"至于同上的机会，"这" @lines 1263-1273
+
+- **pattern**: Is a company's competitive moat protected by policy/regulation, or would it have survived unplanned creative destruction the way Kodak, Xerox, and AT&T did not? — askWhen: judging whether an incumbent's dominance reflects genuine competitive advantage or a shielded/planned position, anchor: business-model
+  > "是相悖的。比如说柯达公司（Eastman Kodak）曾经是历史上最伟大 的公司之一，发明了摄影和摄像的技术，一度是美国价值最高的公 司之一，如今却不复存在了。再比如说 Xerox（施乐公司）发明的 复印技术，它在很多方面都有很多专利（其中一些是让苹果电脑取 得成功的关键），然而今天风光不再，反而作为一间小公司勉强维 持。又比如 AT&T 是人类历史上最重要的发明之一——电话的发明 者，其下属贝尔实验室可以说曾经是是全世界通讯科技的摇篮，也 是诺贝尔奖获得者们最集中的地方。然而贝尔实验室却最终消失， 其仪器部分的业务也不复存在。AT&T 也被其它公司收购，仅仅是 保留了一个名字而已。像这样一种创造性的摧毁，跟政府的根本职 能是根深蒂固地相矛盾的。很难想象，如果由政府来做抉择，它会 把 AT&T 彻底毁掉，而选择一家几乎破产的电脑公司（苹果）成为 全世界市值最大的赢家。在中国，这就好比政府让中移动、中国电" @lines 1625-1637
+
 ## Search directives
 - **directive**: Market-size and network/scale effects compound advantage once a system crosses a critical-mass threshold, making the largest market self-reinforcing and costly to exit — queryShapes: scale-economics, mechanism-of-compounding-advantage, market-share-dynamics, sourcePriority: economic-history-analysis
   > "一个有趣的问题是，市场交换所引起的规模效应在 2.0 农业文明也同样存在，为什么在那个时代没有产生这样极端的全球化结果？主要原因就是在 2.0 时代，还没有现代科技 ，产品十分有限 ，成本下降空间也非常有限，当贸易尤其是不受政府管制的民间贸易产生的时候，财富也会增加，分工也会增加，但是这个增量不是无限的。当土地、货币等生产资料集中到一定程度，社会分工需要进一步加深的时候，社会就会出现一些动荡和不稳定的状况，政府通常就会以安定社会和民意的名义出面干预。比如在中国通常以国有专营的各种方式与民与商争利，以均贫富稳定社会，这样既充实国库，又使得实际执行官吏中饱私囊，一举三得，这样的措施在中国历史上屡见不鲜。2.0 农业文明由于光合作用的能量转换本身存在发展的" @lines 1527-1537
 
 - **directive**: Step-changes in system capability are preceded by a transition in the underlying resource/energy base (new fuel source, new institutional tool), not by incremental improvement on the old base — queryShapes: resource-base-transition, energy-source-history, technology-discontinuity, sourcePriority: mechanism-analysis
   > "另外一个长期性的挑战是资源上的，工业革命从煤炭和蒸汽机的结合开始， 后又出现了内燃机和石油的结合，接着又产生了石化燃料和电力的结合，在电力的基础上发展出了今天整个 文明的基础 。可以说我们整个的 3.0 文明 是建立在石化燃料的利用上， 3.0科技之所以强大，也是 因为石化资源比光合作用 转化的能源要高得多 。 石化资源最早也是通过光合作用，但是它是作为有机物残骸储藏在地下，通过化学反应，经过几百万、甚至上亿年的积累浓缩而成，所以石化燃料才有如此强大的单位能量密度。它是地球积攒了几亿年后留给人类的宝贵遗产。但是，这份遗产尽管巨大，仍是有限的。以我们现在如此浪费的使用 方式一定有一天会用完 。" @lines 2119-2128
+
+- **directive**: Before crediting a state or protected incumbent's growth to skill, separate the portion of the business or economy operating in the genuinely competitive, open market from the portion sheltered by administrative fiat (Li Lu's "visible hand" vs "invisible hand" distinction, applied historically to the Qianlong court's self-sufficiency claim) — queryShapes: "<COMPANY/COUNTRY> government subsidy OR tax incentive OR local government support", "<COMPANY> export revenue vs domestic revenue segment breakdown", "<INDUSTRY> incumbents historically displaced by open competition"; sourcePriority: primary filings/trade statistics over official growth narrative
+  > "与天朝制度不合，断不可行。" 马格尔尼在此行之后也得出了自己 对清朝的结论："这个政府正如目前的存在一样，严格来说是一小 撮鞑靼人 对亿万汉人的统治，自从北方或者满征服以来至少一百年 没有改善、前进，或者更准确地说反而倒退了，当全世界科学领域 正在前进时，他们实际上正在成为半野蛮人。" 读中国近现代史，中国人常常不由自主地思考为什么现代化没" @lines 1274-1279
 
 ## Concepts
 - **title**: Social Development Index — quantifies a civilization's capacity across four dimensions (energy capture, social organization, information technology, war-making capacity), scored on a 0-1000 scale with each dimension capped at 250 and calibrated to the most advanced region as of 2000 CE
@@ -53,6 +92,12 @@ coverage: 100%
 - **title**: 3.0 civilization's structural constraints on great-power conflict — the "iron law" that no state can exit a dominant international market without mounting cost, plus mutual-assured-destruction deterrence, jointly foreclose full-scale war between major powers
   > "第一个限制就是 3.0 文明铁律，一旦形成了一个强大的国际市场之后，任何一个国家都无法离开。离开了之后就会落后，离开的时间越长，落后的速度越快，到最后还是会被迫加入进去。这是第一个限制。第二个限制就是在核武器时代，大国之间都具备把对方彻底消灭很多次，连带把整个地球生物都消灭的核打击能力，所以在这个时代，大国之间的关系就是 Mutually Assured Destruction 共同毁灭原则，亦称 M.A.D 机制。 在这种机制下，理性的大国之间不可能展开全面无底线的战争。" @lines 1967-1975
 
+- **title**: Morris Theorem — historical change is driven by ordinary human motives (laziness, greed, fear), not by conscious grand design; the actors rarely understand what they are creating — question: does the causal story I'm telling attribute too much foresight/intentionality to the actors, or is a simpler self-interest explanation sufficient? test: check whether contemporaries at the time articulated the outcome as a goal, or whether it emerged from myopic individual decisions.
+  > "Morris 把它叫做 Morris 定律（Morris Theorem） "Change is caused by lazy, greedy, frightened people looking for easier, more profitable, and safer ways to do things. And they rarely know what they are doing." "历史，就是懒惰、贪婪、又充满恐惧的人类，在寻求让生活更容 易、安全、有效的方式时创造的，而人类对此毫无意识。" 但同时" @lines 584-588
+
+- **title**: Creative destruction vs. bureaucratic path-dependence — question: could a government administrator plausibly have authorized both this company's rise and its rival's fall, or only an unplanned competitive market could have produced this outcome? test: name the incumbent that would have had to be allowed to fail for the current leader to win; if no planner could have sanctioned both outcomes, the result reflects durable market-driven creative destruction. evidence: Kodak, Xerox, and AT&T's Bell Labs all fell despite deep technological leadership, while Apple — once near bankruptcy — became the world's most valuable company; no government would have engineered that swap.
+  > "是相悖的。比如说柯达公司（Eastman Kodak）曾经是历史上最伟大 的公司之一，发明了摄影和摄像的技术，一度是美国价值最高的公 司之一，如今却不复存在了。再比如说 Xerox（施乐公司）发明的 复印技术，它在很多方面都有很多专利（其中一些是让苹果电脑取 得成功的关键），然而今天风光不再，反而作为一间小公司勉强维 持。又比如 AT&T 是人类历史上最重要的发明之一——电话的发明 者，其下属贝尔实验室可以说曾经是是全世界通讯科技的摇篮，也 是诺贝尔奖获得者们最集中的地方。然而贝尔实验室却最终消失， 其仪器部分的业务也不复存在。AT&T 也被其它公司收购，仅仅是 保留了一个名字而已。像这样一种创造性的摧毁，跟政府的根本职 能是根深蒂固地相矛盾的。很难想象，如果由政府来做抉择，它会 把 AT&T 彻底毁掉，而选择一家几乎破产的电脑公司（苹果）成为 全世界市值最大的赢家。在中国，这就好比政府让中移动、中国电" @lines 1625-1637
+
 ## Metrics
 - **name**: Agrarian energy-conversion ceiling (animal calorie yield vs. plant calories consumed) — formula as stated: ratio of about 10:1 (plant calories consumed : animal-calorie output); reading: caps the energy base available to a photosynthesis-dependent (2.0) civilization; bench notes: contrasted against fossil-fuel-based (3.0) civilization's much higher energy density
   > "究其根本，农业文明的社会发展存在天花板，是因为农业文明有一个天生不足的瓶颈。农作物产生于光合作用，牲畜也要消耗植物，动物产出的热量和消耗的植物比例是 10：1, 所以最终光合作用能够产生的能量上限受制于土地面积和土地的单位产出，在这两者都有上限的情况下，自然资源也就有了上限。而人类在这个时期还不能够控制人口，人使用新能量一个重要的方式就是生育更多的孩子，所以有限的资源和近乎无限的人口增长决定了人口增长最终通过灾难来消化和制约。自公元前大约 10，000 年起，这个基本的瓶颈是整个农业社会一直没有解决的问题。纵观整个 2.0 文明的历史，尤其在近代几千年里，做饼与分饼的矛盾 不仅一直存在，而且有愈演愈烈之势。" @lines 684-694
@@ -62,6 +107,28 @@ coverage: 100%
 
 - **name**: Domesticable wild-grain species by region (Diamond's count) — units: count of large-seeded, edible wild grass species; reading: 56 worldwide, of which 32 in the Hilly Flanks (Southwest Asia) vs. 6 near China / East Asia; bench notes: used to explain why agriculture and 2.0 civilization emerged earliest in the Hilly Flanks
   > "他指出全世界大约有二十万种不同的植物，只有差不多两千种可以食用，而其中大概一两百种可以被人工养植。人类今天摄入能量的一半来源于谷物，最主要的是小麦、玉米、大米、大麦和高粱，而这些谷物的野生原种在全球分布既不广泛更不均衡。自然界中一共有五十六种颗粒大、营养丰富、可以食用的野生植物。在西南亚，Hilly Flanks 侧翼丘陵区拥有三十二种，在东亚、中国附近有六种，中美洲有五种，非洲撒哈拉沙漠以南有四种，北美四种，澳大利亚和南美各有两种，整个西欧只有一种。如此看来，在 Hilly Flanks最早出现农业的机率要远远超过其他地方。再看畜牧业的条件：世界上超过一百磅的哺乳动物有一百四十八种， 到 1900 年只有十四种被人类驯养，其中有七种原生野生动物在西南亚。今天世界上最重要的五种畜养动物：羊、山羊、牛、奶牛、猪和马，除了马之外，原种都在西南亚，东亚有五种，南美只有一种，北美、澳大利亚、撒哈拉沙漠以南一种都没有。虽然非洲的动物很多，可是绝大多数无法驯养，比如狮子、长颈鹿等等。因此从农业资源的分布来看，Hilly Flanks 侧翼丘陵区是最幸运的地方，其次中国的黄河长江流域。" @lines 497-512
+
+- **name**: 1+1 value-creation multiplier — goods/labor exchange (1+1>2) vs. knowledge exchange (1+1>4) — formula as stated: division-of-labor trade of goods produces a value increment (1+1>2); exchanging knowledge/ideas produces a larger increment (1+1>4) because both sides keep their own idea, gain the other's, plus a spark from the exchange itself; reading: explains why a knowledge-economy market compounds value faster than a goods-only market; bench notes: qualitative screen for whether a business's economics resemble combinatorial knowledge exchange (higher multiplier) vs. discrete goods trade (bounded, Ricardian gains only) — not a computable financial ratio for the cleansing bench
+  > "式 1+1〉2 来表达这个意思，即增加的、交换的人数越多，市场越 大，创造出来的增量就越多。所以自由市场本身就是个规模经济。 在现代 3.0 文明时代，由分工交换产生的增量又进一步被放大， 这是因为人的知识是可以积累的。单纯的商品、服务的积累不太容 易，但人的知识积累比较容易。知识思想交换时出现的情况是 1+1〉" @lines 1461-1465
+
+- **name**: Investment-to-GDP bottleneck threshold — formula as stated: gross investment approaching ~50% of GDP, confirmed by visible overbuilt/idle capacity ("ghost towns") rather than the ratio alone; reading: once investment nears 50% of GDP and investment waste such as ghost towns appears, investment-driven growth hits a bottleneck and durable growth must shift to domestic consumption; bench notes: use official fixed-asset-investment/GDP ratios as the proxy, but treat a high ratio as a warning only when corroborated by observable idle or overbuilt capacity, anchor: business-model
+  > "当投资接近 GDP 一半，鬼城在各地出现时，以投资拉动的 GDP 增 长也遇到了瓶颈。从长期看，像中国这样一个大体量的经济，真正 长期可持续的增长只能靠内需。在内需市场里，不再有国际自由市 场做依托，政府与市场，看得见的手与看不见的手之间，需要做根 本性的调整。自由市场在现代化的 3.0 科技文明中扮演的主要角色就是以创造性的破坏来最有效地配置资源，而这与政府的基本职能相悖。" @lines 1601-1608
+
+- **name**: 1830 UK suffrage share as constitutional-development marker — units: percentage of population with voting rights; reading: under 2% of the population could vote for the House of Commons even a century after England's constitutional monarchy was established; bench notes: illustrates that formal legal/constitutional rights and actual broad-based political participation are separate, sequential developments — civic rights precede political rights, not the reverse, in Li Lu's account
+  > "早也最成功的宪政民主国家英国为例，1830 年，英国已进入 3.0文明时代，宪政也已经实行了一百多年，公民也有了充分自由，但是此时英国公民也只能投票选举下议院议员，而有投票权的人占总人口不到 2%。 尽管接受君权民授，授权也是一个渐进的过程。政治权力的分配，最早从皇权到了诸侯， 再后来到了有产阶级选举权。选举权在有产阶级里，又从大产开始， 逐渐扩大到中产、小产，后来到了男性白人、女性、有色人种，最后演变成任何成年人都可以投票。就英、美实践看，公民政治参与程度与经济发展水平直接相关，并随着经济发展的上升而逐步扩大。选举权的平等是从资格平等开始逐步开放，到了最后，当西方社会发展到了一定高度，几乎人人都成为中产阶级，都受到基本教育后，才 变成了成年人一人一票，都有选举权和被选举权。这一过程直到二战结束四十年代末才真正实现。" @lines 1855-1867
+
+## Other
+- **Personal origin story anchoring the entire treatise**: Li Lu explicitly grounds this civilizational-history project in his own biography — born in China in the 1960s, over two decades of lived experience in both China and the US, and more than two decades of professional investing that gave him a practical stake in forecasting China's future. This is the most direct autobiographical statement in the corpus.
+  > "笔者出生在六十年代的中国，在中美两国都有 20 余年的生活经 历，对于中国现代化的问题兴趣自年少起持续了三十多年。过去二 十多年的投资工作又对预测中国未来多了一份职业上的需求，并在 这些年间积累起一些思考心得。这个"谈现代化系列"，正是我过 去三十几年的思考笔记，希望能够起到抛砖引玉的作用。这一系列 首先将主要应用 Jared Diamond 和 Ian Morris 的研究成果，结合部分" @lines 136-141
+
+- **The Qianlong Emperor's reply to Macartney as the emblem of a civilization refusing modernization**: Li Lu quotes at length the Qianlong Emperor's 1793 letter dismissing British trade overtures ("天朝德威远被，万国来王") alongside Macartney's own harsh verdict on the Qing government, framing this exchange as China's clearest missed opportunity to join the emerging Atlantic economy — a decision Li Lu treats as a "pseudo-question" (伪命题) rather than moral failing, since geography made Western Europe, not China, the far more probable birthplace of Civilization 3.0.
+  > "隆却用自己的回信再次对这次机会关上大门："天朝扶有四方，惟 励精图治，办理政务，珍奇异宝，并不贵重。尔国王此次赉进各物， 念其诚心远献，特谕该管衙门收纳。其实天朝德威远被，万国来王， 种种贵重之物，梯航必集，无所不有。尔之正使等所亲见。然从不 贵奇巧，并更无需尔国置办物件。是尔国王所请派人留京一事，与 天朝体制既属不合，而于尔国亦殊觉无益。特此详晰开示，遣令该 使等安程回国。尔国王惟当善体朕意，亦励款诚，永矢恭顺，以保 乂尔友邦，共享太平之福。除正副使臣以下各官及通事兵役人等正 赏加赏各物件另单赏给外，兹因而国使臣归国，特颁敕谕，并赐赉 尔国王文琦珍物，俱如常仪。加赐彩缎罗绮，文玩器具诸珍，另有 清单，王其祗受，悉朕眷怀。特此敕谕。"至于同上的机会，"这" @lines 1263-1273
+
+- **Sino-modernization framed as a "pseudo-question", not a national tragedy**: Li Lu's most distinctive and controversial framing — he insists China's failure to birth modernity is not a puzzle requiring self-flagellation but a near-inevitability given the geographic/historical preconditions (unclaimed Americas discovered by Atlantic-facing Europe, no comparably weak-monarchy trading nation in China's position), a deliberately de-moralized reading of a topic usually charged with national grievance.
+  > "读中国近现代史，中国人常常不由自主地思考为什么现代化没 有在中国最先诞生，试图寻找一个可以说服自己的解释。 但在我看 来， 这些问题都是伪命题。事实就是，现代化的 3.0 科技文明不可 能在中国诞生。如前文所述，3.0 科技文明诞生的最根本原因是大" @lines 1279-1282
+
+- **Long-horizon speculative closing vision — humanity as a species outgrowing Earth**: The treatise's final chapter extends Li Lu's civilizational framework past economics into a bio-technological forecast — silicon computing power converging with (and potentially exceeding) the human brain, human lifespan extension, and the eventual necessity of leaving Earth once population outgrows planetary carrying capacity, explicitly likened to the original migration out of Africa.
+  > "从更长远看，人类将面对的另外一个大挑战 是地球对人的承 受极限 。自从五十年前发现了以硅材料为基础的机器计算能力之后， 我们在硅上的计算速度，每过十八个月以双倍的速度在增长。按照 这个速度再过几十年，硅材料的智能计算能力，就可以和人的大脑 的计算能力相当，甚至赶超。这样人的大脑就可以和机械的大脑第 一次兼容，或者人们可以把大脑里面所有的存量、记忆、DNA 输入 到机器上，以此延长大脑的寿命。当然，大脑不仅是一个以碳材料 为基础的有机超级计算机器，还是一个有机信号传输中心，对此我 们今天所知甚少。但是我们今天在人的其他器官上 已经做到了这点，" @lines 2147-2155
 
 ## Nothing-found notes
 All required categories (questions, directives, concepts, metrics) have genuine entries drawn from the text, so no category is empty. Scope note: this document is a civilizational/historical essay (not a company- or investor-process document), so quotes and patterns are framed as transferable analytic lenses (structural ceilings, resource-base transitions, scale effects, constraint mapping, opportunity-vs-privilege framing) rather than as direct business-model or corporate-culture statements about a specific ticker — downstream synthesis against FOUNDATION.md's anchors is left to canon.ts curation, per playbook scope for Stage 1. No numeric "reading" beyond the metrics listed above was found stated as a formal formula in this text; other quantities in the essay (e.g., GDP growth multiples, population counts) are historical figures rather than named metrics with thresholds.

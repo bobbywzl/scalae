@@ -30,6 +30,24 @@ coverage: 100%
 
 - > "Yet I must say that I have found in my own work that you can count very much more dependably upon differences of value which can be established from the earnings and expense picture than you can on those which seem to be inherent in the possibilities of the different territories." @p.7
 
+- > "The result of using that method is (a) to reduce inventory values below market values, and in some cases by a very considerable amount; (b) to reduce accordingly the reported profits; and © and most important, perhaps, to reduce the amount of taxes which have to be paid." @p.1
+
+- > "You have thus a rather unusual situation, in which the chief interest perhaps of the stockholders of the Northern Pacific does not appear except in a very indirect and incomplete way in its own reports." @p.2
+
+- > "That, of course, is a very different picture from the rather negligible earnings which they reported for the first eight months." @p.3
+
+- > "You find when you study the Southern Pacific figures that in 1946 they have had a tax credit of about $19-million, which is more than the earnings reported for that period." @p.3
+
+- > "In a peculiar way, therefore, the situation seems to have been reversed. Whereas before the war Northern Pacific apparently tended toward a deficit and Southern Pacific toward moderate earnings, we now find that under 1946 conditions Southern Pacific seems to be tending toward a deficit and Northern Pacific toward fairly good earnings." @p.4
+
+- > "It is obvious that such a disparity in dividend policies would have a substantial effect on market prices." @p.5
+
+- > "Reading and Pennsylvania made practically the same showing with regard to earnings and financial strength. But Reading was satisfied to pay a dollar to its stockholders, while Pennsylvania was paying about two dollars and a half." @p.5
+
+- > "United States Fidelity pays two dollars and New Amsterdam Casualty one dollar, and so you have a relationship in price of $42 for one and $26 for the other." @p.5
+
+- > "There is no doubt, therefore, that the dividend rates of Southern Pacific and Northern Pacific are sufficient to explain the market relationship, even by themselves, without reference to any other questions that the analyst might ask himself." @p.6
+
 ## Question patterns
 
 - **pattern**: When comparing peer companies, does the accounting treatment of tax benefits alter the picture of relative performance? — askWhen: two similar companies showing different reported earnings; one has tax credits or loss carrybacks, anchor: business-model
@@ -41,6 +59,12 @@ coverage: 100%
 - **pattern**: How much weight should an analyst place on future territorial growth versus measurable current earnings and expense control? — askWhen: evaluating peer railroads with different geographic exposures and current operating performance, anchor: business-model
   > "The question that was asked about the general future prospects of one territory as compared with another is certainly very relevant to analysis of railroad securities. Yet I must say that I have found in my own work that you can count very much more dependably upon differences of value which can be established from the earnings and expense picture than you can on those which seem to be inherent in the possibilities of the different territories." @p.7
 
+- **pattern**: Can two companies with essentially identical earnings and financial strength justify a persistently different market price purely because of a different dividend payout policy, and will that gap close as earnings and dividends eventually converge? — askWhen: Two comparable peers trade at very different prices while their underlying earning power is nearly the same, anchor: business-model
+  > "whether you can expect in the normal course of events that the dividend policy will adjust itself to the earnings and that therefore eventually the market price will adjust itself to the earnings and will not be determined by an arbitrary dividend policy" @p.6
+
+- **pattern**: Does a company's use of a tax carry-back or tax credit in the current period explain an apparent earnings advantage over a peer that pays full taxes on its earnings? — askWhen: Comparing reported earnings between two similar companies where one shows an unusually favorable current-period tax result, anchor: business-model
+  > "Does Northern Pacific use its carry-back in the first eight months the way Southern Pacific did?" @p.3
+
 ## Search directives
 
 - **directive**: Reconstruct consolidated earnings by adding undistributed profits of majority-owned affiliates not consolidated in reported statements — queryShapes: Find [COMPANY] holdings in [SUBSIDIARY]; calculate per-share equity in [SUBSIDIARY] undistributed profits; add to reported earnings, sourcePriority: financial statements showing subsidiary earnings and dividend payout; parent company equity ownership
@@ -51,6 +75,12 @@ coverage: 100%
 
 - **directive**: Perform comparative peer analysis on consistent basis, matching financial structure and accounting treatments to isolate operational performance differences — queryShapes: Select peer [COMPANY] with similar capital structure; standardize both for [ACCOUNTING METHOD]; calculate operating ratios on comparable gross base, sourcePriority: standardized financial statements; industry-specific adjustments (railroads: operating vs. total income; equipment hire treatment)
   > "If we go back to the superficial earnings, you would see that before the war Southern Pacific averaged $1.27 per share for five years, 1936 to 1940, while Northern Pacific had a very small deficit. In the five years 1941 to 1945 Southern Pacific showed $12.90, against $6.20 for Northern Pacific" @p.3
+
+- **directive**: When comparing two peers on dividend-driven price differences, check whether the earnings, asset base, and financial strength are otherwise nearly identical before attributing the price gap to dividend policy alone. — queryShapes: ["compare <COMPANY A> and <COMPANY B> earnings per share, assets, and dividend rate", "what price ratio corresponds to the dividend-rate ratio between <COMPANY A> and <COMPANY B>?"], sourcePriority: comparative earnings and dividend history across near-identical peers (same industry, similar capital structure)
+  > "New Amsterdam Casualty Company and the United States Fidelity & Guaranty, you would find that these companies are almost identical in every respect, in the character of their business and their assets, except that one of them has twice the amount of stock and twice the assets and business." @p.5
+
+- **directive**: Before crediting a territory-growth narrative as an investment edge, test whether the faster-growing peer's net earnings and expense ratio actually improved in step with its gross revenue growth. — queryShapes: ["has <COMPANY>'s net-to-gross ratio improved or worsened as its territory/gross revenue grew?", "compare <COMPANY A> vs <COMPANY B> transportation and maintenance expense growth relative to gross revenue growth"], sourcePriority: multi-year gross revenue and net operating income series broken out by territory or segment
+  > "Although Southern Pacific showed a very considerable improvement in its gross earnings as against Northern Pacific, its net earnings before taxes, depreciation charges, and interest charges were very much poorer proportionately." @p.7
 
 ## Concepts
 
@@ -66,6 +96,12 @@ coverage: 100%
 - **title**: Dividend policy as market price determinant — question: To what extent does dividend payout rate drive market valuation independent of underlying earning power and financial strength?, test: Identify two peers with similar earnings, assets, and financial position but different dividend payout rates; compare market prices, evidence: Earnings per share comparison; dividend per share comparison; market price ratio; stability of earnings (not dividend-driven), anchor: business-model
   > "That it actually has a great effect on market price cannot be denied -- certainly in the field of securities that are bought by investors." @p.5
 
+- **title**: LIFO as a wartime accounting cushion analogous to emergency plant amortization — question: Does LIFO's tax-driven suppression of reported profits/inventory values mean the company is genuinely weaker, or is it a deliberate, reversible accounting cushion comparable to emergency plant write-downs?, test: Quantify the cumulative reduction in taxable profit and taxes paid attributable to LIFO since adoption; compare to the company's wartime plant-amortization tax benefit to see if the same conservative-cushion logic applies, evidence: Federated Department Stores reduced inventory/taxable profit by $3,875,000 since 1942 via LIFO, cutting taxes by $2,590,000 and after-tax profits by roughly $1,150,000 — Graham draws a direct parallel to wartime plant amortization discussed two weeks earlier.
+  > "The significance of Lifo is interesting, when you reflect upon it, because it is very similar to the wartime amortization of plant facilities which we discussed two weeks ago." @p.1
+
+- **title**: Reversal of relative advantage between cyclically-favored peers — question: Can a company's relative competitive advantage over a peer (in expense control, operating ratio, or reported earnings) flip entirely between a pre-war baseline and the current period, invalidating a static comparison? — test: Track the earnings/operating-ratio advantage between two peers across multiple discrete time windows (pre-war, war, current) rather than relying on a single-period snapshot, evidence: Southern Pacific held roughly a 2:1 earnings advantage over Northern Pacific in the pre-war and war periods, but by the first eight months of 1946 the relationship inverted — Northern Pacific-Burlington earning near 20% of gross versus Southern Pacific's roughly 9%.
+  > "In a peculiar way, therefore, the situation seems to have been reversed." @p.4
+
 ## Metrics
 
 - **name**: Undistributed profits per share (affiliate adjustment) — formula: (Majority-owned affiliate's net earnings × ownership %) minus dividends received, per parent share, reading: Represents deferred capital gains and reinvested earnings accruing to parent shareholders; during war period, often exceeded reported earnings per share, anchor: business-model
@@ -73,6 +109,23 @@ coverage: 100%
 
 - **name**: Net deductions (inclusive fixed charges as percentage of gross) — formula: (Gross revenues minus transportation and maintenance expenses minus interest and taxes) as percentage of gross revenues, reading: More conservative measure of operating margin when company has significant equipment rental obligations; allows comparison between companies with different capital structures, anchor: business-model
   > "If you restate your fixed charge coverage by allowing for the equipment and joint facility rental payments and also put in Northern Pacific figures its share of the Burlington, you will find this situation is also true for the eight months of 1946. Southern Pacific's net deductions were $24,300,000 in eight months, which was about seven and a half per cent of gross, the latter being around $320-million." @p.5
+
+- **name**: LIFO cumulative tax/profit suppression — formula: Cumulative reduction in taxable profit since LIFO adoption; Cumulative tax saved; Cumulative reduction in after-tax reported profit, reading: A material multi-year LIFO benefit (Federated Department Stores: $3,875,000 inventory/profit reduction, $2,590,000 taxes saved, ~$1,150,000 after-tax profit reduction since 1942) signals the company is stronger than its reported profits show, once the market recognizes the tax-driven understatement, benchNotes: Treat as a hidden-value adjustment similar to wartime plant amortization; the market "doesn't reflect that at all" per Graham, creating a potential gap between reported weakness and true improvement.
+  > "That company showed that since 1942 they had the benefit of a reduction in inventory and taxable profit of $3,875,000 by using Lifo instead of using the usual first-in, first-out method." @p.1
+
+- **name**: Equipment rental/hire net credit or charge — formula: Net receipts (or payments) for equipment and joint facility rental, entered as a fixed-charge offset (or addition) — formula: Reported fixed charges ± net equipment rental, reading: A railroad that is a net receiver of rental income (Northern Pacific: +$4,346,000 in 1945) has effectively lower true fixed charges than the manuals show, while a net payer (Southern Pacific: -$24,600,000 in 1946) has effectively higher true fixed charges, reversing the apparent coverage advantage, benchNotes: Never take manual-published fixed-charge coverage at face value for railroads without checking the rental/hire line; the "ordinary way" fixed charges are stated systematically misstates relative safety margins between peers.
+  > "1945 these were $4,346,000. But Southern Pacific has made very heavy payments for the same purpose; in 1946 they were $24,600,000." @p.5
+
+## Other
+
+- **Graham's own qualifying uncertainty**: On the question of whether territorial growth data would persist into the future, Graham candidly admits he does not know the answer — a direct display of his intellectual honesty about the limits of extrapolating war-period growth trends, rather than offering false confidence to his students.
+  > "The question that one would raise about those figures is the extent to which they have reflected the impact of war conditions since 1941, and whether or not they would be expected to continue in the future. Frankly, I don't know what the answer is." @p.6
+
+- **Live classroom dialogue preserved verbatim**: The transcript captures two separate student questions and Graham's direct, on-the-spot responses — one on tax carry-backs, one on territorial growth prospects — showing his interactive teaching method and willingness to defer harder questions ("That's a point that I shall come to") rather than improvise an unfounded answer.
+  > "STUDENT: Does Northern Pacific use its carry-back in the first eight months the way Southern Pacific did? MR. GRAHAM: That's a point that I shall come to." @p.3
+
+- **A previously-taught case reused as a teaching touchstone**: Graham references a Reading vs. Pennsylvania comparison from "a course here on appraisal of stocks" two years earlier as a ready-made precedent for the dividend-policy-versus-price question — showing how he built a recurring stock of illustrative cases across his different courses over time.
+  > "Two years ago, when we were giving a course here on appraisal of stocks, we had occasion to compare Reading and Pennsylvania." @p.5
 
 ## Nothing-found notes
 

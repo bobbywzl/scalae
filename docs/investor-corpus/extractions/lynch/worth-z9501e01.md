@@ -20,6 +20,16 @@ coverage: 100%
 - > "Or, if you want the complete story all at once, the broker canpull the relevant details out of Bloomberg, Zacks, and the rest" @line 66-68
 - > "Computers have revolutionized the business to the point thatthe two most important factors to consider in choosing a brokerare" @line 115-116
 - > "There's potential here for a total overhaul of the relationshipbetween brokers and clients, which often has been less than satisfyingto either party" @line 149-151
+- > "In a nation of smart shoppers, this may be the last great lapse" @line 12-13
+- > "Along with these data services, the broker can call up the latest commentary from the in-house analysts at his own brokerage firm" @line 28-30
+- > "This is the sort of fresh information retail investors normally can't get" @line 30-33
+- > "Merrill Lynch has about 200 analysts in 37 countries, and whenever one of them writes a report on a company whose stock is owned by a client of his, Reilly can retrieve it" @line 49-51
+- > "the printed reports we mailed out could be three months old by the time they reached the customer" @line 51-53
+- > "Now I can print a copy off the screen and fax it. Or if there's something that the compliance department won't allow me to print, I can at least read it to the customer off the screen" @line 53-56
+- > "They can gather 20 pages on the computer without leaving their swivel chairs, and in less time than it would take to walk to the office library and copy a couple of pages out of the S&P; reports" @line 76-80
+- > "It's not a commonplace request at the moment, but Tom Reilly already runs screens for his clients, and there's no reason stock screen can't become one of the standard full services" @line 93-95
+- > "Many offices already subscribe to the Morningstar and Lipper publications that track thousands of mutual funds" @line 97-99
+- > "for an individual to subscribe, the cost can run to a hefty $2,000 a month" @line 130-132
 
 ## Question patterns
 
@@ -32,6 +42,9 @@ coverage: 100%
 - **pattern**: Why are brokers underutilizing their research capabilities despite having sophisticated databases available? — askWhen: assessing brokerage efficiency, anchor: corporate-culture
   > "The research departments of the major brokerage firms are underutilized" @line 45-46
 
+- **pattern**: What complimentary institutional services are bundled into a full-service brokerage account but underused by the client? — askWhen: evaluating broker relationship value, anchor: business-model
+  > "Many offices already subscribe to the Morningstar and Lipper publications that track thousands of mutual funds" @line 97-99
+
 ## Search directives
 
 - **directive**: Identify companies matching specific financial profiles using screening tools — queryShapes: stock-screen, company-fundamentals; sourcePriority: brokerage-databases, data-terminals
@@ -39,6 +52,9 @@ coverage: 100%
 
 - **directive**: Monitor portfolio holdings for newsworthy developments via automated alert systems — queryShapes: news-monitoring, portfolio-surveillance; sourcePriority: reuters-money-network, telescan
   > "It won't be long before a broker's entire client base can beput on an alert system, where any newsworthy development thataffects a specific stock or mutual fund will trigger a note tothe broker" @line 106-109
+
+- **directive**: Request the broker fax or read aloud in-house analyst reports on stocks you own within hours instead of waiting on mailed printed copy — queryShapes: in-house-analyst-report-access, real-time-analyst-commentary; sourcePriority: brokerage-analyst-terminal-feeds
+  > "Now I can print a copy off the screen and fax it. Or if there's something that the compliance department won't allow me to print, I can at least read it to the customer off the screen" @line 53-56
 
 ## Concepts
 
@@ -51,10 +67,28 @@ coverage: 100%
 - **title**: Computerized Brokerage Infrastructure as Competitive Advantage — Access to data services enables brokers to deliver real-time research.
   > "Bridge is a premier database that runs 24 hours a day there andwill tell you everything you ever wanted to know about a company'saffairs short of the CEO's bedtime" @line 127-129
 
+- **title**: Asset Allocation vs. Ad Hoc Stock-Picking Support — the brokerage industry pitches formal risk-questionnaire asset allocation while underselling the more valuable real-time research help available for individual stock decisions.
+  > "It's a valuable service, but notas valuable to the stock picker as the help the broker can providead hoc" @line 145-147
+
 ## Metrics
 
-Nothing found — this article focuses on brokerage services and information access rather than establishing quantified performance metrics or financial formulas.
+- **name**: Brokerage in-house analyst research footprint — formula: analyst count × countries covered; reading: Merrill Lynch fields roughly 200 analysts across 37 countries, giving a broker's clients coverage breadth comparable to institutional desks
+  > "Merrill Lynch has about 200 analysts in 37 countries, and whenever one of them writes a report on a company whose stock is owned by a client of his, Reilly can retrieve it" @line 49-51
+
+- **name**: Institutional data-terminal subscription cost — formula: monthly individual subscription price to a premier real-time database; reading: roughly $2,000 a month if bought directly, versus free access when routed through a broker who already carries it
+  > "for an individual to subscribe, the cost can run to a hefty $2,000 a month" @line 130-132
+
+## Other
+
+- **Gas-station fairness analogy**: Lynch opens the column with a consumer-fairness hook, comparing the brokerage industry's quiet under-delivery of full-service value to a hypothetical scam that "rarely happens" at a gas station — a rhetorical device that frames the whole piece's argument.
+  > "What rarely happens at the gas station happens all the time at the broker's office" @line 10-11
+
+- **Critique of brokerage-firm marketing priorities**: Lynch pointedly criticizes brokerage houses for pitching formal asset-allocation questionnaires instead of advertising the free, valuable research access their clients already have through the firm's computer systems.
+  > "I'm amazed that full-service brokerage firms aren't advertisingthe research benefits their clients can get from their computersystems, but so far they've been quiet on the subject" @line 136-138
+
+- **Casablanca-echoing closing line**: The column ends by urging readers to call their broker and ask what the computer can do for them, closing on a deliberately romantic, movie-quoting note that reframes a mundane phone call as a relationship reset.
+  > "It might be the beginning of a beautiful new relationship" @line 160-161
 
 ## Nothing-found notes
 
-Metrics: This column discusses the structural role of brokers in providing information services; it does not establish quantified metrics or formulaic thresholds.
+None — expanded mining populated all required categories (quotes, question patterns, directives, concepts, metrics, and Other) directly from the cached source text.

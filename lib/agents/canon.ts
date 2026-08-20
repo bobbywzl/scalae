@@ -239,7 +239,7 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
       doc: "stock-market-study-senate-testimony-graham-excerpt-1955",
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/graham_testimony.pdf",
       quote:
-        "We pay ourselves salaries on. the order of $25,000 and $15,000, and we also have a profit-sharing plan under which after a $40-a-share dividend is earned and paid in any year the management as a whole receives 20 percent of the additional amount earned and paid.",
+        "We pay ourselves salaries on. the order of $25,000 and $15,000, and we also have a profit-sharing plan under which after a-$40-a-share dividend is earned and paid in any year the management as a whole receives 20 percent of the additional amount earned and paid.",
     },
   },
   // Tier 3 addition — Graham/Dodd:
@@ -643,7 +643,7 @@ export const CANON_QUESTIONS: CanonQuestionPattern[] = [
       investor: "Walter Schloss",
       doc: "the-right-stuff-why-walter-schloss-is-such-a-great-investor",
       url: "https://www.grahamanddoddsville.net/wordpress/Files/Gurus/Walter%20Schloss/Walter%20Schloss%20-%20The%20Right%20Stuff%20-%20Barrons%20-%2002-25-85.pdf",
-      quote: "And the management owned a lot of the stock, and they were not going to throw it down the drain.",
+      quote: "the management owned a lot of the stock, and they were not going to throw it down the drain.",
     },
   },
   {
@@ -1334,7 +1334,7 @@ export const CANON_DIRECTIVES: CanonSearchDirective[] = [
       investor: "Walter Schloss",
       doc: "columbia-business-school-upper-level-seminar-in-value-investing",
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_lecture.pdf",
-      quote: "ben graham didn't visit managements because he thought the figures told the story.",
+      quote: "Ben Graham didn't visit managements because he thought the figures told the story.",
     },
   },
 
@@ -1812,8 +1812,7 @@ export const CANON_CONCEPTS: CanonConcept[] = [
       investor: "Walter Schloss",
       doc: "factors-needed-to-make-money-in-the-stock-market",
       url: "https://valuehunter.wordpress.com/wp-content/uploads/2009/03/schloss_factors.pdf",
-      quote:
-        "Try to buy assets at a discount than to buy earnings. Earnings can change dramatically in a short time.",
+      quote: "Try to buy assets at a discount than to buy earnings. Earnings can",
     },
   },
 

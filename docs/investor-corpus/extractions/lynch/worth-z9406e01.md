@@ -22,6 +22,26 @@ coverage: 100%
 - > "No matter what happens to the market, the earnings will determine the results." @chars 5765
 - > "In 30 years, Johnson & Johnson's earnings are up 70-fold, and the stock is up 70-fold." @chars 5849
 - > "Bethlehem Steel earns less today than it did 30 years ago, and guess what? The stock sells for less than it did 30 years ago." @chars 5963
+- > "There's a different season for the quality growth stocks, though fewer people know about it. Spring to early summer is the best time to shop for potential bargains" @chars 545
+- > "A representative list of these recent underachievers in the market appears at the end of this file." @chars 1448
+- > "Out of this dreary dozen, seven stocks are selling for near or less than their 1991 prices." @chars 1778
+- > "As a group, the cyclicals shown gained 37 percent while the growth group gained only 3 percent." @chars 1996
+- > "In early 1991, I noticed this situation and issued a warning: Avoid expensive growth stocks." @chars 2466
+- > "But don't give me the swami award for this call. I saw it coming on the charts." @chars 2559
+- > "The stock hit a high of $58 in late 1991, and it's been mostly downhill since." @chars 3380
+- > "That's what told me three years ago that it wasn't the time to be adding Home Depot and Wal-Mart to a portfolio." @chars 4064
+- > "Investors who were savvy to this change in market leadership doubled their money in Bethlehem Steel and Deere & Co." @chars 4778
+- > "People won't stop buying Tylenol and Band-Aids no matter what shape the economy is in." @chars 5545
+- > "the growth group was overpriced and the cyclicals were cheap, now it's the reverse" @chars 5775
+- > "The cereal and baby-food business has become highly competitive, with everybody fighting for market share by cutting prices." @chars 6548
+- > "My research tells me that Johnson & Johnson gets only one third of its revenues from pharmaceuticals." @chars 6861
+- > "And more than half of those come from overseas, where price controls on drugs have existed for years." @chars 6963
+- > "On the basis of 1995 earnings, McDonald's stock suddenly looks cheap." @chars 7617
+- > "Nothing has changed, except a page has turned on the calendar." @chars 7737
+- > "The Second-Half Effect does not apply to cyclicals. Their earnings are too unstable." @chars 7801
+- > "It all depends on the price of aluminum, and you do need a swami to predict that." @chars 8027
+- > "In a bear market, the Johnson & Johnsons will suffer right along with the Bethlehems" @chars 8498
+- > "which would you like to have in your portfolio a decade from now?" @chars 8796
 
 ## Question patterns
 
@@ -34,6 +54,12 @@ coverage: 100%
 - **pattern**: Which worries about stocks are valid versus merely temporary market concerns? — askWhen: evaluating investment risks, anchor: risk-assessment
   > "With every company, there is something to worry about, but the question is, which worries are valid and which are not?" @chars 4388
 
+- **pattern**: Is a feared macro/regulatory risk actually material once the revenue exposure is quantified? — askWhen: separating headline risk from real earnings risk, anchor: risk-assessment
+  > "My research tells me that Johnson & Johnson gets only one third of its revenues from pharmaceuticals." @chars 6861
+
+- **pattern**: Does a seasonal calendar effect (fund managers rolling forward to next year's earnings estimates) explain a stock's price move rather than any change in the business? — askWhen: distinguishing sentiment-driven repricing from fundamental change, anchor: market-seasonality
+  > "Nothing has changed, except a page has turned on the calendar." @chars 7737
+
 ## Search directives
 
 - **directive**: Analyze historical price-to-earnings ratio gaps using annual earnings and stock price charts — queryShapes: comparative charts over time, sourcePriority: Securities Research Co. chart books, brokerage house resources
@@ -41,6 +67,12 @@ coverage: 100%
 
 - **directive**: Compare earnings stability patterns between growth and cyclical stocks to assess business model resilience — queryShapes: earnings per share trend analysis, sourcePriority: company financial reports
   > "Cyclical companies produce or sell big-ticket items such as tractors or cars, which people will buy in good times and put off buying in bad times." @chars 3635
+
+- **directive**: Quantify a headline macro/regulatory fear as a percentage of actual revenue exposure before treating it as a real risk to the thesis — queryShapes: ["<COMPANY> revenue exposure to <RISK>", "<COMPANY> segment revenue breakdown"], sourcePriority: company-disclosed-revenue-mix
+  > "My research tells me that Johnson & Johnson gets only one third of its revenues from pharmaceuticals. And more than half of those come from overseas, where price controls on drugs have existed for years." @chars 6861
+
+- **directive**: Time purchases of quality growth stocks to the spring/early-summer window before the "Second-Half Effect" bids them up in Q3/Q4 — queryShapes: ["seasonal quality growth stock buying window", "<STOCK> historical Q3/Q4 price pattern"], sourcePriority: seasonal-pattern-analysis
+  > "Spring to early summer is the best time to shop for potential bargains in great companies" @chars 555
 
 ## Concepts
 
@@ -53,6 +85,12 @@ coverage: 100%
 - **title**: Earnings-Driven Stock Performance — long-term stock returns are determined entirely by earnings growth, not sentiment or cyclicality
   > "In 30 years, Johnson & Johnson's earnings are up 70-fold, and the stock is up 70-fold. Bethlehem Steel earns less today than it did 30 years ago, and guess what? The stock sells for less than it did 30 years ago." @chars 5849
 
+- **title**: Small-ticket/necessity products give growth companies streak-free earnings — a company selling low-cost, habitual, or non-discretionary items has demand that doesn't collapse in recessions, producing the steady earnings line that distinguishes a true growth stock from a cyclical — test: Does demand for the product persist regardless of the economic cycle (e.g. Tylenol, Band-Aids) versus being deferred in bad times (tractors, cars)?
+  > "Quality-growth companies, on the other hand, sell small-ticket items such as hamburgers or shaving cream or necessities such as pharmaceuticals. People won't stop buying Tylenol and Band-Aids no matter what shape the economy is in." @chars 5470
+
+- **title**: Group rotation between growth and cyclical regimes reverses over multi-year windows — periods where cyclicals run and growth "goes nowhere" are followed by periods where the relationship flips, so relative-valuation gaps (not absolute price levels) tell you which group to favor now — test: Has the price/earnings gap for the growth basket closed relative to where it stood at the last valuation extreme?
+  > "two years ago the growth group was overpriced and the cyclicals were cheap, now it's the reverse" @chars 5768
+
 ## Metrics
 
 - **name**: Earnings consistency score — cyclical vs. growth classification based on earnings volatility, measure: steady earnings line (growth) vs. erratic earnings line (cyclical)
@@ -63,6 +101,20 @@ coverage: 100%
 
 - **name**: Long-term earnings growth rate — benchmark for stock performance evaluation, measure: Johnson & Johnson 30-year 70-fold earnings growth
   > "In 30 years, Johnson & Johnson's earnings are up 70-fold, and the stock is up 70-fold." @chars 5849
+
+- **name**: Revenue exposure percentage to a feared risk factor — formula: segment revenue tied to the risk / total revenue, reading: J&J's one-third pharma exposure (more than half overseas, already price-controlled) shows the headline health-care-reform worry was overstated relative to the real earnings base
+  > "Johnson & Johnson gets only one third of its revenues from pharmaceuticals. And more than half of those come from overseas, where price controls on drugs have existed for years." @chars 6861
+
+- **name**: Group relative return spread (growth vs. cyclical basket) — formula: basket A % gain minus basket B % gain over the same period, reading: cyclicals +37% vs. growth +3% over 1991-93 quantifies how far a rotation had run and flagged when the two groups' valuation gap was ready to reverse
+  > "the cyclicals shown gained 37 percent while the growth group gained only 3 percent" @chars 2020
+
+## Other
+
+- **forward-earnings repricing mechanism**: Lynch explains, with a concrete EPS estimate pair, exactly how the calendar-driven analyst-estimate rollover (not any business change) mechanically re-rates a stock — a rare fully worked numeric example of market psychology.
+  > "For instance, McDonald's is expected to earn $3.36 this year." @chars 7437
+
+- **self-effacing credibility framing**: Lynch downplays his own market-timing call on overpriced growth stocks as simple chart-reading rather than prescience — a recurring humility trope distinguishing his method from "swami"-style forecasting.
+  > "But don't give me the swami award for this call. I saw it coming on the charts." @chars 2559
 
 ## Nothing-found notes
 

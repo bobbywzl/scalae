@@ -9,9 +9,15 @@ coverage: 100%
 
 ## Verbatim quotes
 
+- > "The Baupost Fund completed its year ended October 31, 1999 with a gain of 8.29%." @chars 2503
+
 - > "We underperformed in 1999 not because we abandoned our strict investment criteria but because we adhered to them, not because we ignored fundamental analysis but because we practiced it, not because we shunned value but because we sought it, and not because we speculated but because we refused to do so." @chars 3411
 
+- > "In sum, and very ironically, we got hurt not speculating in the U.S. stock market." @line 116-117
+
 - > "It would be easy for us to capitulate to the runaway bull market in growth and technology stocks. And foolhardy. And irresponsible. And unconscionable." @chars 3976
+
+- > "It is always easiest to run with the herd; at times, it can take a deep reservoir of courage and conviction to stand apart from it." @line 123-125
 
 - > "Baupost has employed a value approach to investing because it is, above all, risk averse, and focused on preserving capital over the long run." @chars 4359
 
@@ -21,13 +27,21 @@ coverage: 100%
 
 - > "The major stock market indices are, by virtually all measures, extremely overvalued." @chars 5078
 
+- > "Never before have companies that have strung together a few years (or quarters) of earnings (or sales) growth been valued at such high multiples." @line 142-144
+
 - > "there has been a decade-long increase in indexing activity, where more and more money is either overtly or tacitly invested to mirror the performance of market indices, especially the S&P 500 Index." @chars 7876
 
 - > "A second factor contributing to today's lofty market valuation is the cult of growth and momentum investment strategies, a bizarre emphasis on the trend of a company's results rather than on the absolute level of its performance." @chars 9136
 
+- > "The student started to reply in the negative, hesitated, and then allowed how he might take it were it offered for free. This so perfectly captures today's investment mentality." @line 213-215
+
 - > "there is enormous pressure on managements to smooth their results and pull the occasional rabbit out of a hat to deliver the desired quarterly outcomes." @chars 10805
 
+- > "At the root of all financial bubbles is a good idea carried to excess. The Internet is an extraordinary idea; how fitting, then, is the magnitude of the excess." @line 245-247
+
 - > "Historically, out-of-favor investments have typically performed best in the periods immediately following their underperformance, while those that have done well almost always follow their success by lagging badly." @chars 14900
+
+- > "Client redemptions force these managers to sell shares to raise cash, regardless of the valuation of what they are forced to sell." @line 301-302
 
 - > "Being extremely early is tantamount to being wrong, so contrarians are well advised to develop an understanding of the psychology of the sellers." @chars 20493
 
@@ -40,6 +54,10 @@ coverage: 100%
 - > "It is important to keep in mind that stocks are perpetuities, with no maturity date." @chars 22404
 
 - > "Among today's most attractive pockets of opportunity are corporate spinoffs, which initially come under selling pressure in even the best of markets." @chars 23898
+
+- > "We choose to eat home cooking not only out of habit, not only because we should, and not so we can tell you that we do, but because we have a great deal of confidence in our strategy." @line 386-388
+
+- > "The last two years have been difficult ones for The Baupost Fund. We are disappointed but not disillusioned, and remain confident that a fundamentally-driven, disciplined value investment approach will deliver good results with limited risk over time." @line 607-609
 
 ## Question patterns
 
@@ -58,6 +76,12 @@ coverage: 100%
 - **pattern**: Does this business carry leverage or structural forced-selling exposure (index-deletion thresholds, spinoff debt load) that could crush its price independent of fundamentals? — askWhen: assessing downside/risk-of-ruin before sizing a position, anchor: business-model
   > "the highly leveraged Tenneco Automotive spinoff, still under extreme selling pressure, trades at a market capitalization barely above $200 million." @chars 25554
 
+- **pattern**: What would it mean for a "value investor" to hold big stakes in the era's most expensive momentum stocks, and does that redefine what "value" even means? — askWhen: auditing whether a self-described value manager has quietly capitulated to momentum, anchor: corporate-culture
+  > "One prominent "value investor" owns among his ten largest holdings big stakes in Microsoft, IBM, Cisco Systems, America Online and Amazon.com." @line 278-280
+
+- **pattern**: Would we still be comfortable holding this position if the stock market closed for the next five years? — askWhen: testing whether a purchase is genuine long-term investment rather than disguised speculation, anchor: business-model
+  > "Very few investors would choose to hold their current portfolios if they thought the stock market might be closed for trading for the next five years; since we are investing and not speculating, we would be comfortable with our portfolio under such conditions." @line 410-413
+
 ## Search directives
 
 - **directive**: Screen orphaned spinoff shares under indiscriminate post-separation selling or forced index-deletion selling despite a strong market position — queryShapes: "post-spinoff selling pressure", "S&P 500 deletion forced selling small cap", "orphan spinoff no analyst coverage", sourcePriority: SEC Form 10/spinoff registration statements, index-reconstitution announcements
@@ -68,6 +92,12 @@ coverage: 100%
 
 - **directive**: Track liquidating entities and distressed claims where identifiable cash/asset recoveries exceed the current quoted price — queryShapes: "liquidating trust cash exceeds share price", "distressed debt claim recovery liquidation", sourcePriority: bankruptcy/liquidation trustee reports, distressed-debt claim registries
   > "Cash on hand exceeds the share price and a substantial liquidating distribution is expected shortly." @chars 33683
+
+- **directive**: Identify companies whose management is buying back a material percentage of shares outstanding annually while trading at low single-digit multiples of after-tax earnings — queryShapes: "buyback pace percent of shares outstanding", "low p/e high buyback rate", sourcePriority: company buyback announcements, 10-K/10-Q share count trends
+  > "The company is currently buying back around 10% of its stock per year." @chars 28668-28729
+
+- **directive**: Look for niche market leaders overshadowed by industry-wide scandal or cyclical downturn (price fixing, regional crisis) that have since executed credible turnarounds — queryShapes: "industry price-fixing scandal aftermath", "cyclical downturn overhang despite cost cuts", sourcePriority: antitrust/regulatory filings, management cost-cutting announcements
+  > "The company came under a cloud a few years ago when the industry admitted to price fixing. Results were then adversely affected by the Asian crisis last year." @line 552-554
 
 ## Concepts
 
@@ -85,6 +115,12 @@ coverage: 100%
 
 - **title**: Indexing and relative-performance benchmarking create mechanical, fundamentals-independent price pressure — question/test: Is this stock's price move explained by structural flows (index inclusion/exclusion, momentum-chasing by relative-performance managers) rather than by anything happening inside the business?
   > "The recent inclusion of Yahoo, Inc. into the S&P 500 Index caused a 67 point (24%) one-day gain and a one-week $19.1 billion valuation enhancement to Yahoo's already generous market capitalization." @chars 8804
+
+- **title**: Stocks as perpetuities without a maturity date — a durational reframe of equity investing that Klarman uses to justify buying only when genuinely prepared to hold long-term, catalysts notwithstanding
+  > "It is important to keep in mind that stocks are perpetuities, with no maturity date." @chars 22404
+
+- **title**: The "edge" taxonomy — Klarman explicitly enumerates the possible sources of investment edge (long-term perspective, tolerance of complexity, absence of forced-action constraints) rather than treating "edge" as a vague catch-all
+  > "This edge could be a willingness to take a long-term perspective in a short-term-oriented market, a tolerance of complexity when others crave simplicity, or the absence of constraints which either impede the ability of others to act or force them to act in uneconomic ways." @line 348-351
 
 ## Metrics
 
@@ -111,6 +147,29 @@ coverage: 100%
 
 - **name**: Portfolio asset-class mix at fiscal year-end (10/31/99) — formula/reading: cash 32.2%, U.S. equities 41.9%, Western European equities 11.5%, emerging-market investments 5.0% of total portfolio
   > "Cash and Cash Equivalents 32.2% U.S. Equities 41.9% Western European Equities 11.5% Emerging Market Investments 5.0%" @chars 23663
+
+- **name**: "Value investor" portfolio contradiction (AOL/Amazon example) — formula/reading: the first three named holdings (Microsoft, IBM, Cisco) traded at an average p/e ratio of over 69; AOL at 378x earnings
+  > "The first three trade at an average p/e ratio of over 69. America Online trades at 378 times earnings, while Amazon.com "suffers" large operating losses which the stock market values highly." @line 280-282
+
+- **name**: Position concentration discipline — formula/reading: no single position has exceeded 5% of assets in recent years, reflecting a formal risk-of-ruin constraint
+  > "We do not bet the ranch on any single investment; few positions have exceeded 5% of assets in recent years." @chars 21823
+
+## Other
+
+- **label**: One of the most striking real-time descriptions of the dot-com bubble in the entire corpus — Klarman explicitly frames Baupost's underperformance as the direct, ironic *consequence* of discipline, not its failure
+  > "We underperformed in 1999 not because we abandoned our strict investment criteria but because we adhered to them, not because we ignored fundamental analysis but because we practiced it, not because we shunned value but because we sought it, and not because we speculated but because we refused to do so. In sum, and very ironically, we got hurt not speculating in the U.S. stock market." @chars 3411
+
+- **label**: A named, public exposure of a supposed "value investor" holding the era's most expensive momentum stocks — an unusually pointed piece of industry criticism naming specific holdings (Microsoft, IBM, Cisco, AOL, Amazon) without naming the manager
+  > "One prominent "value investor" owns among his ten largest holdings big stakes in Microsoft, IBM, Cisco Systems, America Online and Amazon.com. The first three trade at an average p/e ratio of over 69." @line 278-280
+
+- **label**: The blunt four-word emphatic rejection of capitulation — "And foolhardy. And irresponsible. And unconscionable." — one of the sharpest, most moralized one-liners in the corpus, cast as a direct answer to whether Baupost would modify strategy to chase the bull market
+  > "It would be easy for us to capitulate to the runaway bull market in growth and technology stocks. And foolhardy. And irresponsible. And unconscionable." @chars 3976
+
+- **label**: "We choose to eat home cooking" — a homely, memorable metaphor for Baupost's own capital being invested alongside shareholders' capital, offered as evidence of genuine conviction rather than performative confidence
+  > "We choose to eat home cooking not only out of habit, not only because we should, and not so we can tell you that we do, but because we have a great deal of confidence in our strategy." @line 386-388
+
+- **label**: A rare admission of two consecutive hard years (1998 loss, 1999 disappointing gain) paired with an explicit statement of continued confidence — the clearest single passage of Klarman's resolve under sustained career-risk pressure during the peak of the bubble
+  > "The last two years have been difficult ones for The Baupost Fund. We are disappointed but not disillusioned, and remain confident that a fundamentally-driven, disciplined value investment approach will deliver good results with limited risk over time." @line 607-609
 
 ## Nothing-found notes
 
