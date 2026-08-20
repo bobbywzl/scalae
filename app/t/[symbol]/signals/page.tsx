@@ -64,7 +64,9 @@ export default function DeskPage() {
   const [dossierOpen, setDossierOpen] = useState(true);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
-  const [boardSort, setBoardSort] = useState<"focus" | "stale" | "confidence" | "health">("focus");
+  const [boardSort, setBoardSort] = useState<"number" | "focus" | "stale" | "confidence" | "health">(
+    "number"
+  );
   // Board display form: narrative cards or a compact scan list (persisted —
   // a viewing preference, not per-ticker state).
   const [boardLayout, setBoardLayoutState] = useState<"cards" | "list">("cards");
@@ -694,9 +696,11 @@ export default function DeskPage() {
     );
   }, [desk]);
 
-  // Flat sorted view of the board (default stays grouped by focus area).
-  // Worst-first everywhere: staleness, thin confidence and weak health are
-  // what a diligence pass wants surfaced, not buried.
+  // Flat sorted view of the board (default: signal-number order — desk.active
+  // is already S1, S2, S3, … per the signalKeys comment above, so "number"
+  // needs no comparator below). The other modes go worst-first: staleness,
+  // thin confidence and weak health are what a diligence pass wants
+  // surfaced, not buried. "focus" skips this entirely for the grouped view.
   const sortedActive = useMemo(() => {
     if (!desk || boardSort === "focus") return [];
     const lastFresh = (s: DeskPayload["active"][number]) =>
@@ -1335,6 +1339,7 @@ export default function DeskPage() {
                       <span className="text-muted mr-0.5">{t("desk.viewLabel")}</span>
                       {(
                         [
+                          { v: "number", label: t("desk.sortNumber") },
                           { v: "focus", label: t("desk.sortFocus") },
                           { v: "stale", label: t("desk.sortStale") },
                           { v: "confidence", label: t("desk.sortConfidence") },
