@@ -60,7 +60,7 @@ export function SuggestionCard({
             aria-label={selected ? t("signals.deselectProposal") : t("signals.selectProposal")}
             className={`shrink-0 h-5 w-5 rounded-md border flex items-center justify-center text-[0.6875rem] font-bold transition-colors ${
               selected
-                ? "bg-accent border-accent text-white"
+                ? "bg-accent border-accent text-chipfg"
                 : "border-ink/25 text-transparent hover:border-ink/50"
             }`}
           >

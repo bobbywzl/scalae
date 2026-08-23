@@ -41,11 +41,11 @@ export function timeAgo(iso: string | null | undefined, t?: TFunc): string {
 
 /** Chip styling per reading level; label via levelLabel() for the UI language. */
 export const LEVEL_STYLE: Record<ReadingLevel, { label: string; cls: string }> = {
-  strong: { label: "Strong", cls: "bg-[#30d158]/15 text-[#30d158]" },
-  improving: { label: "Improving", cls: "bg-[#30d158]/10 text-[#7ee2a8]" },
+  strong: { label: "Strong", cls: "bg-gain/15 text-gain" },
+  improving: { label: "Improving", cls: "bg-gain/10 text-gain" },
   neutral: { label: "Neutral", cls: "bg-ink/8 text-emph" },
-  deteriorating: { label: "Deteriorating", cls: "bg-[#ffd60a]/12 text-[#ffd60a]" },
-  weak: { label: "Weak", cls: "bg-[#ff453a]/12 text-[#ff453a]" },
+  deteriorating: { label: "Deteriorating", cls: "bg-warn/12 text-warn" },
+  weak: { label: "Weak", cls: "bg-loss/12 text-loss" },
   unclear: { label: "Unclear", cls: "bg-ink/5 text-muted border border-hairline" },
 };
 
@@ -61,7 +61,7 @@ export const IMPACT_DOT: Record<Impact, string> = {
   positive: "bg-gain",
   negative: "bg-loss",
   mixed: "bg-warn",
-  neutral: "bg-[#8e8e93]",
+  neutral: "bg-muted",
 };
 
 export const DELTA_ARROW: Record<string, { ch: string; cls: string }> = {

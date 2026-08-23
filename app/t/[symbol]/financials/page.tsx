@@ -1021,7 +1021,7 @@ function AnalystDesk({
         <button
           type="submit"
           disabled={!draft.trim() || busy || disabled}
-          className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3.5 py-2 transition-colors"
+          className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-chipfg text-xs font-semibold px-3.5 py-2 transition-colors"
         >
           {t("financials.deskSend")}
         </button>

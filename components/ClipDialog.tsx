@@ -86,7 +86,7 @@ export function ClipDialog({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-card2 border border-ink/15 shadow-2xl shadow-black/60 p-4"
+        className="w-full max-w-md rounded-2xl bg-card2 border border-ink/15 shadow-float p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-semibold">{t("notes.clipTitle")}</p>

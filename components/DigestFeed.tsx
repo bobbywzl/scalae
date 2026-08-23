@@ -70,7 +70,7 @@ export function DigestFeed({
               ) : (
                 <span className="text-sm font-medium leading-snug">{d.headline}</span>
               )}
-              <p className="text-xs text-[#b5b5ba] mt-0.5 leading-relaxed">{d.summary}</p>
+              <p className="text-xs text-emph mt-0.5 leading-relaxed">{d.summary}</p>
             </Annotatable>
             {/* The source, emphasized: its evidence class and the desk's
                 one-line recommendation on whether it's the one to open.

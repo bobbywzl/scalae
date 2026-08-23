@@ -70,7 +70,7 @@ export default async function SignInPage({
               />
               <button
                 type="submit"
-                className="w-full rounded-xl bg-accent/90 hover:bg-accent text-white font-semibold text-sm px-4 py-2.5 transition-colors"
+                className="w-full rounded-xl bg-accent/90 hover:bg-accent text-chipfg font-semibold text-sm px-4 py-2.5 transition-colors"
               >
                 {t("onboarding.signinWithPassword")}
               </button>
@@ -84,7 +84,7 @@ export default async function SignInPage({
                 </div>
                 <a
                   href="/api/auth/login"
-                  className="mt-4 flex items-center justify-center gap-3 rounded-xl bg-white text-black font-semibold text-sm px-4 py-3 hover:bg-white/90 transition-colors"
+                  className="mt-4 flex items-center justify-center gap-3 rounded-xl border border-hairline bg-white text-[#1f1f1f] font-semibold text-sm px-4 py-3 hover:bg-[#f1f1f1] transition-colors"
                 >
                   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
                     <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z" />

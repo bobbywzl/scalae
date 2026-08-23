@@ -125,7 +125,7 @@ export default function SettingsPage() {
               title={autoResearch ? t("watchlist.autoTurnOff") : t("watchlist.autoTurnOn")}
             >
               <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-chipfg shadow transition-all ${
                   autoResearch ? "left-[18px]" : "left-0.5"
                 }`}
               />

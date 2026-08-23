@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Caprasimo, Figtree, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { PrefsProvider } from "@/components/PrefsProvider";
 import {
@@ -15,9 +15,21 @@ import {
 } from "@/lib/i18n/config";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Figtree carries body text and UI; Caprasimo sets the nameplates (wordmark,
+// page titles, ticker symbol). Geist Mono stays on the figures, where the
+// tabular widths keep columns of numbers aligned.
+const figtree = Figtree({
+  variable: "--font-figtree",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
+  display: "swap",
+});
+
+const caprasimo = Caprasimo({
+  variable: "--font-caprasimo",
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -70,7 +82,7 @@ export default async function RootLayout({
     <html
       lang={htmlLangOf(lang)}
       data-theme={theme}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${figtree.variable} ${caprasimo.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <PrefsProvider initialLang={lang} initialTheme={theme}>

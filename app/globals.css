@@ -3,69 +3,185 @@
 /*
  * Theming: the palette lives in CSS variables switched by <html data-theme>
  * (set server-side from the scalae_theme cookie, toggled live in Settings).
- *   dark   — the desk's native look (default)
- *   light  — full light palette
+ *   light  — paper, the desk's native look (default)
+ *   dark   — the same palette after dark
  *   system — follows prefers-color-scheme
- * Components never hardcode surface colors: overlays use the `ink` token
- * (white on dark, black on light) so translucent layers survive both themes,
- * and `emph` is the slightly-brighter-than-muted text tone.
+ *
+ * The colorway is organic: a warm paper ground, a terracotta accent (clay), an
+ * olive second accent (sage), and one 9-step sand ramp for every neutral. Each
+ * ramp step keeps its ROLE across themes — 100 is the raised surface, 600 the
+ * muted text, 900 the strongest — and only its lightness flips, so a pair like
+ * "clay-100 background, clay-800 text" stays legible in both themes without a
+ * second class.
+ *
+ * Components never hardcode surface colors: overlays use the `ink` token (the
+ * warm near-black on paper, warm cream after dark) so translucent layers
+ * survive both themes, and `emph` is the tone one step stronger than muted.
+ *
+ * The dark palette below is written twice — once for the explicit setting, once
+ * for system-follows-dark. Keep the two blocks in sync.
  */
 
 :root {
-  --background: #000000;
-  --card: #1c1c1e;
-  --card-2: #2c2c2e;
-  --border: rgba(255, 255, 255, 0.09);
-  --foreground: #f5f5f7;
-  --muted: #98989d;
-  --emph: #c7c7cc;
-  --ink: #ffffff;
-  --green: #30d158;
-  --red: #ff453a;
-  --blue: #0a84ff;
-  --amber: #ffd60a;
-  --scrollbar: #3a3a3c;
-  /* Text on solid gain/loss chips: black on the vivid dark-theme colors,
-     white on the deeper light-theme ones. */
-  --chip-fg: #000000;
-  color-scheme: dark;
-}
-
-html[data-theme="light"] {
-  --background: #f2f2f7;
+  --background: #f5ead8;
   --card: #ffffff;
-  --card-2: #e9e9ee;
-  --border: rgba(0, 0, 0, 0.1);
-  --foreground: #1d1d1f;
-  --muted: #6e6e73;
-  --emph: #48484a;
-  --ink: #000000;
-  --green: #218a42;
-  --red: #d70015;
-  --blue: #0071e3;
-  --amber: #b25e00;
-  --scrollbar: #c7c7cc;
+  --card-2: #eee7db;
+  --border: color-mix(in srgb, #2e2b25 16%, transparent);
+  --foreground: #201e1d;
+  --muted: #645c50;
+  --emph: #4e4839;
+  --ink: #2e2b25;
+  --green: #4f6b34;
+  --red: #b3261e;
+  --blue: #a15029;
+  --amber: #806000;
+  --scrollbar: #c0b6a5;
+  /* Text on solid gain/loss chips: white on the deep paper-theme colors,
+     the dark ground on the brighter after-dark ones. */
   --chip-fg: #ffffff;
+
+  --sand-100: #f9f4ed;
+  --sand-200: #eee7db;
+  --sand-300: #dcd3c4;
+  --sand-400: #c0b6a5;
+  --sand-500: #a19786;
+  --sand-600: #82796a;
+  --sand-700: #645c50;
+  --sand-800: #474238;
+  --sand-900: #2e2b25;
+
+  --clay-100: #fff2eb;
+  --clay-200: #ffe1d0;
+  --clay-300: #ffc6a5;
+  --clay-400: #f6a06b;
+  --clay-500: #d67f48;
+  --clay-600: #b2622d;
+  --clay-700: #8c491a;
+  --clay-800: #643312;
+  --clay-900: #402310;
+
+  --sage-100: #f0fae1;
+  --sage-200: #e1eecc;
+  --sage-300: #ccdbb2;
+  --sage-400: #aebf92;
+  --sage-500: #8fa073;
+  --sage-600: #728157;
+  --sage-700: #56633f;
+  --sage-800: #3d472b;
+  --sage-900: #272e1b;
+
+  --elev-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+  --elev-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
+  --elev-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: light) {
+html[data-theme="dark"] {
+  --background: #1a1714;
+  --card: #221e1a;
+  --card-2: #2c2721;
+  --border: color-mix(in srgb, #f2e9dc 14%, transparent);
+  --foreground: #f2e9dc;
+  --muted: #ada396;
+  --emph: #c2b8a8;
+  --ink: #f5ecdf;
+  --green: #9fbb78;
+  --red: #f0705d;
+  --blue: #e08a4e;
+  --amber: #e8bf5a;
+  --scrollbar: #3d372e;
+  --chip-fg: #221e1a;
+
+  --sand-100: #221e1a;
+  --sand-200: #2c2721;
+  --sand-300: #3d372e;
+  --sand-400: #565044;
+  --sand-500: #7c7263;
+  --sand-600: #a2988a;
+  --sand-700: #c2b8a8;
+  --sand-800: #ddd3c3;
+  --sand-900: #f2e9dc;
+
+  --clay-100: #3a2418;
+  --clay-200: #4d2f1d;
+  --clay-300: #6b4227;
+  --clay-400: #8c5731;
+  --clay-500: #b2703d;
+  --clay-600: #d98a52;
+  --clay-700: #eda972;
+  --clay-800: #f8c79c;
+  --clay-900: #ffe1d0;
+
+  --sage-100: #232a19;
+  --sage-200: #2f3a22;
+  --sage-300: #43522f;
+  --sage-400: #58693e;
+  --sage-500: #728157;
+  --sage-600: #8fa073;
+  --sage-700: #aebf92;
+  --sage-800: #ccdbb2;
+  --sage-900: #e1eecc;
+
+  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --elev-md: 0 3px 10px rgb(0 0 0 / 0.55);
+  --elev-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
   html[data-theme="system"] {
-    --background: #f2f2f7;
-    --card: #ffffff;
-    --card-2: #e9e9ee;
-    --border: rgba(0, 0, 0, 0.1);
-    --foreground: #1d1d1f;
-    --muted: #6e6e73;
-    --emph: #48484a;
-    --ink: #000000;
-    --green: #218a42;
-    --red: #d70015;
-    --blue: #0071e3;
-    --amber: #b25e00;
-    --scrollbar: #c7c7cc;
-    --chip-fg: #ffffff;
-    color-scheme: light;
+    --background: #1a1714;
+    --card: #221e1a;
+    --card-2: #2c2721;
+    --border: color-mix(in srgb, #f2e9dc 14%, transparent);
+    --foreground: #f2e9dc;
+    --muted: #ada396;
+    --emph: #c2b8a8;
+    --ink: #f5ecdf;
+    --green: #9fbb78;
+    --red: #f0705d;
+    --blue: #e08a4e;
+    --amber: #e8bf5a;
+    --scrollbar: #3d372e;
+    --chip-fg: #221e1a;
+
+    --sand-100: #221e1a;
+    --sand-200: #2c2721;
+    --sand-300: #3d372e;
+    --sand-400: #565044;
+    --sand-500: #7c7263;
+    --sand-600: #a2988a;
+    --sand-700: #c2b8a8;
+    --sand-800: #ddd3c3;
+    --sand-900: #f2e9dc;
+
+    --clay-100: #3a2418;
+    --clay-200: #4d2f1d;
+    --clay-300: #6b4227;
+    --clay-400: #8c5731;
+    --clay-500: #b2703d;
+    --clay-600: #d98a52;
+    --clay-700: #eda972;
+    --clay-800: #f8c79c;
+    --clay-900: #ffe1d0;
+
+    --sage-100: #232a19;
+    --sage-200: #2f3a22;
+    --sage-300: #43522f;
+    --sage-400: #58693e;
+    --sage-500: #728157;
+    --sage-600: #8fa073;
+    --sage-700: #aebf92;
+    --sage-800: #ccdbb2;
+    --sage-900: #e1eecc;
+
+    --elev-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+    --elev-md: 0 3px 10px rgb(0 0 0 / 0.55);
+    --elev-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+
+    color-scheme: dark;
   }
 }
 
@@ -83,7 +199,51 @@ html[data-theme="light"] {
   --color-accent: var(--blue);
   --color-warn: var(--amber);
   --color-chipfg: var(--chip-fg);
-  --font-sans: var(--font-geist-sans);
+
+  --color-sand-100: var(--sand-100);
+  --color-sand-200: var(--sand-200);
+  --color-sand-300: var(--sand-300);
+  --color-sand-400: var(--sand-400);
+  --color-sand-500: var(--sand-500);
+  --color-sand-600: var(--sand-600);
+  --color-sand-700: var(--sand-700);
+  --color-sand-800: var(--sand-800);
+  --color-sand-900: var(--sand-900);
+
+  --color-clay-100: var(--clay-100);
+  --color-clay-200: var(--clay-200);
+  --color-clay-300: var(--clay-300);
+  --color-clay-400: var(--clay-400);
+  --color-clay-500: var(--clay-500);
+  --color-clay-600: var(--clay-600);
+  --color-clay-700: var(--clay-700);
+  --color-clay-800: var(--clay-800);
+  --color-clay-900: var(--clay-900);
+
+  --color-sage-100: var(--sage-100);
+  --color-sage-200: var(--sage-200);
+  --color-sage-300: var(--sage-300);
+  --color-sage-400: var(--sage-400);
+  --color-sage-500: var(--sage-500);
+  --color-sage-600: var(--sage-600);
+  --color-sage-700: var(--sage-700);
+  --color-sage-800: var(--sage-800);
+  --color-sage-900: var(--sage-900);
+
+  --shadow-soft: var(--elev-sm);
+  --shadow-lift: var(--elev-md);
+  --shadow-float: var(--elev-lg);
+
+  /* One step rounder at every stop: the desk's corners are soft, not sharp. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  --font-sans: var(--font-figtree);
+  --font-display: var(--font-caprasimo);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -114,15 +274,51 @@ html {
   }
 }
 
+/* Figtree carries body text and UI. The CJK faces at the end of the stack pick
+   up Chinese, which Figtree does not cover. */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-family: var(--font-figtree), system-ui, -apple-system, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Caprasimo carries the nameplates — the wordmark, page titles, the ticker
+   symbol. It only ships weight 400, so the rule cancels any font-bold utility
+   rather than letting the browser synthesize a heavier face. The small
+   uppercase h2/h3 eyebrows keep the UI face. */
+h1 {
+  font-family: var(--font-caprasimo), var(--font-figtree), system-ui,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+
+/* Every interactive element gets a pointer, a color transition, and a visible
+   keyboard focus ring. Hover styles land softly instead of snapping. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+a,
+button,
+input,
+textarea,
+select,
+[role="button"] {
+  transition: color 0.15s ease, background-color 0.15s ease,
+    border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 ::selection {
-  background: rgba(10, 132, 255, 0.4);
+  background: color-mix(in srgb, var(--blue) 30%, transparent);
 }
 
 *::-webkit-scrollbar {
@@ -188,6 +384,13 @@ body {
   margin: 0.9em 0 0.35em;
   font-size: 1rem;
   color: var(--foreground);
+}
+/* Markdown headings sit inside running prose, so they keep the UI face — the
+   h1 nameplate rule above would set them in the display face. */
+.md h1 {
+  font-family: inherit;
+  letter-spacing: normal;
+  line-height: inherit;
 }
 .md code {
   background: var(--card-2);
@@ -274,6 +477,10 @@ body {
   font-size: 1.35em;
   font-weight: 700;
   margin: 0.6em 0 0.3em;
+  /* Note bodies are writing, not nameplates: keep the UI face. */
+  font-family: inherit;
+  letter-spacing: normal;
+  line-height: inherit;
 }
 .note-prose h2 {
   font-size: 1.18em;
@@ -324,7 +531,7 @@ body {
 }
 
 /*
- * Highlight annotations — the iOS-marker look. A mark carries paint only:
+ * Highlight annotations — the marker look. A mark carries paint only:
  * vertical padding never moves inline text, and the horizontal padding is
  * cancelled by an equal negative margin, so the tint bleeds slightly past the
  * glyphs while the words themselves NEVER shift — applying, hovering or

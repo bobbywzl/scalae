@@ -205,7 +205,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
           onClick={() => setOpen(true)}
           title={`${t("search.open")} (⌘K)`}
           aria-label={t("search.open")}
-          className="fixed right-5 top-[38vh] z-40 flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-card/90 text-muted shadow-lg shadow-black/20 backdrop-blur-sm transition-all hover:scale-105 hover:border-accent/40 hover:text-accent"
+          className="fixed right-5 top-[38vh] z-40 flex h-11 w-11 items-center justify-center rounded-full border border-hairline bg-card/90 text-muted shadow-lift backdrop-blur-sm transition-all hover:scale-105 hover:border-accent/40 hover:text-accent"
         >
           <SearchIcon />
         </button>
@@ -216,7 +216,7 @@ export function TickerSearch({ symbol }: { symbol: string }) {
           ref={boxRef}
           role="dialog"
           aria-label={t("search.open")}
-          className="bubble-in fixed right-5 top-[max(4.5rem,10vh)] z-50 flex max-h-[min(37.5rem,80vh)] w-[min(27rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-hairline bg-card shadow-2xl shadow-black/40"
+          className="bubble-in fixed right-5 top-[max(4.5rem,10vh)] z-50 flex max-h-[min(37.5rem,80vh)] w-[min(27rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-hairline bg-card shadow-float"
         >
           {/* Query row */}
           <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-3">

@@ -1085,7 +1085,7 @@ export default function DeskPage() {
                 <button
                   onClick={startSteered}
                   disabled={steerFrameBusy}
-                  className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                  className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-chipfg text-xs font-semibold px-3 py-1.5 transition-colors"
                 >
                   {steerBusy ? t("desk.steerStarting") : t("desk.steerStart")}
                 </button>
@@ -1695,7 +1695,7 @@ export default function DeskPage() {
 
       {/* Undo window for retire / dismiss / swap — plus undo-less notices */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-ink/15 shadow-2xl shadow-black/60 px-4 py-2.5">
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 rounded-xl bg-card2 border border-ink/15 shadow-float px-4 py-2.5">
           <span className="text-xs text-emph">{toast.msg}</span>
           {toast.undo && (
             <button
@@ -1703,7 +1703,7 @@ export default function DeskPage() {
                 setToast(null);
                 toast.undo?.();
               }}
-              className="rounded-lg bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-3 py-1 transition-colors"
+              className="rounded-lg bg-accent/90 hover:bg-accent text-chipfg text-xs font-semibold px-3 py-1 transition-colors"
             >
               {t("common.undo")}
             </button>

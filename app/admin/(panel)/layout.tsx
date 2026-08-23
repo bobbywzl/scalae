@@ -27,10 +27,10 @@ export default async function AdminPanelLayout({ children }: { children: React.R
           <span className="font-semibold text-sm group-hover:text-accent transition-colors">Scalae Admin</span>
         </Link>
         <nav className="flex items-center gap-1 text-xs">
-          <Link href="/admin" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-white/5 transition-colors">
+          <Link href="/admin" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-ink/5 transition-colors">
             Accounts
           </Link>
-          <Link href="/admin/feedback" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-white/5 transition-colors">
+          <Link href="/admin/feedback" className="rounded-lg px-2.5 py-1.5 text-muted hover:text-foreground hover:bg-ink/5 transition-colors">
             Feedback
           </Link>
         </nav>

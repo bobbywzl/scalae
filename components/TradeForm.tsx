@@ -386,7 +386,7 @@ export function TradeForm({
         </div>
         <button
           onClick={onSaved}
-          className="w-full rounded-lg bg-accent text-white text-sm font-semibold py-2 transition-colors"
+          className="w-full rounded-lg bg-accent text-chipfg text-sm font-semibold py-2 transition-colors"
         >
           {t("trade.done")}
         </button>
@@ -435,7 +435,7 @@ export function TradeForm({
           className={`${field} mt-1 uppercase`}
         />
         {showHits && hits.length > 0 && (
-          <div className="absolute z-30 mt-1 w-full rounded-xl bg-card2 border border-hairline overflow-hidden shadow-2xl shadow-black/60">
+          <div className="absolute z-30 mt-1 w-full rounded-xl bg-card2 border border-hairline overflow-hidden shadow-float">
             {hits.map((h) => (
               <button
                 key={h.symbol}
@@ -555,8 +555,8 @@ export function TradeForm({
               <button
                 onClick={place}
                 disabled={placing}
-                className={`flex-1 rounded-lg text-white text-sm font-semibold py-2 transition-colors disabled:opacity-60 ${
-                  side === "buy" ? "bg-gain/80 hover:bg-gain/90 text-chipfg" : "bg-loss/80 hover:bg-loss/90"
+                className={`flex-1 rounded-lg text-chipfg text-sm font-semibold py-2 transition-colors disabled:opacity-60 ${
+                  side === "buy" ? "bg-gain/80 hover:bg-gain/90" : "bg-loss/80 hover:bg-loss/90"
                 }`}
               >
                 {placing ? t("trade.placing") : t(side === "buy" ? "trade.placeBuyOrder" : "trade.placeSellOrder")}
@@ -797,7 +797,7 @@ export function TradeForm({
             <button
               onClick={() => setReview(true)}
               disabled={!canReview}
-              className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
+              className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-chipfg text-sm font-semibold py-2 transition-colors"
             >
               {t(side === "buy" ? "trade.reviewBuyOrder" : "trade.reviewSellOrder", {
                 sym: symbol.trim().toUpperCase() || "…",
@@ -939,7 +939,7 @@ export function TradeForm({
           <button
             onClick={submitRecord}
             disabled={!canSubmitRecord || busy}
-            className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-sm font-semibold py-2 transition-colors"
+            className="w-full rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-chipfg text-sm font-semibold py-2 transition-colors"
           >
             {busy
               ? t("common.saving")

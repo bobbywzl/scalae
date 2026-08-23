@@ -430,7 +430,7 @@ export function Annotatable({ surfaceId, children }: { surfaceId: string; childr
           onMouseLeave={scheduleBarClose}
         >
           <div
-            className={`ann-bar-inner flex items-center gap-2 rounded-xl bg-card2 border border-ink/15 shadow-xl shadow-black/30 px-3 py-1.5 ${
+            className={`ann-bar-inner flex items-center gap-2 rounded-xl bg-card2 border border-ink/15 shadow-lift px-3 py-1.5 ${
               barClosing ? "ann-bar-out" : ""
             }`}
           >
@@ -466,7 +466,7 @@ export function Annotatable({ surfaceId, children }: { surfaceId: string; childr
       {toolbar && (
         <div
           ref={toolbarRef}
-          className="ann-pop absolute z-[60] rounded-xl bg-card2 border border-ink/15 shadow-2xl shadow-black/50 p-2 flex flex-col gap-1.5 w-56"
+          className="ann-pop absolute z-[60] rounded-xl bg-card2 border border-ink/15 shadow-float p-2 flex flex-col gap-1.5 w-56"
           style={{ left: Math.max(0, Math.min(toolbar.x - 112, (containerRef.current?.clientWidth ?? 300) - 224)), top: toolbar.y - 86 }}
           onMouseDown={(e) => {
             const tag = (e.target as HTMLElement).tagName;

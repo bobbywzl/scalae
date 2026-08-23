@@ -121,7 +121,7 @@ function SourcesModal({
                   </span>
                 )}
               </div>
-              <a href={s.url} target="_blank" rel="noreferrer" className="block text-emph hover:text-white leading-snug mt-0.5">
+              <a href={s.url} target="_blank" rel="noreferrer" className="block text-emph hover:text-foreground leading-snug mt-0.5">
                 {s.title.length > 110 ? s.title.slice(0, 110) + "…" : s.title}
               </a>
               <p className="text-[0.625rem] text-muted mt-0.5">

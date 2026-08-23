@@ -108,7 +108,7 @@ function AdminLoginContent() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-accent text-black rounded-lg py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-accent text-chipfg rounded-lg py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>

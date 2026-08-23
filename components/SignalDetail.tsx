@@ -642,7 +642,7 @@ export function SignalDetail({
                       </span>
                     </div>
                     {src.title && src.title !== src.domain && (
-                      <a href={src.url} target="_blank" rel="noreferrer" className="block text-[#b5b5ba] hover:text-white mt-0.5">
+                      <a href={src.url} target="_blank" rel="noreferrer" className="block text-[#b5b5ba] hover:text-foreground mt-0.5">
                         {src.title.length > 100 ? src.title.slice(0, 100) + "…" : src.title}
                       </a>
                     )}

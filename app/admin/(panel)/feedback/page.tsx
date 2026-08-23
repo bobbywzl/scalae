@@ -13,7 +13,7 @@ import type { AdminFeedbackRow, Attachment, FeedbackStatus, FeedbackTicket } fro
 const STATUS_BADGE: Record<FeedbackStatus, { label: string; cls: string }> = {
   open: { label: "Open", cls: "bg-warn/12 text-warn" },
   responded: { label: "Responded", cls: "bg-gain/12 text-gain" },
-  closed: { label: "Closed", cls: "bg-white/8 text-muted" },
+  closed: { label: "Closed", cls: "bg-ink/8 text-muted" },
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -49,12 +49,12 @@ function Evidence({ files }: { files: Attachment[] }) {
                 : `data:text/plain;charset=utf-8,${encodeURIComponent(f.data)}`
             }
             download={f.name}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-white/25"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] hover:border-ink/25"
           >
             {f.kind === "pdf" ? "📄" : "📝"} {f.name} <span className="text-muted">{fmtBytes(f.size)}</span>
           </a>
         ) : (
-          <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted">
+          <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-ink/6 border border-hairline px-2 py-1 text-[0.6875rem] text-muted">
             {f.kind === "image" ? "🖼️" : f.kind === "pdf" ? "📄" : "📝"} {f.name} · {fmtBytes(f.size)}
           </span>
         )
@@ -153,7 +153,7 @@ export default function AdminFeedbackPage() {
               className={`rounded-lg border px-2.5 py-1 text-[0.6875rem] font-medium transition-colors ${
                 filter === f
                   ? "border-accent/60 bg-accent/12"
-                  : "border-hairline bg-white/4 text-muted hover:text-foreground"
+                  : "border-hairline bg-ink/4 text-muted hover:text-foreground"
               }`}
             >
               {f === "all" ? `All ${rows?.length ?? 0}` : `${STATUS_BADGE[f].label} ${counts[f] ?? 0}`}
@@ -175,7 +175,7 @@ export default function AdminFeedbackPage() {
             <li key={t.id}>
               <button
                 onClick={() => (openId === t.id ? setOpenId(null) : openThread(t.id))}
-                className="w-full text-left px-4 py-3 hover:bg-white/3 transition-colors"
+                className="w-full text-left px-4 py-3 hover:bg-ink/3 transition-colors"
               >
                 <span className="flex items-center gap-2.5 flex-wrap">
                   <span className={`rounded px-1.5 py-px text-[0.5625rem] font-bold uppercase tracking-wide ${STATUS_BADGE[t.status].cls}`}>
@@ -199,7 +199,7 @@ export default function AdminFeedbackPage() {
                         <div
                           key={m.id}
                           className={`rounded-xl border px-3.5 py-2.5 ${
-                            m.role === "admin" ? "border-accent/25 bg-accent/6" : "border-hairline bg-white/3"
+                            m.role === "admin" ? "border-accent/25 bg-accent/6" : "border-hairline bg-ink/3"
                           }`}
                         >
                           <p className="text-[0.625rem] uppercase tracking-wider font-semibold mb-1 text-muted">
@@ -250,7 +250,7 @@ export default function AdminFeedbackPage() {
                           <button
                             onClick={() => act({ message: response.trim() })}
                             disabled={sending || !response.trim()}
-                            className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                            className="rounded-lg bg-accent text-chipfg px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
                           >
                             {sending ? "Sending…" : "Send response"}
                           </button>

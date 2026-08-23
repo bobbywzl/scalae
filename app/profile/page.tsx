@@ -224,7 +224,7 @@ export default function ProfilePage() {
             <button
               onClick={save}
               disabled={saving || data === null}
-              className="rounded-xl bg-accent/90 hover:bg-accent text-white text-xs font-semibold px-4 py-2 disabled:opacity-50 transition-colors"
+              className="rounded-xl bg-accent/90 hover:bg-accent text-chipfg text-xs font-semibold px-4 py-2 disabled:opacity-50 transition-colors"
             >
               {saving ? t("common.saving") : t("common.save")}
             </button>
@@ -285,7 +285,7 @@ export default function ProfilePage() {
                       <button
                         onClick={savePassword}
                         disabled={pwSaving || !pwReady}
-                        className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                        className="rounded-lg bg-accent/90 hover:bg-accent disabled:opacity-40 text-chipfg text-xs font-semibold px-3 py-1.5 transition-colors"
                       >
                         {pwSaving ? t("common.saving") : t("settings.pwSave")}
                       </button>

@@ -353,7 +353,7 @@ export default function WelcomePage() {
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   b.role === "user"
-                    ? "bg-accent text-black rounded-br-md"
+                    ? "bg-accent text-chipfg rounded-br-md"
                     : "bg-card border border-hairline rounded-bl-md"
                 }`}
               >
@@ -420,7 +420,7 @@ export default function WelcomePage() {
               <button
                 type="submit"
                 disabled={!name.trim()}
-                className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                className="rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {t("onboarding.continueBtn")}
               </button>
@@ -446,7 +446,7 @@ export default function WelcomePage() {
               <button
                 type="submit"
                 disabled={!age || Number(age) <= 0 || Number(age) >= 120}
-                className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                className="rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {t("onboarding.continueBtn")}
               </button>
@@ -485,7 +485,7 @@ export default function WelcomePage() {
               <button
                 type="submit"
                 disabled={!country.trim()}
-                className="rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                className="rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {t("onboarding.continueBtn")}
               </button>
@@ -519,7 +519,7 @@ export default function WelcomePage() {
               </div>
               <button
                 onClick={submitIndustries}
-                className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
+                className="w-full rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
               >
                 {industries.length
                   ? t("onboarding.continueWithSelected", { n: industries.length })
@@ -569,7 +569,7 @@ export default function WelcomePage() {
               </div>
               <button
                 onClick={submitCompanies}
-                className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
+                className="w-full rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
               >
                 {picked.length
                   ? picked.length > 1
@@ -583,7 +583,7 @@ export default function WelcomePage() {
           {step === "confirm" && (
             <button
               onClick={createDesks}
-              className="w-full rounded-xl bg-accent text-black px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
+              className="w-full rounded-xl bg-accent text-chipfg px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition-colors"
             >
               {deskCount > 0
                 ? deskCount > 1

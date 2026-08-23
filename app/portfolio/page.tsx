@@ -276,7 +276,7 @@ export default function PortfolioPage() {
           )}
           <button
             onClick={() => setAdding((v) => !v)}
-            className="rounded-lg bg-accent hover:bg-accent/90 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+            className="rounded-lg bg-accent hover:bg-accent/90 text-chipfg text-xs font-semibold px-3 py-1.5 transition-colors"
           >
             {t("portfolio.addTrade")}
           </button>
@@ -347,7 +347,7 @@ export default function PortfolioPage() {
             <button
               onClick={() => saveCapital(capInput)}
               disabled={capBusy}
-              className="rounded-lg bg-accent text-white text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-accent text-chipfg text-xs font-semibold px-3 py-1.5 disabled:opacity-50 transition-colors"
             >
               {capBusy ? t("common.saving") : t("common.save")}
             </button>
@@ -397,7 +397,7 @@ export default function PortfolioPage() {
           <p className="text-muted text-sm mt-2 max-w-sm mx-auto">{t("portfolio.emptyBody")}</p>
           <button
             onClick={() => setAdding(true)}
-            className="mt-4 rounded-lg bg-accent text-white text-sm font-semibold px-4 py-2"
+            className="mt-4 rounded-lg bg-accent text-chipfg text-sm font-semibold px-4 py-2"
           >
             {t("portfolio.emptyCta")}
           </button>

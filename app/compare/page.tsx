@@ -309,7 +309,7 @@ export default function ComparePage() {
                     ? t("compare.weighTitle", { a: symA ?? "", b: symB ?? "" })
                     : t("compare.weighDisabledTitle")
                 }
-                className="ml-auto rounded-lg bg-accent hover:bg-accent/90 disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+                className="ml-auto rounded-lg bg-accent hover:bg-accent/90 disabled:bg-ink/10 disabled:text-muted text-chipfg text-xs font-semibold px-3 py-1.5 transition-colors"
               >
                 {verdictBusy
                   ? t("compare.weighing")

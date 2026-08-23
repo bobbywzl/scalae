@@ -19,7 +19,8 @@ export const LANGS: readonly Lang[] = ["en", "zh"] as const;
 export const THEMES: readonly Theme[] = ["dark", "light", "system"] as const;
 
 export const DEFAULT_LANG: Lang = "en";
-export const DEFAULT_THEME: Theme = "dark";
+/** Paper is the desk's native look; dark is the same palette after hours. */
+export const DEFAULT_THEME: Theme = "light";
 
 export const LANG_COOKIE = "scalae_lang";
 export const THEME_COOKIE = "scalae_theme";

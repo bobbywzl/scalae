@@ -99,17 +99,17 @@ function DailyChart({
             </g>
           );
         })}
-        <line x1="0" y1={H} x2={W} y2={H} className="stroke-white/15" strokeWidth="1" />
-        <text x="0" y={H + 11} className="fill-[#8e8e93]" fontSize="9">
+        <line x1="0" y1={H} x2={W} y2={H} className="stroke-ink/15" strokeWidth="1" />
+        <text x="0" y={H + 11} className="fill-muted" fontSize="9">
           {data[0]?.day.slice(5)}
         </text>
-        <text x={W} y={H + 11} textAnchor="end" className="fill-[#8e8e93]" fontSize="9">
+        <text x={W} y={H + 11} textAnchor="end" className="fill-muted" fontSize="9">
           {data.at(-1)?.day.slice(5)}
         </text>
       </svg>
       {hover !== null && data[hover] && (
         <div
-          className="absolute -top-1 rounded-lg bg-black border border-hairline px-2.5 py-1.5 text-[0.6875rem] pointer-events-none shadow-xl z-10"
+          className="absolute -top-1 rounded-lg bg-card border border-hairline px-2.5 py-1.5 text-[0.6875rem] pointer-events-none shadow-float z-10"
           style={{ left: `${(hover / data.length) * 100}%`, transform: "translateX(-50%)" }}
         >
           <span className="text-muted">{data[hover].day.slice(5)}</span>{" "}
@@ -139,7 +139,7 @@ function BarList({
               <span className="text-xs font-mono truncate">{r.label}</span>
               <span className="text-xs tabular-nums font-semibold shrink-0">{fmtUsd(r.value)}</span>
             </div>
-            <div className="h-2 rounded-r bg-white/6 overflow-hidden">
+            <div className="h-2 rounded-r bg-ink/6 overflow-hidden">
               <div
                 className="h-full rounded-r bg-accent/80"
                 style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%` }}
@@ -298,7 +298,7 @@ export default function AdminPage() {
                       ["Output tokens", fmtTok(usage.totals.outputTokens)],
                     ] as const
                   ).map(([label, v]) => (
-                    <div key={label} className="rounded-xl bg-white/3 border border-hairline px-3.5 py-2.5">
+                    <div key={label} className="rounded-xl bg-ink/3 border border-hairline px-3.5 py-2.5">
                       <p className="text-[0.625rem] uppercase tracking-wider text-muted">{label}</p>
                       <p className="text-base font-bold tabular-nums mt-0.5">{v}</p>
                     </div>
@@ -355,7 +355,7 @@ export default function AdminPage() {
                           <td className="text-right px-3 py-2 tabular-nums">{fmtTok(u.outputTokens)}</td>
                           <td className="text-right px-3 py-2 tabular-nums font-semibold">{fmtUsd(u.costUsd)}</td>
                           <td className="pl-3 py-2">
-                            <div className="h-2 rounded-r bg-white/6 overflow-hidden">
+                            <div className="h-2 rounded-r bg-ink/6 overflow-hidden">
                               <div
                                 className="h-full rounded-r bg-accent/80"
                                 style={{ width: `${Math.max(1.5, (u.costUsd / userCostShareMax) * 100)}%` }}
@@ -428,14 +428,14 @@ export default function AdminPage() {
                     const cost = u?.costUsd ?? 0;
                     const avgRun = u?.avgCostPerRun ?? 0;
                     return (
-                      <tr key={r.user.id} className="hover:bg-white/3 transition-colors">
+                      <tr key={r.user.id} className="hover:bg-ink/3 transition-colors">
                         <td className="px-4 py-2.5">
                           <span className="flex items-center gap-2 min-w-0">
                             {r.user.picture ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={r.user.picture} alt="" className="h-6 w-6 rounded-full shrink-0" />
                             ) : (
-                              <span className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center text-[0.625rem] shrink-0">
+                              <span className="h-6 w-6 rounded-full bg-ink/10 flex items-center justify-center text-[0.625rem] shrink-0">
                                 {(r.user.name || r.user.email)[0]?.toUpperCase()}
                               </span>
                             )}
@@ -492,7 +492,7 @@ export default function AdminPage() {
                   GEMINI_MODEL / CLAUDE_MODEL globals are ignored)
                 </span>
               </p>
-              <p className="mt-1.5 text-xs text-[#c7c7cc] tabular-nums flex flex-wrap gap-x-4 gap-y-1">
+              <p className="mt-1.5 text-xs text-emph tabular-nums flex flex-wrap gap-x-4 gap-y-1">
                 {Object.entries(models).map(([role, id]) => (
                   <span key={role}>
                     <span className="text-muted">{role}:</span> {id}

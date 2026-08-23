@@ -79,7 +79,7 @@ export function AddTicker() {
       </div>
       {error && <p className="text-loss text-xs mt-1.5 px-1">{error}</p>}
       {open && hits.length > 0 && (
-        <div className="absolute z-30 mt-1.5 w-full rounded-xl bg-card2 border border-hairline overflow-hidden shadow-2xl shadow-black/60">
+        <div className="absolute z-30 mt-1.5 w-full rounded-xl bg-card2 border border-hairline overflow-hidden shadow-float">
           {hits.map((h) => (
             <button
               key={h.symbol}

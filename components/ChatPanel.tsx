@@ -304,7 +304,7 @@ export function ChatPanel({
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-br-md bg-accent text-white px-3.5 py-2.5 text-sm whitespace-pre-wrap"
+                  ? "max-w-[85%] rounded-2xl rounded-br-md bg-accent text-chipfg px-3.5 py-2.5 text-sm whitespace-pre-wrap"
                   : `${expanded ? "max-w-[95%]" : "max-w-[92%]"} rounded-2xl rounded-bl-md bg-card2 px-3.5 py-2.5 group`
               }
             >
@@ -415,7 +415,7 @@ export function ChatPanel({
               <p className="text-muted">{t("chat.strandedNote")}</p>
               <button
                 onClick={onRetry}
-                className="mt-2 rounded-lg bg-accent/90 hover:bg-accent px-3 py-1.5 text-[0.6875rem] font-semibold text-white transition-colors"
+                className="mt-2 rounded-lg bg-accent/90 hover:bg-accent px-3 py-1.5 text-[0.6875rem] font-semibold text-chipfg transition-colors"
               >
                 {t("chat.askToRespond")}
               </button>
@@ -528,7 +528,7 @@ export function ChatPanel({
             <button
               onClick={submit}
               disabled={busy || attachBusy || (!text.trim() && attachments.length === 0)}
-              className="shrink-0 rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+              className="shrink-0 rounded-lg bg-accent disabled:bg-ink/10 disabled:text-muted text-chipfg text-xs font-semibold px-3 py-1.5 transition-colors"
             >
               {t("chat.send")}
             </button>

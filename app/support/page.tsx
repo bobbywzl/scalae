@@ -375,7 +375,7 @@ export default function SupportPage() {
                 <button
                   type="submit"
                   disabled={submitting || !category || !subject.trim() || !messageBody.trim()}
-                  className="rounded-lg bg-accent text-black px-4 py-2 text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-accent text-chipfg px-4 py-2 text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? t("support.filing") : t("support.submitRequest")}
                 </button>
@@ -466,7 +466,7 @@ export default function SupportPage() {
                                   <button
                                     onClick={sendReply}
                                     disabled={sendingReply || (!reply.trim() && replyFiles.length === 0)}
-                                    className="rounded-lg bg-accent text-black px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
+                                    className="rounded-lg bg-accent text-chipfg px-3.5 py-1.5 text-[0.6875rem] font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50"
                                   >
                                     {sendingReply ? t("support.sending") : t("support.sendReply")}
                                   </button>

@@ -110,7 +110,7 @@ export function Accumulations({
               <ul className="mt-1.5 space-y-3">
                 {entries.map((a) => (
                   <li key={a.id}>
-                    <p className="text-xs text-[#b5b5ba] leading-relaxed whitespace-pre-wrap">
+                    <p className="text-xs text-emph leading-relaxed whitespace-pre-wrap">
                       {a.insight}
                     </p>
                     <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[0.625rem] text-muted">
