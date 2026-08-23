@@ -273,6 +273,39 @@ read-only: each surface writes only to its own board, through its own human
 gate, and refers the investor to the owning surface for anything outside its
 write scope.
 
+### Recall is exact, or it is named as absent
+
+Being one desk means the analyst can be asked about anything on it: a note the
+investor wrote in Due diligence, a reading from three weeks ago, a bench
+adjustment, something the desk itself said last month. An answer to such a
+question is **recall, not composition** — a remembered version of the investor's
+own thinking, confidently delivered, corrupts the record it claims to quote and
+is a worse failure than any missed signal.
+
+So every interactive surface carries a recall memory ([`lib/agents/memory.ts`](lib/agents/memory.ts)):
+
+- **The record, verbatim.** Recalled facts come from records carried into the
+  prompt in their own words, each with a stable citable ref
+  (`note:china-price-war`). The analyst cites the ref; it never paraphrases from
+  memory.
+- **No blind spots.** Whatever a turn does not open is still listed — every
+  record the desk holds appears in the pack's inventory as ref, title and date,
+  so the analyst always knows what exists and can ask for any of it by ref and
+  read it inside the same turn. "You never wrote that" is only ever said from
+  the inventory, never from silence.
+- **Nothing on the record is said plainly.** No bridging, no reconstruction; an
+  honest "the desk holds nothing on that" is a complete answer, and the seam
+  between the record and the analyst's own inference is always marked.
+- **Checked before it ships.** A reference to a record the desk does not hold,
+  or a quotation that does not appear in the retrieved text, is marked
+  unverified in front of the investor rather than passing as recall.
+- **Categorized, so the desk stays affordable.** The record is filed by
+  category — signals, readings, evidence feed, due diligence, research,
+  financials, briefs, conversation — and a question is routed to the categories
+  it touches. A bench question does not pay for eleven months of readings. The
+  routing is a cost decision, never a visibility one: what is not opened is
+  still inventoried, and one ask opens it.
+
 ## Human sovereignty
 
 Nothing the agents devise becomes active without the investor's explicit approval.
@@ -342,4 +375,7 @@ ingrainment, capital allocation.
 
 Never fabricate. Every factual claim traces to a source; missing evidence lowers
 confidence and is said plainly; disconfirming evidence leads, not trails. An honest
-"no signal" beats a confident guess.
+"no signal" beats a confident guess. The same discipline governs the desk's own
+record: what the investor and the desk already wrote is quoted from the record or
+named as absent, never remembered into existence (see *Recall is exact, or it is
+named as absent*).

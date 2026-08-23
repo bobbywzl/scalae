@@ -22,6 +22,12 @@ import type { FinAdjustment, TickerFinancials } from "../types";
  * the picture. Strictly READ-ONLY context — every surface's write scope
  * stays its own board, and every write stays behind its own human gate
  * (FOUNDATION: human sovereignty).
+ *
+ * These are the always-on SPINE blocks: compact board state a desk carries
+ * whatever the question is. The record's BODIES — notes, memos, readings,
+ * past briefs, the desk's own words — reach the interactive desks through
+ * lib/agents/memory.ts, which retrieves what a question needs and inventories
+ * the rest.
  */
 
 const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
@@ -101,7 +107,13 @@ export async function cleansingBenchContext(userId: string, symbol: string): Pro
   return `${financialsSummary(fin)}\n\n${benchLines(fin, adjustments)}`;
 }
 
-/** The investor's due-diligence record, fetched (wraps lib/notes.ts diligenceContext). */
+/**
+ * The investor's due-diligence record as one excerpted block (wraps
+ * lib/notes.ts diligenceContext). The desks read the record through the
+ * recall memory now; this is their DEGRADED path — what a surface falls back
+ * to when the memory could not be loaded, so a failure costs precision, not
+ * the record itself.
+ */
 export async function diligenceRecordContext(userId: string, symbol: string): Promise<string> {
   const [sections, notes, research, synthesis, evidence] = await Promise.all([
     listNoteSections(userId, symbol).catch(() => []),

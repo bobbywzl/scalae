@@ -13,8 +13,20 @@ import {
   QUESTION_METHOD,
   QUICK_CHAT_DOCTRINE,
   QUICK_CHAT_SCHEMA,
+  RECALL_DOCTRINE,
   SIGNAL_GUIDANCE,
 } from "./framework";
+import {
+  expandMemory,
+  loadDeskMemory,
+  retrieveMemory,
+  unknownRefs,
+  verifyRecall,
+  type DeskMemory,
+  type MemoryCategory,
+  type MemoryPack,
+  type RetrieveOptions,
+} from "./memory";
 import {
   approveSignal,
   getDiligenceSynthesis,
@@ -57,6 +69,16 @@ interface ChatOutput {
   retireSignals: string[];
   startResearch: boolean;
   onboardingComplete: boolean;
+  /** Refs from the desk-memory inventory the analyst needs opened (recall loop). */
+  recallRequest?: string[];
+}
+
+interface QuickChatOutput {
+  reply: string;
+  escalate: boolean;
+  startResearch: boolean;
+  /** Refs from the desk-memory inventory the fast lane needs opened. */
+  recallRequest?: string[];
 }
 
 export interface ChatTurnResult {
@@ -298,6 +320,7 @@ export async function handleChatTurn(
     ddSynthesis,
     ddEvidence,
     finAdjustments,
+    memory,
   ] = await Promise.all([
     listFocusAreas(userId, symbol),
     listSignals(userId, symbol, "active"),
@@ -319,6 +342,15 @@ export async function handleChatTurn(
     getDiligenceSynthesis(userId, symbol).catch(() => null),
     listDiligenceEvidence(userId, symbol).catch(() => []),
     listFinAdjustments(userId, symbol).catch(() => []),
+    // The desk's whole record, indexed for recall (lib/agents/memory.ts).
+    // Never fatal: a memory that fails to load costs recall, not the turn.
+    loadDeskMemory(userId, symbol).catch((e) => {
+      console.warn(
+        `[scalae] desk memory unavailable for ${symbol}:`,
+        e instanceof Error ? e.message : e
+      );
+      return null as DeskMemory | null;
+    }),
   ]);
 
   // Keep-both pairs (active replacement + knowingly reactivated original):
@@ -354,6 +386,15 @@ export async function handleChatTurn(
   // FOUNDATION: price/exposure enter only in their margin-of-safety role.
   const POSITION_GUARD =
     " — use only for margin-of-safety and exposure context; weigh the business on its merits, never bend readings toward the position.";
+  // Degraded mode: if the recall memory could not be loaded, the desk falls
+  // back to the excerpted blocks it carried before it existed — a bounded,
+  // honestly-cut view of the record beats no view of it.
+  const recordFallback = memory
+    ? ""
+    : `${financials ? `${financialsSummary(financials)}\n` : ""}${
+        financials ? `${benchLines(financials, finAdjustments)}\n` : ""
+      }${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}\n`;
+
   const deskContext = `DESK STATE (today: ${new Date().toISOString().slice(0, 10)}):
 Market: ${quoteLine(quote)}
 Investor's position in ${symbol}: ${positionLine || "none recorded"}${positionLine ? POSITION_GUARD : ""}
@@ -363,10 +404,16 @@ ${boardLines || "(empty)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Previously dismissed or retired signals (do NOT re-propose without materially new evidence): ${[...dismissed, ...retired].map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
-${financials ? financialsSummary(financials) : ""}
-${financials ? benchLines(financials, finAdjustments) : ""}
-${diligenceContext(noteSections, notes, ddResearch, ddSynthesis, ddEvidence)}
-${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
+Due-diligence record: ${noteSections.length} section(s)${
+    noteSections.length ? ` — ${noteSections.map((n) => n.title).join("; ")}` : ""
+  }; ${notes.length} notepad(s), ${ddEvidence.length} filed evidence item(s), ${
+    ddResearch.filter((r) => r.status === "accepted").length
+  } accepted memo(s)${ddSynthesis ? ", standing synthesis on file" : ", no synthesis yet"}. Finance bench: ${
+    financials ? `${financials.fiscalYears.length} FY reported` : "no financials cached"
+  }, ${finAdjustments.filter((a) => a.status === "applied").length} applied adjustment(s), ${
+    finAdjustments.filter((a) => a.status === "suggested").length
+  } awaiting review. Their CONTENTS live in the desk memory below — retrieved when the question touches them, listed in its inventory otherwise.
+${recordFallback}${run?.brief ? `Latest daily brief:\n${run.brief}` : ""}`;
 
   // Compact snapshot for the fast lane: the dossier + brief carry the standing
   // thesis, board lines carry each signal's latest reading — a fraction of the
@@ -389,8 +436,12 @@ ${quickBoardLines || "(empty board)"}
 Pending proposals awaiting the investor's approval: ${suggested.map((s) => `"${s.name}"`).join(", ") || "none"}
 Research: ${run ? `last run ${run.startedAt.slice(0, 10)} (${run.status})` : "never run"}
 Due-diligence sections: ${noteSections.map((n) => n.title).join("; ") || "none"}
-Finance bench: ${finAdjustments.filter((a) => a.status === "applied").length} applied adjustment(s), ${finAdjustments.filter((a) => a.status === "suggested").length} awaiting review (details in the deep context)
-${run?.dossier ? `\nTHE BUSINESS, AS THE DESK READS IT (standing dossier):\n${run.dossier}\n` : ""}${run?.brief ? `\nLATEST DAILY BRIEF:\n${run.brief}\n` : ""}${ddSynthesis?.content ? `\nDUE-DILIGENCE RECORD — STANDING SYNTHESIS:\n${ddSynthesis.content}\n` : ""}`;
+Finance bench: ${finAdjustments.filter((a) => a.status === "applied").length} applied adjustment(s), ${finAdjustments.filter((a) => a.status === "suggested").length} awaiting review
+${run?.dossier ? `\nTHE BUSINESS, AS THE DESK READS IT (standing dossier):\n${run.dossier}\n` : ""}${run?.brief ? `\nLATEST DAILY BRIEF:\n${run.brief}\n` : ""}${
+    !memory && ddSynthesis?.content
+      ? `\nDUE-DILIGENCE RECORD — STANDING SYNTHESIS:\n${ddSynthesis.content}\n`
+      : ""
+  }`;
 
   // Signal-focused context: the one signal's full world, in depth.
   let signalContext = "";
@@ -445,6 +496,68 @@ ${
 }`;
   }
 
+  const historyAll = await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId });
+  const history = historyAll.slice(-16);
+  const lastUser = [...historyAll].reverse().find((m) => m.role === "user");
+
+  // ---- The recall layer (lib/agents/memory.ts) ------------------------------
+  // The desk's whole record — Signals, Due diligence, the bench, the feed and
+  // the desk's own past words — indexed and RETRIEVED for this question, with
+  // an inventory of everything else. The analyst answers recall questions from
+  // it verbatim, asks for what it needs by ref, and the reply is checked
+  // against it before it is persisted.
+  const recallQuery = (opts.retry ? lastUser?.content : userText) || userText;
+  const recallContext = history
+    .slice(-4)
+    .map((m) => m.content)
+    .join("\n");
+  /** Records rendered in full elsewhere in the prompt must not be paid for twice. */
+  const inlinedKeys = history.map((m) => `chat:${m.id}`);
+  const memoryOptsFor = (extraKeys: string[]): RetrieveOptions => ({
+    query: recallQuery,
+    context: recallContext,
+    // A signal's own view is a signal-and-readings conversation by definition.
+    force: focusSignal ? (["signals", "readings"] as MemoryCategory[]) : undefined,
+    excludeKeys: [...inlinedKeys, ...extraKeys],
+    // The standing synthesis is the investor's own map of the business: it
+    // travels with every turn, whatever the question routed to.
+    pin: ["synthesis:current"],
+  });
+  const deepMemoryOpts = memoryOptsFor(run?.id ? [`brief:${run.id}`] : []);
+  const quickMemoryOpts = memoryOptsFor(run?.id ? [`brief:${run.id}`, `dossier:${run.id}`] : []);
+  const memoryBlock = (pack: MemoryPack | null, missing: string[] = []): string => {
+    // A desk with no record yet (the opening intake) has nothing to recall —
+    // don't spend the doctrine's tokens telling the analyst how to read an
+    // empty shelf.
+    if (!pack || pack.allRefs.size === 0) return "";
+    const note = missing.length
+      ? `\n\nNOTE: you asked for record(s) this desk does not hold: ${missing.join(", ")}. They are not on the record — say so plainly rather than describing them.`
+      : "";
+    return `${RECALL_DOCTRINE}\n\n${pack.text}${note}\n\n`;
+  };
+
+  /**
+   * Every reply is checked against the record before it is persisted: a ref
+   * this desk does not hold, or a long quotation that is not in the retrieved
+   * text, is marked unverified in front of the investor instead of passing as
+   * recall. What the investor themselves wrote this turn counts as source
+   * text — quoting the question back is not a claim about the record.
+   */
+  const checkedReply = (reply: string, pack: MemoryPack | null): string => {
+    if (!pack) return reply;
+    const { text, violations } = verifyRecall(reply, pack, {
+      lang: opts.lang === "zh" ? "zh" : "en",
+      allowText: [recallQuery, ...history.map((m) => m.content)],
+    });
+    if (violations.length > 0) {
+      console.warn(
+        `[scalae] recall check flagged ${violations.length} item(s) on ${symbol}:`,
+        violations.map((v) => `${v.kind}: ${v.detail}`).join(" | ")
+      );
+    }
+    return text;
+  };
+
   const modeInstructions = focusSignal
     ? `MODE: Signal-focused working session.
 This conversation lives inside the dedicated view for "${focusSignal.name}" — answer from THIS signal's thesis, readings, and evidence catalog first; bring in the wider board or brief only as supporting context and say when you do. The ticker-level desk chat (separate) keeps the global picture.
@@ -482,7 +595,7 @@ LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, profes
 
   // Cache the static desk doctrine (shared prefix across every Claude call);
   // the ticker identity, method, board state and mode instructions follow it.
-  const systemTail = `${deskIdentity(symbol, ticker.name)}
+  const systemTail = (pack: MemoryPack | null, missing: string[] = []) => `${deskIdentity(symbol, ticker.name)}
 
 ${QUESTION_METHOD}
 
@@ -494,14 +607,12 @@ ATTACHMENTS: The investor can attach images (charts, product photos, screenshots
 
 ${deskContext}
 
-${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirective}`;
-  const system = [
+${memoryBlock(pack, missing)}${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirective}`;
+  const system = (pack: MemoryPack | null, missing: string[] = []) => [
     { text: DESK_DOCTRINE, cache: true },
-    { text: systemTail },
+    { text: systemTail(pack, missing) },
   ];
 
-  const historyAll = await listMessagesWithAttachments(userId, symbol, 40, { signalId: scopeId });
-  const history = historyAll.slice(-16);
   const messages = historyToMessages(history);
   const [chatModel, chatFastModel] = await Promise.all([resolveModel("chat"), resolveModel("chatFast")]);
 
@@ -514,7 +625,6 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
   // and turns carrying attachments always start deep: the opening study and
   // document work are exactly where the flagship is earned.
   const turnStart = Date.now();
-  const lastUser = [...historyAll].reverse().find((m) => m.role === "user");
   const freshAttachments =
     (opts.attachments?.length ?? 0) > 0 ||
     (opts.retry === true && (lastUser?.attachments?.length ?? 0) > 0);
@@ -523,13 +633,13 @@ ${signalContext ? `${signalContext}\n\n` : ""}${modeInstructions}${languageDirec
       opts.lang === "zh"
         ? `\n\nLANGUAGE: The investor uses Simplified Chinese — write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names and numbers as-is; give signal names in English quotes, optionally with a short Chinese gloss).`
         : "";
-    const quickSystem = `${QUICK_CHAT_DOCTRINE}
+    const quickSystem = (pack: MemoryPack | null, missing: string[] = []) => `${QUICK_CHAT_DOCTRINE}
 
 ${deskIdentity(symbol, ticker.name)}
 
 ${quickContext}
 
-${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless and costs the investor nothing — when in doubt whether this turn is yours, escalate.${quickLanguageDirective}`;
+${memoryBlock(pack, missing)}${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless and costs the investor nothing — when in doubt whether this turn is yours, escalate.${quickLanguageDirective}`;
     // Attachments never inline in the fast lane — a document question escalates.
     const quickMessages: Anthropic.MessageParam[] = history.slice(-8).map((m) => {
       const atts = m.attachments ?? [];
@@ -538,28 +648,42 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
         : "";
       return { role: m.role, content: `${m.content}${note}`.trim() || "…" };
     });
-    try {
-      const q = await withDeadline(
+    const askQuick = (pack: MemoryPack | null, missing: string[] = [], budgetMs = QUICK_DEADLINE_MS) =>
+      withDeadline(
         "Quick analyst reply",
         (signal) =>
-          claudeJSON<{ reply: string; escalate: boolean; startResearch: boolean }>({
+          claudeJSON<QuickChatOutput>({
             model: chatFastModel,
             signal,
-            system: quickSystem,
+            system: quickSystem(pack, missing),
             messages: quickMessages,
             schema: QUICK_CHAT_SCHEMA as unknown as Record<string, unknown>,
             maxTokens: 3000,
             effort: effortFromEnv("CLAUDE_CHAT_FAST_EFFORT", "low"),
             meta: { userId, feature: "chat-fast" },
           }),
-        QUICK_DEADLINE_MS
+        budgetMs
       );
+    try {
+      let pack = memory ? retrieveMemory(memory, quickMemoryOpts) : null;
+      let q = await askQuick(pack);
+      // The recall loop: the analyst read the inventory and named records it
+      // needs opened. Give it exactly those, in full, and ask once more —
+      // reading the record beats reconstructing it, and the investor sees
+      // nothing but a slightly longer pause.
+      const wanted = (q.recallRequest ?? []).filter((r) => typeof r === "string" && r.trim());
+      if (!q.escalate && wanted.length > 0 && memory) {
+        const missing = unknownRefs(memory, wanted);
+        pack = expandMemory(memory, quickMemoryOpts, wanted);
+        q = await askQuick(pack, missing, QUICK_DEADLINE_MS);
+      }
       if (!q.escalate && /[\p{L}\p{N}]/u.test(q.reply ?? "")) {
         if (await pausedByInvestor()) {
           await clearBusy();
           return { message: null, startResearch: false, paused: true };
         }
-        const message = await insertMessage(userId, symbol, "assistant", q.reply, [], [], scopeId);
+        const checked = checkedReply(q.reply, pack);
+        const message = await insertMessage(userId, symbol, "assistant", checked, [], [], scopeId);
         await clearBusy();
         return { message, startResearch: active.length > 0 && q.startResearch === true };
       }
@@ -590,29 +714,46 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
   // opening study of the company — framework depth is the product there, and
   // the investor is settling in, not firing quick questions) and turns whose
   // history carries documents/images the analyst must actually work through.
-  const out = await withDeadline(
-    "Analyst reply",
-    (signal) =>
-      claudeJSON<ChatOutput>({
-        model: chatModel,
-        signal,
-        system,
-        messages,
-        schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
-        maxTokens: hasAttachmentBlocks ? 24000 : 16000,
-        effort: effortFromEnv(
-          "CLAUDE_CHAT_EFFORT",
-          mode === "onboarding" || hasAttachmentBlocks ? "medium" : "low"
-        ),
-        meta: { userId, feature: "chat" },
-        // Interactive: don't hard-fail the investor on a transient Opus overload.
-        fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
-      }),
-    // Whatever the fast lane left of the turn's wall-clock budget (all of it
-    // when the turn started deep), floored so an escalated turn still gets a
-    // real window.
-    Math.max(90_000, CHAT_DEADLINE_MS - (Date.now() - turnStart))
-  );
+  const askAnalyst = (pack: MemoryPack | null, missing: string[], budgetMs: number) =>
+    withDeadline(
+      "Analyst reply",
+      (signal) =>
+        claudeJSON<ChatOutput>({
+          model: chatModel,
+          signal,
+          system: system(pack, missing),
+          messages,
+          schema: CHAT_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: hasAttachmentBlocks ? 24000 : 16000,
+          effort: effortFromEnv(
+            "CLAUDE_CHAT_EFFORT",
+            mode === "onboarding" || hasAttachmentBlocks ? "medium" : "low"
+          ),
+          meta: { userId, feature: "chat" },
+          // Interactive: don't hard-fail the investor on a transient Opus overload.
+          fallbackModel: CLAUDE_OVERLOAD_FALLBACK,
+        }),
+      budgetMs
+    );
+  // Whatever the fast lane left of the turn's wall-clock budget (all of it
+  // when the turn started deep), floored so an escalated turn still gets a
+  // real window.
+  const remainingMs = () => Math.max(90_000, CHAT_DEADLINE_MS - (Date.now() - turnStart));
+  let deepPack = memory ? retrieveMemory(memory, deepMemoryOpts) : null;
+  let out = await askAnalyst(deepPack, [], remainingMs());
+
+  // The recall loop (see the fast lane): the analyst named records from the
+  // inventory it must read before it can answer exactly. That pass is a stub
+  // by doctrine — no reply, no desk actions — so re-ask with those records
+  // open and let the SECOND answer be the turn's. Skipped when the turn has
+  // already spent its window; the analyst then answers from what it holds and
+  // says what it could not open.
+  const requested = (out.recallRequest ?? []).filter((r) => typeof r === "string" && r.trim());
+  if (requested.length > 0 && memory && Date.now() - turnStart < CHAT_DEADLINE_MS - 70_000) {
+    const missing = unknownRefs(memory, requested);
+    deepPack = expandMemory(memory, deepMemoryOpts, requested);
+    out = await askAnalyst(deepPack, missing, remainingMs());
+  }
 
   // Paused mid-turn: the investor stopped this turn — discard the reply and
   // take NO desk action (no proposals, approvals, or research kicks).
@@ -695,7 +836,15 @@ ${quickSignalContext ? `${quickSignalContext}\n\n` : ""}Escalation is seamless a
       ? "我已处理您的请求，但书面回复生成异常——请再问一次，我会完整作答。"
       : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
-  const message = await insertMessage(userId, symbol, "assistant", replyText, proposalIds, [], scopeId);
+  const message = await insertMessage(
+    userId,
+    symbol,
+    "assistant",
+    meaningful ? checkedReply(replyText, deepPack) : replyText,
+    proposalIds,
+    [],
+    scopeId
+  );
   await clearBusy();
   const hasActive = (await listSignals(userId, symbol, "active")).length > 0;
   return {

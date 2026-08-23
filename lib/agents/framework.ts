@@ -409,6 +409,26 @@ The investor keeps a due-diligence record for this ticker: sections (large quali
 All the usual law still governs: the two anchors, the no-duplication rule (a proposal that overlaps an existing signal is a duplicate even when a section inspired it), and the human approval gate on everything.`;
 
 // ---------------------------------------------------------------------------
+// Recall doctrine — how every desk surface answers from the record.
+// The desk is one connected record (FOUNDATION.md): signals, readings, the
+// evidence feed, the due-diligence record, the bench and the desk's own past
+// words. lib/agents/memory.ts retrieves the slice a question needs and lists
+// the rest as an inventory; this is the law the analyst reads it under. It is
+// deliberately absolute — an invented recollection of the investor's own
+// thinking is the one error this product cannot absorb.
+// ---------------------------------------------------------------------------
+
+export const RECALL_DOCTRINE = `ANSWERING FROM THE RECORD (recall law — absolute):
+Your context carries a DESK MEMORY block: the desk's own record of this ticker. It has two parts — the INVENTORY (every record the desk holds, as [ref] + title + date, across the memory's categories) and the RETRIEVED RECORDS (the ones opened for this question, VERBATIM). Recall means reading them, never reconstructing them.
+
+1. GROUNDED OR NAMED AS ABSENT. Every statement you make about what is on this desk — what the investor wrote, what a signal reads, what a memo concluded, what the bench holds, what you yourself said before — must come from a retrieved record, and must carry that record's ref in brackets: "your note [note:china-price-war] puts the floor at 12%". Nothing on the record and nothing in the inventory? Say plainly that the desk holds nothing on it. Never bridge a gap with something plausible; a wrong recollection of the investor's own thinking corrupts the record itself.
+2. ASK, DON'T GUESS. When the inventory lists a record whose body you need and it was not opened this turn — or when a body shows a "[cut here …]" marker — put its exact refs in recallRequest and keep that reply to one short line ("Opening your Industry map notes — one moment."), with every action array empty. The desk re-asks you in the same turn with those records in full. Requesting is free and invisible to the investor; guessing is not. Never state or characterize the contents of a record you have not read.
+3. QUOTE VERBATIM. A quotation is the record's exact words, copied. Numbers, dates, fiscal years, names, levels and signal names are copied exactly — never rounded, re-derived or approximated. Quotations of eight words or more are machine-checked against the record before the reply ships, and a reference to a record this desk does not hold is marked unverified in front of the investor.
+4. SEPARATE RECALL FROM ANALYSIS. Your reading, inference and judgment are welcome — but never dressed as the record. Mark the seam plainly ("the record says X [ref]; my read is Y"). "I don't have that on the desk, though I can research it" is a complete, professional answer.
+5. THE WHOLE DESK IS ONE RECORD. A question about a note may be answered from a reading, and a question about a signal from a bench adjustment. Cross the surfaces freely when the evidence bears — and when two records disagree, name both refs and the disagreement rather than silently picking one.
+6. YOUR WRITE SCOPE IS UNCHANGED. Recall is read-only: reading the whole desk never lets you change another surface's board. Every write stays behind its own human gate.`;
+
+// ---------------------------------------------------------------------------
 // Doctrine for the daily synthesis (how to weigh the day's evidence).
 // ---------------------------------------------------------------------------
 
@@ -708,7 +728,7 @@ The ops (proposal.op):
 - "addYear": add a fiscal-year column (a 4-digit label) outside the provider's window — older history the provider dropped, or a year it is missing. The column starts empty; fill specific cells with "set" proposals in the same turn (they may reference the year being added).
 Sequencing: emit the addYear/addRow proposal BEFORE the set proposals that fill it. State every board edit in your reply exactly like a delta — what changes, where, and what it traces to.
 
-THE WHOLE TICKER IS IN VIEW: your context also carries the desk's signal board and the investor's due-diligence record. Read them — a bench question often lands there (a signal already watching subsidy dependence, a section note explaining why an item recurs), and your rationales should cite that context when it bears on an adjustment. Your WRITE scope stays this bench alone: for signal or board changes, or edits to the record, point the investor to the signals desk or the due-diligence page instead of pretending to act there.${CANON_METRICS_SECTION}`;
+THE WHOLE TICKER IS IN VIEW: beyond the bench, your context carries the desk's signal board and the DESK MEMORY — the whole analyst desk's record (the due-diligence sections and notes, deep-research memos and the standing synthesis, the daily briefs and evidence feed, the desk's research accumulations, and past conversation on both desks), retrieved for this question and inventoried in full. Read it under the recall law: a bench question often lands there (a signal already watching subsidy dependence, a section note explaining why an item recurs, a brief that dated the disposal), and your rationales should cite those records by [ref] when they bear on an adjustment. When the inventory lists something you need and it was not opened, ask for it in recallRequest rather than characterizing it. Your WRITE scope stays this bench alone: for signal or board changes, or edits to the record, point the investor to the signals desk or the due-diligence page instead of pretending to act there.${CANON_METRICS_SECTION}`;
 
 export const FIN_ANALYST_SCHEMA = {
   type: "object",
@@ -720,6 +740,7 @@ export const FIN_ANALYST_SCHEMA = {
     "applyAdjustmentIds",
     "revertAdjustmentIds",
     "dismissAdjustmentIds",
+    "recallRequest",
   ],
   properties: {
     reply: {
@@ -833,6 +854,12 @@ export const FIN_ANALYST_SCHEMA = {
       description: "Ids of PENDING (suggested) adjustments to dismiss — only on the investor's explicit ask this turn.",
       items: { type: "string" },
     },
+    recallRequest: {
+      type: "array",
+      description:
+        "Refs copied from the DESK MEMORY inventory (e.g. \"note:china-price-war\") whose full text you need before you can answer exactly — records listed but not opened this turn, or ones whose body shows a cut marker. Non-empty = the desk re-asks you in this same turn with those records in full; keep reply to one short line and leave proposals, researchQueries and the action arrays empty on that pass.",
+      items: { type: "string" },
+    },
   },
 } as const;
 
@@ -892,6 +919,7 @@ export const CHAT_SCHEMA = {
     "retireSignals",
     "startResearch",
     "onboardingComplete",
+    "recallRequest",
   ],
   properties: {
     reply: {
@@ -942,6 +970,12 @@ export const CHAT_SCHEMA = {
       type: "boolean",
       description: "True once you have proposed an initial signal board during onboarding.",
     },
+    recallRequest: {
+      type: "array",
+      description:
+        "Refs copied from the DESK MEMORY inventory (e.g. \"note:china-price-war\") whose full text you need before you can answer exactly — records listed but not opened this turn, or ones whose body shows a cut marker. Non-empty = the desk re-asks you in this same turn with those records in full; keep reply to one short line and leave every other field empty/false on that pass. Empty whenever the retrieved records already carry the answer.",
+      items: { type: "string" },
+    },
   },
 } as const;
 
@@ -964,14 +998,16 @@ ESCALATE (escalate=true, reply="") whenever the investor:
 - gives feedback meant to steer the board or tomorrow's research;
 - asks anything whose honest answer needs evidence beyond the compact state below. Never guess to avoid escalating — a wrong fast answer is worse than a slow right one.
 
-Otherwise answer directly (escalate=false): concrete and plain, normally 1-3 short paragraphs, grounded ONLY in the desk state provided — never import outside facts or numbers, never fabricate; when the state doesn't contain the answer and the senior analyst wouldn't have more, say so plainly. Refer to signals by their quoted names. Bracketed [n] indexes and {{...}}/[[...]] markers inside the dossier/brief point at research sources not shown here — read through them, never repeat them in replies. No investment advice, no price targets, no buy/sell language.
+RECALL QUESTIONS ARE YOURS TO ANSWER, EXACTLY. Your context carries the DESK MEMORY block (the desk's own record: an inventory of everything on file, plus the records retrieved for this question, verbatim). Answer recall questions from it under the recall law above — cite each recalled fact's [ref], quote verbatim, and never characterize a record you have not read. When the inventory lists a record you need but it was not opened, put its refs in recallRequest (reply="", escalate=false) — the desk re-asks you in the same turn with those records in full. Escalate rather than guess whenever the record still does not settle it.
+
+Otherwise answer directly (escalate=false): concrete and plain, normally 1-3 short paragraphs, grounded ONLY in the desk state and desk memory provided — never import outside facts or numbers, never fabricate; when the state doesn't contain the answer and the senior analyst wouldn't have more, say so plainly. Refer to signals by their quoted names. Bracketed [n] indexes and {{...}}/[[...]] markers inside the dossier/brief point at research sources not shown here — read through them, never repeat them in replies. No investment advice, no price targets, no buy/sell language.
 
 startResearch=true ONLY when the investor explicitly asks to run/refresh the research sweep now — confirm it in your reply (this one action needs no escalation). Everything else that changes the desk escalates.`;
 
 export const QUICK_CHAT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "escalate", "startResearch"],
+  required: ["reply", "escalate", "startResearch", "recallRequest"],
   properties: {
     reply: {
       type: "string",
@@ -985,6 +1021,12 @@ export const QUICK_CHAT_SCHEMA = {
     startResearch: {
       type: "boolean",
       description: "True only when the investor explicitly asked to run/refresh the research now.",
+    },
+    recallRequest: {
+      type: "array",
+      description:
+        "Refs copied from the DESK MEMORY inventory (e.g. \"note:china-price-war\") whose full text you need before you can answer exactly — records listed but not opened this turn, or ones whose body shows a cut marker. Non-empty = the desk re-asks you in this same turn with those records in full; keep reply to one short line and leave every other field empty/false on that pass. Empty whenever the retrieved records already carry the answer.",
+      items: { type: "string" },
     },
   },
 } as const;

@@ -21,6 +21,7 @@ import {
   deskIdentity,
   FIN_ANALYST_DOCTRINE,
   FIN_ANALYST_SCHEMA,
+  RECALL_DOCTRINE,
 } from "./framework";
 import {
   failFinSuggestRun,
@@ -50,6 +51,16 @@ import type {
   TickerFinancials,
 } from "../types";
 import { diligenceRecordContext, signalBoardContext } from "./context";
+import {
+  expandMemory,
+  loadDeskMemory,
+  retrieveMemory,
+  unknownRefs,
+  verifyRecall,
+  type DeskMemory,
+  type MemoryPack,
+  type RetrieveOptions,
+} from "./memory";
 
 /**
  * The finance-cleansing bench's agents (FOUNDATION: human sovereignty;
@@ -105,6 +116,8 @@ interface AnalystOutput {
   applyAdjustmentIds: string[];
   revertAdjustmentIds: string[];
   dismissAdjustmentIds: string[];
+  /** Refs from the desk-memory inventory the analyst needs opened (recall loop). */
+  recallRequest?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -643,14 +656,27 @@ export async function handleFinAnalystTurn(
   const pausedByInvestor = async () =>
     ((await getSetting(userId, finChatCancelKey(symbol)).catch(() => null)) ?? "") >= turnStartedAt;
 
-  // The whole ticker in view (FOUNDATION: one connected desk): the bench
-  // pieces plus the signal board and the due-diligence record, read-only.
-  const [adjustments, events, boardBlock, ddBlock] = await Promise.all([
+  // The whole ticker in view (FOUNDATION: one connected desk). The bench is
+  // this desk's own board and is rendered in full below; everything else on
+  // the analyst desk — the signal board, the due-diligence record, the daily
+  // briefs, the evidence feed, the desk's research and its past conversation
+  // — arrives through the recall memory: retrieved when the question touches
+  // it, inventoried when it doesn't, exact either way.
+  const [adjustments, events, boardBlock, memory] = await Promise.all([
     listFinAdjustments(userId, symbol),
     listFinCleansingEvents(userId, symbol, 30),
     signalBoardContext(userId, symbol).catch(() => ""),
-    diligenceRecordContext(userId, symbol).catch(() => ""),
+    loadDeskMemory(userId, symbol).catch((e) => {
+      console.warn(
+        `[scalae] desk memory unavailable for ${symbol}:`,
+        e instanceof Error ? e.message : e
+      );
+      return null as DeskMemory | null;
+    }),
   ]);
+  // Degraded mode: with no recall memory, fall back to the excerpted
+  // due-diligence block this desk carried before it existed.
+  const ddFallback = memory ? "" : await diligenceRecordContext(userId, symbol).catch(() => "");
   const applied = adjustments.filter((a) => a.status === "applied");
   const cleansed = applied.length > 0 ? applyCleansing(fin, applied) : null;
 
@@ -690,7 +716,7 @@ ${events.map((e) => `- ${e.at.slice(0, 10)} ${e.action}: ${e.detail}`).join("\n"
 NUMBERED SOURCES (from existing adjustments; cite [n] when you reuse one):
 ${sourceList || "(none)"}
 
-${[boardBlock, ddBlock].filter(Boolean).join("\n\n")}`;
+${[boardBlock, ddFallback].filter(Boolean).join("\n\n")}`;
 
   const languageDirective =
     opts.lang === "zh"
@@ -699,7 +725,38 @@ ${[boardBlock, ddBlock].filter(Boolean).join("\n\n")}`;
 LANGUAGE: The investor uses Simplified Chinese. Write "reply" in natural, professional Simplified Chinese (keep ticker symbols, company names, metric keys and numbers as-is). EVERYTHING ELSE stays in ENGLISH: proposal titles, rationales, and the ids you place in the action arrays (copy them verbatim).`
       : "";
 
-  const system = [
+  const history = (await listFinMessages(userId, symbol, 60)).slice(-16);
+  const messages = history.map((m) => ({
+    role: m.role,
+    content: m.content || "…",
+  }));
+
+  // ---- The recall layer (lib/agents/memory.ts) ------------------------------
+  // The bench's own records are rendered above in full, so they are excluded
+  // from retrieval; everything else on the desk is routed by the question and
+  // inventoried regardless, and the analyst can ask for any of it by ref.
+  const memoryOpts: RetrieveOptions = {
+    // On a retry there is no new message: the question is the last one asked.
+    query: userText || [...history].reverse().find((m) => m.role === "user")?.content || "",
+    context: history
+      .slice(-4)
+      .map((m) => m.content)
+      .join("\n"),
+    exclude: ["financials"],
+    excludeKeys: history.map((m) => `finChat:${m.id}`),
+    pin: ["synthesis:current"],
+  };
+  const memoryBlock = (pack: MemoryPack | null, missing: string[] = []): string => {
+    // A desk with no record yet has nothing to recall — don't spend the
+    // doctrine's tokens telling the analyst how to read an empty shelf.
+    if (!pack || pack.allRefs.size === 0) return "";
+    const note = missing.length
+      ? `\n\nNOTE: you asked for record(s) this desk does not hold: ${missing.join(", ")}. They are not on the record — say so plainly rather than describing them.`
+      : "";
+    return `\n\n${RECALL_DOCTRINE}\n\n${pack.text}${note}`;
+  };
+
+  const system = (pack: MemoryPack | null, missing: string[] = []) => [
     { text: DESK_DOCTRINE, cache: true },
     {
       text: `${deskIdentity(symbol, ticker.name)}
@@ -708,20 +765,17 @@ ${CLEANSING_DOCTRINE}
 
 ${FIN_ANALYST_DOCTRINE}
 
-${benchContext}${languageDirective}`,
+${benchContext}${memoryBlock(pack, missing)}${languageDirective}`,
     },
   ];
 
-  const history = (await listFinMessages(userId, symbol, 60)).slice(-16);
-  const messages = history.map((m) => ({
-    role: m.role,
-    content: m.content || "…",
-  }));
   const chatModel = await resolveModel("chat");
   const analystCall = (
     msgs: { role: "user" | "assistant"; content: string }[],
     label: string,
-    limitMs: number
+    limitMs: number,
+    pack: MemoryPack | null,
+    missing: string[] = []
   ) =>
     withDeadline(
       label,
@@ -729,7 +783,7 @@ ${benchContext}${languageDirective}`,
         claudeJSON<AnalystOutput>({
           model: chatModel,
           signal,
-          system,
+          system: system(pack, missing),
           messages: msgs,
           schema: FIN_ANALYST_SCHEMA as unknown as Record<string, unknown>,
           maxTokens: 8000,
@@ -741,7 +795,31 @@ ${benchContext}${languageDirective}`,
     );
 
   const turnStart = Date.now();
-  let out = await analystCall(messages, "Financial analyst reply", ANALYST_PHASE1_LIMIT_MS);
+  let pack = memory ? retrieveMemory(memory, memoryOpts) : null;
+  let out = await analystCall(messages, "Financial analyst reply", ANALYST_PHASE1_LIMIT_MS, pack);
+
+  // --- the recall round: the analyst asked for records it has not read ------
+  // It read the inventory and named what it needs. Open exactly those and ask
+  // again — a bench question whose answer sits in a due-diligence note is
+  // answered from the note, not from a plausible reconstruction of it.
+  const askedFor = (out.recallRequest ?? [])
+    .filter((r): r is string => typeof r === "string" && r.trim().length > 0)
+    .slice(0, 20);
+  if (askedFor.length > 0 && memory) {
+    if (await pausedByInvestor()) {
+      await clearBusy();
+      return { message: null, paused: true };
+    }
+    const missing = unknownRefs(memory, askedFor);
+    pack = expandMemory(memory, memoryOpts, askedFor);
+    out = await analystCall(
+      messages,
+      "Financial analyst reply (post-recall)",
+      Math.max(55_000, ANALYST_TOTAL_BUDGET_MS - (Date.now() - turnStart)),
+      pack,
+      missing
+    );
+  }
 
   // --- the research round: the analyst asked the desk to pull the record ---
   // Phase 1 may request grounded web research when the bench lacks disclosed
@@ -817,7 +895,8 @@ ${researchSources.map((s, i) => `[${sources.length + i}] ${s.title} — ${s.url}
         { role: "user", content: researchBlock },
       ],
       "Financial analyst reply (post-research)",
-      Math.max(55_000, ANALYST_TOTAL_BUDGET_MS - (Date.now() - turnStart))
+      Math.max(55_000, ANALYST_TOTAL_BUDGET_MS - (Date.now() - turnStart)),
+      pack
     );
   }
 
@@ -892,7 +971,24 @@ ${researchSources.map((s, i) => `[${sources.length + i}] ${s.title} — ${s.url}
       ? "我已处理您的请求，但书面回复生成异常——请再问一次，我会完整作答。"
       : "I processed that, but my written reply came back malformed — please ask again and I'll respond in full.";
 
-  const message = await insertFinMessage(userId, symbol, "assistant", replyText, created);
+  // Checked against the record before it is persisted (see verifyRecall): an
+  // unheld ref or an unmatchable quotation is marked, never shipped as recall.
+  let finalReply = replyText;
+  if (meaningful && pack) {
+    const { text, violations } = verifyRecall(replyText, pack, {
+      lang: opts.lang === "zh" ? "zh" : "en",
+      allowText: [userText, ...history.map((m) => m.content), benchContext],
+    });
+    if (violations.length > 0) {
+      console.warn(
+        `[scalae] recall check flagged ${violations.length} item(s) on the ${symbol} bench:`,
+        violations.map((v) => `${v.kind}: ${v.detail}`).join(" | ")
+      );
+    }
+    finalReply = text;
+  }
+
+  const message = await insertFinMessage(userId, symbol, "assistant", finalReply, created);
   await clearBusy();
   return { message };
 }

@@ -93,6 +93,53 @@ Admins triage from **`/admin/feedback`**: respond (optionally respond-and-close)
 - **Signal design rules**: measure the business, not the stock; every signal names the mental model it instantiates (the mechanical no-overlap rule); incentives are signal zero for culture; design for dormancy (activity is a cost, not a KPI); prohibited classes — macro forecasts, price targets/charts, EBITDA-family metrics, guidance-as-evidence; always include at least one red-flag signal ("never is there just one cockroach in the kitchen").
 - **Evidence-weighing doctrine** for the daily synthesis: primary/mechanism-level sources outweigh fluent narrative; tag every source's incentive origin; escalate lollapaloozas instead of averaging them; run the misjudgment checklist on the desk's own reasoning (iron prescription before moving a level); Stein's law on every extrapolated trend; lead with what a bull would rather ignore; honest carry-forward when nothing new emerged.
 
+## Desk recall memory — exact answers, routed by category
+
+A desk accumulates a year of record: signals and their readings, the daily
+evidence feed, the investor's due-diligence notes and memos, the cleansing
+bench, past briefs, and the desk's own conversation. The investor asks the
+analyst about all of it ("what did I write about the price war?", "what did
+that FY2025 adjustment do?", "what did you tell me about the buyback?"), and a
+*plausible* answer to a recall question is a failure: it hands the investor a
+fabricated version of their own thinking.
+
+`lib/agents/memory.ts` is the mechanism that makes recall exact. It runs on the
+analyst-desk chat (both lanes), the signal-scoped chat, and the financial
+analyst desk.
+
+- **One corpus.** The memory indexes `lib/search.ts`'s `deskCorpus` — the same
+  blocks desk search matches on, plus the record's non-rendered parts (research
+  memos, the standing synthesis, accumulations, the context board, each run's
+  answered questions) and two derived views (the reported financials, the
+  bench's current state). What the investor can find and what the analyst can
+  recall are the same record by construction.
+- **Stable, citable refs.** Every record gets a readable key —
+  `note:china-price-war`, `reading:subsidy-dependence-2026-08-14`,
+  `adjustment:strip-fy2025-ipo-gain` — derived deterministically, so a citation
+  means the same record from turn to turn.
+- **Categories, and routing.** The record is filed into eight categories
+  (signals · readings · feed · diligence · research · financials · briefs ·
+  conversation). Each question is routed — by an English + 中文 trigger
+  lexicon, with the recent exchange as a tiebreaker for follow-ups — to the
+  categories it actually touches, and records are then ranked inside them
+  (IDF-weighted, title-heavy, recency-tilted) under a character budget. A bench
+  question does not pay for eleven months of readings; a strongly matching
+  record from an unrouted category still surfaces.
+- **An inventory, always.** Whatever is not opened is still listed — every
+  record's ref, title and date. The analyst always knows what exists, so "you
+  never wrote that" is said from the inventory, never from a gap in the prompt.
+- **A recall loop.** When the analyst needs a record it has not read, it
+  returns `recallRequest: ["note:china-price-war"]`; the desk reopens those
+  records in full and re-asks *in the same turn*. Reading the record beats
+  reconstructing it, and the investor sees only a slightly longer pause.
+- **Verified before it ships.** Every reply is checked against the pack: a ref
+  the desk does not hold is marked `[unverified ref: …]`, and any quotation of
+  eight words or more that is not verbatim in the retrieved text is flagged —
+  both with a short caveat, in the investor's language.
+
+The doctrine the analyst reads it under is `RECALL_DOCTRINE` in
+`lib/agents/framework.ts`; the behaviour is pinned by `tests/memory.test.ts`.
+
 ## Architecture
 
 | Piece | Role |
@@ -103,7 +150,7 @@ Admins triage from **`/admin/feedback`**: respond (optionally respond-and-close)
 | Neon Postgres (`@neondatabase/serverless`) | Persistence: desks, signals, readings (with per-source citations), digests, runs, chat + attachments. Local and Vercel share one database. |
 | Next.js 16 App Router | UI + API routes; research runs continue via `after()` after the response |
 
-Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/agents/diligence.ts` (due-diligence deep research, record synthesis, topic suggestions), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the due-diligence workspace — the ticker's main page), `app/t/[symbol]/signals/page.tsx` (the signal desk UI + full-screen mode).
+Key paths: `lib/agents/framework.ts` (the doctrine + JSON schemas), `lib/agents/chat.ts` (onboarding/working chat + desk actions + attachments), `lib/agents/memory.ts` (the desks' recall memory: categorized retrieval over the whole record, plus reply verification), `lib/agents/research.ts` (the four-stage daily pipeline), `lib/agents/diligence.ts` (due-diligence deep research, record synthesis, topic suggestions), `lib/citations.ts` (source-provenance helpers), `app/t/[symbol]/page.tsx` (the due-diligence workspace — the ticker's main page), `app/t/[symbol]/signals/page.tsx` (the signal desk UI + full-screen mode).
 
 ## Why these models — and how they stay current
 
@@ -123,7 +170,7 @@ each run.
 | Breadth scouts (parallel) | newest full Gemini **Flash** | Native Google-Search grounding with per-claim source metadata; #1 on vals.ai's finance-agent retrieval benchmark; Pro-tier quality at Flash speed/price for the 6–10 parallel sweeps. |
 | Deep-dive scouts | newest Gemini **Pro** | Leads FACTS-Grounding faithfulness; the extra multi-hop reasoning earns its keep on the handful of probes that cross-check conflicting primary sources. |
 | Analyst-desk chat — deep lane — & pairwise compare | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The investor's live analyst where judgment is earned: signal building and upgrades, approvals and desk actions, document reads (images, PDFs, text natively), onboarding intake, and anything synthesizing new information. |
-| Analyst-desk chat — fast lane | newest **Sonnet** (value) | Simple working-chat questions run over a compact desk snapshot (dossier, brief, latest readings) and answer in seconds; the turn escalates automatically to the deep lane the moment it needs desk actions, documents, or fresh synthesis (`CLAUDE_CHAT_FAST_MODEL` to pin). |
+| Analyst-desk chat — fast lane | newest **Sonnet** (value) | Simple working-chat questions run over a compact desk snapshot (dossier, brief, latest readings) plus the recall memory retrieved for that question, and answer in seconds; the turn escalates automatically to the deep lane the moment it needs desk actions, documents, or fresh synthesis (`CLAUDE_CHAT_FAST_MODEL` to pin). |
 | Deep synthesis | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The run's one heavy call — extracting decision-relevant *insight* (not summary) from a large evidence dump, where Claude leads. Stays on the strongest tier available: it carries the desk's quality. |
 | Due-diligence memos, record synthesis & topic suggestions | newest top-tier Claude (**Fable/Mythos**, else flagship **Opus**) | The record is the product's centre and every call is an explicit human ask (never the cron) — top-tier quality is earned here (`CLAUDE_DILIGENCE_MODEL` to pin). |
 | Question framing, gap triage & signal deep-history | newest **Sonnet** (value) | Bounded support work that runs on every desk every day — framing what today's run must answer (the question suggestor), routing which threads deserve a deep dive, and writing each signal's decades-scale backstory (cached forever). Sonnet handles all three well; the flagship isn't earned here (`CLAUDE_TRIAGE_MODEL` / `CLAUDE_BACKSTORY_MODEL` to pin). |

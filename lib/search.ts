@@ -1,6 +1,9 @@
 import {
+  getDeskContext,
+  getDiligenceSynthesis,
   getRun,
   latestFinSuggestRun,
+  listAccumulations,
   listAnnotations,
   listDiligenceEvidence,
   listDiligenceResearch,
@@ -51,7 +54,18 @@ export type SearchBlockType =
   | "adjustment"
   | "finChat"
   | "finLog"
-  | "finPass";
+  | "finPass"
+  // Agent-only blocks (see deskCorpus): part of the desk's record and of the
+  // analyst's recall memory, but not rendered surfaces the investor can open,
+  // so desk search never returns them.
+  | "accumulation"
+  | "contextBoard"
+  | "questions"
+  // Derived views the analyst's memory adds on top of the stored record (see
+  // lib/agents/memory.ts): the reported-financials summary and the bench's
+  // current raw → cleansed state.
+  | "finTable"
+  | "finBench";
 
 export interface DeskSearchHit {
   /** Stable key: "<type>:<row id>". */
@@ -69,16 +83,32 @@ export interface DeskSearchHit {
   score: number;
 }
 
-/** One searchable block before matching. Title text outweighs body text. */
-interface Block {
+/**
+ * One text block of a desk's record: the unit both desk search and the
+ * analyst's recall memory (lib/agents/memory.ts) work in. Title text
+ * outweighs body text when matching.
+ */
+export interface DeskBlock {
+  /** Stable key: "<type>:<row id>" — the same anchor annotations use. */
   id: string;
   pill: SearchPill;
   type: SearchBlockType;
+  /** Directory segments (the investor's own labels). */
   path: string[];
+  /** Small status chip when the row carries one (e.g. "pending", "FY2025"). */
   meta?: string;
   date?: string;
   title: string;
   body: string;
+  /**
+   * True for blocks that are part of the record but not an openable surface
+   * (memos, the standing synthesis, accumulations, the context board, a run's
+   * answered questions). Desk search skips them; the analyst's memory reads
+   * them.
+   */
+  agentOnly?: boolean;
+  /** Extra retrieval terms (signal names an item bears on, its section). */
+  tags?: string[];
 }
 
 const MAX_HITS = 100;
@@ -149,7 +179,7 @@ function makeSnippet(body: string, title: string, tokens: string[]): string {
   return `${start > 0 ? "…" : ""}${source.slice(start, end).trim()}${end < source.length ? "…" : ""}`;
 }
 
-function match(block: Block, tokens: string[]): DeskSearchHit | null {
+function match(block: DeskBlock, tokens: string[]): DeskSearchHit | null {
   const title = block.title.toLowerCase();
   const body = block.body.toLowerCase();
   let score = 0;
@@ -171,15 +201,21 @@ function match(block: Block, tokens: string[]): DeskSearchHit | null {
   };
 }
 
-/** Assemble every text block on the desk, then match the query against each. */
-export async function searchDesk(
+/**
+ * Assemble EVERY text block on one desk — the shared corpus behind desk
+ * search and the analyst's recall memory. One builder, so what the investor
+ * can find and what the analyst can recall never drift apart.
+ *
+ * `includeAgentOnly` adds the record's non-rendered blocks (research memos,
+ * the standing synthesis, accumulations, the context board, a run's answered
+ * questions): memory reads them, search does not.
+ */
+export async function deskCorpus(
   userId: string,
   symbol: string,
-  query: string
-): Promise<DeskSearchHit[]> {
-  const tokens = tokenize(query);
-  if (tokens.length === 0) return [];
-
+  opts: { includeAgentOnly?: boolean } = {}
+): Promise<DeskBlock[]> {
+  const agentOnly = opts.includeAgentOnly === true;
   const [
     sections,
     notes,
@@ -196,6 +232,9 @@ export async function searchDesk(
     finEvents,
     finMessages,
     finPass,
+    accumulations,
+    synthesis,
+    contextBoard,
   ] = await Promise.all([
     listNoteSections(userId, symbol),
     listNotes(userId, symbol),
@@ -212,6 +251,9 @@ export async function searchDesk(
     listFinCleansingEvents(userId, symbol, 300),
     recentFinMessages(userId, symbol, 400),
     latestFinSuggestRun(userId, symbol),
+    agentOnly ? listAccumulations(userId, symbol, 120) : Promise.resolve([]),
+    agentOnly ? getDiligenceSynthesis(userId, symbol).catch(() => null) : Promise.resolve(null),
+    agentOnly ? getDeskContext(userId, symbol).catch(() => undefined) : Promise.resolve(undefined),
   ]);
 
   const sectionTitle = new Map(sections.map((s) => [s.id, s.title]));
@@ -221,7 +263,7 @@ export async function searchDesk(
   const digestById = new Map(digest.map((d) => [d.id, d]));
   const readingById = new Map(readings.map((r) => [r.id, r]));
 
-  const blocks: Block[] = [];
+  const blocks: DeskBlock[] = [];
 
   // ---- Due diligence ----
   for (const s of sections) {
@@ -451,8 +493,100 @@ export async function searchDesk(
     });
   }
 
+  // ---- Agent-only record (memory reads these; search never returns them) ----
+  if (agentOnly) {
+    // Deep-research memos: the pending ones the investor has not decided yet
+    // and the accepted ones (whose text also lives on as a notepad — the
+    // memo row keeps the desk's own distillation and its source list).
+    for (const r of research) {
+      if (r.status !== "accepted" && r.status !== "pending") continue;
+      const body = clean([r.insights ?? "", stripMd(r.memo ?? "")].filter(Boolean).join("\n\n"));
+      if (!body) continue;
+      blocks.push({
+        id: `memo:${r.id}`,
+        pill: "dd",
+        type: "memo",
+        path: [sectionTitle.get(r.sectionId) ?? "", r.question || "desk research"].filter(Boolean),
+        meta: r.status,
+        date: r.createdAt,
+        title: clean(r.question) || "Desk research memo",
+        body,
+        agentOnly: true,
+        tags: [sectionTitle.get(r.sectionId) ?? ""].filter(Boolean),
+      });
+    }
+    if (synthesis?.content) {
+      blocks.push({
+        id: "synthesis:current",
+        pill: "dd",
+        type: "synthesis",
+        path: ["Standing synthesis"],
+        meta: synthesis.origin ?? undefined,
+        date: synthesis.updatedAt,
+        title: "Standing synthesis of the due-diligence record",
+        body: stripMd(synthesis.content),
+        agentOnly: true,
+      });
+    }
+    for (const a of accumulations) {
+      blocks.push({
+        id: `accumulation:${a.id}`,
+        pill: "signals",
+        type: "accumulation",
+        path: [a.topic],
+        date: a.createdAt,
+        title: clean(a.topic),
+        body: clean(a.insight),
+        agentOnly: true,
+        tags: a.signalNames,
+      });
+    }
+    if (contextBoard?.content) {
+      blocks.push({
+        id: "contextBoard:current",
+        pill: "signals",
+        type: "contextBoard",
+        path: ["Context board"],
+        date: contextBoard.updatedAt,
+        title: "Desk context board (answered questions · established context · open threads)",
+        body: stripMd(contextBoard.content),
+        agentOnly: true,
+      });
+    }
+    for (const run of fullRuns) {
+      if (run.questions.length === 0) continue;
+      const lines = run.questions.map((qn, i) => {
+        const a = run.questionAnswers[i];
+        return `Q: ${qn}${a?.answer ? `\nA: ${stripMd(a.answer)}` : "\nA: (no answer recorded)"}`;
+      });
+      blocks.push({
+        id: `questions:${run.id}`,
+        pill: "signals",
+        type: "questions",
+        path: [run.startedAt.slice(0, 10)],
+        date: run.startedAt,
+        title: `Focus questions the ${run.startedAt.slice(0, 10)} run asked, and what it answered`,
+        body: clean(lines.join("\n")),
+        agentOnly: true,
+      });
+    }
+  }
+
+  return blocks;
+}
+
+/** Assemble the desk's blocks, then match the query against each. */
+export async function searchDesk(
+  userId: string,
+  symbol: string,
+  query: string
+): Promise<DeskSearchHit[]> {
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return [];
+  const blocks = await deskCorpus(userId, symbol);
   const hits: DeskSearchHit[] = [];
   for (const block of blocks) {
+    if (block.agentOnly) continue;
     const hit = match(block, tokens);
     if (hit) hits.push(hit);
   }
