@@ -34,8 +34,9 @@ import type {
  *    "addRow" materializes a custom row whose reported values are null;
  *    "addYear" widens the grid with an empty column; "removeRow"/"removeYear"
  *    only hide — derived rows and the DCF medians keep computing on the full
- *    grid, because a hidden year spliced out of a growth series would
- *    manufacture numbers the record never reported.
+ *    grid (medians over its most recent ten columns, mirroring
+ *    lib/financials.ts), because a hidden year spliced out of a growth series
+ *    would manufacture numbers the record never reported.
  */
 
 /** Base line items that accept direct deltas (traceable reported figures). */
@@ -92,6 +93,15 @@ function median(vals: (number | null)[]): number | null {
   const mid = Math.floor(xs.length / 2);
   return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2;
 }
+
+/**
+ * DCF medians normalize over at most the last N fiscal columns of the working
+ * grid — mirrors DCF_MEDIAN_WINDOW in lib/financials.ts, so a recompute under
+ * cleansing can never re-anchor the drivers to a different era than the raw
+ * inputs were normalized over.
+ */
+const DCF_MEDIAN_WINDOW = 10;
+const recentWindow = <T,>(xs: T[]): T[] => xs.slice(-DCF_MEDIAN_WINDOW);
 
 /**
  * Overlay the APPLIED adjustments on the raw financials. Pass only applied
@@ -340,13 +350,13 @@ export function applyCleansing(
   // --- 3. DCF inputs: recompute the normalized medians whose rows moved ---
   const rowMoved = (k: string) => years.some((_, i) => moved(k, i));
   const dcfInputs = { ...fin.dcfInputs };
-  if (rowMoved("revenueGrowth")) dcfInputs.medianRevenueGrowth = median(vals.get("revenueGrowth") ?? []);
-  if (rowMoved("operatingMargin")) dcfInputs.medianOperatingMargin = median(vals.get("operatingMargin") ?? []);
-  if (rowMoved("reinvestmentRate")) dcfInputs.medianReinvestmentRate = median(vals.get("reinvestmentRate") ?? []);
+  if (rowMoved("revenueGrowth")) dcfInputs.medianRevenueGrowth = median(recentWindow(vals.get("revenueGrowth") ?? []));
+  if (rowMoved("operatingMargin")) dcfInputs.medianOperatingMargin = median(recentWindow(vals.get("operatingMargin") ?? []));
+  if (rowMoved("reinvestmentRate")) dcfInputs.medianReinvestmentRate = median(recentWindow(vals.get("reinvestmentRate") ?? []));
   if (rowMoved("revenue")) {
     // FCFF margin = FCFF ÷ revenue (FCFF row stays raw; see engine rules).
     dcfInputs.medianFcffMargin = median(
-      years.map((_, i) => div(at("fcff", i), at("revenue", i)))
+      recentWindow(years.map((_, i) => div(at("fcff", i), at("revenue", i))))
     );
   }
   const last = years.length - 1;

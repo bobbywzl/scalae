@@ -10,15 +10,27 @@ const en = {
   title: "Financials & valuation",
   subtitle: "The numbers a value investor checks before owning it — {n} fiscal years.",
   asOf: "as of {when}",
-  sourceNote: "{source} · {n} of 10 FY available",
+  sourceNote: "{source} + SEC filings · {n} FY of history",
   unavailable: "Financials aren’t available for this ticker yet.",
   loading: "Loading financials…",
   retry: "Retry",
 
   // Snapshot block
   snapshotTitle: "What it costs to own it now",
-  showTable: "Show 10-year table",
+  showTable: "Show history table",
   hideTable: "Hide table",
+
+  // History window, quarterly drill-down, and the current-FY estimate column
+  fyShowAll: "Show all {n} FY",
+  fyShowRecent: "Latest {n} FY",
+  qtrHint: "Click a fiscal year ▸ to unfold its quarters (as reported — cleansing applies to fiscal-year cells).",
+  qtrExpandTip: "Unfold FY{fy}’s quarters",
+  qtrTip: "Fiscal {fy} {q}, ended {end}",
+  qtrTipEst: "Fiscal {fy} {q} — projected from TTM trends, not reported",
+  estimateNote:
+    "{label} and quarters marked E are projections from TTM trends — not reported figures, never part of the record or the cleansing bench.",
+  estimateTip:
+    "Estimated FY{fy}: reported quarters to date plus the rest projected from TTM trends — revenue at the trailing-12-month YoY growth rate, other flow lines at their TTM share of revenue, balance-sheet lines held at the last reported quarter. Display-only.",
 
   // Group headers
   grp_income: "Income",
@@ -222,14 +234,24 @@ const zh: Record<keyof typeof en, string> = {
   title: "财务与估值",
   subtitle: "价值投资者在买入前会核对的数字——共 {n} 个财年。",
   asOf: "截至 {when}",
-  sourceNote: "{source} · 10 个财年中有 {n} 个可用",
+  sourceNote: "{source} + SEC 申报文件 · 共 {n} 个财年",
   unavailable: "该股票暂无财务数据。",
   loading: "正在加载财务数据……",
   retry: "重试",
 
   snapshotTitle: "现在买下整家公司的成本",
-  showTable: "显示十年数据表",
+  showTable: "显示历史数据表",
   hideTable: "隐藏数据表",
+
+  fyShowAll: "显示全部 {n} 个财年",
+  fyShowRecent: "仅最近 {n} 个财年",
+  qtrHint: "点击财年 ▸ 可展开该年的季度数据（按申报原值显示——清洗调整只作用于财年单元格）。",
+  qtrExpandTip: "展开 {fy} 财年的季度",
+  qtrTip: "{fy} 财年 {q}，截至 {end}",
+  qtrTipEst: "{fy} 财年 {q}——按 TTM 趋势推算，非申报数据",
+  estimateNote: "{label} 及标注 E 的季度为 TTM 趋势推算值——不是申报数据，不进入记录，清洗台也不会调整它。",
+  estimateTip:
+    "{fy} 财年估算：已披露季度加上按 TTM 趋势外推的剩余季度——营收按最近十二个月的同比增速外推，其余流量项按其占营收的 TTM 比例，资产负债表项目保持最近披露季度不变。仅用于展示。",
 
   grp_income: "利润表",
   grp_returns: "资本回报",

@@ -10,6 +10,8 @@ import type {
   DcfInputs,
   FinAdjustment,
   FinancialMetric,
+  FiscalQuarter,
+  FyEstimate,
   MetricFormat,
   MetricGroup,
   PeerComparison,
@@ -63,23 +65,28 @@ const GROUPS: MetricGroup[] = ["income", "returns", "balance", "cashflow", "dcf"
 
 /** Tab-separated export with RAW numeric values (Excel/CapIQ-ready), so the
  *  investor can build their own DCF — not the display-formatted strings.
- *  Exports whichever view (reported or cleansed) is active. */
+ *  Exports whichever view (reported or cleansed) is active; the estimate
+ *  column rides along, explicitly labeled (e.g. "2026E"). */
 function buildTSV(
   symbol: string,
   fiscalYears: string[],
   metrics: FinancialMetric[],
+  estimate: FyEstimate | null,
   d: DcfInputs,
   t: ReturnType<typeof useT>["t"],
   labelFor: (key: string) => string
 ): string {
   const cell = (v: number | null) => (v == null ? "" : String(v));
   const lines: string[] = [];
-  lines.push([symbol, ...fiscalYears].join("\t"));
+  lines.push([symbol, ...fiscalYears, ...(estimate ? [estimate.label] : [])].join("\t"));
   for (const g of GROUPS) {
     const rows = metrics.filter((m) => m.group === g);
     if (!rows.length) continue;
     lines.push(t(`financials.grp_${g}` as TKey));
-    for (const m of rows) lines.push([labelFor(m.key), ...m.values.map(cell)].join("\t"));
+    for (const m of rows) {
+      const est = estimate ? [cell(estimate.values[m.key] ?? null)] : [];
+      lines.push([labelFor(m.key), ...m.values.map(cell), ...est].join("\t"));
+    }
   }
   lines.push("", t("financials.dcfTitle"));
   const kv: [string, number | null][] = [
@@ -241,7 +248,9 @@ export function FinancialsSection({
 
       <Snapshot data={data} c={c} t={t} />
 
-      <DcfInputsBlock d={dcfInputs} n={years.length} c={c} t={t} />
+      {/* Medians normalize over at most the 10 most recent FY (lib/financials.ts),
+          however deep the table's history reaches. */}
+      <DcfInputsBlock d={dcfInputs} n={Math.min(years.length, 10)} c={c} t={t} />
 
       <PeerPanel data={data} symbol={symbol} t={t} />
 
@@ -257,7 +266,7 @@ export function FinancialsSection({
             <button
               onClick={() => {
                 navigator.clipboard
-                  ?.writeText(buildTSV(data.symbol, years, metrics, dcfInputs, t, labelFor))
+                  ?.writeText(buildTSV(data.symbol, years, metrics, data.estimate ?? null, dcfInputs, t, labelFor))
                   .then(
                     () => {
                       setCopied(true);
@@ -273,7 +282,16 @@ export function FinancialsSection({
             <span className="text-[0.625rem] text-muted/60">{t("financials.accuracyNote")}</span>
           </div>
           {showTable && (
-            <MetricsTable years={years} metrics={metrics} c={c} t={t} tipFor={tipFor} labelFor={labelFor} />
+            <MetricsTable
+              years={years}
+              metrics={metrics}
+              quarters={data.quarters ?? []}
+              estimate={data.estimate ?? null}
+              c={c}
+              t={t}
+              tipFor={tipFor}
+              labelFor={labelFor}
+            />
           )}
         </>
       )}
@@ -559,10 +577,27 @@ function PeerPanel({
   );
 }
 
-// --- the full 10-FY metrics × years table (view-aware, moved cells highlighted) ---
+// --- the metrics × fiscal-years table (view-aware, moved cells highlighted) ---
+// Default window: the latest five fiscal years plus the current-FY estimate
+// column; the full filing history (ten-plus years, back toward the IPO where
+// the record reaches) unfolds on demand. Clicking a fiscal year with
+// quarterly data opens its four quarters as sub-columns; the in-progress
+// year mixes reported quarters with TTM-trend estimates, and everything
+// estimated is marked E and styled apart from the reported record.
+
+/** One rendered column of the table. */
+type TableCol =
+  | { kind: "year"; year: string; yearIdx: number }
+  | { kind: "quarter"; year: string; q: FiscalQuarter }
+  | { kind: "estimate"; year: string };
+
+const RECENT_FY_WINDOW = 5;
+
 function MetricsTable({
   years,
   metrics,
+  quarters,
+  estimate,
   c,
   t,
   tipFor,
@@ -570,6 +605,8 @@ function MetricsTable({
 }: {
   years: string[];
   metrics: FinancialMetric[];
+  quarters: FiscalQuarter[];
+  estimate: FyEstimate | null;
   c: string;
   t: ReturnType<typeof useT>["t"];
   /** Hover text for a moved cell in the cleansed view (undefined = untouched). */
@@ -577,58 +614,191 @@ function MetricsTable({
   /** Row label resolver (custom rows resolve through their addRow adjustment). */
   labelFor: (key: string) => string;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const [openYears, setOpenYears] = useState<ReadonlySet<string>>(new Set());
+
+  const quartersByYear = useMemo(() => {
+    const m = new Map<string, FiscalQuarter[]>();
+    for (const q of quarters) {
+      const list = m.get(q.fiscalYear) ?? [];
+      list.push(q);
+      m.set(q.fiscalYear, list);
+    }
+    for (const list of m.values()) list.sort((a, b) => a.quarter - b.quarter);
+    return m;
+  }, [quarters]);
+
+  const toggleYear = (y: string) =>
+    setOpenYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(y)) next.delete(y);
+      else next.add(y);
+      return next;
+    });
+
+  // Column plan: visible years (each followed by its open quarters), then the
+  // estimate column with its own quarters. Quarter availability decides
+  // clickability, so only years the record actually breaks down invite a click.
+  const hiddenCount = showAll ? 0 : Math.max(0, years.length - RECENT_FY_WINDOW);
+  const cols: TableCol[] = [];
+  years.forEach((y, yearIdx) => {
+    if (yearIdx < hiddenCount) return;
+    cols.push({ kind: "year", year: y, yearIdx });
+    if (openYears.has(y)) {
+      for (const q of quartersByYear.get(y) ?? []) cols.push({ kind: "quarter", year: y, q });
+    }
+  });
+  if (estimate) {
+    cols.push({ kind: "estimate", year: estimate.fiscalYear });
+    if (openYears.has(estimate.fiscalYear)) {
+      for (const q of quartersByYear.get(estimate.fiscalYear) ?? []) {
+        cols.push({ kind: "quarter", year: estimate.fiscalYear, q });
+      }
+    }
+  }
+
+  const shortYear = (y: string) => `’${y.slice(-2)}`;
+  const valueAt = (m: FinancialMetric, col: TableCol): number | null =>
+    col.kind === "year"
+      ? m.values[col.yearIdx]
+      : col.kind === "quarter"
+        ? (col.q.values[m.key] ?? null)
+        : (estimate?.values[m.key] ?? null);
+
+  const yearHeader = (year: string, isEstimate: boolean) => {
+    const expandable = quartersByYear.has(year);
+    const open = openYears.has(year);
+    const label = isEstimate ? estimate!.label : year;
+    const title = isEstimate
+      ? t("financials.estimateTip", { fy: year })
+      : expandable
+        ? t("financials.qtrExpandTip", { fy: year })
+        : undefined;
+    return (
+      <th
+        key={`${isEstimate ? "E" : "y"}${year}`}
+        className={`font-medium py-1 px-2 text-right whitespace-nowrap ${isEstimate ? "text-accent" : ""}`}
+        title={title}
+      >
+        {expandable ? (
+          <button
+            onClick={() => toggleYear(year)}
+            aria-expanded={open}
+            className={`inline-flex items-center gap-1 hover:text-emph transition-colors ${
+              isEstimate ? "hover:text-accent" : ""
+            }`}
+          >
+            <span className="text-[0.5rem]">{open ? "▾" : "▸"}</span>
+            {label}
+          </button>
+        ) : (
+          label
+        )}
+      </th>
+    );
+  };
+
   return (
-    <div className="overflow-x-auto mt-2">
-      <table className="w-full text-[0.6875rem] tabular-nums border-collapse">
-        <thead>
-          <tr className="text-muted">
-            <th className="sticky left-0 bg-card text-left font-medium py-1 pr-3 z-10">FY</th>
-            {years.map((y) => (
-              <th key={y} className="font-medium py-1 px-2 text-right whitespace-nowrap">
-                {y}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {GROUPS.map((group) => {
-            const rows = metrics.filter((m) => m.group === group);
-            if (rows.length === 0) return null;
-            return (
-              <FragmentGroup key={group} groupLabel={t(`financials.grp_${group}` as TKey)} span={years.length + 1}>
-                {rows.map((m) => {
-                  const trend = trendClass(m);
-                  return (
-                    <tr key={m.key} className="border-t border-hairline/50">
-                      <td className="sticky left-0 bg-card py-1 pr-3 text-muted whitespace-nowrap z-10">
-                        {labelFor(m.key)}
-                      </td>
-                      {m.values.map((v, i) => {
-                        const tip = tipFor(m, i);
-                        return (
-                          <td
-                            key={i}
-                            title={tip}
-                            className={`py-1 px-2 text-right whitespace-nowrap ${
-                              tip
-                                ? "text-accent font-semibold underline decoration-dotted decoration-accent/50 underline-offset-2 cursor-help"
-                                : i === m.values.length - 1
+    <div className="mt-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {years.length > RECENT_FY_WINDOW && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="rounded-md border border-hairline bg-ink/4 hover:bg-ink/10 px-2.5 py-1 text-[0.625rem] text-muted hover:text-emph transition-colors"
+          >
+            {showAll
+              ? t("financials.fyShowRecent", { n: RECENT_FY_WINDOW })
+              : t("financials.fyShowAll", { n: years.length })}
+          </button>
+        )}
+        {quartersByYear.size > 0 && (
+          <span className="text-[0.625rem] text-muted/60">{t("financials.qtrHint")}</span>
+        )}
+      </div>
+      {estimate && (
+        <p className="mt-1 text-[0.625rem] text-muted/60">
+          {t("financials.estimateNote", { label: estimate.label })}
+        </p>
+      )}
+      <div className="overflow-x-auto mt-1.5">
+        <table className="w-full text-[0.6875rem] tabular-nums border-collapse">
+          <thead>
+            <tr className="text-muted">
+              <th className="sticky left-0 bg-card text-left font-medium py-1 pr-3 z-10">FY</th>
+              {cols.map((col) =>
+                col.kind === "year" ? (
+                  yearHeader(col.year, false)
+                ) : col.kind === "estimate" ? (
+                  yearHeader(col.year, true)
+                ) : (
+                  <th
+                    key={`${col.year}q${col.q.quarter}`}
+                    title={t(col.q.estimated ? "financials.qtrTipEst" : "financials.qtrTip", {
+                      fy: col.year,
+                      q: `Q${col.q.quarter}`,
+                      end: col.q.endDate,
+                    })}
+                    className={`font-normal py-1 px-2 text-right whitespace-nowrap bg-accent/[0.04] ${
+                      col.q.estimated ? "text-accent/80 italic" : "text-muted/80"
+                    }`}
+                  >
+                    {`Q${col.q.quarter}${col.q.estimated ? "E" : ""} ${shortYear(col.year)}`}
+                  </th>
+                )
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {GROUPS.map((group) => {
+              const rows = metrics.filter((m) => m.group === group);
+              if (rows.length === 0) return null;
+              return (
+                <FragmentGroup
+                  key={group}
+                  groupLabel={t(`financials.grp_${group}` as TKey)}
+                  span={cols.length + 1}
+                >
+                  {rows.map((m) => {
+                    const trend = trendClass(m);
+                    return (
+                      <tr key={m.key} className="border-t border-hairline/50">
+                        <td className="sticky left-0 bg-card py-1 pr-3 text-muted whitespace-nowrap z-10">
+                          {labelFor(m.key)}
+                        </td>
+                        {cols.map((col, ci) => {
+                          const tip = col.kind === "year" ? tipFor(m, col.yearIdx) : undefined;
+                          const estimated =
+                            col.kind === "estimate" || (col.kind === "quarter" && col.q.estimated);
+                          const cls = tip
+                            ? "text-accent font-semibold underline decoration-dotted decoration-accent/50 underline-offset-2 cursor-help"
+                            : estimated
+                              ? "italic text-emph/80"
+                              : col.kind === "quarter"
+                                ? "text-emph/90"
+                                : col.kind === "year" && col.yearIdx === m.values.length - 1
                                   ? trend
-                                  : "text-emph"
-                            }`}
-                          >
-                            {fmtMetric(v, m.format, c)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </FragmentGroup>
-            );
-          })}
-        </tbody>
-      </table>
+                                  : "text-emph";
+                          return (
+                            <td
+                              key={ci}
+                              title={tip}
+                              className={`py-1 px-2 text-right whitespace-nowrap ${
+                                col.kind === "quarter" ? "bg-accent/[0.04]" : ""
+                              } ${cls}`}
+                            >
+                              {fmtMetric(valueAt(m, col), m.format, c)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </FragmentGroup>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

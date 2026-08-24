@@ -401,6 +401,51 @@ export interface PeerComparison {
   custom: boolean;
 }
 
+/**
+ * One fiscal quarter's slice of the metrics table — shown when the investor
+ * clicks a fiscal-year column open. Only metric keys whose quarterly reading
+ * is comparable to the annual row carry values (same-period margins, period-end
+ * balance items, quarter flows); annualized-rate rows (ROE/ROIC/ROA) stay out
+ * rather than showing a quarter's flow over a full balance — an honest gap
+ * beats a confident wrong number.
+ */
+export interface FiscalQuarter {
+  /** Fiscal-year label this quarter belongs to, matching fiscalYears (or the estimate year). */
+  fiscalYear: string;
+  /** Position within the fiscal year, 1–4. */
+  quarter: number;
+  /** The date the quarter ended (YYYY-MM-DD). */
+  endDate: string;
+  /**
+   * True when this quarter is PROJECTED, not reported: an unreported quarter
+   * of the current fiscal year, estimated from TTM trends. Estimated cells are
+   * display-only — the cleansing bench never adjusts them.
+   */
+  estimated: boolean;
+  /** metricKey → value for this quarter; missing/absent keys render as "—". */
+  values: Record<string, number | null>;
+}
+
+/**
+ * The current-fiscal-year estimate column (e.g. "2026E"): reported quarters to
+ * date plus the remaining quarters projected from TTM trends — revenue at the
+ * trailing-twelve-month YoY growth rate, other flow lines at their TTM share
+ * of revenue, balance-sheet lines held at the last reported quarter. Derived
+ * rows (margins, returns, growth) recompute off the estimated year. Estimates
+ * are DISPLAY-ONLY: they never enter the reported record, the DCF medians, or
+ * the cleansing bench.
+ */
+export interface FyEstimate {
+  /** The fiscal year being estimated, e.g. "2026" (always fiscalYears' last + 1). */
+  fiscalYear: string;
+  /** Column label, e.g. "2026E". */
+  label: string;
+  /** metricKey → estimated full-year value (null where inputs were missing). */
+  values: Record<string, number | null>;
+  /** How the estimate was built (fixed method id, resolved to prose client-side). */
+  method: "ttm-trend";
+}
+
 /** The full per-ticker financials payload served by /api/tickers/[symbol]/financials. */
 export interface TickerFinancials {
   symbol: string;
@@ -421,9 +466,17 @@ export interface TickerFinancials {
   currencyMismatch: boolean;
   sector: string | null;
   industry: string | null;
-  /** Fiscal-year labels oldest → newest, e.g. "2016" … "2025". */
+  /** REPORTED fiscal-year labels oldest → newest, e.g. "2013" … "2025". */
   fiscalYears: string[];
   metrics: FinancialMetric[];
+  /**
+   * Quarterly detail, oldest → newest: reported quarters for the latest five
+   * fiscal years plus the current (unfinished) fiscal year's quarters —
+   * reported ones first, then TTM-trend estimates for the rest (estimated=true).
+   */
+  quarters: FiscalQuarter[];
+  /** The current-FY estimate column (e.g. "2026E"); null when it can't be built. */
+  estimate: FyEstimate | null;
   snapshot: FinancialsSnapshot;
   /** Normalized inputs for the investor's own DCF (worksheet + export). */
   dcfInputs: DcfInputs;

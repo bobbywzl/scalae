@@ -1,9 +1,12 @@
 import YahooFinance from "yahoo-finance2";
 import { getCachedFinancials, setCachedFinancials } from "./db";
+import { extractStatements, fetchCompanyFacts, type SplitEvent } from "./edgar";
 import type {
   DcfInputs,
   FinancialMetric,
   FinancialsSnapshot,
+  FiscalQuarter,
+  FyEstimate,
   MetricFormat,
   MetricGroup,
   PeerComparison,
@@ -14,18 +17,34 @@ import type {
 // The DCF/financials data layer. Statements come from Yahoo's
 // `fundamentalsTimeSeries` (the legacy quoteSummary statement modules were
 // gutted in Nov 2024); the point-in-time valuation snapshot comes from
-// `quoteSummary`. Everything is fail-soft (returns null on error) and cached in
-// Postgres per symbol — fundamentals move quarterly, so a multi-day TTL is
-// plenty and keeps these heavy calls off the desk page's fast poll loop.
+// `quoteSummary`. Because the providers only serve the last ~4–5 annual
+// periods and ~5 quarters, SEC filers are supplemented from EDGAR's XBRL
+// facts (lib/edgar.ts) — provider values win wherever both cover a period —
+// which is what makes the ten-plus-year history and the five years of
+// clickable quarterly columns possible. Everything is fail-soft (returns null
+// on error) and cached in Postgres per symbol — fundamentals move quarterly,
+// so a multi-day TTL is plenty and keeps these heavy calls off the desk
+// page's fast poll loop.
 
 const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 /** Annual statements move quarterly — refresh at most every few days. */
 const TTL_MS = 3 * 24 * 3600_000;
-const MAX_YEARS = 10;
+/** Table depth: at least ten fiscal years (or back to the IPO) when the record reaches that far. */
+const MAX_YEARS = 20;
+/** Quarterly columns are carried for this many most-recent fiscal years (+ the current one). */
+const QUARTER_FY_WINDOW = 5;
+/**
+ * The DCF medians normalize over at most this many recent fiscal years — the
+ * original 10-FY design intent. The deep (EDGAR) history extends the TABLE,
+ * not the normalization window, so a 20-year record doesn't quietly re-anchor
+ * existing DCF inputs. lib/cleansing.ts mirrors this window.
+ */
+const DCF_MEDIAN_WINDOW = 10;
 const MAX_PEERS = 5;
 /** Overall wall-clock cap on the (multi-call) Yahoo fetch. */
 const FETCH_TIMEOUT_MS = 60_000;
+const DAY_MS = 864e5;
 
 type Rec = Record<string, unknown>;
 
@@ -187,16 +206,17 @@ function median(vals: (number | null)[]): number | null {
 interface Provider {
   source: string;
   statements(symbol: string, years: number): Promise<Rec[]>; // oldest → newest
+  quarterlyStatements(symbol: string): Promise<Rec[]>; // oldest → newest
   summary(symbol: string): Promise<Rec>; // Yahoo-shaped sub-objects
   peers(symbol: string): Promise<string[]>; // candidate peer symbols
 }
 
 // ---- Yahoo ----
-async function yahooStatements(symbol: string, years: number): Promise<Rec[]> {
-  const period1 = new Date(Date.now() - (years + 1) * 365 * 864e5);
+async function yahooTimeSeries(symbol: string, type: "annual" | "quarterly", years: number): Promise<Rec[]> {
+  const period1 = new Date(Date.now() - (years + 1) * 365 * DAY_MS);
   const res = (await yf.fundamentalsTimeSeries(
     symbol,
-    { period1, type: "annual", module: "all" },
+    { period1, type, module: "all" },
     { validateResult: false }
   )) as unknown as Rec[];
   const rows = (res ?? []).filter((r) => r && r.date != null);
@@ -205,7 +225,57 @@ async function yahooStatements(symbol: string, years: number): Promise<Rec[]> {
       new Date(a.date as string | number | Date).getTime() -
       new Date(b.date as string | number | Date).getTime()
   );
-  return rows.slice(-years);
+  return rows;
+}
+
+async function yahooStatements(symbol: string, years: number): Promise<Rec[]> {
+  return (await yahooTimeSeries(symbol, "annual", years)).slice(-years);
+}
+
+/** Yahoo serves only the last ~5 quarters however far back you ask. */
+async function yahooQuarterlyStatements(symbol: string): Promise<Rec[]> {
+  return yahooTimeSeries(symbol, "quarterly", 2);
+}
+
+/**
+ * Share-split history, for restating EDGAR's as-filed per-share facts onto
+ * today's share basis. null = UNKNOWN (lookup failed) — the EDGAR layer then
+ * omits per-share history rather than mixing bases; [] = known split-free.
+ */
+async function yahooSplits(symbol: string): Promise<SplitEvent[] | null> {
+  try {
+    const res = (await yf.chart(
+      symbol,
+      { period1: new Date(Date.now() - 30 * 365 * DAY_MS), interval: "1mo", events: "split" },
+      { validateResult: false }
+    )) as unknown as { events?: { splits?: unknown } };
+    const raw = res?.events?.splits;
+    const list: unknown[] = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === "object"
+        ? Object.values(raw)
+        : [];
+    const out: SplitEvent[] = [];
+    for (const s of list as Rec[]) {
+      const numerator = num(s.numerator);
+      const denominator = num(s.denominator);
+      const d = s.date as unknown;
+      const dateMs =
+        d instanceof Date
+          ? d.getTime()
+          : typeof d === "number"
+            ? d * 1000 // chart events carry epoch seconds
+            : d
+              ? Date.parse(String(d))
+              : NaN;
+      if (numerator && denominator && Number.isFinite(dateMs)) {
+        out.push({ dateMs, ratio: numerator / denominator });
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 async function yahooSummary(symbol: string): Promise<Rec> {
@@ -226,6 +296,7 @@ async function yahooPeers(symbol: string): Promise<string[]> {
 const yahoo: Provider = {
   source: "Yahoo Finance",
   statements: yahooStatements,
+  quarterlyStatements: yahooQuarterlyStatements,
   summary: yahooSummary,
   peers: yahooPeers,
 };
@@ -248,14 +319,22 @@ async function fmpGet(path: string): Promise<Rec[]> {
 }
 
 /** FMP → the canonical (Yahoo-key) statement record shape. */
-async function fmpStatements(symbol: string, years: number): Promise<Rec[]> {
+async function fmpPeriodStatements(
+  symbol: string,
+  period: "annual" | "quarter",
+  limit: number
+): Promise<Rec[]> {
   const [inc, bal, cf, km] = await Promise.all([
-    fmpGet(`/v3/income-statement/${symbol}?period=annual&limit=${years}`),
-    fmpGet(`/v3/balance-sheet-statement/${symbol}?period=annual&limit=${years}`),
-    fmpGet(`/v3/cash-flow-statement/${symbol}?period=annual&limit=${years}`),
-    fmpGet(`/v3/key-metrics/${symbol}?period=annual&limit=${years}`).catch(() => [] as Rec[]),
+    fmpGet(`/v3/income-statement/${symbol}?period=${period}&limit=${limit}`),
+    fmpGet(`/v3/balance-sheet-statement/${symbol}?period=${period}&limit=${limit}`),
+    fmpGet(`/v3/cash-flow-statement/${symbol}?period=${period}&limit=${limit}`),
+    fmpGet(`/v3/key-metrics/${symbol}?period=${period}&limit=${limit}`).catch(() => [] as Rec[]),
   ]);
-  const yrKey = (r: Rec) => String(r.calendarYear ?? (r.date as string | undefined)?.slice(0, 4) ?? "");
+  // Annual rows join on the fiscal year; quarterly rows join on the exact period end.
+  const yrKey = (r: Rec) =>
+    period === "annual"
+      ? String(r.calendarYear ?? (r.date as string | undefined)?.slice(0, 4) ?? "")
+      : String(r.date ?? "");
   const index = (arr: Rec[]) => new Map(arr.map((r) => [yrKey(r), r]));
   const bM = index(bal), cM = index(cf), kM = index(km);
   const rows: Rec[] = inc.map((i) => {
@@ -304,8 +383,14 @@ async function fmpStatements(symbol: string, years: number): Promise<Rec[]> {
   rows.sort(
     (a, b) => new Date(a.date as string).getTime() - new Date(b.date as string).getTime()
   );
-  return rows.slice(-years);
+  return rows;
 }
+
+const fmpStatements = (symbol: string, years: number): Promise<Rec[]> =>
+  fmpPeriodStatements(symbol, "annual", years).then((rows) => rows.slice(-years));
+
+const fmpQuarterlyStatements = (symbol: string): Promise<Rec[]> =>
+  fmpPeriodStatements(symbol, "quarter", 4 * (QUARTER_FY_WINDOW + 1));
 
 /** FMP → the Yahoo-shaped `summary` object buildSnapshot/buildDcfInputs read. */
 async function fmpSummary(symbol: string): Promise<Rec> {
@@ -349,6 +434,7 @@ async function fmpPeers(symbol: string): Promise<string[]> {
 const fmp: Provider = {
   source: "Financial Modeling Prep",
   statements: fmpStatements,
+  quarterlyStatements: fmpQuarterlyStatements,
   summary: fmpSummary,
   peers: fmpPeers,
 };
@@ -581,10 +667,13 @@ function buildDcfInputs(
   // Capital-structure weights mix market cap (trading currency) with balance-
   // sheet debt (statement currency) — meaningless across an ADR pair; omit.
   const capBase = !mismatch && mc != null && totalDebt != null ? mc + totalDebt : null;
-  const revGrowth = ys.map((y, i) => (i > 0 ? div(sub(y.revenue, ys[i - 1].revenue), ys[i - 1].revenue) : null));
+  // Normalize over the recent window only — the deep filing history widens the
+  // table without silently re-anchoring the DCF drivers to a different era.
+  const win = ys.slice(-DCF_MEDIAN_WINDOW);
+  const revGrowth = win.map((y, i) => (i > 0 ? div(sub(y.revenue, win[i - 1].revenue), win[i - 1].revenue) : null));
   return {
     beta: num(stats.beta),
-    effectiveTaxRate: median(ys.map((y) => y.taxRate)),
+    effectiveTaxRate: median(win.map((y) => y.taxRate)),
     costOfDebt: latest ? div(latest.interestExpense, latest.totalDebt) : null,
     equityWeight: div(mc, capBase),
     debtWeight: div(totalDebt, capBase),
@@ -595,11 +684,338 @@ function buildDcfInputs(
     marketCap: mismatch ? null : mc,
     enterpriseValue: mismatch ? null : snap.enterpriseValue,
     medianRevenueGrowth: median(revGrowth),
-    medianOperatingMargin: median(ys.map((y) => div(y.operatingIncome, y.revenue))),
-    medianRoic: median(ys.map(roic)),
-    medianReinvestmentRate: median(ys.map(reinvestmentRate)),
-    medianFcffMargin: median(ys.map((y) => div(fcff(y), y.revenue))),
+    medianOperatingMargin: median(win.map((y) => div(y.operatingIncome, y.revenue))),
+    medianRoic: median(win.map(roic)),
+    medianReinvestmentRate: median(win.map(reinvestmentRate)),
+    medianFcffMargin: median(win.map((y) => div(fcff(y), y.revenue))),
   };
+}
+
+// ---------------------------------------------------------------------------
+// EDGAR merge, quarterly columns, and the current-FY estimate column
+// ---------------------------------------------------------------------------
+
+/** Fiscal-year label a statement row files under (year of the period end). */
+const labelOf = (r: Rec): string =>
+  String(new Date(r.date as string | number | Date).getUTCFullYear());
+
+const rowTime = (r: Rec): number => new Date(r.date as string | number | Date).getTime();
+
+/** A row with none of the anchor figures isn't a statement — drop it. */
+const hasSubstance = (y: YearData): boolean =>
+  y.revenue != null || y.netIncome != null || y.equity != null || y.ocf != null;
+
+/** Overlay `top`'s non-null fields onto `base` (provider beats EDGAR per field). */
+function overlay(base: Rec | undefined, top: Rec | undefined): Rec {
+  const out: Rec = { ...(base ?? {}) };
+  for (const [k, v] of Object.entries(top ?? {})) if (v != null) out[k] = v;
+  return out;
+}
+
+/** Merge annual rows by fiscal-year label; the provider's fields win, EDGAR fills. */
+function mergeAnnual(provider: Rec[], edgar: Rec[]): Rec[] {
+  const byLabel = new Map<string, Rec>();
+  for (const r of edgar) byLabel.set(labelOf(r), r);
+  for (const r of provider) byLabel.set(labelOf(r), overlay(byLabel.get(labelOf(r)), r));
+  return [...byLabel.values()]
+    .sort((a, b) => rowTime(a) - rowTime(b))
+    .filter((r) => hasSubstance(extractYear(r)));
+}
+
+/** Merge quarterly rows by period end (a few days of drift tolerated); provider fields win. */
+function mergeQuarterly(provider: Rec[], edgar: Rec[]): Rec[] {
+  const rows = edgar.map((r) => ({ t: rowTime(r), rec: r }));
+  for (const p of provider) {
+    const t = rowTime(p);
+    const close = rows.find((r) => Math.abs(r.t - t) <= 10 * DAY_MS);
+    if (close) close.rec = overlay(close.rec, p);
+    else rows.push({ t, rec: p });
+  }
+  return rows
+    .sort((a, b) => a.t - b.t)
+    .map((r) => r.rec)
+    .filter((r) => hasSubstance(extractYear(r)));
+}
+
+interface QuarterPoint {
+  yd: YearData;
+  endMs: number;
+  fiscalYear: string;
+  quarter: number; // slot 1–4 within the fiscal year
+}
+
+/**
+ * Assign each quarterly row to its fiscal year — the first annual close on or
+ * after the quarter's end — and to a slot 1–4 by distance from that close.
+ * Quarters past the latest close belong to the in-progress fiscal year.
+ */
+function placeQuarters(qRecs: Rec[], annualRecs: Rec[]): QuarterPoint[] {
+  if (annualRecs.length === 0) return [];
+  const closes = annualRecs.map((r) => ({ label: labelOf(r), endMs: rowTime(r) }));
+  const lastClose = closes[closes.length - 1];
+  const points: QuarterPoint[] = [];
+  for (const rec of qRecs) {
+    const endMs = rowTime(rec);
+    const close =
+      closes.find((c) => c.endMs >= endMs - 6 * DAY_MS) ??
+      { label: String(Number(lastClose.label) + 1), endMs: lastClose.endMs + 365 * DAY_MS };
+    // A quarter that ends more than a fiscal year before its close belongs to
+    // a year the record doesn't cover — drop rather than mislabel.
+    if (endMs <= close.endMs - 360 * DAY_MS) continue;
+    const quarter = Math.min(4, Math.max(1, 4 - Math.round((close.endMs - endMs) / (91.3 * DAY_MS))));
+    points.push({ yd: extractYear(rec), endMs, fiscalYear: close.label, quarter });
+  }
+  // One row per (fiscal year, slot) — keep the latest end when filings drift.
+  const bySlot = new Map<string, QuarterPoint>();
+  for (const q of points) {
+    const key = `${q.fiscalYear}|${q.quarter}`;
+    const prev = bySlot.get(key);
+    if (!prev || q.endMs > prev.endMs) bySlot.set(key, q);
+  }
+  return [...bySlot.values()].sort((a, b) => a.endMs - b.endMs);
+}
+
+/**
+ * One quarter's slice of the metrics table. Only rows whose quarterly reading
+ * is unit-compatible with the annual row carry values: quarter flows,
+ * same-period margins/ratios, point-in-time balance items, and YoY revenue
+ * growth. Annualized-rate rows (ROE/ROIC/ROA) are deliberately absent — a
+ * single quarter's flow over a full balance sheet is not the number the
+ * annual row prints, and an honest gap beats a confident wrong number.
+ */
+function quarterMetricValues(
+  y: YearData,
+  sameQuarterLastYear: YearData | null,
+  fallbackShares: number | null
+): Record<string, number | null> {
+  const shares = y.shares ?? fallbackShares;
+  return {
+    revenue: y.revenue,
+    operatingIncome: y.operatingIncome,
+    netIncome: y.netIncome,
+    grossMargin: div(y.grossProfit, y.revenue),
+    operatingMargin: div(y.operatingIncome, y.revenue),
+    netMargin: div(y.netIncome, y.revenue),
+    equity: y.equity,
+    totalDebt: y.totalDebt,
+    netDebt: y.netDebt,
+    cash: y.cash,
+    debtToEquity: div(y.totalDebt, y.equity),
+    currentRatio: div(y.currentAssets, y.currentLiabilities),
+    interestCoverage: div(y.ebit, y.interestExpense),
+    ocf: y.ocf,
+    fcf: y.fcf,
+    ownerEarnings: ownerEarnings(y),
+    buybacks: y.buybacks,
+    dividendsPaid: y.dividendsPaid,
+    revenueGrowth: sameQuarterLastYear
+      ? div(sub(y.revenue, sameQuarterLastYear.revenue), sameQuarterLastYear.revenue)
+      : null,
+    taxRate: y.taxRate,
+    nopat: nopat(y),
+    da: y.dep,
+    capex: y.capex,
+    changeNWC: y.changeNWC,
+    reinvestment: reinvestment(y),
+    reinvestmentRate: reinvestmentRate(y),
+    fcff: fcff(y),
+    eps: y.eps,
+    dps: y.dps,
+    bookValuePerShare: div(y.equity, shares),
+    shares,
+  };
+}
+
+/** Strict sum — null unless every element is present (never understate a year). */
+const sumStrict = (vals: (number | null)[]): number | null =>
+  vals.length > 0 && vals.every((v) => v != null)
+    ? (vals as number[]).reduce((a, b) => a + b, 0)
+    : null;
+
+/** Don't project a fiscal year whose record has gone stale (delisted, halted filings). */
+const ESTIMATE_MAX_AGE_DAYS = 550;
+
+/**
+ * Quarterly columns + the current-fiscal-year estimate column ("2026E").
+ *
+ * Reported quarters are carried for the latest QUARTER_FY_WINDOW closed
+ * fiscal years plus the in-progress year. The in-progress year's missing
+ * quarters are projected FROM ANNUAL TTM TRENDS: revenue = same quarter last
+ * year × trailing-twelve-month YoY growth; every other flow line = projected
+ * revenue × its TTM share of revenue (falling back to the latest fiscal
+ * year's ratio); balance-sheet lines hold at the last reported quarter. The
+ * estimate column is those reported + projected quarters summed, with derived
+ * rows recomputed — and it is DISPLAY-ONLY: it never enters fiscalYears, the
+ * DCF medians, or the cleansing bench.
+ *
+ * Exported for the unit tests (pure: statement rows in, columns out).
+ */
+export function buildQuartersAndEstimate(
+  annualRecs: Rec[],
+  qRecs: Rec[]
+): { quarters: FiscalQuarter[]; estimate: FyEstimate | null } {
+  const annualYs = annualRecs.map(extractYear);
+  const placed = placeQuarters(qRecs, annualRecs);
+  if (annualYs.length === 0 || placed.length === 0) return { quarters: [], estimate: null };
+
+  const closedLabels = annualRecs.map(labelOf);
+  const lastLabel = closedLabels[closedLabels.length - 1];
+  const currentLabel = String(Number(lastLabel) + 1);
+  const keepLabels = new Set([...closedLabels.slice(-QUARTER_FY_WINDOW), currentLabel]);
+  const lastCloseMs = rowTime(annualRecs[annualRecs.length - 1]);
+
+  const bySlot = new Map<string, QuarterPoint>();
+  for (const q of placed) bySlot.set(`${q.fiscalYear}|${q.quarter}`, q);
+  const sqlyOf = (fy: string, slot: number): QuarterPoint | null =>
+    bySlot.get(`${Number(fy) - 1}|${slot}`) ?? null;
+
+  const sharesByLabel = new Map(annualYs.map((y) => [y.year, y.shares]));
+  const lastFY = annualYs[annualYs.length - 1];
+  const fallbackShares = (fy: string): number | null =>
+    sharesByLabel.get(fy) ?? lastFY.shares ?? null;
+
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const quarters: FiscalQuarter[] = placed
+    .filter((q) => keepLabels.has(q.fiscalYear))
+    .map((q) => ({
+      fiscalYear: q.fiscalYear,
+      quarter: q.quarter,
+      endDate: iso(q.endMs),
+      estimated: false,
+      values: quarterMetricValues(q.yd, sqlyOf(q.fiscalYear, q.quarter)?.yd ?? null, fallbackShares(q.fiscalYear)),
+    }));
+
+  // ---- the current-FY projection ----
+  const staleDays = (Date.now() - lastCloseMs) / DAY_MS;
+  if (staleDays > ESTIMATE_MAX_AGE_DAYS) return { quarters, estimate: null };
+
+  // TTM windows over the reported quarters (whatever fiscal years they span).
+  const ttmOf = (f: (y: YearData) => number | null, offset = 0): number | null => {
+    const win = placed.slice(placed.length - 4 - offset, placed.length - offset);
+    return win.length === 4 ? sumStrict(win.map((q) => f(q.yd))) : null;
+  };
+  const ttmRev = ttmOf((y) => y.revenue);
+  const prevTtmRev = ttmOf((y) => y.revenue, 4);
+  const prevFY = annualYs.length > 1 ? annualYs[annualYs.length - 2] : null;
+  // The annual TTM trend for the top line; latest closed FY growth as fallback.
+  const gRev =
+    div(sub(ttmRev, prevTtmRev), prevTtmRev) ??
+    (prevFY ? div(sub(lastFY.revenue, prevFY.revenue), prevFY.revenue) : null);
+  if (gRev == null) return { quarters, estimate: null };
+
+  /** A flow line's TTM share of revenue; the latest FY's share when TTM is short. */
+  const ratioOf = (f: (y: YearData) => number | null): number | null =>
+    div(ttmOf(f), ttmRev) ?? div(f(lastFY), lastFY.revenue);
+
+  const reportedCurrent = placed.filter((q) => q.fiscalYear === currentLabel);
+  const lastPoint = placed[placed.length - 1];
+  const ttmTaxRate = median(placed.slice(-4).map((q) => q.yd.taxRate)) ?? lastFY.taxRate;
+  const ttmDps = ttmOf((y) => y.dps);
+
+  const slotYds = new Map<number, YearData>();
+  for (const q of reportedCurrent) slotYds.set(q.quarter, q.yd);
+  const estQuarters: FiscalQuarter[] = [];
+  for (let slot = 1; slot <= 4; slot++) {
+    if (slotYds.has(slot)) continue;
+    const sqly = sqlyOf(currentLabel, slot);
+    const revenue = sqly?.yd.revenue != null ? sqly.yd.revenue * (1 + gRev) : null;
+    const scale = (f: (y: YearData) => number | null): number | null => {
+      const r = ratioOf(f);
+      if (revenue != null && r != null) return revenue * r;
+      const base = sqly ? f(sqly.yd) : null;
+      return base != null ? base * (1 + gRev) : null;
+    };
+    const anchor = lastPoint.yd; // balance sheet holds at the last reported quarter
+    const ocf = scale((y) => y.ocf);
+    const capex = scale((y) => y.capex);
+    const netIncome = scale((y) => y.netIncome);
+    const shares = anchor.shares ?? lastFY.shares;
+    const yd: YearData = {
+      year: currentLabel,
+      revenue,
+      grossProfit: scale((y) => y.grossProfit),
+      operatingIncome: scale((y) => y.operatingIncome),
+      netIncome,
+      ebit: scale((y) => y.ebit),
+      interestExpense: scale((y) => y.interestExpense),
+      taxRate: ttmTaxRate,
+      equity: anchor.equity,
+      totalDebt: anchor.totalDebt,
+      cash: anchor.cash,
+      netDebt: anchor.netDebt,
+      totalAssets: anchor.totalAssets,
+      investedCapital: anchor.investedCapital,
+      currentAssets: anchor.currentAssets,
+      currentLiabilities: anchor.currentLiabilities,
+      ocf,
+      capex,
+      changeNWC: scale((y) => y.changeNWC),
+      fcf: ocf != null && capex != null ? ocf + capex : null,
+      dep: scale((y) => y.dep),
+      dividendsPaid: scale((y) => y.dividendsPaid),
+      buybacks: scale((y) => y.buybacks),
+      shares,
+      eps: div(netIncome, shares),
+      dps: ttmDps != null ? ttmDps / 4 : (sqly?.yd.dps ?? null),
+    };
+    slotYds.set(slot, yd);
+    estQuarters.push({
+      fiscalYear: currentLabel,
+      quarter: slot,
+      endDate: iso(sqly ? sqly.endMs + 365 * DAY_MS : lastCloseMs + Math.round(slot * 91.3 * DAY_MS)),
+      estimated: true,
+      values: quarterMetricValues(yd, sqly?.yd ?? null, shares),
+    });
+  }
+
+  // The estimated fiscal year: four slots summed (flows), balance sheet from
+  // the last reported quarter, derived rows recomputed via buildMetrics.
+  const slots = [1, 2, 3, 4].map((s) => slotYds.get(s)!);
+  const sum4 = (f: (y: YearData) => number | null) => sumStrict(slots.map(f));
+  const anchor = lastPoint.yd;
+  const niE = sum4((y) => y.netIncome);
+  const sharesE = anchor.shares ?? lastFY.shares;
+  const estYd: YearData = {
+    year: currentLabel,
+    revenue: sum4((y) => y.revenue),
+    grossProfit: sum4((y) => y.grossProfit),
+    operatingIncome: sum4((y) => y.operatingIncome),
+    netIncome: niE,
+    ebit: sum4((y) => y.ebit),
+    interestExpense: sum4((y) => y.interestExpense),
+    taxRate: ttmTaxRate,
+    equity: anchor.equity,
+    totalDebt: anchor.totalDebt,
+    cash: anchor.cash,
+    netDebt: anchor.netDebt,
+    totalAssets: anchor.totalAssets,
+    investedCapital: anchor.investedCapital,
+    currentAssets: anchor.currentAssets,
+    currentLiabilities: anchor.currentLiabilities,
+    ocf: sum4((y) => y.ocf),
+    capex: sum4((y) => y.capex),
+    changeNWC: sum4((y) => y.changeNWC),
+    fcf: sum4((y) => y.fcf),
+    dep: sum4((y) => y.dep),
+    dividendsPaid: sum4((y) => y.dividendsPaid),
+    buybacks: sum4((y) => y.buybacks),
+    shares: sharesE,
+    eps: div(niE, sharesE),
+    dps: sum4((y) => y.dps),
+  };
+  if (estYd.revenue == null && estYd.netIncome == null) return { quarters, estimate: null };
+
+  const withEst = buildMetrics([...annualYs, estYd]);
+  const estimate: FyEstimate = {
+    fiscalYear: currentLabel,
+    label: `${currentLabel}E`,
+    values: Object.fromEntries(withEst.map((m) => [m.key, m.values[m.values.length - 1]])),
+    method: "ttm-trend",
+  };
+  const all = [...quarters, ...estQuarters].sort(
+    (a, b) => Number(a.fiscalYear) - Number(b.fiscalYear) || a.quarter - b.quarter
+  );
+  return { quarters: all, estimate };
 }
 
 // ---------------------------------------------------------------------------
@@ -608,12 +1024,13 @@ function buildDcfInputs(
 
 async function computeFinancials(symbol: string): Promise<TickerFinancials> {
   const p = provider();
-  const [statements, qs] = await Promise.all([
+  const [statements, qs, providerQuarters, facts, splits] = await Promise.all([
     p.statements(symbol, MAX_YEARS),
     p.summary(symbol),
+    p.quarterlyStatements(symbol).catch(() => [] as Rec[]),
+    fetchCompanyFacts(symbol), // fail-soft inside (null for non-SEC filers)
+    yahooSplits(symbol),
   ]);
-  const years = statements.map(extractYear);
-  const latest = years.length ? years[years.length - 1] : null;
   const price = (qs.price ?? {}) as Rec;
   const profile = (qs.assetProfile ?? {}) as Rec;
   const fd = (qs.financialData ?? {}) as Rec;
@@ -637,7 +1054,25 @@ async function computeFinancials(symbol: string): Promise<TickerFinancials> {
     );
   }
 
+  // The EDGAR supplement (SEC filers): filing history in the statement
+  // currency deepens the annual record to ten-plus years and supplies the
+  // five-year quarterly grid. Provider figures win on every overlap.
+  let edgarAnnual: Rec[] = [];
+  let edgarQuarterly: Rec[] = [];
+  try {
+    const edgar = extractStatements(facts, statementCurrency, splits);
+    edgarAnnual = edgar?.annual ?? [];
+    edgarQuarterly = edgar?.quarterly ?? [];
+  } catch {
+    /* provider data stands alone */
+  }
+  const annualRecs = mergeAnnual(statements, edgarAnnual).slice(-MAX_YEARS);
+  const quarterRecs = mergeQuarterly(providerQuarters, edgarQuarterly);
+
+  const years = annualRecs.map(extractYear);
+  const latest = years.length ? years[years.length - 1] : null;
   const snapshot = buildSnapshot(qs, latest, currencyMismatch);
+  const { quarters, estimate } = buildQuartersAndEstimate(annualRecs, quarterRecs);
 
   return {
     symbol,
@@ -648,6 +1083,8 @@ async function computeFinancials(symbol: string): Promise<TickerFinancials> {
     industry: (profile.industry ?? null) as string | null,
     fiscalYears: years.map((y) => y.year),
     metrics: buildMetrics(years),
+    quarters,
+    estimate,
     snapshot,
     dcfInputs: buildDcfInputs(years, qs, snapshot, currencyMismatch),
     source: p.source,
@@ -697,6 +1134,12 @@ export function financialsSummary(f: TickerFinancials): string {
     `Returns/health (latest FY): ROIC ${pf(s.roic)}, ROE ${pf(s.roe)}; margins gross ${pf(s.grossMargin)}/op ${pf(s.operatingMargin)}/net ${pf(s.netMargin)}; debt/equity ${s.debtToEquity != null ? s.debtToEquity.toFixed(2) : "n/a"}, interest cover ${xf(s.interestCoverage)}, current ratio ${s.currentRatio != null ? s.currentRatio.toFixed(2) : "n/a"}.`,
     `Trajectory over ${yrs.length}y: revenue ${m$(first(rev), f.currency)}→${m$(last(rev), f.currency)}, net income ${m$(first(ni), f.currency)}→${m$(last(ni), f.currency)}, latest FCF ${m$(last(fcf), f.currency)}, diluted shares ${nfmt(first(sh))}→${nfmt(last(sh))}.`,
     `DCF inputs (normalized): median rev growth ${pf(d.medianRevenueGrowth)}, median op margin ${pf(d.medianOperatingMargin)}, median ROIC ${pf(d.medianRoic)}, median reinvestment ${pf(d.medianReinvestmentRate)}; beta ${d.beta != null ? d.beta.toFixed(2) : "n/a"}, cost of debt ${pf(d.costOfDebt)}, eff. tax ${pf(d.effectiveTaxRate)}, equity/debt weights ${pf(d.equityWeight)}/${pf(d.debtWeight)}; bridge: net debt ${m$(d.netDebt, f.currency)}, shares ${nfmt(d.sharesOutstanding)}.`,
+    f.estimate
+      ? `Current-FY ESTIMATE (${f.estimate.label}, TTM-trend projection, display-only): revenue ${m$(f.estimate.values.revenue ?? null, f.currency)}, net income ${m$(f.estimate.values.netIncome ?? null, f.currency)}. Estimates are NOT reported figures — they sit outside the fiscal-year record and the cleansing bench never adjusts them.`
+      : "",
+    f.quarters?.length
+      ? `Quarterly columns on the board: ${f.quarters.filter((q) => !q.estimated).length} reported + ${f.quarters.filter((q) => q.estimated).length} estimated quarters across FY${f.quarters[0].fiscalYear}–FY${f.quarters[f.quarters.length - 1].fiscalYear} (display detail; adjustments stay per fiscal year).`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -718,10 +1161,10 @@ export async function peekFinancials(symbol: string): Promise<TickerFinancials |
 
 /**
  * Parse a cached financials blob, rejecting entries written before the current
- * schema (missing dcfInputs / source, or the pre-currency-fix shape whose
- * `currency` was the QUOTE currency and whose ratios mixed currency pairs) —
- * a deploy that changes semantics must never serve the older shape; those
- * simply refetch.
+ * schema (missing dcfInputs / source, the pre-currency-fix shape whose
+ * `currency` was the QUOTE currency, or the pre-quarterly shape without the
+ * quarters/estimate fields) — a deploy that changes semantics must never
+ * serve the older shape; those simply refetch.
  */
 function parseFinancials(json: string): TickerFinancials | null {
   try {
@@ -730,6 +1173,8 @@ function parseFinancials(json: string): TickerFinancials | null {
       f.dcfInputs &&
       f.source &&
       Array.isArray(f.metrics) &&
+      Array.isArray(f.quarters) &&
+      f.estimate !== undefined &&
       typeof f.currencyMismatch === "boolean"
       ? f
       : null;
