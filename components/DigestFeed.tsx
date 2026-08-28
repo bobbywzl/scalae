@@ -53,7 +53,7 @@ export function DigestFeed({
       {items.map((d) => (
         <li key={d.id} className="flex gap-2.5">
           <span
-            className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${IMPACT_DOT[d.impact]}`}
+            className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${IMPACT_DOT[d.impact]}`}
             title={impactLabel(d.impact, t)}
           />
           <div className="min-w-0">

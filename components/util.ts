@@ -57,11 +57,16 @@ export function impactLabel(impact: Impact, t: TFunc): string {
   return t(`common.impact_${impact}`);
 }
 
+/**
+ * Impact dots carry their own high-chroma tokens (not the text gain/loss/warn
+ * tones, which are tuned for legibility at body size) plus a same-hue halo, so
+ * a mark a few pixels across still reads its direction down a long feed.
+ */
 export const IMPACT_DOT: Record<Impact, string> = {
-  positive: "bg-gain",
-  negative: "bg-loss",
-  mixed: "bg-warn",
-  neutral: "bg-muted",
+  positive: "bg-dot-positive ring-2 ring-dot-positive/25",
+  negative: "bg-dot-negative ring-2 ring-dot-negative/25",
+  mixed: "bg-dot-mixed ring-2 ring-dot-mixed/25",
+  neutral: "bg-dot-neutral ring-2 ring-dot-neutral/20",
 };
 
 export const DELTA_ARROW: Record<string, { ch: string; cls: string }> = {

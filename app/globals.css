@@ -35,6 +35,14 @@
   --red: #b3261e;
   --blue: #a15029;
   --amber: #806000;
+  /* Impact dots: the feed's only pure-signal marks, so they run hotter than
+     the text tokens above — same hue families, more chroma, so positive /
+     negative / mixed separate at a glance at dot size. Neutral stays quiet on
+     purpose: it is the absence of a read, and the others should out-shout it. */
+  --dot-positive: #3d8b2a;
+  --dot-negative: #d3301f;
+  --dot-mixed: #b87200;
+  --dot-neutral: #7d7466;
   --scrollbar: #c0b6a5;
   /* Text on solid gain/loss chips: white on the deep paper-theme colors,
      the dark ground on the brighter after-dark ones. */
@@ -90,6 +98,10 @@ html[data-theme="dark"] {
   --red: #f0705d;
   --blue: #e08a4e;
   --amber: #e8bf5a;
+  --dot-positive: #8ed15c;
+  --dot-negative: #ff6b52;
+  --dot-mixed: #ffc247;
+  --dot-neutral: #8f8577;
   --scrollbar: #3d372e;
   --chip-fg: #221e1a;
 
@@ -144,6 +156,10 @@ html[data-theme="dark"] {
     --red: #f0705d;
     --blue: #e08a4e;
     --amber: #e8bf5a;
+    --dot-positive: #8ed15c;
+    --dot-negative: #ff6b52;
+    --dot-mixed: #ffc247;
+    --dot-neutral: #8f8577;
     --scrollbar: #3d372e;
     --chip-fg: #221e1a;
 
@@ -198,6 +214,10 @@ html[data-theme="dark"] {
   --color-loss: var(--red);
   --color-accent: var(--blue);
   --color-warn: var(--amber);
+  --color-dot-positive: var(--dot-positive);
+  --color-dot-negative: var(--dot-negative);
+  --color-dot-mixed: var(--dot-mixed);
+  --color-dot-neutral: var(--dot-neutral);
   --color-chipfg: var(--chip-fg);
 
   --color-sand-100: var(--sand-100);
