@@ -6,7 +6,9 @@ import { requestLang } from "@/lib/i18n/server";
 import { localizeRun } from "@/lib/i18n/translate";
 
 // The single-signal check runs the board pipeline's structure scoped to one
-// signal, inside this budget via after(). Same ceiling as the board run.
+// signal, phased across invocations exactly like the board run
+// (lib/agents/phases.ts): this route hands its first phase off via after().
+// Same ceiling as the board run.
 export const maxDuration = 300;
 
 type Params = { params: Promise<{ id: string }> };

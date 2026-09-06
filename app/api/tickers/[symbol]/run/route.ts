@@ -6,11 +6,13 @@ import { requireUser } from "@/lib/auth";
 import { requestLang } from "@/lib/i18n/server";
 import { localizeRun } from "@/lib/i18n/translate";
 
-// The deep pipeline (breadth sweeps → gap triage → deep-dive sweeps →
-// synthesis) runs inside this budget via after(). 300s is the Vercel Hobby
-// ceiling (Fluid Compute); Pro/Enterprise allow up to 800. A run that outlasts
-// it is reaped and retried (see reapStuckRuns). Setting it above the plan cap
-// makes Vercel reject the deployment, so keep this at the plan maximum.
+// The deep pipeline (question framing → breadth sweeps → gap triage →
+// deep-dive sweeps → synthesis) is PHASED: this route only records the run
+// and hands its first phase off via after(); each phase then runs in its own
+// invocation with a fresh budget (lib/agents/phases.ts). 300s is the Vercel
+// Hobby ceiling (Fluid Compute); Pro/Enterprise allow up to 800. Setting it
+// above the plan cap makes Vercel reject the deployment, so keep this at the
+// plan maximum. A run that stops reporting progress is reaped (reapStuckRuns).
 export const maxDuration = 300;
 
 type Params = { params: Promise<{ symbol: string }> };

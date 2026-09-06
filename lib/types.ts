@@ -191,6 +191,58 @@ export interface Run {
    * never carry the desk's brief/dossier surfaces.
    */
   signalId?: string | null;
+  /**
+   * Heartbeat: when the pipeline last reported progress (a stage change or a
+   * phase hand-off). The stuck-run reaper reads this, not startedAt — a run
+   * now spans several invocations (see lib/agents/phases.ts).
+   */
+  updatedAt?: string | null;
+}
+
+/** One grounded scout sweep's output, carried between run phases. */
+export interface RunSweep {
+  label: string;
+  wave: 1 | 2;
+  text: string;
+  sources: Citation[];
+}
+
+/** A focus question steering a run — framed by the suggestor or set by the investor. */
+export interface RunQuestion {
+  question: string;
+  why: string;
+  signalKeys: string[];
+}
+
+/**
+ * A run's in-flight pipeline state, persisted between phases (the run_work
+ * table) so each phase executes in its own invocation with a fresh time
+ * budget — see lib/agents/phases.ts.
+ */
+export interface RunWorkState {
+  kind: "board" | "signal";
+  userId: string;
+  symbol: string;
+  /** The checked signal (single-signal checks). */
+  signalId?: string;
+  /** The board snapshot in S-key order (board runs), taken by the sweep phase. */
+  signalIds?: string[];
+  /** Investor-submitted focus questions (steered board runs): stage 0 is skipped. */
+  steered?: string[];
+  /** The research window the sweeps read, in days. */
+  days?: number;
+  /** Days since the last completed board run (null when none) — coverage honesty. */
+  gapDays?: number | null;
+  questions?: RunQuestion[];
+  sweeps?: RunSweep[];
+  /** The run's brief (or check note) once synthesized — the enrichment phase reads it. */
+  brief?: string;
+  /**
+   * Set when the synthesis phase is being re-run after its first attempt
+   * outran the phase budget: the retry uses the next model tier down and is
+   * never repeated (see runPhase in lib/agents/research.ts).
+   */
+  synthesisRetry?: boolean;
 }
 
 export type AttachmentKind = "image" | "pdf" | "text";

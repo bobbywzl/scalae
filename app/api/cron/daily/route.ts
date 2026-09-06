@@ -4,7 +4,9 @@ import { executeRun, startRun } from "@/lib/agents/research";
 import { staleThresholdMs } from "@/lib/cadence";
 
 // 300s is the Vercel Hobby ceiling (Fluid Compute); above the plan cap Vercel
-// rejects the deployment. Pro/Enterprise allow up to 800.
+// rejects the deployment. Pro/Enterprise allow up to 800. Each desk's run is
+// phased across its own invocations (lib/agents/phases.ts) — this route only
+// starts them and hands each first phase off via after().
 export const maxDuration = 300;
 
 /**

@@ -35,6 +35,7 @@ import type {
   Reading,
   ResearchAccumulation,
   Run,
+  RunWorkState,
   Signal,
   SignalProposal,
   SignalSource,
@@ -253,6 +254,17 @@ export const SCHEMA_STATEMENTS: string[] = [
   // ---- single-signal checks: a run scoped to one signal (null = board run) ----
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "signalId" TEXT`,
   `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
+  // ---- phased runs (lib/agents/phases.ts): a progress heartbeat on the run,
+  // and the in-flight pipeline state carried between phases — kept OFF the
+  // runs table so the desk's polls (SELECT * on runs) never pay its size ----
+  `ALTER TABLE runs ADD COLUMN IF NOT EXISTS "updatedAt" TEXT`,
+  `CREATE TABLE IF NOT EXISTS run_work (
+    "runId" TEXT PRIMARY KEY,
+    phase TEXT NOT NULL,
+    "claimedAt" TEXT,
+    state TEXT NOT NULL DEFAULT '{}',
+    "updatedAt" TEXT NOT NULL
+  )`,
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE trades ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'local'`,
@@ -1066,19 +1078,21 @@ export async function createRun(
     questionAnswers: [],
     error: null,
     signalId,
+    updatedAt: now(),
   };
-  await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail", "signalId")
-          VALUES (${run.id}, ${userId}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail}, ${signalId})`;
+  await q`INSERT INTO runs (id, "userId", symbol, "startedAt", status, stage, "stageDetail", "signalId", "updatedAt")
+          VALUES (${run.id}, ${userId}, ${run.symbol}, ${run.startedAt}, ${run.status}, ${run.stage}, ${run.stageDetail}, ${signalId}, ${run.updatedAt})`;
   return run;
 }
 
+/** Every stage change is also the run's progress heartbeat (see reapStuckRuns). */
 export async function setRunStage(id: string, stage: string, stageDetail: string): Promise<void> {
-  await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail} WHERE id = ${id}`;
+  await q`UPDATE runs SET stage = ${stage}, "stageDetail" = ${stageDetail}, "updatedAt" = ${now()} WHERE id = ${id}`;
 }
 
 /** Store the run's framed focus questions (the question suggestor's output). */
 export async function setRunQuestions(id: string, questions: string[]): Promise<void> {
-  await q`UPDATE runs SET questions = ${JSON.stringify(questions)} WHERE id = ${id}`;
+  await q`UPDATE runs SET questions = ${JSON.stringify(questions)}, "updatedAt" = ${now()} WHERE id = ${id}`;
 }
 
 /** Recent finished BOARD runs (newest first) — enough to compute dossier provenance. */
@@ -1126,6 +1140,8 @@ export async function cancelRunningRun(userId: string, symbol: string): Promise<
            error = 'Stopped — start a fresh run when ready.', "finishedAt" = ${now()}
     WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running'
     RETURNING id`;
+  // A stopped run's pending phase must never be claimed: drop its work state.
+  if (rows.length > 0) await sweepRunWork().catch(() => {});
   return rows.length > 0;
 }
 
@@ -1188,17 +1204,86 @@ export async function hasRunningRun(userId: string, symbol: string): Promise<boo
 }
 
 /**
- * Mark runs stuck in `running` as failed (e.g. instance died mid-run). The
- * cutoff sits just above the route's 300s maxDuration: a platform-killed run
- * can never outlive that, and every extra minute here is a minute the zombie
- * row holds the one-run-per-desk lock with the banner frozen on a dead stage.
+ * Mark runs stuck in `running` as failed (e.g. instance died mid-run). A run
+ * spans several invocations now (lib/agents/phases.ts), so the cutoff is
+ * measured from its last progress heartbeat ("updatedAt": every stage change
+ * and phase hand-off), not from startedAt. It sits just above one
+ * invocation's 300s maxDuration: no live phase stays silent longer than one
+ * stage (≤ that budget), a platform-killed phase can never outlive it, and
+ * every extra minute here is a minute the zombie row holds the one-run-per-
+ * desk lock with the banner frozen on a dead stage.
  */
 export async function reapStuckRuns(userId: string, symbol: string): Promise<void> {
   const cutoff = new Date(Date.now() - 6 * 60_000).toISOString();
-  await q`UPDATE runs SET status = 'error',
+  const reaped = await q<{ id: string }>`
+    UPDATE runs SET status = 'error',
           error = 'Run interrupted (server restarted mid-run). Start it again.',
           "finishedAt" = ${now()}
-          WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running' AND "startedAt" < ${cutoff}`;
+          WHERE "userId" = ${userId} AND symbol = ${symbol} AND status = 'running'
+            AND COALESCE("updatedAt", "startedAt") < ${cutoff}
+          RETURNING id`;
+  if (reaped.length > 0) await sweepRunWork().catch(() => {});
+}
+
+// ---------- run work: the phased pipeline's in-flight state ----------
+// One row per run in flight (lib/agents/phases.ts): which phase is next, whether
+// an invocation has claimed it, and the state the phases carry (sweeps, framed
+// questions, the board snapshot). Gone once the run is terminal.
+
+/** Record a new run's work state, with its first phase ready to claim. */
+export async function initRunWork(runId: string, state: RunWorkState): Promise<void> {
+  await sweepRunWork().catch(() => {});
+  await q`INSERT INTO run_work ("runId", phase, state, "updatedAt")
+          VALUES (${runId}, 'sweep', ${JSON.stringify(state)}, ${now()})
+          ON CONFLICT ("runId") DO NOTHING`;
+}
+
+/**
+ * Claim `phase` for this invocation — atomically, so a phase runs exactly
+ * once even if its hand-off is delivered twice (a lost response followed by
+ * the in-process fallback). Returns the state to run with, or null when the
+ * phase is not claimable: already claimed, already advanced past, or the run
+ * is no longer live. The enrichment phase runs on a run already marked done,
+ * so 'done' counts as live here; stopped/failed runs never get a phase.
+ */
+export async function claimRunPhase(runId: string, phase: string): Promise<RunWorkState | null> {
+  const ts = now();
+  const rows = await q<{ state: string }>`
+    UPDATE run_work w SET "claimedAt" = ${ts}, "updatedAt" = ${ts}
+    FROM runs r
+    WHERE r.id = w."runId" AND w."runId" = ${runId} AND w.phase = ${phase}
+      AND w."claimedAt" IS NULL AND r.status IN ('running', 'done')
+    RETURNING w.state`;
+  if (rows.length === 0) return null;
+  await q`UPDATE runs SET "updatedAt" = ${ts} WHERE id = ${runId}`;
+  try {
+    return JSON.parse(rows[0].state) as RunWorkState;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist a finished phase's state and open the next phase for claiming. */
+export async function advanceRunPhase(runId: string, phase: string, state: RunWorkState): Promise<void> {
+  const ts = now();
+  await q`UPDATE run_work SET phase = ${phase}, "claimedAt" = NULL, state = ${JSON.stringify(state)}, "updatedAt" = ${ts}
+          WHERE "runId" = ${runId}`;
+  await q`UPDATE runs SET "updatedAt" = ${ts} WHERE id = ${runId}`;
+}
+
+export async function deleteRunWork(runId: string): Promise<void> {
+  await q`DELETE FROM run_work WHERE "runId" = ${runId}`;
+}
+
+/**
+ * Drop work rows nothing will claim: their run failed or was stopped, or it
+ * completed over an hour ago and its enrichment hand-off never arrived.
+ */
+async function sweepRunWork(): Promise<void> {
+  const stale = new Date(Date.now() - 60 * 60_000).toISOString();
+  await q`DELETE FROM run_work w USING runs r
+          WHERE r.id = w."runId"
+            AND (r.status IN ('error', 'stopped') OR (r.status = 'done' AND w."updatedAt" < ${stale}))`;
 }
 
 // ---------- messages ----------

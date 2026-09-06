@@ -8,8 +8,10 @@ import { sanitizeAttachments } from "@/lib/attachments";
 import { requestLang } from "@/lib/i18n/server";
 import type { Attachment } from "@/lib/types";
 
-// A chat turn may kick off a full research run via after(). 300s is the Vercel
-// Hobby ceiling; above the plan cap Vercel rejects the deployment.
+// A chat turn may kick off a full research run via after() — the run is
+// phased across invocations (lib/agents/phases.ts), so only its hand-off runs
+// here. 300s is the Vercel Hobby ceiling (Fluid Compute); above the plan cap
+// Vercel rejects the deployment.
 export const maxDuration = 300;
 
 type Params = { params: Promise<{ symbol: string }> };

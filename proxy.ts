@@ -10,7 +10,10 @@ import type { NextRequest } from "next/server";
  */
 
 const PUBLIC_PAGES = new Set(["/signin"]);
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/", "/api/health"];
+// /api/internal/ is the research pipeline's own continuation route: called by
+// the deployment itself (never a browser) and gated by a bearer token in the
+// route (lib/agents/phases.ts), so it carries no session cookie by design.
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/cron/", "/api/health", "/api/internal/"];
 
 export function proxy(request: NextRequest) {
   const authOn = !!process.env.SESSION_SECRET;

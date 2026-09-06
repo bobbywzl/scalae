@@ -42,6 +42,7 @@ export const MODELS_REVIEWED_AT = "2026-08";
 
 export type ModelRole =
   | "synthesis"
+  | "synthesisFallback"
   | "chat"
   | "chatFast"
   | "diligence"
@@ -78,6 +79,20 @@ const ROLES: Record<ModelRole, RoleConfig> = {
     provider: "claude",
     env: "CLAUDE_SYNTHESIS_MODEL",
     include: CLAUDE_FLAGSHIP_TIERS,
+    exclude: /-(fast|latest)\b/,
+    fallback: "claude-opus-5",
+  },
+  // The synthesis RETRY tier: when a flagship synthesis outruns its phase
+  // budget (lib/agents/phases.ts), the run re-runs that one call ONCE in a
+  // fresh invocation on the next tier down — the newest Opus, else Sonnet —
+  // rather than failing: a completed reading on Opus beats no reading. Runs
+  // whose primary already resolves to Opus step down to Sonnet for the retry
+  // (see synthesisModelFor in lib/agents/research.ts). Pin with
+  // CLAUDE_SYNTHESIS_FALLBACK_MODEL.
+  synthesisFallback: {
+    provider: "claude",
+    env: "CLAUDE_SYNTHESIS_FALLBACK_MODEL",
+    include: [/^claude-opus-\d/, /^claude-sonnet-\d/],
     exclude: /-(fast|latest)\b/,
     fallback: "claude-opus-5",
   },

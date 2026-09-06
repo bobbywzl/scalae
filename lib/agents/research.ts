@@ -1,6 +1,14 @@
 import { claudeJSON } from "../ai/claude";
 import { geminiGroundedSearch } from "../ai/gemini";
 import { resolveModel } from "../ai/models";
+import {
+  continuationTarget,
+  nextRunPhase,
+  requestRunPhase,
+  STAGE_LIMIT_MS,
+  stageBudgetMs,
+  type RunPhase,
+} from "./phases";
 import { canonSearchText } from "./canon";
 import { researchSignalBackstory } from "./history";
 import { cleansingBenchContext } from "./context";
@@ -24,14 +32,18 @@ import {
   SYNTHESIS_SCHEMA,
 } from "./framework";
 import {
+  advanceRunPhase,
   bumpQuietRuns,
+  claimRunPhase,
   createRun,
+  deleteRunWork,
   failRun,
   finishRun,
   getDeskContext,
   getDiligenceSynthesis,
   getSignal,
   getTicker,
+  initRunWork,
   insertAccumulation,
   insertDigestItem,
   insertProposal,
@@ -57,7 +69,19 @@ import {
 } from "../db";
 import { diligenceContext } from "../notes";
 import { getQuote, quoteLine } from "../market";
-import type { Citation, Delta, ReadingLevel, Run, Signal, SignalProposal } from "../types";
+import type {
+  Citation,
+  Delta,
+  FocusArea,
+  ReadingLevel,
+  Run,
+  RunQuestion,
+  RunSweep,
+  RunWorkState,
+  Signal,
+  SignalProposal,
+  Ticker,
+} from "../types";
 
 interface SynthesisOutput {
   brief: string;
@@ -105,33 +129,22 @@ interface QuestionsOutput {
   questions: { question: string; why: string; signalKeys: string[] }[];
 }
 
-interface Sweep {
-  label: string;
-  wave: 1 | 2;
-  text: string;
-  sources: Citation[];
-}
+/** One scout sweep's output — persisted between phases (lib/types.ts). */
+type Sweep = RunSweep;
 
 const MAX_FOLLOW_UPS = 4;
 
 /**
- * Strict per-stage wall-clock limit for the SCOUT/TRIAGE/backstory stages.
- * Every such stage must finish under two minutes; 110s leaves headroom under
- * that ceiling and stops any single stage from hanging and eating the budget.
- * Synthesis is the deliberate exception — see SYNTHESIS below.
+ * Time budgets. Every stage runs under a strict wall-clock deadline (the flat
+ * STAGE_LIMIT_MS for scouts, triage and backstories — see lib/agents/phases.ts),
+ * counted against the PHASE the stage runs in: the run is split into phases
+ * that each execute in their own invocation with a fresh budget, so the
+ * earlier stages can no longer starve synthesis. Synthesis — the heaviest
+ * stage: a 10-signal board emits 10 readings + digest + brief + dossier in
+ * one call — is the deliberate exception to the flat limit: it runs in a
+ * phase of its own and gets nearly that whole invocation, minus this reserve
+ * for the DB writes that record its output.
  */
-const STAGE_LIMIT_MS = 110_000;
-
-/**
- * Synthesis is the pipeline's heaviest stage and runs LAST, so a flat 110s
- * starves it — a 10-signal board emits 10 readings + digest + brief + dossier
- * in one call and legitimately needs longer than a scout sweep. Instead we hand
- * it the time actually left in the route's 300s budget: its deadline lands a
- * fixed distance into the run no matter how long the scouts took (ROUTE_BUDGET −
- * elapsed − a reserve for the DB writes), so it gets ~150-200s in the common
- * case yet can never overrun maxDuration and be reaped. See the synthesis call.
- */
-const ROUTE_BUDGET_MS = 285_000; // 300s maxDuration minus platform margin
 const RECORDING_RESERVE_MS = 15_000; // reserved after synthesis for the writes
 
 /**
@@ -168,13 +181,28 @@ export async function withDeadline<T>(
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       ac.abort();
-      reject(new Error(`${label} exceeded its ${Math.round(ms / 1000)}s time limit`));
+      reject(new DeadlineError(label, ms));
     }, ms);
   });
   try {
     return await Promise.race([fn(ac.signal), deadline]);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * A stage that ran out of its wall-clock budget. The message is what the UI
+ * maps to "the analyst took too long" (components/util.ts), so keep its shape;
+ * the class lets the pipeline tell a timeout from any other failure.
+ */
+export class DeadlineError extends Error {
+  constructor(
+    public readonly label: string,
+    ms: number
+  ) {
+    super(`${label} exceeded its ${Math.round(ms / 1000)}s time limit`);
+    this.name = "DeadlineError";
   }
 }
 
@@ -573,7 +601,8 @@ export async function refreshDeskContext(
   userId: string,
   symbol: string,
   runId: string,
-  runOutput: { questions: string[]; brief: string }
+  runOutput: { questions: string[]; brief: string },
+  deadlineMs = STAGE_LIMIT_MS
 ): Promise<void> {
   const ticker = await getTicker(userId, symbol);
   if (!ticker) return;
@@ -616,14 +645,15 @@ ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Refresh the context board per its doctri
       maxTokens: 2500,
       effort: "low",
       meta: { userId, feature: "contextBoard" },
-    })
+    }),
+    deadlineMs
   );
   const board = (out.board ?? "").trim().slice(0, 8000);
   if (board) await saveDeskContext(userId, symbol, board, runId);
 }
 
 // ---------------------------------------------------------------------------
-// The pipeline
+// The pipeline — phased across invocations (see lib/agents/phases.ts)
 // ---------------------------------------------------------------------------
 
 /**
@@ -639,6 +669,12 @@ ${ddBlock ? `${ddBlock}\n\n` : ""}TASK: Refresh the context board per its doctri
  *   3) Wave-2 deep-dive sweeps (parallel, stronger scout model)
  *   4) Deep synthesis: signal readings with per-source citations, digest,
  *      brief, new-signal discovery
+ * The stages run as four PHASES — sweep (0-1), probe (2-3), synthesize (4 +
+ * recording; the run is complete after it) and enrich (the trailing context-
+ * board refresh and backstory backfill) — each in its own invocation with a
+ * fresh time budget, because the five stages together no longer fit one
+ * (lib/agents/phases.ts). This entry point records the run's work state and
+ * hands the first phase off; the phases below carry the run from there.
  */
 export async function executeRun(
   userId: string,
@@ -653,117 +689,443 @@ export async function executeRun(
     questions?: string[];
   } = {}
 ): Promise<void> {
-  // Reference for the synthesis budget below: how much of the route's 300s is
-  // left when we reach synthesis (the run runs inside a single invocation).
-  const runStart = Date.now();
+  await beginPhasedRun(runId, {
+    kind: "board",
+    userId,
+    symbol,
+    ...(opts.questions ? { steered: opts.questions } : {}),
+  });
+}
+
+/**
+ * Execute a single-signal check created by startSignalRun() — the same
+ * stage structure as executeRun, narrowed to one signal's named gap:
+ *   0) Question framing scoped to the signal (2-4 questions)
+ *   1) Wave-1 sweeps (parallel): focus questions, the signal's own sweep,
+ *      and a primary-source hunt steered to its measurement plan
+ *   2) Gap triage commissioning at most 2 deep dives
+ *   3) Wave-2 deep dives
+ *   4) Scoped synthesis: ONE reading + 0-3 digest items + a short note —
+ *      no brief, no dossier, and NO new-signal proposals (a check never
+ *      expands the board; FOUNDATION's no-sprawl discipline).
+ * Phased exactly like the board run.
+ */
+export async function executeSignalRun(
+  userId: string,
+  runId: string,
+  symbol: string,
+  signalId: string
+): Promise<void> {
+  await beginPhasedRun(runId, { kind: "signal", userId, symbol, signalId });
+}
+
+async function beginPhasedRun(runId: string, state: RunWorkState): Promise<void> {
   try {
-    const ticker = await getTicker(userId, symbol);
-    if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-    const signals = await listSignals(userId, symbol, "active");
-    if (signals.length === 0) throw new Error("No active signals — approve some signals first.");
+    await initRunWork(runId, state);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[scalae] run ${runId} (${state.symbol}) could not record its work state:`, msg);
+    await failRun(runId, msg).catch(() => {});
+    return;
+  }
+  await dispatchRunPhase(runId, "sweep");
+}
 
-    // Resolve the best currently-available model for each role (self-healing;
-    // auto-adopts newer models; env-overridable). See lib/ai/models.ts.
-    const [breadthModel, deepModel, triageModel, synthModel] = await Promise.all([
-      resolveModel("scoutBreadth"),
-      resolveModel("scoutDeep"),
-      resolveModel("triage"),
-      resolveModel("synthesis"),
-    ]);
+/**
+ * Hand `phase` to a fresh invocation through the continuation route; when no
+ * target resolves or the call fails, claim and run it right here (the
+ * in-process fallback — the pre-phase behavior). Never throws: a dispatch
+ * problem is logged, and the phase reports its own outcome on the run row.
+ */
+async function dispatchRunPhase(runId: string, phase: RunPhase): Promise<void> {
+  const target = continuationTarget();
+  if (target) {
+    const { result, detail } = await requestRunPhase(target, runId, phase);
+    if (result === "accepted") return;
+    if (result === "declined") {
+      console.log(`[scalae] run ${runId}: phase "${phase}" not claimable (${detail}) — nothing to do.`);
+      return;
+    }
+    console.warn(
+      `[scalae] run ${runId}: continuation unavailable (${detail}) — running phase "${phase}" in-process.`
+    );
+  }
+  let state: RunWorkState | null = null;
+  try {
+    state = await claimRunPhase(runId, phase);
+  } catch (e) {
+    console.error(
+      `[scalae] run ${runId}: claiming phase "${phase}" failed:`,
+      e instanceof Error ? e.message : e
+    );
+  }
+  if (!state) return;
+  await runPhase(runId, phase, state);
+}
 
-    const { days, gapDays } = await researchWindow(userId, symbol);
-    const bundles = chunk(signals, 5);
-
-    // Board context, the due-diligence record and the investor's guidance are
-    // needed BEFORE any searching now — the question suggestor reads them —
-    // and are reused by triage and synthesis below.
-    // Stable short keys so synthesis readings can't miss on name drift.
-    const keyed = signals.map((s, i) => ({ key: `S${i + 1}`, signal: s }));
-    const byKey = new Map(keyed.map((k) => [k.key, k.signal]));
-
-    // Keep-both pairs: an active replacement whose replaced signal was
-    // knowingly reactivated. The no-duplication discipline must survive that
-    // choice — the desk should keep watching for a single merged crux signal,
-    // and when the pair's readings demonstrably cite the same evidence, the
-    // nudge escalates from "watch for overlap" to "merge now".
-    const overlapWith = new Map<string, string>();
-    const overlapMeasured = new Map<string, number>();
-    const byId = new Map(signals.map((s) => [s.id, s]));
-    for (const s of signals) {
-      const other = s.replaces ? byId.get(s.replaces) : undefined;
-      if (other) {
-        overlapWith.set(s.id, other.name);
-        overlapWith.set(other.id, s.name);
-        const [ra, rb] = await Promise.all([
-          readingsForSignal(s.id, 3),
-          readingsForSignal(other.id, 3),
-        ]);
-        const ov = citationOverlap(ra, rb);
-        overlapMeasured.set(s.id, ov);
-        overlapMeasured.set(other.id, ov);
+/**
+ * Run one CLAIMED phase (the continuation route and the in-process fallback
+ * both land here), persist the state it returns, and hand the next phase
+ * off. A failure fails the run — unless the run is already complete: the
+ * enrichment phase runs after finishRun, and failRun only touches a running
+ * row. The investor's stop is caught quietly, as before.
+ */
+export async function runPhase(runId: string, phase: RunPhase, state: RunWorkState): Promise<void> {
+  const phaseStart = Date.now();
+  const label = state.kind === "signal" ? "signal check" : "run";
+  try {
+    // The enrichment phase legitimately runs on a run already marked done;
+    // every other phase needs the run still running (it may have been stopped).
+    if (phase !== "enrich") await throwIfStopped(runId);
+    const phases = state.kind === "signal" ? SIGNAL_PHASES : BOARD_PHASES;
+    const next = await phases[phase]({ runId, state, phaseStart });
+    const following = nextRunPhase(phase);
+    if (!following) {
+      await deleteRunWork(runId).catch(() => {});
+      return;
+    }
+    await advanceRunPhase(runId, following, next);
+    await dispatchRunPhase(runId, following);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Investor-initiated stop: the run is already terminal ('stopped') — nothing
+    // to fail, and failRun is guarded to a running row anyway. Exit quietly.
+    if (msg === RUN_STOPPED) {
+      console.log(`[scalae] ${label} ${runId} (${state.symbol}) stopped by the investor.`);
+      await deleteRunWork(runId).catch(() => {});
+      return;
+    }
+    // The one retry the pipeline allows itself: a synthesis that outran even a
+    // phase of its own re-runs ONCE, in a fresh invocation, on the next model
+    // tier down (synthesisModelFor). Only a deadline qualifies — any other
+    // failure, and a second timeout, fail the run as before.
+    if (phase === "synthesize" && e instanceof DeadlineError && !state.synthesisRetry) {
+      console.warn(
+        `[scalae] ${label} ${runId} (${state.symbol}): ${msg} — retrying the synthesis once on the fallback tier.`
+      );
+      try {
+        await advanceRunPhase(runId, "synthesize", { ...state, synthesisRetry: true });
+        await dispatchRunPhase(runId, "synthesize");
+        return;
+      } catch (retryErr) {
+        console.error(
+          `[scalae] ${label} ${runId} (${state.symbol}): could not schedule the synthesis retry:`,
+          retryErr instanceof Error ? retryErr.message : retryErr
+        );
       }
     }
+    console.error(`[scalae] ${label} ${runId} (${state.symbol}) failed in phase "${phase}":`, msg);
+    await failRun(runId, msg).catch(() => {});
+    await deleteRunWork(runId).catch(() => {});
+  }
+}
 
-    const boardBlock = (
-      await Promise.all(
-        keyed.map(async ({ key, signal: s }) => {
-          const measured = overlapMeasured.get(s.id) ?? 0;
-          const overlapNote = overlapWith.has(s.id)
-            ? measured >= 0.5
-              ? ` NOTE: kept alongside "${overlapWith.get(s.id)}" — their recent readings HAVE cited the same evidence (${Math.round(measured * 100)}% source overlap). They are one signal wearing two names: propose the merged replacement NOW with "replaces" set, unless today's evidence clearly separates them.`
-              : ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
-            : "";
-          return signalBoardLine(key, s, overlapNote);
+interface PhaseContext {
+  runId: string;
+  state: RunWorkState;
+  /** When this phase's invocation started — every stage budget counts from it. */
+  phaseStart: number;
+}
+type PhaseFn = (ctx: PhaseContext) => Promise<RunWorkState>;
+
+// ---- shared stage helpers ----
+
+/** The run's focus questions as the prompt block triage and synthesis read. */
+function questionsBlockOf(questions: RunQuestion[]): string {
+  return questions.length
+    ? `\nTODAY'S FOCUS QUESTIONS (set before the sweeps — the run exists to move these):\n${questions
+        .map(
+          (q, i) =>
+            `Q${i + 1}. ${q.question}${q.why ? ` — ${q.why}` : ""}${q.signalKeys.length ? ` [serves ${q.signalKeys.join(", ")}]` : ""}`
+        )
+        .join("\n")}\n`
+    : "";
+}
+
+/** Steering appended to every breadth scout's prompt. */
+function questionSteerOf(questions: RunQuestion[]): string {
+  return questions.length
+    ? `\n\nTHE DESK'S FOCUS QUESTIONS TODAY (steer searching toward evidence that answers these; tag findings 'Informs Q<n>' where one applies):\n${questions.map((q, i) => `Q${i + 1}. ${q.question}`).join("\n")}`
+    : "";
+}
+
+/**
+ * Number the de-duplicated sources across all sweeps so the analyst cites by
+ * index — and record which sweep(s) surfaced each source (provenance).
+ */
+function numberSources(sweeps: Sweep[]): { allSources: Citation[]; indexOf: Map<string, number> } {
+  const allSources: Citation[] = [];
+  const indexOf = new Map<string, number>();
+  for (const s of sweeps) {
+    for (const src of s.sources) {
+      const existing = indexOf.get(src.url);
+      if (existing == null) {
+        indexOf.set(src.url, allSources.length);
+        allSources.push(withDomain({ ...src, foundBy: [s.label] }));
+      } else {
+        const foundBy = allSources[existing].foundBy;
+        if (foundBy && !foundBy.includes(s.label)) foundBy.push(s.label);
+      }
+    }
+  }
+  return { allSources, indexOf };
+}
+
+/** The field research as the synthesis reads it — every sweep with its numbered sources. */
+function researchBlockOf(sweeps: Sweep[], indexOf: Map<string, number>): string {
+  return sweeps
+    .map(
+      (s) =>
+        `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
+          s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
+        }`
+    )
+    .join("\n\n");
+}
+
+/** Wave-1 breadth sweeps in parallel; the run fails only if EVERY sweep failed. */
+async function runWaveOne(
+  jobs: { label: string; prompt: string }[],
+  model: string,
+  userId: string,
+  budgetMs: number
+): Promise<Sweep[]> {
+  const settled = await Promise.allSettled(
+    jobs.map((j) =>
+      withDeadline(
+        `sweep:${j.label}`,
+        (signal) =>
+          geminiGroundedSearch(j.prompt, { model, meta: { userId, feature: "scoutBreadth" }, signal }),
+        budgetMs
+      ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
+    )
+  );
+  const sweeps = settled
+    .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
+    .map((s) => s.value);
+  if (sweeps.length === 0) {
+    const firstErr = settled.find((s) => s.status === "rejected") as PromiseRejectedResult;
+    throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
+  }
+  return sweeps;
+}
+
+/** Wave-2 deep dives in parallel on the stronger scout model; failures drop silently. */
+async function runWaveTwo(
+  followUps: GapOutput["followUps"],
+  symbol: string,
+  name: string,
+  model: string,
+  userId: string,
+  budgetMs: number
+): Promise<Sweep[]> {
+  const settled = await Promise.allSettled(
+    followUps.map((f) =>
+      withDeadline(
+        `deepdive:${f.query.slice(0, 40)}`,
+        (signal) =>
+          geminiGroundedSearch(followUpPrompt(symbol, name, f), {
+            model,
+            meta: { userId, feature: "scoutDeep" },
+            signal,
+          }),
+        budgetMs
+      ).then(
+        (r): Sweep => ({
+          label: `Deep dive: ${f.query}`,
+          wave: 2,
+          text: r.text,
+          sources: r.sources,
         })
       )
-    ).join("\n");
+    )
+  );
+  return settled
+    .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
+    .map((s) => s.value);
+}
 
-    const focusAreas = await listFocusAreas(userId, symbol);
-    const guidance = await investorGuidance(userId, symbol);
-    // The due-diligence record: the map of what the investor currently
-    // understands, which the circle-of-competence loop steers proposals by
-    // (EXPERT_LOOP_GUIDANCE). Best-effort — a desk without a record runs as before.
-    const ddBlock = await diligenceRecordBlock(userId, symbol);
-    // What past runs answered and established — read BEFORE this run works.
-    const ctxBlock = await contextBoardBlock(userId, symbol);
-    // The standing dossier and the financial bench (FOUNDATION: "one desk,
-    // fully connected" — the chat, compare and diligence surfaces already
-    // carry these; the suggestor framing today's questions and the run that
-    // writes the readings must see the same company state and numbers).
-    // Cache-only and position-free: readings stay unbiased by the ledger.
-    // Shared helper with frameRunQuestions/reframeRunQuestions so the three
-    // framing call sites stay in sync.
-    const { dossierBlock, benchBlock } = await standingStateBlocks(userId, symbol);
+/**
+ * The synthesis model for this attempt: the role's primary, or — on the one
+ * retry after a deadline (see runPhase) — the next tier down. The fallback
+ * role resolves the newest Opus; a desk whose primary already IS that Opus
+ * steps down to the value tier (the triage role's Sonnet) so the retry is a
+ * genuinely faster call rather than the same one again.
+ */
+async function synthesisModelFor(state: RunWorkState): Promise<string> {
+  const primary = await resolveModel("synthesis");
+  if (!state.synthesisRetry) return primary;
+  const fallback = await resolveModel("synthesisFallback");
+  return fallback !== primary ? fallback : resolveModel("triage");
+}
 
-    // ---- Stage 0: today's focus questions ----
-    // The circle-of-competence discipline made operational (FOUNDATION.md):
-    // research starts from the investor's open questions, never from the news.
-    // Two paths: STEERED — the investor reviewed/edited the framed questions
-    // (frameRunQuestions) and the run uses exactly what they submitted; or
-    // UNATTENDED (cron, chat, stale-desk auto-run) — the question suggestor
-    // frames them here. Graceful degrade — a failed framing runs unfocused.
-    await throwIfStopped(runId);
-    let questions: { question: string; why: string; signalKeys: string[] }[] = [];
-    if (opts.questions) {
-      questions = opts.questions
-        .map((q) => ({ question: q.trim(), why: "", signalKeys: [] as string[] }))
-        .filter((q) => q.question);
-      if (questions.length > 0) {
-        await setRunStage(
-          runId,
-          "questions",
-          `Focus questions set by you — ${questions.length} steering this run.`
-        );
-        await setRunQuestions(runId, questions.map((q) => q.question));
-      }
-    } else {
+/** The stage note's suffix on a synthesis retry, so the banner says why the model changed. */
+function synthesisRetryNote(state: RunWorkState): string {
+  return state.synthesisRetry ? " (second attempt on a faster tier — the first synthesis outran its time budget)" : "";
+}
+
+/** Resolve a reading's citation indexes against the run's numbered sources. */
+function citationsOf(indexes: number[] | undefined, allSources: Citation[]): Citation[] {
+  return (indexes ?? []).filter((i) => i >= 0 && i < allSources.length).map((i) => allSources[i]);
+}
+
+// ---------------------------------------------------------------------------
+// The board run's phases
+// ---------------------------------------------------------------------------
+
+/** Everything the board phases read about the desk, rebuilt at each phase start. */
+interface BoardDesk {
+  ticker: Ticker;
+  /** The board in stable S-key order (see boardSignals). */
+  keyed: { key: string; signal: Signal }[];
+  byKey: Map<string, Signal>;
+  boardBlock: string;
+  focusAreas: FocusArea[];
+  guidance: string;
+  ddBlock: string;
+  ctxBlock: string;
+  dossierBlock: string;
+  benchBlock: string;
+}
+
+/**
+ * The board's signals with stable short keys so synthesis readings can't miss
+ * on name drift. The sweep phase snapshots the active board into
+ * state.signalIds; later phases re-read those signals and keep each one's
+ * key even when a neighbour was retired mid-run, so the framed questions'
+ * signalKeys and the readings stay aligned. A signal retired mid-run simply
+ * drops out of the board (no reading is written for it).
+ */
+async function boardSignals(state: RunWorkState): Promise<{ key: string; signal: Signal }[]> {
+  if (!state.signalIds) {
+    const signals = await listSignals(state.userId, state.symbol, "active");
+    return signals.map((signal, i) => ({ key: `S${i + 1}`, signal }));
+  }
+  const rows = await Promise.all(state.signalIds.map((id) => getSignal(id)));
+  return rows.flatMap((signal, i) =>
+    signal &&
+    signal.status === "active" &&
+    signal.symbol === state.symbol &&
+    (!signal.userId || signal.userId === state.userId)
+      ? [{ key: `S${i + 1}`, signal }]
+      : []
+  );
+}
+
+async function boardDesk(state: RunWorkState): Promise<BoardDesk> {
+  const { userId, symbol } = state;
+  const ticker = await getTicker(userId, symbol);
+  if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
+  const keyed = await boardSignals(state);
+  if (keyed.length === 0) throw new Error("No active signals — approve some signals first.");
+  const signals = keyed.map((k) => k.signal);
+  const byKey = new Map(keyed.map((k) => [k.key, k.signal]));
+
+  // Keep-both pairs: an active replacement whose replaced signal was
+  // knowingly reactivated. The no-duplication discipline must survive that
+  // choice — the desk should keep watching for a single merged crux signal,
+  // and when the pair's readings demonstrably cite the same evidence, the
+  // nudge escalates from "watch for overlap" to "merge now".
+  const overlapWith = new Map<string, string>();
+  const overlapMeasured = new Map<string, number>();
+  const byId = new Map(signals.map((s) => [s.id, s]));
+  for (const s of signals) {
+    const other = s.replaces ? byId.get(s.replaces) : undefined;
+    if (other) {
+      overlapWith.set(s.id, other.name);
+      overlapWith.set(other.id, s.name);
+      const [ra, rb] = await Promise.all([
+        readingsForSignal(s.id, 3),
+        readingsForSignal(other.id, 3),
+      ]);
+      const ov = citationOverlap(ra, rb);
+      overlapMeasured.set(s.id, ov);
+      overlapMeasured.set(other.id, ov);
+    }
+  }
+
+  const boardBlock = (
+    await Promise.all(
+      keyed.map(async ({ key, signal: s }) => {
+        const measured = overlapMeasured.get(s.id) ?? 0;
+        const overlapNote = overlapWith.has(s.id)
+          ? measured >= 0.5
+            ? ` NOTE: kept alongside "${overlapWith.get(s.id)}" — their recent readings HAVE cited the same evidence (${Math.round(measured * 100)}% source overlap). They are one signal wearing two names: propose the merged replacement NOW with "replaces" set, unless today's evidence clearly separates them.`
+            : ` NOTE: the investor knowingly kept this alongside "${overlapWith.get(s.id)}" despite overlap — if both keep reading the same evidence, propose ONE merged replacement with "replaces" set.`
+          : "";
+        return signalBoardLine(key, s, overlapNote);
+      })
+    )
+  ).join("\n");
+
+  // The investor's focus areas and guidance, the due-diligence record (the
+  // map of what the investor currently understands, which the circle-of-
+  // competence loop steers proposals by — EXPERT_LOOP_GUIDANCE), the context
+  // board (what past runs answered and established), and the standing
+  // dossier + financial bench (FOUNDATION: "one desk, fully connected" — the
+  // chat, compare and diligence surfaces already carry these; the suggestor
+  // framing today's questions and the run that writes the readings must see
+  // the same company state and numbers). All best-effort; cache-only and
+  // position-free, so readings stay unbiased by the ledger. Shared helpers
+  // with frameRunQuestions/reframeRunQuestions so the framing call sites
+  // stay in sync.
+  const [focusAreas, guidance, ddBlock, ctxBlock, { dossierBlock, benchBlock }] = await Promise.all([
+    listFocusAreas(userId, symbol),
+    investorGuidance(userId, symbol),
+    diligenceRecordBlock(userId, symbol),
+    contextBoardBlock(userId, symbol),
+    standingStateBlocks(userId, symbol),
+  ]);
+
+  return { ticker, keyed, byKey, boardBlock, focusAreas, guidance, ddBlock, ctxBlock, dossierBlock, benchBlock };
+}
+
+/** Phase 1 — stage 0 (question framing) and stage 1 (wave-1 breadth sweeps). */
+async function boardSweep({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, keyed, boardBlock, focusAreas, guidance, ddBlock, ctxBlock, dossierBlock, benchBlock } =
+    await boardDesk(state);
+  const signals = keyed.map((k) => k.signal);
+  // Resolve the best currently-available model for each role (self-healing;
+  // auto-adopts newer models; env-overridable). See lib/ai/models.ts.
+  const [breadthModel, triageModel] = await Promise.all([
+    resolveModel("scoutBreadth"),
+    resolveModel("triage"),
+  ]);
+  const { days, gapDays } = await researchWindow(userId, symbol);
+  const bundles = chunk(signals, 5);
+
+  // ---- Stage 0: today's focus questions ----
+  // The circle-of-competence discipline made operational (FOUNDATION.md):
+  // research starts from the investor's open questions, never from the news.
+  // Two paths: STEERED — the investor reviewed/edited the framed questions
+  // (frameRunQuestions) and the run uses exactly what they submitted; or
+  // UNATTENDED (cron, chat, stale-desk auto-run) — the question suggestor
+  // frames them here. Graceful degrade — a failed framing runs unfocused.
+  await throwIfStopped(runId);
+  let questions: RunQuestion[] = [];
+  if (state.steered) {
+    questions = state.steered
+      .map((q) => ({ question: q.trim(), why: "", signalKeys: [] as string[] }))
+      .filter((q) => q.question);
+    if (questions.length > 0) {
       await setRunStage(
         runId,
         "questions",
-        `Question suggestor (${triageModel}) framing what today's run must answer — reading the board, the due-diligence record and your guidance…`
+        `Focus questions set by you — ${questions.length} steering this run.`
       );
-      try {
-        const framed = await withDeadline("questions", (signal) =>
+      await setRunQuestions(runId, questions.map((q) => q.question));
+    }
+  } else {
+    await setRunStage(
+      runId,
+      "questions",
+      `Question suggestor (${triageModel}) framing what today's run must answer — reading the board, the due-diligence record and your guidance…`
+    );
+    try {
+      const framed = await withDeadline(
+        "questions",
+        (signal) =>
           claudeJSON<QuestionsOutput>({
             model: triageModel,
             signal,
@@ -794,211 +1156,178 @@ ${dossierBlock ? `${dossierBlock}\n` : ""}${benchBlock ? `${benchBlock}\n` : ""}
             maxTokens: 2500,
             effort: "low",
             meta: { userId, feature: "questions" },
-          })
-        );
-        questions = (framed.questions ?? [])
-          .filter((q) => q.question?.trim())
-          .slice(0, 6)
-          .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: q.signalKeys ?? [] }));
-        if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
-      } catch (e) {
-        console.error(
-          `[scalae] question framing timed out or failed (running without focus questions):`,
-          e instanceof Error ? e.message : e
-        );
-      }
+          }),
+        stageBudgetMs(phaseStart)
+      );
+      questions = (framed.questions ?? [])
+        .filter((q) => q.question?.trim())
+        .slice(0, 6)
+        .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: q.signalKeys ?? [] }));
+      if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
+    } catch (e) {
+      console.error(
+        `[scalae] question framing timed out or failed (running without focus questions):`,
+        e instanceof Error ? e.message : e
+      );
     }
-    const questionsBlock = questions.length
-      ? `\nTODAY'S FOCUS QUESTIONS (set before the sweeps — the run exists to move these):\n${questions
-          .map(
-            (q, i) =>
-              `Q${i + 1}. ${q.question}${q.why ? ` — ${q.why}` : ""}${q.signalKeys.length ? ` [serves ${q.signalKeys.join(", ")}]` : ""}`
-          )
-          .join("\n")}\n`
-      : "";
-    // Every breadth scout gets the questions as steering; the dedicated
-    // focus-question sweep researches them head-on.
-    const questionSteer = questions.length
-      ? `\n\nTHE DESK'S FOCUS QUESTIONS TODAY (steer searching toward evidence that answers these; tag findings 'Informs Q<n>' where one applies):\n${questions.map((q, i) => `Q${i + 1}. ${q.question}`).join("\n")}`
-      : "";
+  }
+  // Every breadth scout gets the questions as steering; the dedicated
+  // focus-question sweep researches them head-on.
+  const questionSteer = questionSteerOf(questions);
 
-    const waveOneCount = bundles.length + 3 + (questions.length > 0 ? 1 : 0);
-    await throwIfStopped(runId);
-    await setRunStage(
-      runId,
-      "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: ${questions.length > 0 ? `${questions.length} focus questions, ` : ""}signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
-    );
+  // ---- Stage 1: wave-1 breadth sweeps ----
+  const waveOneCount = bundles.length + 3 + (questions.length > 0 ? 1 : 0);
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "sweeping",
+    `Scouts (${breadthModel}) sweeping the open web — ${waveOneCount} parallel sweeps: ${questions.length > 0 ? `${questions.length} focus questions, ` : ""}signals, broad news, primary sources, scuttlebutt (${days}-day window)…`
+  );
 
-    const waveOneJobs: { label: string; prompt: string }[] = [
-      ...(questions.length > 0
-        ? [
+  const waveOneJobs: { label: string; prompt: string }[] = [
+    ...(questions.length > 0
+      ? [
+          {
+            label: "Focus-question sweep",
+            prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+          },
+        ]
+      : []),
+    ...bundles.map((b, i) => ({
+      label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
+      prompt: signalSweepPrompt(symbol, ticker.name, days, b) + questionSteer,
+    })),
+    { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) + questionSteer },
+    { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) + questionSteer },
+    { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) + questionSteer },
+  ];
+  const sweeps = await runWaveOne(waveOneJobs, breadthModel, userId, stageBudgetMs(phaseStart));
+
+  return { ...state, signalIds: signals.map((s) => s.id), days, gapDays, questions, sweeps };
+}
+
+/** Phase 2 — stage 2 (the analyst's gap triage) and stage 3 (wave-2 deep dives). */
+async function boardProbe({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, boardBlock } = await boardDesk(state);
+  const [deepModel, triageModel] = await Promise.all([resolveModel("scoutDeep"), resolveModel("triage")]);
+  const questions = state.questions ?? [];
+  const sweeps: Sweep[] = [...(state.sweeps ?? [])];
+  const questionsBlock = questionsBlockOf(questions);
+
+  // ---- Stage 2: the analyst triages wave 1 and commissions deep dives ----
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "probing",
+    `Analyst (${triageModel}) triaging the field research for gaps worth a deep dive…`
+  );
+
+  let followUps: GapOutput["followUps"] = [];
+  try {
+    const waveOneBlock = sweeps
+      .map((s) => `=== ${s.label} ===\n${s.text}`)
+      .join("\n\n");
+    const gap = await withDeadline(
+      "triage",
+      (signal) =>
+        claudeJSON<GapOutput>({
+          model: triageModel,
+          signal,
+          // Cached doctrine prefix (shared with synthesis and every other desk);
+          // only the ticker identity + triage doctrine vary.
+          system: [
+            { text: DESK_DOCTRINE, cache: true },
+            { text: `${deskIdentity(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}` },
+          ],
+          messages: [
             {
-              label: "Focus-question sweep",
-              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+              role: "user",
+              content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n${questionsBlock}\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: focus questions the sweeps left open or half-answered, signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
             },
-          ]
-        : []),
-      ...bundles.map((b, i) => ({
-        label: `Signal sweep ${i + 1}: ${b.map((s) => s.name).join(", ")}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, b) + questionSteer,
-      })),
-      { label: "Broad company sweep", prompt: broadSweepPrompt(symbol, ticker.name, days) + questionSteer },
-      { label: "Primary-source sweep", prompt: primarySourcePrompt(symbol, ticker.name, days) + questionSteer },
-      { label: "Culture & scuttlebutt sweep", prompt: scuttlebuttPrompt(symbol, ticker.name, days) + questionSteer },
-    ];
-    const waveOneSettled = await Promise.allSettled(
-      waveOneJobs.map((j) =>
-        withDeadline(`sweep:${j.label}`, (signal) =>
-          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal })
-        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
-      )
+          ],
+          schema: GAP_SCHEMA as unknown as Record<string, unknown>,
+          maxTokens: 4000,
+          effort: "medium",
+          meta: { userId, feature: "triage" },
+        }),
+      stageBudgetMs(phaseStart)
     );
-    const sweeps: Sweep[] = waveOneSettled
-      .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
-      .map((s) => s.value);
-    if (sweeps.length === 0) {
-      const firstErr = waveOneSettled.find(
-        (s) => s.status === "rejected"
-      ) as PromiseRejectedResult;
-      throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
-    }
+    followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_FOLLOW_UPS);
+  } catch (e) {
+    console.error(`[scalae] gap analysis timed out or failed (continuing without wave 2):`, e);
+  }
 
-    // ---- Stage 2: the analyst triages wave 1 and commissions deep dives ----
-    await throwIfStopped(runId);
+  // ---- Stage 3: wave-2 deep dives on the stronger scout model ----
+  if (followUps.length > 0) {
     await setRunStage(
       runId,
       "probing",
-      `Analyst (${triageModel}) triaging the field research for gaps worth a deep dive…`
+      `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"}: ${followUps.map((f) => `“${f.query.slice(0, 80)}${f.query.length > 80 ? "…" : ""}”`).join(" · ")}`
     );
-
-    let followUps: GapOutput["followUps"] = [];
-    try {
-      const waveOneBlock = sweeps
-        .map((s) => `=== ${s.label} ===\n${s.text}`)
-        .join("\n\n");
-      const gap = await withDeadline("triage", (signal) => claudeJSON<GapOutput>({
-        model: triageModel,
-        signal,
-        // Cached doctrine prefix (shared with synthesis and every other desk);
-        // only the ticker identity + triage doctrine vary.
-        system: [
-          { text: DESK_DOCTRINE, cache: true },
-          { text: `${deskIdentity(symbol, ticker.name)}\n\n${SYNTHESIS_DOCTRINE}` },
-        ],
-        messages: [
-          {
-            role: "user",
-            content: `ACTIVE SIGNAL BOARD:\n${boardBlock}\n${questionsBlock}\nFIELD RESEARCH — WAVE 1 (breadth sweeps):\n${waveOneBlock}\n\nTASK: Before final synthesis, decide which threads deserve a targeted deep-dive probe by a research scout. Commission at most ${MAX_FOLLOW_UPS} follow-ups, only where it changes today's readings: focus questions the sweeps left open or half-answered, signals whose evidence is thin or missing, numbers that conflict between sources, red flags mentioned once that need verification against primary sources, or a major development whose business-model/culture implications the sweeps left shallow. Invert first (Munger): give priority to probes that could REFUTE the board's current levels or verify a kill-risk symptom — a probe that can only re-confirm what the desk already believes is usually not worth commissioning. Each query must be a concrete, searchable question. Return an empty list if wave 1 already covers the board — do not invent work.`,
-          },
-        ],
-        schema: GAP_SCHEMA as unknown as Record<string, unknown>,
-        maxTokens: 4000,
-        effort: "medium",
-        meta: { userId, feature: "triage" },
-      }));
-      followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_FOLLOW_UPS);
-    } catch (e) {
-      console.error(`[scalae] gap analysis timed out or failed (continuing without wave 2):`, e);
-    }
-
-    // ---- Stage 3: wave-2 deep dives on the stronger scout model ----
-    if (followUps.length > 0) {
-      await setRunStage(
-        runId,
-        "probing",
-        `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"}: ${followUps.map((f) => `“${f.query.slice(0, 80)}${f.query.length > 80 ? "…" : ""}”`).join(" · ")}`
-      );
-      const waveTwoSettled = await Promise.allSettled(
-        followUps.map((f) =>
-          withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal) =>
-            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
-              model: deepModel,
-              meta: { userId, feature: "scoutDeep" },
-              signal,
-            })
-          ).then(
-            (r): Sweep => ({
-              label: `Deep dive: ${f.query}`,
-              wave: 2,
-              text: r.text,
-              sources: r.sources,
-            })
-          )
-        )
-      );
-      for (const s of waveTwoSettled) {
-        if (s.status === "fulfilled") sweeps.push(s.value);
-      }
-    }
-
-    // Number the de-duplicated sources across all sweeps so the analyst cites
-    // by index — and record which sweep(s) surfaced each source (provenance).
-    const allSources: Citation[] = [];
-    const indexOf = new Map<string, number>();
-    for (const s of sweeps) {
-      for (const src of s.sources) {
-        const existing = indexOf.get(src.url);
-        if (existing == null) {
-          indexOf.set(src.url, allSources.length);
-          allSources.push(withDomain({ ...src, foundBy: [s.label] }));
-        } else {
-          const foundBy = allSources[existing].foundBy;
-          if (foundBy && !foundBy.includes(s.label)) foundBy.push(s.label);
-        }
-      }
-    }
-
-    await throwIfStopped(runId);
-    await setRunStage(
-      runId,
-      "synthesizing",
-      `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into the signal board…`
+    sweeps.push(
+      ...(await runWaveTwo(followUps, symbol, ticker.name, deepModel, userId, stageBudgetMs(phaseStart)))
     );
+  }
 
-    const quote = await getQuote(symbol).catch(() => null);
-    // focusAreas, guidance and the due-diligence block were gathered before
-    // the question stage (stage 0) and are reused here unchanged.
-    const researchBlock = sweeps
-      .map(
-        (s) =>
-          `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
-            s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
-          }`
-      )
-      .join("\n\n");
+  return { ...state, sweeps };
+}
 
-    const sourceList = allSources
-      .map((s, i) => `[${i}] ${s.title} — ${s.url}`)
-      .join("\n");
-    // Full non-duplication context: pending + previously rejected/retired signals.
-    const [pendingSignals, dismissedSignals, retiredSignals] = await Promise.all([
-      listSignals(userId, symbol, "suggested"),
-      listSignals(userId, symbol, "dismissed"),
-      listSignals(userId, symbol, "retired"),
-    ]);
-    const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
-    const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
+/** Phase 3 — stage 4 (deep synthesis) and the recording of its output; the run completes here. */
+async function boardSynthesize({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, keyed, byKey, boardBlock, focusAreas, guidance, ddBlock, ctxBlock, benchBlock } =
+    await boardDesk(state);
+  const signals = keyed.map((k) => k.signal);
+  const synthModel = await synthesisModelFor(state);
+  const questions = state.questions ?? [];
+  const sweeps: Sweep[] = state.sweeps ?? [];
+  const days = state.days ?? 7;
+  const gapDays = state.gapDays ?? null;
+  const questionsBlock = questionsBlockOf(questions);
+  const { allSources, indexOf } = numberSources(sweeps);
 
-    // The analyst's existing accumulation topics — synthesis context ONLY
-    // (scouts never see them; searching must stay steered by the questions,
-    // not by what the record already says). Lets the analyst extend a
-    // standing thread (reusing its topic string exactly) instead of minting
-    // a near-duplicate topic per run. Best-effort.
-    const accumTopics = await listAccumulationTopics(userId, symbol).catch(
-      () => [] as { topic: string; insight: string }[]
-    );
-    const accumTopicsBlock = accumTopics.length
-      ? accumTopics
-          .map((t) => `- "${t.topic}" — latest: ${t.insight.length > 220 ? `${t.insight.slice(0, 219)}…` : t.insight}`)
-          .join("\n")
-      : "(none yet)";
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "synthesizing",
+    `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into the signal board…${synthesisRetryNote(state)}`
+  );
 
-    // Coverage honesty (FOUNDATION: missing evidence is said plainly): the
-    // sweep window is capped at 14 days, so a desk idle longer than that has
-    // an unswept stretch the brief must own instead of papering over.
-    const unsweptDays = gapDays !== null && gapDays > days ? gapDays - days : 0;
-    const task = `Today is ${new Date().toDateString()}. ${quoteLine(quote)}
+  const quote = await getQuote(symbol).catch(() => null);
+  const researchBlock = researchBlockOf(sweeps, indexOf);
+
+  const sourceList = allSources
+    .map((s, i) => `[${i}] ${s.title} — ${s.url}`)
+    .join("\n");
+  // Full non-duplication context: pending + previously rejected/retired signals.
+  const [pendingSignals, dismissedSignals, retiredSignals] = await Promise.all([
+    listSignals(userId, symbol, "suggested"),
+    listSignals(userId, symbol, "dismissed"),
+    listSignals(userId, symbol, "retired"),
+  ]);
+  const pendingNames = pendingSignals.map((s) => `"${s.name}"`);
+  const rejectedNames = [...dismissedSignals, ...retiredSignals].map((s) => `"${s.name}"`);
+
+  // The analyst's existing accumulation topics — synthesis context ONLY
+  // (scouts never see them; searching must stay steered by the questions,
+  // not by what the record already says). Lets the analyst extend a
+  // standing thread (reusing its topic string exactly) instead of minting
+  // a near-duplicate topic per run. Best-effort.
+  const accumTopics = await listAccumulationTopics(userId, symbol).catch(
+    () => [] as { topic: string; insight: string }[]
+  );
+  const accumTopicsBlock = accumTopics.length
+    ? accumTopics
+        .map((t) => `- "${t.topic}" — latest: ${t.insight.length > 220 ? `${t.insight.slice(0, 219)}…` : t.insight}`)
+        .join("\n")
+    : "(none yet)";
+
+  // Coverage honesty (FOUNDATION: missing evidence is said plainly): the
+  // sweep window is capped at 14 days, so a desk idle longer than that has
+  // an unswept stretch the brief must own instead of papering over.
+  const unsweptDays = gapDays !== null && gapDays > days ? gapDays - days : 0;
+  const task = `Today is ${new Date().toDateString()}. ${quoteLine(quote)}
 ${
   unsweptDays > 0
     ? `\nCOVERAGE HONESTY: the desk's last completed run was ~${gapDays} days ago, but today's sweeps read only the last ${days} days — roughly ${unsweptDays} days in between went UNRESEARCHED. The brief MUST state this plainly in one line (name the unswept span); never present today's picture as continuous coverage.\n`
@@ -1037,192 +1366,206 @@ TASK — produce today's desk output:
 
 LANGUAGE: Write EVERY output field in English, even if investor guidance or evidence quotes appear in another language — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
-    // Synthesis is the pipeline's heaviest call and the one that used to hang.
-    // Low effort (see synthesisEffort) keeps it fast, and instead of the flat
-    // per-stage limit it gets the time actually left in the route budget — so
-    // it lands comfortably inside the run rather than being cut off at 110s.
-    // The deadline is still a strict backstop: on timeout the run fails cleanly
-    // (and the cron retries it) rather than the platform killing the function.
-    const synthMs = Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
-    const out = await withDeadline("synthesis", (signal) => claudeJSON<SynthesisOutput>({
-      model: synthModel,
-      signal,
-      // Same cached doctrine prefix as triage → the daily cron re-reads it at
-      // ~0.1× input cost for every desk it sweeps, not once per call.
-      system: [
-        { text: DESK_DOCTRINE, cache: true },
-        {
-          text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${ACCUMULATIONS_DOCTRINE}`,
-        },
-      ],
-      messages: [{ role: "user", content: task }],
-      schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
-      maxTokens: 20000,
-      effort: synthesisEffort(),
-      meta: { userId, feature: "synthesis" },
-    }), synthMs);
+  // Synthesis is the pipeline's heaviest call and the one that used to hang.
+  // Low effort (see synthesisEffort) keeps it fast, and it runs in a phase of
+  // its own, so instead of the flat per-stage limit it gets nearly the whole
+  // invocation budget (minus a reserve for the recording writes below). The
+  // deadline is still a strict backstop: on timeout the run fails cleanly
+  // (and the cron retries it) rather than the platform killing the function.
+  const synthMs = stageBudgetMs(phaseStart, { cap: Infinity, reserve: RECORDING_RESERVE_MS });
+  const out = await withDeadline(
+    "synthesis",
+    (signal) =>
+      claudeJSON<SynthesisOutput>({
+        model: synthModel,
+        signal,
+        // Same cached doctrine prefix as triage → the daily cron re-reads it at
+        // ~0.1× input cost for every desk it sweeps, not once per call.
+        system: [
+          { text: DESK_DOCTRINE, cache: true },
+          {
+            text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${EXPERT_LOOP_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${ACCUMULATIONS_DOCTRINE}`,
+          },
+        ],
+        messages: [{ role: "user", content: task }],
+        schema: SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
+        maxTokens: 20000,
+        effort: synthesisEffort(),
+        meta: { userId, feature: "synthesis" },
+      }),
+    synthMs
+  );
 
-    // Last checkpoint before we write: a run stopped during synthesis must not
-    // record stale readings over whatever fresh run the investor started.
-    await throwIfStopped(runId);
-    await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");
+  // Last checkpoint before we write: a run stopped during synthesis must not
+  // record stale readings over whatever fresh run the investor started.
+  await throwIfStopped(runId);
+  await setRunStage(runId, "recording", "Recording readings, digest and new signal proposals…");
 
-    const date = new Date().toISOString();
-    for (const r of out.readings ?? []) {
-      const signal = byKey.get((r.signalKey ?? "").toUpperCase().trim());
-      if (!signal) continue;
-      const citations = (r.citationIndexes ?? [])
-        .filter((i) => i >= 0 && i < allSources.length)
-        .map((i) => allSources[i]);
-      // Evidence discipline (FOUNDATION): movement must carry its evidence
-      // map. A "new evidence" reading whose cited indexes all failed
-      // validation may not present itself as evidenced — halve confidence
-      // and say so plainly in the stored (canonical-English) rationale.
-      const unevidenced = r.newEvidence === true && citations.length === 0;
-      await insertReading({
-        signalId: signal.id,
-        runId,
-        date,
-        value: typeof r.value === "number" ? r.value : null,
-        valueUnit: r.valueUnit ?? null,
-        level: r.level ?? "unclear",
-        delta: r.delta ?? "flat",
-        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
-        rationale: unevidenced
-          ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
-          : (r.rationale ?? ""),
-        newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
-        citations,
-      });
-    }
+  const date = new Date().toISOString();
+  for (const r of out.readings ?? []) {
+    const signal = byKey.get((r.signalKey ?? "").toUpperCase().trim());
+    if (!signal) continue;
+    const citations = citationsOf(r.citationIndexes, allSources);
+    // Evidence discipline (FOUNDATION): movement must carry its evidence
+    // map. A "new evidence" reading whose cited indexes all failed
+    // validation may not present itself as evidenced — halve confidence
+    // and say so plainly in the stored (canonical-English) rationale.
+    const unevidenced = r.newEvidence === true && citations.length === 0;
+    await insertReading({
+      signalId: signal.id,
+      runId,
+      date,
+      value: typeof r.value === "number" ? r.value : null,
+      valueUnit: r.valueUnit ?? null,
+      level: r.level ?? "unclear",
+      delta: r.delta ?? "flat",
+      confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
+      rationale: unevidenced
+        ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
+        : (r.rationale ?? ""),
+      newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
+      citations,
+    });
+  }
 
-    for (const d of out.digestItems ?? []) {
-      const src =
-        d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
-          ? allSources[d.sourceIndex]
-          : null;
-      await insertDigestItem(userId, {
-        symbol,
-        runId,
-        date,
-        headline: d.headline,
-        summary: d.summary,
-        url: src?.url ?? null,
-        source: src?.title ?? null,
-        impact: d.impact ?? "neutral",
-        signalNames: d.signalNames ?? [],
-        sourceClass:
-          src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
-            ? d.sourceClass
-            : null,
-        sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
-      });
-    }
+  for (const d of out.digestItems ?? []) {
+    const src =
+      d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
+        ? allSources[d.sourceIndex]
+        : null;
+    await insertDigestItem(userId, {
+      symbol,
+      runId,
+      date,
+      headline: d.headline,
+      summary: d.summary,
+      url: src?.url ?? null,
+      source: src?.title ?? null,
+      impact: d.impact ?? "neutral",
+      signalNames: d.signalNames ?? [],
+      sourceClass:
+        src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
+          ? d.sourceClass
+          : null,
+      sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
+    });
+  }
 
-    for (const p of (out.proposals ?? []).slice(0, 3)) {
-      if (p.name?.trim()) await insertProposal(userId, symbol, p, "research");
-    }
+  for (const p of (out.proposals ?? []).slice(0, 3)) {
+    if (p.name?.trim()) await insertProposal(userId, symbol, p, "research");
+  }
 
-    // Record the run's accumulations — durable, topic-keyed insights for the
-    // 10-year owner question. Citations resolve exactly like readings do
-    // (indexes into the run's numbered source list; out-of-range dropped).
-    for (const a of (out.accumulations ?? []).slice(0, 4)) {
-      const topic = (a.topic ?? "").trim();
-      const insight = (a.insight ?? "").trim();
-      if (!topic || !insight) continue;
-      const citations = (a.citationIndexes ?? [])
-        .filter((i) => i >= 0 && i < allSources.length)
-        .map((i) => allSources[i]);
-      await insertAccumulation(userId, {
-        symbol,
-        runId,
-        topic,
-        insight,
-        citations,
-        signalNames: (a.signalNames ?? []).filter((n) => n?.trim()),
-      }).catch((e) =>
-        console.error(
-          `[scalae] accumulation insert (${symbol}) failed:`,
-          e instanceof Error ? e.message : e
-        )
-      );
-    }
-
-    // Resolve the dossier's {{Sk}} signal markers to durable signal ids
-    // ([[sig:<id>]]) so the UI can link claims to signals even after the
-    // board's key numbering changes; unresolvable keys drop silently.
-    const dossier = (out.dossier?.trim() || null)?.replace(
-      /\{\{\s*(S\d+)\s*\}\}/gi,
-      (_m, key: string) => {
-        const sig = byKey.get(key.toUpperCase());
-        return sig ? `[[sig:${sig.id}]]` : "";
-      }
-    );
-    // Mark the run complete NOW — its core output (readings, digest, brief,
-    // dossier) is done. Deep-history backfill below is trailing enrichment; it
-    // must never delay the run's completion or, if it hangs, block finishRun.
-    const questionAnswers = (out.questionAnswers ?? [])
-      .slice(0, questions.length)
-      .map((a) => ({
-        answer: (a.answer ?? "").trim(),
-        incorporated: (a.incorporated ?? "").trim(),
-      }))
-      .filter((a) => a.answer);
-    await finishRun(runId, out.brief ?? "", allSources, dossier ?? null, questionAnswers);
-    await touchLastRun(userId, symbol);
-    // Adaptive cadence: a run that surfaced no new evidence for any signal means
-    // this desk is dormant — let the cron sweep it less often (lib/cadence.ts).
-    // Any new evidence resets the counter and snaps cadence back to daily.
-    const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
-    await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
-
-    // ---- Refresh the context board (background, best-effort) ----
-    // What did this run answer, and what does the whole ticker's record now
-    // establish? Distilled AFTER the run is finished, read by the NEXT one —
-    // answered questions stay answered instead of being re-asked.
-    await refreshDeskContext(userId, symbol, runId, {
-      questions: questions.map((q) => q.question),
-      brief: out.brief ?? "",
+  // Record the run's accumulations — durable, topic-keyed insights for the
+  // 10-year owner question. Citations resolve exactly like readings do
+  // (indexes into the run's numbered source list; out-of-range dropped).
+  for (const a of (out.accumulations ?? []).slice(0, 4)) {
+    const topic = (a.topic ?? "").trim();
+    const insight = (a.insight ?? "").trim();
+    if (!topic || !insight) continue;
+    await insertAccumulation(userId, {
+      symbol,
+      runId,
+      topic,
+      insight,
+      citations: citationsOf(a.citationIndexes, allSources),
+      signalNames: (a.signalNames ?? []).filter((n) => n?.trim()),
     }).catch((e) =>
       console.error(
-        `[scalae] context board refresh (${symbol}) failed:`,
+        `[scalae] accumulation insert (${symbol}) failed:`,
         e instanceof Error ? e.message : e
       )
     );
-
-    // ---- Backfill deep-history backstories (bounded: 2 per run, best-effort) ----
-    // Every signal should carry its decades-scale base rate; new boards fill in
-    // over a few runs. This runs AFTER the run is finished, and each backstory
-    // is under the strict per-stage deadline, so it can neither hang the run nor
-    // eat the time budget. Failures/timeouts are logged, never fatal.
-    const missingBackstory = signals.filter((s) => !s.backstory).slice(0, 2);
-    for (const s of missingBackstory) {
-      try {
-        // The snapshot is minutes old — don't spend a research call enriching
-        // a signal the investor retired while this run was in flight.
-        if ((await getSignal(s.id))?.status !== "active") continue;
-        await withDeadline(`backstory:${s.name}`, (signal) =>
-          researchSignalBackstory(userId, s.id, signal)
-        );
-      } catch (e) {
-        console.error(
-          `[scalae] backstory for "${s.name}" (${symbol}) timed out or failed:`,
-          e instanceof Error ? e.message : e
-        );
-      }
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    // Investor-initiated stop: the run is already terminal ('stopped') — nothing
-    // to fail, and failRun is guarded to a running row anyway. Exit quietly.
-    if (msg === RUN_STOPPED) {
-      console.log(`[scalae] run ${runId} (${symbol}) stopped by the investor.`);
-      return;
-    }
-    console.error(`[scalae] run ${runId} (${symbol}) failed:`, msg);
-    await failRun(runId, msg).catch(() => {});
   }
+
+  // Resolve the dossier's {{Sk}} signal markers to durable signal ids
+  // ([[sig:<id>]]) so the UI can link claims to signals even after the
+  // board's key numbering changes; unresolvable keys drop silently.
+  const dossier = (out.dossier?.trim() || null)?.replace(
+    /\{\{\s*(S\d+)\s*\}\}/gi,
+    (_m, key: string) => {
+      const sig = byKey.get(key.toUpperCase());
+      return sig ? `[[sig:${sig.id}]]` : "";
+    }
+  );
+  // Mark the run complete NOW — its core output (readings, digest, brief,
+  // dossier) is done. The context-board refresh and deep-history backfill
+  // are trailing enrichment in the next phase; they must never delay the
+  // run's completion or, if they hang, block finishRun.
+  const questionAnswers = (out.questionAnswers ?? [])
+    .slice(0, questions.length)
+    .map((a) => ({
+      answer: (a.answer ?? "").trim(),
+      incorporated: (a.incorporated ?? "").trim(),
+    }))
+    .filter((a) => a.answer);
+  await finishRun(runId, out.brief ?? "", allSources, dossier ?? null, questionAnswers);
+  await touchLastRun(userId, symbol);
+  // Adaptive cadence: a run that surfaced no new evidence for any signal means
+  // this desk is dormant — let the cron sweep it less often (lib/cadence.ts).
+  // Any new evidence resets the counter and snaps cadence back to daily.
+  const hadNewEvidence = (out.readings ?? []).some((r) => r.newEvidence === true);
+  await bumpQuietRuns(userId, symbol, hadNewEvidence).catch(() => {});
+
+  return { ...state, signalIds: signals.map((s) => s.id), brief: out.brief ?? "" };
 }
+
+/** Phase 4 — trailing, best-effort enrichment after the run is already complete. */
+async function boardEnrich({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const questions = state.questions ?? [];
+
+  // ---- Refresh the context board (background, best-effort) ----
+  // What did this run answer, and what does the whole ticker's record now
+  // establish? Distilled AFTER the run is finished, read by the NEXT one —
+  // answered questions stay answered instead of being re-asked.
+  await refreshDeskContext(
+    userId,
+    symbol,
+    runId,
+    { questions: questions.map((q) => q.question), brief: state.brief ?? "" },
+    stageBudgetMs(phaseStart)
+  ).catch((e) =>
+    console.error(
+      `[scalae] context board refresh (${symbol}) failed:`,
+      e instanceof Error ? e.message : e
+    )
+  );
+
+  // ---- Backfill deep-history backstories (bounded: 2 per run, best-effort) ----
+  // Every signal should carry its decades-scale base rate; new boards fill in
+  // over a few runs. This runs AFTER the run is finished, and each backstory
+  // is under the strict per-stage deadline, so it can neither hang the run nor
+  // eat the time budget. Failures/timeouts are logged, never fatal.
+  const board = (await Promise.all((state.signalIds ?? []).map((id) => getSignal(id)))).filter(
+    (s): s is Signal => !!s
+  );
+  const missingBackstory = board.filter((s) => !s.backstory).slice(0, 2);
+  for (const s of missingBackstory) {
+    try {
+      // The snapshot is minutes old — don't spend a research call enriching
+      // a signal the investor retired while this run was in flight.
+      if ((await getSignal(s.id))?.status !== "active") continue;
+      await withDeadline(
+        `backstory:${s.name}`,
+        (signal) => researchSignalBackstory(userId, s.id, signal),
+        stageBudgetMs(phaseStart)
+      );
+    } catch (e) {
+      console.error(
+        `[scalae] backstory for "${s.name}" (${symbol}) timed out or failed:`,
+        e instanceof Error ? e.message : e
+      );
+    }
+  }
+  return state;
+}
+
+const BOARD_PHASES: Record<RunPhase, PhaseFn> = {
+  sweep: boardSweep,
+  probe: boardProbe,
+  synthesize: boardSynthesize,
+  enrich: boardEnrich,
+};
 
 // ---------------------------------------------------------------------------
 // The single-signal check — the board run's structure, scoped to one signal
@@ -1244,64 +1587,71 @@ async function signalWindowDays(signalId: string): Promise<number> {
   return Math.min(14, Math.max(2, days + 1));
 }
 
-/**
- * Execute a single-signal check created by startSignalRun() — the same
- * stage structure as executeRun, narrowed to one signal's named gap:
- *   0) Question framing scoped to the signal (2-4 questions)
- *   1) Wave-1 sweeps (parallel): focus questions, the signal's own sweep,
- *      and a primary-source hunt steered to its measurement plan
- *   2) Gap triage commissioning at most 2 deep dives
- *   3) Wave-2 deep dives
- *   4) Scoped synthesis: ONE reading + 0-3 digest items + a short note —
- *      no brief, no dossier, and NO new-signal proposals (a check never
- *      expands the board; FOUNDATION's no-sprawl discipline).
- */
-export async function executeSignalRun(
-  userId: string,
-  runId: string,
-  symbol: string,
-  signalId: string
-): Promise<void> {
-  const runStart = Date.now();
+/** Everything the signal-check phases read about the desk, rebuilt at each phase start. */
+interface SignalDesk {
+  ticker: Ticker;
+  signal: Signal;
+  /** The one-signal board block — same shape the full run feeds the analyst. */
+  boardBlock: string;
+  guidance: string;
+  ctxBlock: string;
+}
+
+async function signalDesk(state: RunWorkState): Promise<SignalDesk> {
+  const { userId, symbol, signalId } = state;
+  const ticker = await getTicker(userId, symbol);
+  if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
+  const signal = signalId ? await getSignal(signalId) : undefined;
+  if (!signal || signal.symbol !== symbol || (signal.userId && signal.userId !== userId)) {
+    throw new Error("Unknown signal for this desk.");
+  }
+  if (signal.status !== "active") throw new Error("Only active signals can be checked.");
+
+  const prev = (await readingsForSignal(signal.id, 1))[0];
+  const prevLine = prev
+    ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
+    : " No previous reading.";
+  const historyLine = signal.backstoryBrief ? ` History base rate: ${signal.backstoryBrief}` : "";
+  const boardBlock = `- [S1] "${signal.name}" (${signal.type}, focus: ${signal.focusArea}). Plan: ${signal.measurementPlan} Scale: ${signal.scale}.${prevLine}${historyLine}`;
+
+  const [guidance, ctxBlock] = await Promise.all([
+    investorGuidance(userId, symbol),
+    contextBoardBlock(userId, symbol),
+  ]);
+  return { ticker, signal, boardBlock, guidance, ctxBlock };
+}
+
+/** The check's focus questions as the prompt block its triage and synthesis read. */
+function checkQuestionsBlockOf(questions: RunQuestion[]): string {
+  return questions.length
+    ? `\nTHIS CHECK'S FOCUS QUESTIONS (framed before the sweeps):\n${questions
+        .map((q, i) => `Q${i + 1}. ${q.question} — ${q.why}`)
+        .join("\n")}\n`
+    : "";
+}
+
+/** Phase 1 — scoped question framing and the wave-1 sweeps. */
+async function signalSweep({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, signal, boardBlock, guidance, ctxBlock } = await signalDesk(state);
+  const [breadthModel, triageModel] = await Promise.all([
+    resolveModel("scoutBreadth"),
+    resolveModel("triage"),
+  ]);
+  const days = await signalWindowDays(signal.id);
+
+  // ---- Stage 0: frame what THIS check must answer (scoped questions) ----
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "questions",
+    `Question suggestor (${triageModel}) framing what this check of “${signal.name}” must answer…`
+  );
+  let questions: RunQuestion[] = [];
   try {
-    const ticker = await getTicker(userId, symbol);
-    if (!ticker) throw new Error(`Unknown ticker ${symbol}`);
-    const signal = await getSignal(signalId);
-    if (!signal || signal.symbol !== symbol || (signal.userId && signal.userId !== userId)) {
-      throw new Error("Unknown signal for this desk.");
-    }
-    if (signal.status !== "active") throw new Error("Only active signals can be checked.");
-
-    const [breadthModel, deepModel, triageModel, synthModel] = await Promise.all([
-      resolveModel("scoutBreadth"),
-      resolveModel("scoutDeep"),
-      resolveModel("triage"),
-      resolveModel("synthesis"),
-    ]);
-
-    const days = await signalWindowDays(signalId);
-
-    // The one-signal board block — same shape the full run feeds the analyst.
-    const prev = (await readingsForSignal(signalId, 1))[0];
-    const prevLine = prev
-      ? ` Previous reading (${prev.date.slice(0, 10)}): level=${prev.level}${prev.value != null ? `, value=${prev.value} ${prev.valueUnit ?? ""}` : ""}, confidence=${prev.confidence} — ${prev.rationale}`
-      : " No previous reading.";
-    const historyLine = signal.backstoryBrief ? ` History base rate: ${signal.backstoryBrief}` : "";
-    const boardBlock = `- [S1] "${signal.name}" (${signal.type}, focus: ${signal.focusArea}). Plan: ${signal.measurementPlan} Scale: ${signal.scale}.${prevLine}${historyLine}`;
-
-    const guidance = await investorGuidance(userId, symbol);
-    const ctxBlock = await contextBoardBlock(userId, symbol);
-
-    // ---- Stage 0: frame what THIS check must answer (scoped questions) ----
-    await throwIfStopped(runId);
-    await setRunStage(
-      runId,
+    const framed = await withDeadline(
       "questions",
-      `Question suggestor (${triageModel}) framing what this check of “${signal.name}” must answer…`
-    );
-    let questions: { question: string; why: string }[] = [];
-    try {
-      const framed = await withDeadline("questions", (signal_) =>
+      (signal_) =>
         claudeJSON<QuestionsOutput>({
           model: triageModel,
           signal: signal_,
@@ -1327,77 +1677,74 @@ ${ctxBlock ? `${ctxBlock}\n` : ""}TASK: This is a SINGLE-SIGNAL check, not a boa
           maxTokens: 1500,
           effort: "low",
           meta: { userId, feature: "questions" },
-        })
-      );
-      questions = (framed.questions ?? [])
-        .filter((q) => q.question?.trim())
-        .slice(0, 4)
-        .map((q) => ({ question: q.question.trim(), why: q.why ?? "" }));
-      if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
-    } catch (e) {
-      console.error(
-        `[scalae] signal-check question framing failed (continuing without):`,
-        e instanceof Error ? e.message : e
-      );
-    }
-    const questionsBlock = questions.length
-      ? `\nTHIS CHECK'S FOCUS QUESTIONS (framed before the sweeps):\n${questions
-          .map((q, i) => `Q${i + 1}. ${q.question} — ${q.why}`)
-          .join("\n")}\n`
-      : "";
+        }),
+      stageBudgetMs(phaseStart)
+    );
+    questions = (framed.questions ?? [])
+      .filter((q) => q.question?.trim())
+      .slice(0, 4)
+      .map((q) => ({ question: q.question.trim(), why: q.why ?? "", signalKeys: ["S1"] }));
+    if (questions.length > 0) await setRunQuestions(runId, questions.map((q) => q.question));
+  } catch (e) {
+    console.error(
+      `[scalae] signal-check question framing failed (continuing without):`,
+      e instanceof Error ? e.message : e
+    );
+  }
 
-    // ---- Stage 1: wave-1 sweeps, scoped to the signal ----
-    await throwIfStopped(runId);
-    const signalSteer = `\n\nSCOPE: This check serves ONE tracked signal: "${signal.name}" — ${signal.measurementPlan} Prioritize evidence bearing on it; ignore unrelated company news.`;
-    await setRunStage(
-      runId,
-      "sweeping",
-      `Scouts (${breadthModel}) sweeping the open web for “${signal.name}” — ${questions.length > 0 ? "focus questions, " : ""}the signal's sweep and a primary-source hunt (${days}-day window)…`
-    );
-    const waveOneJobs: { label: string; prompt: string }[] = [
-      ...(questions.length > 0
-        ? [
-            {
-              label: "Focus-question sweep",
-              prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
-            },
-          ]
-        : []),
-      {
-        label: `Signal sweep: ${signal.name}`,
-        prompt: signalSweepPrompt(symbol, ticker.name, days, [signal]),
-      },
-      {
-        label: "Primary-source sweep",
-        prompt: primarySourcePrompt(symbol, ticker.name, days) + signalSteer,
-      },
-    ];
-    const waveOneSettled = await Promise.allSettled(
-      waveOneJobs.map((j) =>
-        withDeadline(`sweep:${j.label}`, (signal_) =>
-          geminiGroundedSearch(j.prompt, { model: breadthModel, meta: { userId, feature: "scoutBreadth" }, signal: signal_ })
-        ).then((r): Sweep => ({ label: j.label, wave: 1, text: r.text, sources: r.sources }))
-      )
-    );
-    const sweeps: Sweep[] = waveOneSettled
-      .filter((s): s is PromiseFulfilledResult<Sweep> => s.status === "fulfilled")
-      .map((s) => s.value);
-    if (sweeps.length === 0) {
-      const firstErr = waveOneSettled.find((s) => s.status === "rejected") as PromiseRejectedResult;
-      throw new Error(`All research sweeps failed: ${firstErr?.reason?.message ?? "unknown"}`);
-    }
+  // ---- Stage 1: wave-1 sweeps, scoped to the signal ----
+  await throwIfStopped(runId);
+  const signalSteer = `\n\nSCOPE: This check serves ONE tracked signal: "${signal.name}" — ${signal.measurementPlan} Prioritize evidence bearing on it; ignore unrelated company news.`;
+  await setRunStage(
+    runId,
+    "sweeping",
+    `Scouts (${breadthModel}) sweeping the open web for “${signal.name}” — ${questions.length > 0 ? "focus questions, " : ""}the signal's sweep and a primary-source hunt (${days}-day window)…`
+  );
+  const waveOneJobs: { label: string; prompt: string }[] = [
+    ...(questions.length > 0
+      ? [
+          {
+            label: "Focus-question sweep",
+            prompt: questionSweepPrompt(symbol, ticker.name, days, questions),
+          },
+        ]
+      : []),
+    {
+      label: `Signal sweep: ${signal.name}`,
+      prompt: signalSweepPrompt(symbol, ticker.name, days, [signal]),
+    },
+    {
+      label: "Primary-source sweep",
+      prompt: primarySourcePrompt(symbol, ticker.name, days) + signalSteer,
+    },
+  ];
+  const sweeps = await runWaveOne(waveOneJobs, breadthModel, userId, stageBudgetMs(phaseStart));
 
-    // ---- Stage 2: triage for gaps worth a deep dive (at most 2) ----
-    await throwIfStopped(runId);
-    await setRunStage(
-      runId,
-      "probing",
-      `Analyst (${triageModel}) triaging the field research on “${signal.name}” for gaps worth a deep dive…`
-    );
-    let followUps: GapOutput["followUps"] = [];
-    try {
-      const waveOneBlock = sweeps.map((s) => `=== ${s.label} ===\n${s.text}`).join("\n\n");
-      const gap = await withDeadline("triage", (signal_) =>
+  return { ...state, days, questions, sweeps };
+}
+
+/** Phase 2 — triage for gaps worth a deep dive (at most 2), then the deep dives. */
+async function signalProbe({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, signal, boardBlock } = await signalDesk(state);
+  const [deepModel, triageModel] = await Promise.all([resolveModel("scoutDeep"), resolveModel("triage")]);
+  const questions = state.questions ?? [];
+  const sweeps: Sweep[] = [...(state.sweeps ?? [])];
+  const questionsBlock = checkQuestionsBlockOf(questions);
+
+  // ---- Stage 2: triage for gaps worth a deep dive (at most 2) ----
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "probing",
+    `Analyst (${triageModel}) triaging the field research on “${signal.name}” for gaps worth a deep dive…`
+  );
+  let followUps: GapOutput["followUps"] = [];
+  try {
+    const waveOneBlock = sweeps.map((s) => `=== ${s.label} ===\n${s.text}`).join("\n\n");
+    const gap = await withDeadline(
+      "triage",
+      (signal_) =>
         claudeJSON<GapOutput>({
           model: triageModel,
           signal: signal_,
@@ -1415,72 +1762,50 @@ ${ctxBlock ? `${ctxBlock}\n` : ""}TASK: This is a SINGLE-SIGNAL check, not a boa
           maxTokens: 2000,
           effort: "medium",
           meta: { userId, feature: "triage" },
-        })
-      );
-      followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_SCOPED_FOLLOW_UPS);
-    } catch (e) {
-      console.error(`[scalae] signal-check triage failed (continuing without wave 2):`, e);
-    }
+        }),
+      stageBudgetMs(phaseStart)
+    );
+    followUps = (gap.followUps ?? []).filter((f) => f.query?.trim()).slice(0, MAX_SCOPED_FOLLOW_UPS);
+  } catch (e) {
+    console.error(`[scalae] signal-check triage failed (continuing without wave 2):`, e);
+  }
 
-    // ---- Stage 3: wave-2 deep dives ----
-    if (followUps.length > 0) {
-      await setRunStage(
-        runId,
-        "probing",
-        `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"} on “${signal.name}”…`
-      );
-      const waveTwoSettled = await Promise.allSettled(
-        followUps.map((f) =>
-          withDeadline(`deepdive:${f.query.slice(0, 40)}`, (signal_) =>
-            geminiGroundedSearch(followUpPrompt(symbol, ticker.name, f), {
-              model: deepModel,
-              meta: { userId, feature: "scoutDeep" },
-              signal: signal_,
-            })
-          ).then(
-            (r): Sweep => ({ label: `Deep dive: ${f.query}`, wave: 2, text: r.text, sources: r.sources })
-          )
-        )
-      );
-      for (const s of waveTwoSettled) {
-        if (s.status === "fulfilled") sweeps.push(s.value);
-      }
-    }
-
-    // Number the de-duplicated sources across sweeps (same as the board run).
-    const allSources: Citation[] = [];
-    const indexOf = new Map<string, number>();
-    for (const s of sweeps) {
-      for (const src of s.sources) {
-        const existing = indexOf.get(src.url);
-        if (existing == null) {
-          indexOf.set(src.url, allSources.length);
-          allSources.push(withDomain({ ...src, foundBy: [s.label] }));
-        } else {
-          const foundBy = allSources[existing].foundBy;
-          if (foundBy && !foundBy.includes(s.label)) foundBy.push(s.label);
-        }
-      }
-    }
-
-    // ---- Stage 4: scoped synthesis — one reading, a few digest items, a note ----
-    await throwIfStopped(runId);
+  // ---- Stage 3: wave-2 deep dives ----
+  if (followUps.length > 0) {
     await setRunStage(
       runId,
-      "synthesizing",
-      `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into a fresh reading of “${signal.name}”…`
+      "probing",
+      `Deep-dive scouts (${deepModel}) probing ${followUps.length} commissioned ${followUps.length === 1 ? "question" : "questions"} on “${signal.name}”…`
     );
-    const researchBlock = sweeps
-      .map(
-        (s) =>
-          `=== [Wave ${s.wave}${s.wave === 2 ? " deep dive" : ""}] ${s.label} ===\n${s.text}\nSources used by this sweep: ${
-            s.sources.map((src) => `[${indexOf.get(src.url)}] ${src.title}`).join(", ") || "(none)"
-          }`
-      )
-      .join("\n\n");
-    const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
+    sweeps.push(
+      ...(await runWaveTwo(followUps, symbol, ticker.name, deepModel, userId, stageBudgetMs(phaseStart)))
+    );
+  }
 
-    const task = `Today is ${new Date().toDateString()}.
+  return { ...state, sweeps };
+}
+
+/** Phase 3 — scoped synthesis: one reading, a few digest items, a note; the check completes here. */
+async function signalSynthesize({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol } = state;
+  const { ticker, signal, boardBlock, guidance, ctxBlock } = await signalDesk(state);
+  const synthModel = await synthesisModelFor(state);
+  const questions = state.questions ?? [];
+  const sweeps: Sweep[] = state.sweeps ?? [];
+  const questionsBlock = checkQuestionsBlockOf(questions);
+  const { allSources, indexOf } = numberSources(sweeps);
+
+  // ---- Stage 4: scoped synthesis — one reading, a few digest items, a note ----
+  await throwIfStopped(runId);
+  await setRunStage(
+    runId,
+    "synthesizing",
+    `Analyst (${synthModel}) weighing ${sweeps.length} sweeps and ${allSources.length} sources into a fresh reading of “${signal.name}”…${synthesisRetryNote(state)}`
+  );
+  const researchBlock = researchBlockOf(sweeps, indexOf);
+  const sourceList = allSources.map((s, i) => `[${i}] ${s.title} — ${s.url}`).join("\n");
+
+  const task = `Today is ${new Date().toDateString()}.
 
 THE ONE SIGNAL THIS CHECK COVERS (with its previous reading):
 ${boardBlock}
@@ -1498,121 +1823,132 @@ TASK — produce this check's output per the single-signal-check doctrine: exact
 
 LANGUAGE: Write EVERY output field in English — the desk's stored record is canonical English, and the app translates it into the investor's display language automatically.`;
 
-    const synthMs = Math.max(0, ROUTE_BUDGET_MS - (Date.now() - runStart) - RECORDING_RESERVE_MS);
-    const out = await withDeadline(
-      "synthesis",
-      (signal_) =>
-        claudeJSON<SignalCheckOutput>({
-          model: synthModel,
-          signal: signal_,
-          system: [
-            { text: DESK_DOCTRINE, cache: true },
-            {
-              text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
-            },
-          ],
-          messages: [{ role: "user", content: task }],
-          schema: SIGNAL_CHECK_SCHEMA as unknown as Record<string, unknown>,
-          maxTokens: 6000,
-          effort: synthesisEffort(),
-          meta: { userId, feature: "synthesis" },
-        }),
-      synthMs
-    );
+  const synthMs = stageBudgetMs(phaseStart, { cap: Infinity, reserve: RECORDING_RESERVE_MS });
+  const out = await withDeadline(
+    "synthesis",
+    (signal_) =>
+      claudeJSON<SignalCheckOutput>({
+        model: synthModel,
+        signal: signal_,
+        system: [
+          { text: DESK_DOCTRINE, cache: true },
+          {
+            text: `${deskIdentity(symbol, ticker.name)}\n\n${SIGNAL_GUIDANCE}\n\n${SYNTHESIS_DOCTRINE}\n\n${SIGNAL_CHECK_DOCTRINE}`,
+          },
+        ],
+        messages: [{ role: "user", content: task }],
+        schema: SIGNAL_CHECK_SCHEMA as unknown as Record<string, unknown>,
+        maxTokens: 6000,
+        effort: synthesisEffort(),
+        meta: { userId, feature: "synthesis" },
+      }),
+    synthMs
+  );
 
-    await throwIfStopped(runId);
-    await setRunStage(runId, "recording", "Recording the reading and evidence…");
+  await throwIfStopped(runId);
+  await setRunStage(runId, "recording", "Recording the reading and evidence…");
 
-    const date = new Date().toISOString();
-    // Exactly one reading, for the checked signal — stray extras are dropped.
-    const r = (out.readings ?? [])[0];
-    if (r) {
-      const citations = (r.citationIndexes ?? [])
-        .filter((i) => i >= 0 && i < allSources.length)
-        .map((i) => allSources[i]);
-      // Same unevidenced-movement guard as the board run: new evidence with no
-      // surviving citations halves confidence and says so.
-      const unevidenced = r.newEvidence === true && citations.length === 0;
-      await insertReading({
-        signalId,
-        runId,
-        date,
-        value: typeof r.value === "number" ? r.value : null,
-        valueUnit: r.valueUnit ?? null,
-        level: r.level ?? "unclear",
-        delta: r.delta ?? "flat",
-        confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
-        rationale: unevidenced
-          ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
-          : (r.rationale ?? ""),
-        newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
-        citations,
-      });
-    }
-
-    for (const d of (out.digestItems ?? []).slice(0, 3)) {
-      const src =
-        d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
-          ? allSources[d.sourceIndex]
-          : null;
-      await insertDigestItem(userId, {
-        symbol,
-        runId,
-        date,
-        headline: d.headline,
-        summary: d.summary,
-        url: src?.url ?? null,
-        source: src?.title ?? null,
-        impact: d.impact ?? "neutral",
-        signalNames: d.signalNames?.length ? d.signalNames : [signal.name],
-        sourceClass:
-          src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
-            ? d.sourceClass
-            : null,
-        sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
-      });
-    }
-
-    // The note rides the run's brief column; board surfaces never read
-    // signal-scoped runs (latestRun/recentRuns filter them out), so it shows
-    // only where the check is surfaced. No dossier, no proposals, no
-    // lastRunAt stamp — a check is not a desk sweep.
-    await finishRun(runId, out.note ?? "", allSources, null);
-    // Fresh evidence on a named gap snaps the desk out of dormancy backoff;
-    // a quiet check never deepens it (it looked at one signal, not the desk).
-    if (r?.newEvidence === true) await resetQuietRuns(userId, symbol).catch(() => {});
-
-    // A check answers questions too — fold them into the context board.
-    await refreshDeskContext(userId, symbol, runId, {
-      questions: questions.map((q) => q.question),
-      brief: out.note ?? "",
-    }).catch((e) =>
-      console.error(
-        `[scalae] context board refresh (${symbol}) failed:`,
-        e instanceof Error ? e.message : e
-      )
-    );
-
-    // Backfill this signal's deep-history base rate if it's missing.
-    if (!signal.backstory) {
-      try {
-        await withDeadline(`backstory:${signal.name}`, (signal_) =>
-          researchSignalBackstory(userId, signalId, signal_)
-        );
-      } catch (e) {
-        console.error(
-          `[scalae] backstory for "${signal.name}" (${symbol}) timed out or failed:`,
-          e instanceof Error ? e.message : e
-        );
-      }
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg === RUN_STOPPED) {
-      console.log(`[scalae] signal check ${runId} (${symbol}) stopped by the investor.`);
-      return;
-    }
-    console.error(`[scalae] signal check ${runId} (${symbol}) failed:`, msg);
-    await failRun(runId, msg).catch(() => {});
+  const date = new Date().toISOString();
+  // Exactly one reading, for the checked signal — stray extras are dropped.
+  const r = (out.readings ?? [])[0];
+  if (r) {
+    const citations = citationsOf(r.citationIndexes, allSources);
+    // Same unevidenced-movement guard as the board run: new evidence with no
+    // surviving citations halves confidence and says so.
+    const unevidenced = r.newEvidence === true && citations.length === 0;
+    await insertReading({
+      signalId: signal.id,
+      runId,
+      date,
+      value: typeof r.value === "number" ? r.value : null,
+      valueUnit: r.valueUnit ?? null,
+      level: r.level ?? "unclear",
+      delta: r.delta ?? "flat",
+      confidence: Math.max(0, Math.min(1, r.confidence ?? 0.3)) * (unevidenced ? 0.5 : 1),
+      rationale: unevidenced
+        ? `${(r.rationale ?? "").trim()} (The sources behind this run's new evidence could not be verified; confidence reduced.)`.trim()
+        : (r.rationale ?? ""),
+      newEvidence: typeof r.newEvidence === "boolean" ? r.newEvidence : null,
+      citations,
+    });
   }
+
+  for (const d of (out.digestItems ?? []).slice(0, 3)) {
+    const src =
+      d.sourceIndex != null && d.sourceIndex >= 0 && d.sourceIndex < allSources.length
+        ? allSources[d.sourceIndex]
+        : null;
+    await insertDigestItem(userId, {
+      symbol,
+      runId,
+      date,
+      headline: d.headline,
+      summary: d.summary,
+      url: src?.url ?? null,
+      source: src?.title ?? null,
+      impact: d.impact ?? "neutral",
+      signalNames: d.signalNames?.length ? d.signalNames : [signal.name],
+      sourceClass:
+        src && (d.sourceClass === "primary" || d.sourceClass === "trade" || d.sourceClass === "narrative")
+          ? d.sourceClass
+          : null,
+      sourceNote: src && d.sourceNote?.trim() ? d.sourceNote.trim().slice(0, 200) : null,
+    });
+  }
+
+  // The note rides the run's brief column; board surfaces never read
+  // signal-scoped runs (latestRun/recentRuns filter them out), so it shows
+  // only where the check is surfaced. No dossier, no proposals, no
+  // lastRunAt stamp — a check is not a desk sweep.
+  await finishRun(runId, out.note ?? "", allSources, null);
+  // Fresh evidence on a named gap snaps the desk out of dormancy backoff;
+  // a quiet check never deepens it (it looked at one signal, not the desk).
+  if (r?.newEvidence === true) await resetQuietRuns(userId, symbol).catch(() => {});
+
+  return { ...state, brief: out.note ?? "" };
 }
+
+/** Phase 4 — trailing, best-effort enrichment after the check is already complete. */
+async function signalEnrich({ runId, state, phaseStart }: PhaseContext): Promise<RunWorkState> {
+  const { userId, symbol, signalId } = state;
+  const questions = state.questions ?? [];
+
+  // A check answers questions too — fold them into the context board.
+  await refreshDeskContext(
+    userId,
+    symbol,
+    runId,
+    { questions: questions.map((q) => q.question), brief: state.brief ?? "" },
+    stageBudgetMs(phaseStart)
+  ).catch((e) =>
+    console.error(
+      `[scalae] context board refresh (${symbol}) failed:`,
+      e instanceof Error ? e.message : e
+    )
+  );
+
+  // Backfill this signal's deep-history base rate if it's missing.
+  const signal = signalId ? await getSignal(signalId) : undefined;
+  if (signal && signal.status === "active" && !signal.backstory) {
+    try {
+      await withDeadline(
+        `backstory:${signal.name}`,
+        (signal_) => researchSignalBackstory(userId, signal.id, signal_),
+        stageBudgetMs(phaseStart)
+      );
+    } catch (e) {
+      console.error(
+        `[scalae] backstory for "${signal.name}" (${symbol}) timed out or failed:`,
+        e instanceof Error ? e.message : e
+      );
+    }
+  }
+  return state;
+}
+
+const SIGNAL_PHASES: Record<RunPhase, PhaseFn> = {
+  sweep: signalSweep,
+  probe: signalProbe,
+  synthesize: signalSynthesize,
+  enrich: signalEnrich,
+};
